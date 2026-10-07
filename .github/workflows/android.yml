@@ -2,11 +2,6 @@ name: NRS Android Test APK
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "game/**"
-      - ".github/workflows/android.yml"
 
 jobs:
   build-android:
@@ -31,6 +26,13 @@ jobs:
           large-packages: true
           swap-storage: true
 
+      - name: Check Unity secrets
+        shell: bash
+        run: |
+          test -n "${{ secrets.UNITY_LICENSE }}" || { echo "::error::UNITY_LICENSE GitHub secret is missing."; exit 1; }
+          test -n "${{ secrets.UNITY_EMAIL }}" || { echo "::error::UNITY_EMAIL GitHub secret is missing."; exit 1; }
+          test -n "${{ secrets.UNITY_PASSWORD }}" || { echo "::error::UNITY_PASSWORD GitHub secret is missing."; exit 1; }
+
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
@@ -38,13 +40,6 @@ jobs:
           key: nrs-unity-library-Android-${{ hashFiles('game/Assets/**', 'game/Packages/**', 'game/ProjectSettings/**') }}
           restore-keys: |
             nrs-unity-library-Android-
-
-      - name: Check Unity secrets
-        shell: bash
-        run: |
-          test -n "${{ secrets.UNITY_LICENSE }}" || { echo "::error::UNITY_LICENSE GitHub secret is missing."; exit 1; }
-          test -n "${{ secrets.UNITY_EMAIL }}" || { echo "::error::UNITY_EMAIL GitHub secret is missing."; exit 1; }
-          test -n "${{ secrets.UNITY_PASSWORD }}" || { echo "::error::UNITY_PASSWORD GitHub secret is missing."; exit 1; }
 
       - name: Build Android APK
         uses: game-ci/unity-builder@v4
