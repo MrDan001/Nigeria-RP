@@ -11,7 +11,8 @@
     "build": "npm run build --workspace nigeria-rp-game-server && npm run build --workspace nigeria-rp-web-client",
     "start": "npm run start --workspace nigeria-rp-game-server",
     "typecheck": "npm run typecheck --workspace nigeria-rp-game-server && npm run typecheck --workspace nigeria-rp-web-client",
-    "web:dev": "npm run dev --workspace nigeria-rp-web-client"
+    "web:dev": "npm run dev --workspace nigeria-rp-web-client",
+    "dev": "npm run dev --workspace nigeria-rp-web-client"
   },
   "engines": {
     "node": ">=20.9.0"
