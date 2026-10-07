@@ -33,7 +33,7 @@ type Connected = {
 };
 
 type Interaction = {
-  type: "interaction";
+  type: "interactionResult";
   accepted: boolean;
   message?: string;
 };
@@ -264,7 +264,7 @@ function connect() {
       return;
     }
 
-    if (message.type === "interaction") {
+    if (message.type === "interactionResult") {
       status.textContent = message.message ?? "Interaction request processed by the server.";
     }
   };
