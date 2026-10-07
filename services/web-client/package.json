@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@playcanvas/engine": "^2.23.0"
+    "playcanvas": "^2.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
