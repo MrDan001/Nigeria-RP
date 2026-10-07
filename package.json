@@ -1,15 +1,17 @@
 {
   "name": "nigeria-rp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Nigerian Roleplay Simulator monorepo",
   "workspaces": [
-    "services/game-server"
+    "services/game-server",
+    "services/web-client"
   ],
   "scripts": {
-    "build": "npm run build --workspace nigeria-rp-game-server",
+    "build": "npm run build --workspace nigeria-rp-game-server && npm run build --workspace nigeria-rp-web-client",
     "start": "npm run start --workspace nigeria-rp-game-server",
-    "typecheck": "npm run typecheck --workspace nigeria-rp-game-server"
+    "typecheck": "npm run typecheck --workspace nigeria-rp-game-server && npm run typecheck --workspace nigeria-rp-web-client",
+    "web:dev": "npm run dev --workspace nigeria-rp-web-client"
   },
   "engines": {
     "node": ">=20.9.0"
