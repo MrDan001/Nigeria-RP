@@ -96,7 +96,7 @@ interact.onclick=()=>send({type:"interact"});
 joinButton.onclick=()=>{const n=nameInput.value.trim().slice(0,20)||"Player";nameInput.value=n;send({type:"hello",name:n});status.textContent=`Player name set to ${n}.`};
 
 let lastSend=0;
-app.on("update",dt=>{let f=move.forward,s=move.strafe;if(keys.has("w")||keys.has("arrowup"))f+=1;if(keys.has("s")||keys.has("arrowdown"))f-=1;if(keys.has("d")||keys.has("arrowright"))s+=1;if(keys.has("a")||keys.has("arrowleft"))s-=1;const n=Math.hypot(f,s);if(n>1){f/=n;s/=n}const now=performance.now();if(now-lastSend>=50&&(Math.abs(f)>.01||Math.abs(s)>.01))send({type:"input",input:{sequence:seq++,forward:f,strafe:s}});
+app.on("update",dt=>{let f=move.forward,s=move.strafe;if(keys.has("w")||keys.has("arrowup"))f+=1;if(keys.has("s")||keys.has("arrowdown"))f-=1;if(keys.has("d")||keys.has("arrowright"))s+=1;if(keys.has("a")||keys.has("arrowleft"))s-=1;const n=Math.hypot(f,s);if(n>1){f/=n;s/=n}const now=performance.now();if(now-lastSend>=50&&(Math.abs(f)>.01||Math.abs(s)>.01)){send({type:"input",input:{sequence:seq++,forward:f,strafe:s}});lastSend=now}
 const local=localId?players.get(localId):null;if(local){const p=local.getPosition(),c=camera.getPosition(),t=Math.min(1,dt*5);camera.setPosition(c.x+(p.x-c.x)*t,c.y+(p.y+8-c.y)*t,c.z+(p.z+11-c.z)*t);camera.lookAt(p.x,p.y,p.z)}lastSend=now});
 cameraButton.onclick=()=>{const local=localId?players.get(localId):null;if(local){const p=local.getPosition();camera.setPosition(p.x,p.y+10,p.z+14);camera.lookAt(p.x,p.y,p.z)}};
 addEventListener("resize",()=>app.resizeCanvas());addEventListener("orientationchange",()=>app.resizeCanvas());
