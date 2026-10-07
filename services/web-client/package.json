@@ -1,0 +1,21 @@
+{
+  "name": "nigeria-rp-web-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-native 3D multiplayer client for Nigerian Roleplay Simulator",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@playcanvas/engine": "^2.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  }
+}
