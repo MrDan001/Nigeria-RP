@@ -2,6 +2,8 @@
 
 This is the runtime boundary for the persistent multiplayer simulation.
 
+Railway deploys this service from the repository subdirectory `/services/game-server`. The browser client is deployed separately and is not part of the game-server build.
+
 The game server owns:
 - sessions
 - authoritative player state
