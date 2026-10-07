@@ -1,12 +1,19 @@
 # Nigerian Roleplay Simulator (NRS)
 
-A mobile-first, multiplayer Nigerian roleplay simulator built around a persistent player-driven world.
+A serious, mobile-first, multiplayer Nigerian roleplay simulator built around a persistent player-driven world.
 
-## Project status
+## Current architecture
 
-**Stage 0 — Foundation**
+**NRS is browser-native. Unity is not part of the project.**
 
-This repository is intentionally starting clean. We are establishing the architecture before building gameplay systems.
+- **PlayCanvas Engine + TypeScript** — 3D game client
+- **GitHub** — source control and engineering workflow
+- **Vercel** — web/API/admin layer where appropriate
+- **Railway** — authoritative real-time multiplayer game server
+- **PostgreSQL** — persistent game data
+- **Redis/equivalent** — transient state where justified
+
+The browser client uses WebGL 2 as the broad compatibility path and can use WebGPU on capable devices. The client is designed for Android browsers first and can later be packaged for app stores without introducing Unity.
 
 ## Core rules
 
@@ -17,30 +24,23 @@ This repository is intentionally starting clean. We are establishing the archite
 - Port Harcourt is the first production city.
 - No architectural patching: broken foundations are rebuilt correctly.
 - Every major stage has an approval gate.
+- The client is a presentation/input layer; the game server owns simulation and validation.
 
-## Planned stack
+See docs/MASTER-DOCUMENT.md for the complete product and technical specification.
 
-- Unity — Android game client
-- GitHub — source control and engineering workflow
-- Vercel — web/API/admin layer where appropriate
-- Dedicated real-time game server — authoritative multiplayer simulation
-- PostgreSQL — persistent game data
-- Redis/equivalent — transient state where justified
+## First browser-playable milestone
 
-See `docs/MASTER-DOCUMENT.md` for the complete product and technical specification.
+Five real players on Android/browser devices must be able to:
 
-## First playable milestone
-
-Five real players on low-end Android devices must be able to:
-
-1. connect to a shared test world;
-2. walk and see each other;
-3. interact;
-4. enter and drive one vehicle;
-5. communicate;
-6. start a taxi role;
-7. complete a physical taxi job;
-8. receive server-validated Naira;
-9. disconnect and reconnect with progress intact.
+1. open the NRS web client;
+2. connect to a shared test world;
+3. see and move around with other players;
+4. interact;
+5. enter and drive one vehicle;
+6. communicate;
+7. start a taxi role;
+8. complete a physical taxi job;
+9. receive server-validated Naira;
+10. disconnect and reconnect with progress intact.
 
 Nothing else outranks making this foundation reliable.
