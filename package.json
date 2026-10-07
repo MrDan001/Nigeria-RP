@@ -1,0 +1,17 @@
+{
+  "name": "nigeria-rp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nigerian Roleplay Simulator monorepo",
+  "workspaces": [
+    "services/game-server"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace nigeria-rp-game-server",
+    "start": "npm run start --workspace nigeria-rp-game-server",
+    "typecheck": "npm run typecheck --workspace nigeria-rp-game-server"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

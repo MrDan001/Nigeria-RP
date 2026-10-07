@@ -1,0 +1,24 @@
+{
+  "name": "nigeria-rp-game-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authoritative multiplayer laboratory server for NRS",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0"
+  }
+}
