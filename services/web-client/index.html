@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Nigerian Roleplay Simulator</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game-canvas" aria-label="NRS 3D game world"></canvas>
+      <div id="hud">
+        <div class="topbar">
+          <strong>NRS</strong>
+          <span id="connection">CONNECTING</span>
+        </div>
+        <div id="status">Preparing Port Harcourt test world…</div>
+      </div>
+      <div id="controls" aria-label="Mobile controls">
+        <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
+        <button id="interact" type="button">INTERACT</button>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
