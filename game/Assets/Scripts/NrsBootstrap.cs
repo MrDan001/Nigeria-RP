@@ -5,7 +5,9 @@ public class NrsBootstrap : MonoBehaviour
 {
     public static NrsBootstrap Instance { get; private set; }
 
-    [SerializeField] private string serverUrl = "ws://127.0.0.1:8080";
+    // Production multiplayer endpoint.
+    // The server remains authoritative; Unity sends input and receives snapshots.
+    [SerializeField] private string serverUrl = "wss://nigeria-rp-production.up.railway.app";
 
     private NrsNetworkClient network;
     private NrsWorld world;
