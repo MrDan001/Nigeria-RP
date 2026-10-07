@@ -2,26 +2,82 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#0b0d10" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#071018" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Nigerian Roleplay Simulator</title>
   </head>
   <body>
     <main id="app">
       <canvas id="game-canvas" aria-label="NRS 3D game world"></canvas>
-      <div id="hud">
-        <div class="topbar">
-          <strong>NRS</strong>
-          <span id="connection">CONNECTING</span>
+
+      <section class="hud" aria-label="NRS game interface">
+        <header class="topbar panel">
+          <div class="brand">
+            <span class="brand-mark">N</span>
+            <div>
+              <strong>NIGERIAN ROLEPLAY</strong>
+              <span>PORT HARCOURT • ONLINE WORLD</span>
+            </div>
+          </div>
+          <div class="presence">
+            <span id="connection" class="pending">CONNECTING</span>
+            <span class="divider"></span>
+            <span><b id="player-count">0</b> PLAYERS</span>
+          </div>
+        </header>
+
+        <div id="status" class="status panel">
+          Preparing the Port Harcourt multiplayer test world…
         </div>
-        <div id="status">Preparing Port Harcourt test world…</div>
-      </div>
-      <div id="controls" aria-label="Mobile controls">
-        <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
-        <button id="interact" type="button">INTERACT</button>
-      </div>
+
+        <section class="player-panel panel">
+          <span class="eyebrow">YOUR IDENTITY</span>
+          <div class="identity-row">
+            <input
+              id="player-name"
+              maxlength="20"
+              value="Player"
+              aria-label="Player name"
+              autocomplete="nickname"
+            />
+            <button id="join-button" type="button">SET NAME</button>
+          </div>
+          <div class="role-chip">CIVILIAN • NEW CITIZEN</div>
+        </section>
+
+        <section class="hint panel">
+          <span>MOVE</span>
+          <span class="hint-sep">•</span>
+          <span>LOOK</span>
+          <span class="hint-sep">•</span>
+          <span>INTERACT</span>
+        </section>
+      </section>
+
+      <section id="controls" aria-label="Mobile controls">
+        <div id="joystick" class="joystick" aria-label="Move joystick">
+          <div class="joystick-label">MOVE</div>
+          <div id="stick" class="stick"></div>
+        </div>
+
+        <div class="action-stack">
+          <button id="reset-camera" class="secondary-action" type="button">
+            CAMERA
+          </button>
+          <button id="interact" class="primary-action" type="button">
+            INTERACT
+          </button>
+        </div>
+      </section>
+
+      <div class="phase-badge">PHASE 1 • MULTIPLAYER LAB</div>
     </main>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
