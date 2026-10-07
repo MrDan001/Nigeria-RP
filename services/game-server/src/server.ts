@@ -18,6 +18,13 @@ type PlayerState = {
   lastInputSequence: number;
 };
 
+type Session = {
+  socket: WebSocket;
+  state: PlayerState;
+  latestInput: Input;
+  lastMessageAt: number;
+};
+
 type ClientMessage =
   | { type: "hello"; name?: string }
   | { type: "input"; input: Input }
@@ -27,8 +34,11 @@ const PORT = Number(process.env.PORT ?? 8080);
 const TICK_RATE = 20;
 const SNAPSHOT_RATE = 10;
 const MOVE_SPEED = 4.2;
+const WORLD_LIMIT = 500;
+const MAX_NAME_LENGTH = 20;
+const INPUT_TIMEOUT_MS = 750;
 
-const players = new Map<string, { socket: WebSocket; state: PlayerState }>();
+const players = new Map<string, Session>();
 
 function send(socket: WebSocket, message: unknown) {
   if (socket.readyState === WebSocket.OPEN) {
@@ -50,16 +60,35 @@ function broadcast(message: unknown) {
   for (const { socket } of players.values()) send(socket, message);
 }
 
+function cleanName(name: string | undefined) {
+  const value = name?.trim().replace(/[^a-zA-Z0-9 _-]/g, "");
+  return value ? value.slice(0, MAX_NAME_LENGTH) : "Player";
+}
+
+function validInput(input: Input) {
+  return Number.isInteger(input.sequence) &&
+    input.sequence >= 0 &&
+    Number.isFinite(input.forward) &&
+    Number.isFinite(input.strafe) &&
+    Math.abs(input.forward) <= 2 &&
+    Math.abs(input.strafe) <= 2;
+}
+
 const httpServer = http.createServer((_request, response) => {
   response.writeHead(200, { "content-type": "application/json" });
   response.end(JSON.stringify({
     ok: true,
     service: "nigeria-rp-game-server",
     players: players.size,
+    tickRate: TICK_RATE,
+    snapshotRate: SNAPSHOT_RATE,
   }));
 });
 
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({
+  server: httpServer,
+  maxPayload: 16 * 1024,
+});
 
 wss.on("connection", (socket) => {
   const id = randomUUID();
@@ -70,10 +99,17 @@ wss.on("connection", (socket) => {
     z: 0,
     yaw: 0,
     connectedAt: Date.now(),
-    lastInputSequence: 0,
+    lastInputSequence: -1,
   };
 
-  players.set(id, { socket, state });
+  const session: Session = {
+    socket,
+    state,
+    latestInput: { sequence: -1, forward: 0, strafe: 0 },
+    lastMessageAt: Date.now(),
+  };
+
+  players.set(id, session);
 
   send(socket, {
     type: "connected",
@@ -86,8 +122,12 @@ wss.on("connection", (socket) => {
   broadcast({ type: "playerJoined", player: state });
 
   socket.on("message", (raw) => {
-    let message: ClientMessage;
+    const player = players.get(id);
+    if (!player) return;
 
+    player.lastMessageAt = Date.now();
+
+    let message: ClientMessage;
     try {
       message = JSON.parse(raw.toString()) as ClientMessage;
     } catch {
@@ -95,69 +135,88 @@ wss.on("connection", (socket) => {
       return;
     }
 
-    const player = players.get(id);
-    if (!player) return;
-
     if (message.type === "hello") {
-      const cleanName = message.name?.trim().slice(0, 20);
-      if (cleanName) player.state.name = cleanName;
-
+      player.state.name = cleanName(message.name);
       send(socket, { type: "identity", player: player.state });
       broadcast({ type: "playerUpdated", player: player.state });
       return;
     }
 
     if (message.type === "input") {
-      const input = message.input;
-
-      if (!Number.isInteger(input.sequence) ||
-          !Number.isFinite(input.forward) ||
-          !Number.isFinite(input.strafe)) {
+      if (!validInput(message.input)) {
         send(socket, { type: "error", code: "INVALID_INPUT" });
         return;
       }
 
-      player.state.lastInputSequence = Math.max(
-        player.state.lastInputSequence,
-        input.sequence,
-      );
+      // Reject old or replayed input sequences.
+      if (message.input.sequence <= player.state.lastInputSequence) return;
 
-      const forward = Math.max(-1, Math.min(1, input.forward));
-      const strafe = Math.max(-1, Math.min(1, input.strafe));
-
-      // The server owns movement. The client only sends intent.
-      const length = Math.hypot(forward, strafe);
-      if (length > 0) {
-        const nx = forward / Math.max(1, length);
-        const nz = strafe / Math.max(1, length);
-        const dt = 1 / TICK_RATE;
-
-        player.state.x += nx * MOVE_SPEED * dt;
-        player.state.z += nz * MOVE_SPEED * dt;
-      }
-
+      player.state.lastInputSequence = message.input.sequence;
+      player.latestInput = {
+        sequence: message.input.sequence,
+        forward: Math.max(-1, Math.min(1, message.input.forward)),
+        strafe: Math.max(-1, Math.min(1, message.input.strafe)),
+      };
       return;
     }
 
     if (message.type === "interact") {
+      const targetId = message.targetId?.trim() || null;
+
+      // Laboratory interaction is intentionally simple, but the server
+      // remains the authority over whether the request is accepted.
       send(socket, {
         type: "interactionResult",
         accepted: true,
-        targetId: message.targetId ?? null,
+        targetId,
         message: "Interaction request received by authoritative server.",
       });
     }
   });
 
   socket.on("close", () => {
-    players.delete(id);
-    broadcast({ type: "playerLeft", playerId: id });
+    if (players.get(id)?.socket === socket) {
+      players.delete(id);
+      broadcast({ type: "playerLeft", playerId: id });
+    }
   });
 
   socket.on("error", () => {
-    players.delete(id);
+    if (players.get(id)?.socket === socket) {
+      players.delete(id);
+      broadcast({ type: "playerLeft", playerId: id });
+    }
   });
 });
+
+// Fixed authoritative simulation tick.
+setInterval(() => {
+  const dt = 1 / TICK_RATE;
+  const now = Date.now();
+
+  for (const session of players.values()) {
+    const input = now - session.lastMessageAt > INPUT_TIMEOUT_MS
+      ? { forward: 0, strafe: 0 }
+      : session.latestInput;
+
+    const length = Math.hypot(input.forward, input.strafe);
+
+    if (length > 0) {
+      const nx = input.forward / Math.max(1, length);
+      const nz = input.strafe / Math.max(1, length);
+
+      session.state.x = Math.max(
+        -WORLD_LIMIT,
+        Math.min(WORLD_LIMIT, session.state.x + nx * MOVE_SPEED * dt),
+      );
+
+      session.state.z = Math.max(
+        -WORLD_LIMIT,
+        Math.min(WORLD_LIMIT, session.state.z + nz * MOVE_SPEED * dt),
+      );
+    }
+  }
+}, 1000 / TICK_RATE);
 
 setInterval(() => {
   broadcast({
@@ -166,12 +225,6 @@ setInterval(() => {
     players: snapshot(),
   });
 }, 1000 / SNAPSHOT_RATE);
-
-setInterval(() => {
-  // Keep simulation ticks independent from snapshot frequency.
-  // Inputs are currently applied on receipt for this laboratory.
-  // Production movement will use a deterministic fixed-tick simulation.
-}, 1000 / TICK_RATE);
 
 httpServer.listen(PORT, () => {
   console.log(`NRS game server listening on :${PORT}`);
