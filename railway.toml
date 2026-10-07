@@ -1,9 +1,9 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "npm run build"
+buildCommand = "npm run build --workspace nigeria-rp-game-server"
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "npm run start --workspace nigeria-rp-game-server"
 healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "ALWAYS"
