@@ -1,0 +1,11 @@
+{
+  "name": "Nigeria Roleplay",
+  "short_name": "Nigeria RP",
+  "description": "Port Harcourt multiplayer roleplay world",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#081018",
+  "theme_color": "#081018",
+  "icons": []
+}
