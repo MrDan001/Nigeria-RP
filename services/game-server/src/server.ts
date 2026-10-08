@@ -76,7 +76,7 @@ function validInput(input: Input) {
     Math.abs(input.strafe) <= 2;
 }
 
-const WEB_DIST_DIR = path.resolve(process.cwd(), "services/web-client/dist");
+const WEB_DIST_DIR = [\n  path.resolve(__dirname, "../../web-client/dist"),\n  path.resolve(process.cwd(), "services/web-client/dist"),\n  path.resolve(process.cwd(), "../web-client/dist"),\n].find((candidate) => fs.existsSync(candidate)) ??\n  path.resolve(__dirname, "../../web-client/dist");
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
