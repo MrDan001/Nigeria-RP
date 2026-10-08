@@ -593,7 +593,7 @@ const httpServer = http.createServer((request, response) => {
     response.writeHead(200, {
       "content-type": MIME[path.extname(finalPath).toLowerCase()] ?? "application/octet-stream",
       "content-length": stat.size,
-      "cache-control": path.basename(finalPath) === "index.html"
+      "cache-control": path.basename(finalPath) === "index.html" || path.basename(finalPath) === "nrs-online.js"
         ? "no-cache"
         : "public, max-age=31536000, immutable",
     });
