@@ -211,11 +211,23 @@ const wss = new WebSocketServer({
 
 wss.on("connection", (socket) => {
   const id = randomUUID();
+  const spawnIndex = players.size % 8;
+  const spawns = [
+    { x: 0, z: 6 },
+    { x: 3, z: 6 },
+    { x: -3, z: 6 },
+    { x: 0, z: 10 },
+    { x: 3, z: 10 },
+    { x: -3, z: 10 },
+    { x: 6, z: 10 },
+    { x: -6, z: 10 },
+  ];
+  const spawn = spawns[spawnIndex];
   const state: PlayerState = {
     id,
     name: "Player",
-    x: 0,
-    z: 6,
+    x: spawn.x,
+    z: spawn.z,
     yaw: 0,
     connectedAt: Date.now(),
     lastInputSequence: -1,
