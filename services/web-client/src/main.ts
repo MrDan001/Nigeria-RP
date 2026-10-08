@@ -402,8 +402,28 @@ app.on("update", (dt: number) => {
   }
 });
 
+function requestLandscapeMode() {
+  try {
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (orientation: "landscape") => Promise<void>;
+    };
+    if (orientation?.lock) {
+      orientation.lock("landscape").catch(() => {
+        // Browsers commonly require an installed PWA/fullscreen context.
+      });
+    }
+  } catch {
+    // Orientation APIs are optional; the portrait blocker handles unsupported browsers.
+  }
+}
+
+window.addEventListener("pointerdown", requestLandscapeMode, { once: true });
+window.addEventListener("touchstart", requestLandscapeMode, { once: true });
 window.addEventListener("resize", () => app.resizeCanvas());
-window.addEventListener("orientationchange", () => app.resizeCanvas());
+window.addEventListener("orientationchange", () => {
+  app.resizeCanvas();
+  requestLandscapeMode();
+});
 
 app.start();
 connect();
