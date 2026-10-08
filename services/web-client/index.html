@@ -6,76 +6,155 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
     />
-    <meta name="theme-color" content="#071018" />
+    <meta name="theme-color" content="#081018" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <title>Nigerian Roleplay Simulator</title>
+    <title>Nigeria Roleplay — Port Harcourt</title>
   </head>
   <body>
     <main id="app">
-      <canvas id="game-canvas" aria-label="NRS 3D game world"></canvas>
+      <canvas id="game-canvas" aria-label="Nigeria RP 3D world"></canvas>
 
-      <section class="hud" aria-label="NRS game interface">
-        <header class="topbar panel">
-          <div class="brand">
-            <span class="brand-mark">N</span>
-            <div>
-              <strong>NIGERIAN ROLEPLAY</strong>
-              <span>PORT HARCOURT • ONLINE WORLD</span>
-            </div>
-          </div>
-          <div class="presence">
-            <span id="connection" class="pending">CONNECTING</span>
-            <span class="divider"></span>
-            <span><b id="player-count">0</b> PLAYERS</span>
+      <section class="hud" aria-label="Nigeria RP game HUD">
+        <header class="brand-card glass">
+          <div class="brand-mark">N</div>
+          <div class="brand-copy">
+            <strong>NIGERIA ROLEPLAY</strong>
+            <span>PORT HARCOURT • ONLINE WORLD</span>
           </div>
         </header>
 
-        <div id="status" class="status panel">
-          Preparing the Port Harcourt multiplayer test world…
-        </div>
-
-        <section class="player-panel panel">
-          <span class="eyebrow">YOUR IDENTITY</span>
-          <div class="identity-row">
-            <input
-              id="player-name"
-              maxlength="20"
-              value="Player"
-              aria-label="Player name"
-              autocomplete="nickname"
-            />
-            <button id="join-button" type="button">SET NAME</button>
+        <section class="top-stats glass">
+          <div class="stat">
+            <span class="stat-icon cash">₦</span>
+            <div><b id="wallet">₦ 0</b><small>CASH</small></div>
           </div>
-          <div class="role-chip">CIVILIAN • NEW CITIZEN</div>
+          <div class="stat">
+            <span class="stat-icon level">1</span>
+            <div><b>LEVEL 1</b><small>NEW CITIZEN</small></div>
+          </div>
+          <div class="stat">
+            <span class="stat-icon players">●</span>
+            <div><b id="player-count">0</b><small>PLAYERS ONLINE</small></div>
+          </div>
+          <button id="menu-button" class="icon-button" aria-label="Open menu">☰</button>
         </section>
 
-        <section class="hint panel">
-          <span>MOVE</span>
-          <span class="hint-sep">•</span>
-          <span>LOOK</span>
-          <span class="hint-sep">•</span>
-          <span>INTERACT</span>
+        <div class="compass glass" aria-label="Compass">
+          <span>W</span><span>NW</span><b>N</b><span>NE</span><span>E</span>
+          <i></i>
+        </div>
+
+        <section class="chat glass">
+          <div class="chat-tabs">
+            <button class="active" type="button">GLOBAL</button>
+            <button type="button">LOCAL</button>
+            <button type="button">SYSTEM</button>
+          </div>
+          <div class="chat-feed">
+            <p><b>Tifeezy:</b> where can i get a job? <time>10:24</time></p>
+            <p><b>EmmyBlag:</b> Anyone selling a car? <time>10:24</time></p>
+            <p><b>RealJayPh:</b> i dey for waterfront <time>10:25</time></p>
+            <p><b>BabaFlex:</b> Police dey road o, slow down <time>10:25</time></p>
+            <p><b>QueenChi:</b> nice game sha 🔥 <time>10:26</time></p>
+          </div>
+          <div class="chat-input">
+            <span>Type a message...</span>
+            <button type="button" aria-label="Send chat">➤</button>
+          </div>
         </section>
+
+        <section class="identity glass">
+          <div>
+            <small>YOUR IDENTITY</small>
+            <strong id="identity-name">Player</strong>
+            <span>CIVILIAN • NEW CITIZEN</span>
+          </div>
+          <div class="identity-edit">
+            <input id="player-name" maxlength="20" value="Player" aria-label="Player name" />
+            <button id="join-button" type="button">SET</button>
+          </div>
+        </section>
+
+        <section class="world-notice glass">
+          <span class="pulse-dot"></span>
+          <span id="connection" class="pending">CONNECTING</span>
+          <em id="status">Preparing the Port Harcourt world…</em>
+        </section>
+
+        <aside class="right-rail" aria-label="Quick actions">
+          <button class="rail-button" type="button" aria-label="Phone">◫</button>
+          <button class="rail-button" type="button" aria-label="Players">♟</button>
+          <button class="rail-button" type="button" aria-label="Inventory">▣</button>
+          <button class="rail-button" type="button" aria-label="Map">⌖</button>
+        </aside>
+
+        <section class="mission glass">
+          <span class="mission-icon">!</span>
+          <div>
+            <small>NEW MISSION</small>
+            <b>Explore Port Harcourt</b>
+            <span>Visit the city centre and find your first opportunity.</span>
+          </div>
+          <span class="mission-arrow">›</span>
+        </section>
+
+        <section class="location glass">
+          <span class="pin">⌖</span>
+          <div>
+            <b>Port Harcourt</b>
+            <span>Rivers State</span>
+          </div>
+        </section>
+
+        <section class="status-bars glass">
+          <div class="bar-row">
+            <span class="bar-label">♥</span>
+            <span class="bar-track"><i class="health-fill"></i></span>
+            <b>100</b>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label shield">◈</span>
+            <span class="bar-track"><i class="armor-fill"></i></span>
+            <b>0</b>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label hunger">🍴</span>
+            <span class="bar-track"><i class="hunger-fill"></i></span>
+            <b>82</b>
+          </div>
+        </section>
+
+        <div class="minimap glass" id="minimap">
+          <div class="map-road map-road-a"></div>
+          <div class="map-road map-road-b"></div>
+          <div class="map-water"></div>
+          <div class="map-player" id="map-player"></div>
+          <div class="map-north">N</div>
+        </div>
+
+        <div class="player-map-dots" id="player-map-dots"></div>
+
+        <div class="controls-hint glass">PHASE 1 • PORT HARCOURT LAB</div>
       </section>
 
-      <section id="controls" aria-label="Mobile controls">
+      <section id="controls" aria-label="Mobile game controls">
         <div id="joystick" class="joystick" aria-label="Move joystick">
-          <div class="joystick-label">MOVE</div>
+          <div class="joystick-arrow up">▲</div>
+          <div class="joystick-arrow left">‹</div>
+          <div class="joystick-arrow right">›</div>
+          <div class="joystick-arrow down">▼</div>
           <div id="stick" class="stick"></div>
+          <div class="joystick-label">MOVE</div>
         </div>
 
-        <div class="action-stack">
-          <button id="reset-camera" class="secondary-action" type="button">
-            CAMERA
-          </button>
-          <button id="interact" class="primary-action" type="button">
-            INTERACT
-          </button>
+        <div class="action-buttons">
+          <button id="reset-camera" class="camera-button" type="button">CAMERA</button>
+          <button class="round-action action-fist" type="button" aria-label="Attack">✊</button>
+          <button class="round-action action-run" type="button" aria-label="Run">➤</button>
+          <button id="interact" class="interact-button" type="button">INTERACT</button>
         </div>
       </section>
-
-      <div class="phase-badge">PHASE 1 • MULTIPLAYER LAB</div>
     </main>
 
     <script type="module" src="/src/main.ts"></script>
