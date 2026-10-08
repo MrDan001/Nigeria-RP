@@ -195,7 +195,7 @@
     $("nrsReg").setAttribute("aria-selected", String(isRegister));
     $("nrsUsernameWrap").hidden = !isRegister;
     $("nrsUser").required = isRegister;
-    $("nrsEmail").autocomplete = isRegister ? "email" : "username";
+    $("nrsEmail").autocomplete = "email";
     $("nrsConfirmWrap").hidden = !isRegister;
     $("nrsConfirm").required = isRegister;
     $("nrsPass").autocomplete = isRegister ? "new-password" : "current-password";
