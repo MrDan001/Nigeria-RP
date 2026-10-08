@@ -147,7 +147,7 @@
           <div class="inputWrap">
             <input id="nrsUser" name="username" autocomplete="username" maxlength="31" placeholder="Firstname_lastname">
           </div>
-          <div class="hint">Must be Firstname_lastname. Paid/custom names are not enabled yet.</div>
+          <div class="hint">Required format: Firstname_lastname — letters only on both sides of the underscore.</div>
         </label>
 
         <label class="field">
@@ -385,7 +385,7 @@
         auth.hidden = false;
         setVisible(false);
         $("nrsSubmit").disabled = false;
-        $("nrsError").textContent = message.message || "Authentication failed.";
+        $("nrsError").textContent = message.message || "Authentication failed. Please try again.";
         status("Please check your details and try again.");
         return;
       }
@@ -447,7 +447,7 @@
     }
 
     if (registerMode && !/^[A-Za-z]+_[A-Za-z]+$/.test(username)) {
-      $("nrsError").textContent = "Username must be Firstname_lastname, for example Dan_mccoll.";
+      $("nrsError").textContent = "Username must be exactly Firstname_lastname, for example Dan_mccoll.";
       return;
     }
 

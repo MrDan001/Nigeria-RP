@@ -109,11 +109,7 @@ function isValidEmail(email: string) {
 }
 
 function sanitizeUsername(value: unknown) {
-  return String(value ?? "")
-    .trim()
-    .replace(/[^A-Za-z0-9 _-]/g, "")
-    .replace(/\s+/g, " ")
-    .slice(0, 20);
+  return String(value ?? "").trim().slice(0, 31);
 }
 
 function normalizeInventory(value: unknown): Inventory {
@@ -428,7 +424,10 @@ async function createAccount(email: string, username: string, password: string) 
   try {
     await insertAccount(account);
   } catch (error: any) {
-    if (error?.code === "23505") throw new Error("USERNAME_TAKEN");
+    if (error?.code === "23505") {
+      if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
+      if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+    }
     throw error;
   }
 
@@ -728,12 +727,15 @@ wss.on("connection", (socket) => {
         } catch (error) {
           const code = error instanceof Error ? error.message : "AUTH_FAILED";
           const messages: Record<string, string> = {
+            EMAIL_INVALID: "Enter a valid email address.",
+            EMAIL_TAKEN: "An account already exists with that email.",
             PASSWORD_TOO_SHORT: "Password must be at least 6 characters.",
             USERNAME_TOO_SHORT: "Username must be at least 3 characters.",
-            USERNAME_INVALID: "Use letters, numbers, spaces, _ or - only.",
+            USERNAME_INVALID: "Username must be exactly Firstname_lastname, using letters only.",
             USERNAME_TAKEN: "That username is already taken.",
-            INVALID_CREDENTIALS: "Wrong username or password.",
-            INVALID_SESSION: "Session expired. Please log in again.",
+            INVALID_CREDENTIALS: "Incorrect email or password.",
+            INVALID_SESSION: "Your session has expired. Please log in again.",
+            AUTH_REQUIRED: "Please log in or create an account.",
           };
 
           send(socket, {
