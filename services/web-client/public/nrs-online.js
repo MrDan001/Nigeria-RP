@@ -189,15 +189,29 @@
 
   function setMode(isRegister) {
     registerMode = isRegister;
+
+    const usernameWrap = $("nrsUsernameWrap");
+    const usernameInput = $("nrsUser");
+    const confirmWrap = $("nrsConfirmWrap");
+    const confirmInput = $("nrsConfirm");
+
     $("nrsLogin").classList.toggle("active", !isRegister);
     $("nrsReg").classList.toggle("active", isRegister);
     $("nrsLogin").setAttribute("aria-selected", String(!isRegister));
     $("nrsReg").setAttribute("aria-selected", String(isRegister));
-    $("nrsUsernameWrap").hidden = !isRegister;
-    $("nrsUser").required = isRegister;
+
+    // Explicitly control visibility and disabled state so LOGIN can only show
+    // Email + Password and the Create Account form remains unchanged.
+    usernameWrap.hidden = !isRegister;
+    usernameWrap.style.display = isRegister ? "grid" : "none";
+    usernameInput.required = isRegister;
+    usernameInput.disabled = !isRegister;
+    confirmWrap.hidden = !isRegister;
+    confirmWrap.style.display = isRegister ? "grid" : "none";
+    confirmInput.required = isRegister;
+    confirmInput.disabled = !isRegister;
+
     $("nrsEmail").autocomplete = "email";
-    $("nrsConfirmWrap").hidden = !isRegister;
-    $("nrsConfirm").required = isRegister;
     $("nrsPass").autocomplete = isRegister ? "new-password" : "current-password";
     $("nrsAuthTitle").textContent = isRegister ? "Create your citizen account" : "Welcome back";
     $("nrsAuthCopy").textContent = isRegister
@@ -218,6 +232,9 @@
   $("nrsReg").addEventListener("click", () => setMode(true));
   $("nrsPassEye").addEventListener("click", () => togglePassword($("nrsPass"), $("nrsPassEye")));
   $("nrsConfirmEye").addEventListener("click", () => togglePassword($("nrsConfirm"), $("nrsConfirmEye")));
+
+  // Start in LOGIN mode explicitly. Create Account is opt-in via its tab.
+  setMode(false);
 
   function send(message) {
     if (S.ws?.readyState === WebSocket.OPEN) S.ws.send(JSON.stringify(message));
