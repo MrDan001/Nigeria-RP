@@ -1,6 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 
 type Input = {
   sequence: number;
@@ -74,15 +76,110 @@ function validInput(input: Input) {
     Math.abs(input.strafe) <= 2;
 }
 
-const httpServer = http.createServer((_request, response) => {
-  response.writeHead(200, { "content-type": "application/json" });
-  response.end(JSON.stringify({
-    ok: true,
-    service: "nigeria-rp-game-server",
-    players: players.size,
-    tickRate: TICK_RATE,
-    snapshotRate: SNAPSHOT_RATE,
-  }));
+const WEB_DIST_DIR = path.resolve(process.cwd(), "services/web-client/dist");
+
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".wasm": "application/wasm",
+};
+
+function sendJson(response: http.ServerResponse, status: number, payload: unknown) {
+  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(payload));
+}
+
+function serveWebClient(request: http.IncomingMessage, response: http.ServerResponse) {
+  const requestUrl = new URL(
+    request.url ?? "/",
+    "http://" + (request.headers.host ?? "localhost"),
+  );
+
+  if (requestUrl.pathname === "/health") {
+    sendJson(response, 200, {
+      ok: true,
+      service: "nigeria-rp-game-server",
+      players: players.size,
+      tickRate: TICK_RATE,
+      snapshotRate: SNAPSHOT_RATE,
+    });
+    return;
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.writeHead(405, { allow: "GET, HEAD" });
+    response.end();
+    return;
+  }
+
+  let pathname: string;
+
+  try {
+    pathname = decodeURIComponent(requestUrl.pathname);
+  } catch {
+    response.writeHead(400);
+    response.end("Bad request");
+    return;
+  }
+
+  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const filePath = path.resolve(WEB_DIST_DIR, relativePath);
+
+  if (
+    filePath !== WEB_DIST_DIR &&
+    !filePath.startsWith(WEB_DIST_DIR + path.sep)
+  ) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  let finalPath = filePath;
+
+  if (!fs.existsSync(finalPath) || !fs.statSync(finalPath).isFile()) {
+    // Allow browser-side routes to fall back to the built entrypoint.
+    if (!path.extname(relativePath)) {
+      finalPath = path.join(WEB_DIST_DIR, "index.html");
+    } else {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+  }
+
+  try {
+    const stat = fs.statSync(finalPath);
+    response.writeHead(200, {
+      "content-type": MIME_TYPES[path.extname(finalPath).toLowerCase()] ??
+        "application/octet-stream",
+      "content-length": stat.size,
+      "cache-control": path.basename(finalPath) === "index.html"
+        ? "no-cache"
+        : "public, max-age=31536000, immutable",
+    });
+
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+
+    fs.createReadStream(finalPath).pipe(response);
+  } catch {
+    sendJson(response, 500, { ok: false, error: "STATIC_FILE_ERROR" });
+  }
+}
+
+const httpServer = http.createServer((request, response) => {
+  serveWebClient(request, response);
 });
 
 const wss = new WebSocketServer({
@@ -227,5 +324,5 @@ setInterval(() => {
 }, 1000 / SNAPSHOT_RATE);
 
 httpServer.listen(PORT, () => {
-  console.log(`NRS game server listening on :${PORT}`);
+  console.log(`NRS web + game server listening on :${PORT}`);
 });
