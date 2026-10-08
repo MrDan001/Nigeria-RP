@@ -21,6 +21,11 @@
     remotes: new Map(),
     target: null,
     pending: [],
+    jobCb: null,
+    fuelCb: null,
+    posAt: 0,
+    posX: 1e9,
+    posZ: 1e9,
     busy: false,
     online: 0
   };
@@ -263,6 +268,13 @@
     hunger = Number(player.hunger) || 82;
     job = player.job || null;
 
+    // Restore each car's saved fuel (cars are matched by their fixed id, e.g. c0..c4).
+    const savedFuel = player.fuel || {};
+    for (const car of cars) {
+      if (car.kind === "t" || !car.id) continue;
+      if (typeof savedFuel[car.id] === "number") car.fuel = savedFuel[car.id];
+    }
+
     for (const key of Object.keys(inv)) delete inv[key];
     Object.assign(inv, player.inventory || {});
 
@@ -428,6 +440,24 @@
       } else if (message.type === "playerLeft") {
         remove(message.playerId);
         online(message.onlineCount);
+      } else if (message.type === "fuelResult") {
+        const cb = S.fuelCb;
+        S.fuelCb = null;
+        if (message.ok) {
+          cash = Number(message.cash) || 0;
+          money();
+        }
+        cb?.(message);
+      } else if (message.type === "posCorrect") {
+        if (!driving && !inside) {
+          pos.set(Number(message.x) || 0, 0, Number(message.z) || 0);
+          vel.set(0, 0, 0);
+        }
+      } else if (message.type === "jobResult") {
+        const cb = S.jobCb;
+        S.jobCb = null;
+        if (message.ok && message.job) job = message.job;
+        cb?.(message);
       } else if (message.type === "walletResult") {
         const request = S.pending.shift();
         S.busy = false;
@@ -527,6 +557,25 @@
     drain();
   };
 
+  N.acceptJob = (name, callback) => {
+    if (!S.authed || !S.open) {
+      callback?.({ ok: false, message: "Not connected to the game server." });
+      return;
+    }
+    S.jobCb = callback;
+    send({ type: "acceptJob", name });
+  };
+
+  N.buyFuel = (carId, litres, brand, callback) => {
+    if (!S.authed || !S.open) {
+      callback?.({ ok: false, message: "Not connected to the game server." });
+      return;
+    }
+    N.saveProgress(); // flush the car's current fuel first so the server knows how much room is left
+    S.fuelCb = callback;
+    send({ type: "buyFuel", carId, litres, brand });
+  };
+
   N.saveProgress = () => {
     if (!S.authed || !S.open) return;
 
@@ -534,10 +583,15 @@
       type: "saveProgress",
       hp,
       hunger,
-      job,
-      inventory: inv
+      inventory: inv,
+      fuel: Object.fromEntries(cars.filter((car) => car.kind !== "t" && car.id).map((car) => [car.id, Math.round(car.fuel * 100) / 100]))
     });
   };
+
+  // Persist hp / hunger / backpack regularly and when the tab is hidden or closed.
+  window.setInterval(() => N.saveProgress(), 10000);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) N.saveProgress(); });
+  window.addEventListener("pagehide", () => N.saveProgress());
 
   const playersButton = $("ib1");
   if (playersButton) {
@@ -599,6 +653,19 @@
       }
 
       S.last = now;
+    }
+
+    // Report our real position (on foot or driving) so the server can validate
+    // job rewards. Skipped inside shop interiors, which use separate coordinates.
+    if (S.authed && S.open && !inside) {
+      const now = performance.now();
+      const moved = Math.hypot(pos.x - S.posX, pos.z - S.posZ);
+      if ((moved > 0.5 && now - S.posAt > 400) || now - S.posAt > 2000) {
+        S.posAt = now;
+        S.posX = pos.x;
+        S.posZ = pos.z;
+        send({ type: "posSync", x: pos.x, z: pos.z, yaw: face });
+      }
     }
 
     for (const group of S.remotes.values()) {
