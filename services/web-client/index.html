@@ -43,6 +43,10 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #run.on{background:#1b8cf0}
 .rb.on{background:#1b8cf0}
 #act{position:fixed;right:13.5rem;bottom:2.4rem;padding:.8rem 1.1rem;font-size:.95rem;font-weight:700;color:#fff;background:#1b8cf0;border:0;border-radius:.8rem;z-index:3}
+#ignition{position:fixed;right:16.8rem;bottom:2.2rem;width:3.6rem;height:3.6rem;font-size:1.05rem;display:none;z-index:3}
+#ignition.on{background:#18a06b}
+#carstatus{position:fixed;right:13rem;bottom:11.6rem;display:none;padding:.35rem .6rem;font-size:.72rem;z-index:3}
+body.drv #ignition{display:grid}body.drv #carstatus{display:block}
 #modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:1rem 1.4rem;max-height:80vh;overflow:auto;z-index:5;color:#fff;font-size:.9rem;pointer-events:auto}
 #modal p{margin:.4rem 0}#modal button{margin-top:.6rem;background:#1b8cf0;border:0;color:#fff;border-radius:.4rem;padding:.4rem .9rem}
 #fm{display:block;width:min(60vh,20rem);height:min(60vh,20rem);margin:.5rem auto}
@@ -80,6 +84,8 @@ body.drv #joy,body.drv #fist,body.drv #run,body.drv #crch,body.drv #jump{display
 <div id="wheel"><svg id="wsv" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#1a1a1a" stroke-width="9"/><circle cx="50" cy="50" r="44" fill="none" stroke="#777" stroke-width="1.5"/><rect x="47" y="2" width="6" height="10" fill="#ffc928"/><path d="M8 52H36M64 52H92M50 56V92" stroke="#222" stroke-width="7"/><circle cx="50" cy="50" r="13" fill="#2a2a2a" stroke="#777" stroke-width="2"/></svg></div>
 <button class="ped" id="brk">BRAKE</button><button class="ped" id="gas">GAS</button>
 <button class="rb" id="hb">HB</button><button class="rb" id="radio">📻</button><button class="rb" id="hn">📯</button><button class="rb" id="jump">⤴</button>
+<button class="rb" id="ignition" title="Engine start/stop">⏻</button>
+<div class="p" id="carstatus">ENGINE OFF</div>
 <input type="file" id="mf" accept="audio/*" style="display:none">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -132,7 +138,7 @@ function car(x,z,col,ry,kind){const g=new THREE.Group();g.position.set(x,0,z);g.
  const wh=[];
  [[-.95,1.4,1],[.95,1.4,1],[-.95,-1.4,0],[.95,-1.4,0]].forEach(p=>{const pv=new THREE.Group();pv.position.set(p[0],.38,p[1]);g.add(pv);const sp=new THREE.Group();pv.add(sp);
   const w=add(new THREE.CylinderGeometry(.38,.38,.3,10),M(0x111111),0,0,0,sp);w.rotation.z=Math.PI/2;add(new THREE.BoxGeometry(.34,.1,.6),M(0x999999),0,0,0,sp);wh.push({pv,sp,f:p[2]});});
- const c={g,body,tail,wh,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0};boxes.push(c.box);cars.push(c);return c;}
+ const c={g,body,tail,wh,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0,engineOn:false,gear:1,rpm:.2};boxes.push(c.box);cars.push(c);return c;}
 car(-3.9,-10,0x0d0d0f,0,'p');car(3.9,-42,0x8a1c1c,Math.PI,'p');car(-3.9,-70,0x1d4a8a,0,'p');car(3.9,-18,0xc9c9c9,Math.PI,'p');car(-3.9,16,0x0d0d0f,0,'p');
 [[1.6,10,0x9a9a9a],[1.6,-60,0xd9b13a],[1.6,-130,0x2b5b3a],[-1.6,-30,0x6a2a8a],[-1.6,-100,0xe8e8e8],[-1.6,-170,0x1c3f6e]].forEach(a=>{const c=car(a[0],a[1],a[2],a[0]>0?Math.PI:0,'t');c.v=9;});
 
@@ -248,6 +254,12 @@ function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=ba
   c.v+=clamp((gap<8?0:gap<18?3:9)-c.v,-14*dt,5*dt);c.z+=dz*c.v*dt;if(Math.abs(c.z)>220)c.z=-dz*220;c.wh.forEach(w=>w.sp.rotation.x+=c.v*dt/.38);setCar(c);}}
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
 function driveUpdate(dt){const c=driving;
+ if(!c.engineOn){
+  gasP+=(0-gasP)*Math.min(1,dt*10);brkP+=(1-brkP)*Math.min(1,dt*8);
+  c.v=c.vx=c.vz=0;c.pitch*=.88;c.roll*=.88;setCar(c);pos.set(c.x,0,c.z);face=c.ry;
+  if(eng)engine(false);
+  return;
+ }
  if(keys.KeyD||keys.ArrowRight)wheelA=Math.min(150,wheelA+260*dt);else if(keys.KeyA||keys.ArrowLeft)wheelA=Math.max(-150,wheelA-260*dt);else if(!wheelHeld)wheelA*=Math.exp(-dt*5);
  gasP+=((keys.KeyW||keys.ArrowUp?1:gasT)-gasP)*Math.min(1,dt*6);brkP+=((keys.KeyS||keys.ArrowDown?1:brkT)-brkP)*Math.min(1,dt*8);
  const th=gasP,br=brkP,hb=hbP||keys.Space,st=wheelA/150,sn=Math.sin(c.ry),cs=Math.cos(c.ry);
@@ -276,10 +288,18 @@ function hudAct(){const a=$('act');
  if(locT){locT='';$('loc').innerHTML='📍 Port Harcourt<br><small>Rivers State</small>';}
  nearCar=null;let bd=3.4;for(const c of cars){if(c.kind==='t')continue;const d=Math.hypot(c.x-pos.x,c.z-pos.z);if(d<bd){bd=d;nearCar=c;}}
  a.style.display=nearCar?'block':'none';a.textContent='Enter car';}
+function toggleEngine(){
+ if(!driving)return;
+ const c=driving;c.engineOn=!c.engineOn;
+ if(c.engineOn){try{ctx().resume?.();}catch{}engine(true);}
+ else{engine(false);radioSet(0);c.v=c.vx=c.vz=0;gasT=brkT=gasP=brkP=0;}
+ $('ignition').classList.toggle('on',c.engineOn);$('ignition').textContent=c.engineOn?'⏻ ON':'⏻';
+}
+$('ignition').onclick=toggleEngine;
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
   player.visible=true;shadow.visible=true;driving=null;document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
- else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);player.visible=false;shadow.visible=false;camPitch=.28;wheelA=0;document.body.classList.add('drv');$('act').classList.add('dr');engine(true);}};
+ else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.engineOn=false;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);player.visible=false;shadow.visible=false;camPitch=.28;wheelA=0;document.body.classList.add('drv');$('act').classList.add('dr');$('ignition').classList.remove('on');$('ignition').textContent='⏻';engine(false);}};
 function ctx(){return ac=ac||new (window.AudioContext||window.webkitAudioContext)();}
 function horn(){const a=ctx(),o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.value=420;g.gain.value=.08;o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.35);}
 function punch(){if(punchT>0||driving)return;punchT=.35;pHand^=1;if(Math.hypot(pos.x-6.6,pos.z-22)<2)bagV+=5*Math.sign(6.6-pos.x);}
