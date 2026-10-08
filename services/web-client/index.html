@@ -9,10 +9,19 @@
     <meta name="theme-color" content="#081018" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Nigeria Roleplay — Port Harcourt</title>
   </head>
   <body>
     <main id="app">
+      <div id="portrait-blocker" aria-live="polite">
+        <div class="portrait-card">
+          <div class="rotate-icon">⟳</div>
+          <strong>LANDSCAPE MODE</strong>
+          <span>Please rotate your phone sideways to enter Nigeria RP.</span>
+        </div>
+      </div>
       <canvas id="game-canvas" aria-label="Nigeria RP 3D world"></canvas>
 
       <section class="hud" aria-label="Nigeria RP game HUD">
