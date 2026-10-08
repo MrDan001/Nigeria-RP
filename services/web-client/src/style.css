@@ -397,3 +397,37 @@ button{cursor:pointer}
 
   .controls-hint{display:none}
 }
+
+
+/* Visual-reference alignment: give the world and player the breathing room of the target concept. */
+@media (orientation:landscape) and (max-height:600px){
+  .minimap,.player-map-dots{
+    left:8px;
+    bottom:48px;
+    width:86px;
+    height:86px;
+  }
+  .joystick{
+    left:clamp(98px,11vw,150px);
+    bottom:7px;
+    width:96px;
+    height:96px;
+  }
+  .stick{
+    width:42px;
+    height:42px;
+    left:27px;
+    top:27px;
+  }
+  .mission{
+    right:58px;
+    bottom:64px;
+    width:250px;
+  }
+  .action-buttons{
+    right:8px;
+    bottom:6px;
+    width:160px;
+    height:108px;
+  }
+}

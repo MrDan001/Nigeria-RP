@@ -43,42 +43,52 @@ app.setCanvasResolution(RESOLUTION_AUTO);
 
 const camera = new Entity("Camera");
 camera.addComponent("camera", {
-  clearColor: new Color(0.52, 0.67, 0.82, 1),
-  fov: 64,
-  farClip: 260
+  clearColor: new Color(0.55, 0.66, 0.76, 1),
+  fov: 68,
+  farClip: 320
 });
 app.root.addChild(camera);
 
 const sun = new Entity("Sun");
 sun.addComponent("light", {
   type: "directional",
-  intensity: 2.4,
-  castShadows: false
+  intensity: 2.1,
+  castShadows: false,
+  color: new Color(1.0, 0.86, 0.72)
 });
-sun.setEulerAngles(52, 35, -8);
+sun.setEulerAngles(48, 28, -6);
 app.root.addChild(sun);
 
 const ambient = new Entity("Ambient");
 ambient.addComponent("light", {
   type: "omni",
-  intensity: 1.7,
-  range: 180
+  intensity: 1.25,
+  range: 240,
+  color: new Color(0.72, 0.82, 1.0)
 });
-ambient.setPosition(0, 25, 0);
+ambient.setPosition(0, 30, 0);
 app.root.addChild(ambient);
 
 function material(r: number, g: number, b: number, emissive = 0) {
   const m = new StandardMaterial();
   m.diffuse.set(r, g, b);
-  m.roughness = 0.86;
-  if (emissive > 0) {
-    m.emissive.set(r * emissive, g * emissive, b * emissive);
-  }
+  m.roughness = 0.82;
+  if (emissive > 0) m.emissive.set(r * emissive, g * emissive, b * emissive);
   m.update();
   return m;
 }
 
-function addBox(name: string, x: number, y: number, z: number, w: number, h: number, d: number, mat: StandardMaterial, yaw = 0) {
+function addBox(
+  name: string,
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  h: number,
+  d: number,
+  mat: StandardMaterial,
+  yaw = 0
+) {
   const entity = new Entity(name);
   entity.addComponent("render", { type: "box" });
   entity.setPosition(x, y, z);
@@ -89,156 +99,256 @@ function addBox(name: string, x: number, y: number, z: number, w: number, h: num
   return entity;
 }
 
-function addSphere(name: string, x: number, y: number, z: number, scale: number, mat: StandardMaterial) {
+function addSphere(
+  name: string,
+  x: number,
+  y: number,
+  z: number,
+  sx: number,
+  sy: number,
+  sz: number,
+  mat: StandardMaterial
+) {
   const entity = new Entity(name);
   entity.addComponent("render", { type: "sphere" });
   entity.setPosition(x, y, z);
-  entity.setLocalScale(scale, scale, scale);
+  entity.setLocalScale(sx, sy, sz);
   entity.render!.material = mat;
   app.root.addChild(entity);
   return entity;
 }
 
-const asphalt = material(0.075, 0.085, 0.09);
-const curb = material(0.58, 0.57, 0.53);
-const sand = material(0.34, 0.30, 0.22);
-const grass = material(0.065, 0.18, 0.10);
-const concrete = material(0.36, 0.37, 0.38);
-const white = material(0.88, 0.9, 0.9);
-const yellow = material(0.98, 0.77, 0.08, 0.12);
-const windowMat = material(0.07, 0.20, 0.27, 0.12);
-const green = material(0.04, 0.32, 0.18);
-const cream = material(0.68, 0.59, 0.42);
-const red = material(0.45, 0.07, 0.05);
-const blue = material(0.03, 0.25, 0.44);
+const asphalt = material(0.055, 0.067, 0.078);
+const roadEdge = material(0.50, 0.47, 0.40);
+const white = material(0.92, 0.93, 0.92);
+const yellow = material(0.95, 0.72, 0.08, 0.08);
+const grass = material(0.045, 0.17, 0.085);
+const grass2 = material(0.08, 0.22, 0.11);
+const concrete = material(0.39, 0.40, 0.42);
+const plaster = material(0.62, 0.59, 0.54);
+const cream = material(0.77, 0.67, 0.49);
+const warm = material(0.48, 0.26, 0.11);
+const red = material(0.48, 0.08, 0.055);
+const blue = material(0.04, 0.27, 0.48);
+const teal = material(0.03, 0.32, 0.31);
+const green = material(0.025, 0.36, 0.18);
+const darkGreen = material(0.015, 0.20, 0.09);
+const glass = material(0.045, 0.17, 0.22, 0.22);
+const dark = material(0.02, 0.027, 0.03);
 
-addBox("CityGround", 0, -0.15, 0, 150, 0.3, 150, grass);
+addBox("CityGround", 0, -0.18, 0, 190, 0.35, 190, grass);
 
-function addRoad(x: number, z: number, w: number, d: number) {
-  addBox("Road", x, 0.02, z, w, 0.08, d, asphalt);
-  if (w > d) {
-    for (let px = -w / 2 + 8; px < w / 2 - 4; px += 13) {
-      addBox("Lane", x + px, 0.075, z, 7, 0.015, 0.16, white);
+function addRoad(x: number, z: number, w: number, d: number, horizontal = false) {
+  addBox("Road", x, 0.01, z, w, 0.08, d, asphalt);
+
+  if (horizontal) {
+    addBox("RoadEdgeTop", x, 0.07, z - d / 2 - 2.2, w, 0.14, 4.4, roadEdge);
+    addBox("RoadEdgeBottom", x, 0.07, z + d / 2 + 2.2, w, 0.14, 4.4, roadEdge);
+
+    for (let px = -w / 2 + 6; px < w / 2 - 6; px += 13) {
+      addBox("LaneTop", x + px, 0.075, z - 5.1, 7, 0.018, 0.16, white);
+      addBox("LaneBottom", x + px, 0.075, z + 5.1, 7, 0.018, 0.16, white);
+    }
+
+    for (let px = -w / 2 + 10; px < w / 2 - 5; px += 14) {
+      addBox("CenterDash", x + px, 0.078, z, 6, 0.02, 0.13, yellow);
     }
   } else {
-    for (let pz = -d / 2 + 8; pz < d / 2 - 4; pz += 13) {
-      addBox("Lane", x, 0.075, z + pz, 0.16, 0.015, 7, white);
+    addBox("RoadEdgeLeft", x - d / 2 - 2.2, 0.07, z, 4.4, 0.14, d, roadEdge);
+    addBox("RoadEdgeRight", x + d / 2 + 2.2, 0.07, z, 4.4, 0.14, d, roadEdge);
+
+    for (let pz = -d / 2 + 6; pz < d / 2 - 6; pz += 13) {
+      addBox("LaneLeft", x - 5.1, 0.075, z + pz, 0.16, 0.018, 7, white);
+      addBox("LaneRight", x + 5.1, 0.075, z + pz, 0.16, 0.018, 7, white);
+    }
+
+    for (let pz = -d / 2 + 10; pz < d / 2 - 5; pz += 14) {
+      addBox("CenterDash", x, 0.078, z + pz, 0.13, 0.02, 6, yellow);
     }
   }
 }
 
-addRoad(0, 0, 140, 16);
-addRoad(0, 0, 16, 140);
-addBox("Median", 0, 0.10, 0, 140, 0.18, 1.1, curb);
+addRoad(0, 0, 170, 22, false);
+addRoad(0, -31, 170, 18, true);
 
-function addBuilding(x: number, z: number, w: number, h: number, d: number, facade: StandardMaterial) {
+function addSidewalkBand(x: number, z: number, w: number, d: number) {
+  addBox("Sidewalk", x, 0.12, z, w, 0.18, d, concrete);
+}
+
+addSidewalkBand(-14, -23, 5, 150);
+addSidewalkBand(14, -23, 5, 150);
+addSidewalkBand(-82, -31, 18, 5);
+addSidewalkBand(82, -31, 18, 5);
+
+function addWindowRow(x: number, y: number, z: number, count: number, yaw = 0) {
+  for (let i = 0; i < count; i++) {
+    const offset = (i - (count - 1) / 2) * 2.4;
+    const wx = yaw === 0 ? x + offset : x;
+    const wz = yaw === 0 ? z : z + offset;
+    addBox("Window", wx, y, wz, yaw === 0 ? 1.15 : 0.08, 0.78, yaw === 0 ? 0.08 : 1.15, glass, yaw);
+  }
+}
+
+function addBuilding(
+  x: number,
+  z: number,
+  w: number,
+  h: number,
+  d: number,
+  facade: StandardMaterial
+) {
   addBox("Building", x, h / 2, z, w, h, d, facade);
-  for (let row = 0; row < Math.max(2, Math.floor(h / 2)); row++) {
-    for (let col = 0; col < Math.max(2, Math.floor(w / 2.5)); col++) {
-      addBox(
-        "Window",
-        x - w / 2 + 1.2 + col * 2.2,
-        1.25 + row * 1.8,
-        z - d / 2 - 0.05,
-        0.75, 0.55, 0.08,
-        windowMat
-      );
-    }
+
+  const frontZ = z - d / 2 - 0.05;
+  for (let row = 0; row < Math.max(2, Math.floor(h / 2.1)); row++) {
+    addWindowRow(x, 1.55 + row * 2.0, frontZ, Math.max(2, Math.floor(w / 2.4)));
+  }
+
+  addBox("FacadeBand", x, Math.min(h - 0.7, 2.4), frontZ - 0.09, Math.max(2, w - 1.2), 0.14, 0.08, green);
+  addBox("RoofTrim", x, h + 0.1, z, Math.max(2, w + 0.3), 0.18, Math.max(2, d + 0.3), roadEdge);
+
+  if (h >= 7) {
+    addBox("Canopy", x, 1.2, frontZ - 1.15, Math.max(3, w * 0.55), 0.18, 2.2, cream);
   }
 }
 
-addBuilding(-29, -29, 24, 9, 18, concrete);
-addBuilding(27, -30, 20, 6, 16, cream);
-addBuilding(-29, 28, 26, 7, 18, red);
-addBuilding(28, 28, 18, 11, 18, concrete);
-addBuilding(-52, 2, 15, 5, 18, cream);
-addBuilding(50, -5, 17, 8, 20, blue);
-addBuilding(42, 38, 12, 5, 14, green);
+addBuilding(-31, -45, 26, 8, 18, cream);
+addBuilding(28, -46, 24, 12, 19, plaster);
+addBuilding(-31, 11, 28, 7, 17, red);
+addBuilding(29, 12, 22, 9, 17, teal);
+addBuilding(-58, -8, 16, 5.5, 18, warm);
+addBuilding(57, -2, 18, 7, 20, blue);
+addBuilding(-63, 41, 20, 10, 18, concrete);
+addBuilding(62, 40, 22, 6, 18, cream);
+addBuilding(8, -61, 30, 15, 20, concrete);
 
 function addPalm(x: number, z: number, scale = 1) {
-  const trunk = addBox("PalmTrunk", x, 2.1 * scale, z, 0.55 * scale, 4.2 * scale, 0.55 * scale, cream);
-  trunk.setEulerAngles(0, (x * 7) % 8, (z * 3) % 4);
-  addSphere("PalmCrown", x, 4.45 * scale, z, 2.3 * scale, green);
-  addSphere("PalmCrown2", x + 1.0 * scale, 4.15 * scale, z + .3 * scale, 1.5 * scale, green);
+  const trunk = addBox("PalmTrunk", x, 2.3 * scale, z, 0.5 * scale, 4.6 * scale, 0.5 * scale, warm);
+  trunk.setEulerAngles(0, (x * 3 + z * 2) % 7, (z % 5) * 1.4);
+
+  const leafMat = green;
+  addSphere("PalmLeafA", x, 4.75 * scale, z, 2.45 * scale, 0.95 * scale, 1.55 * scale, leafMat);
+  addSphere("PalmLeafB", x - 1.0 * scale, 4.45 * scale, z + 0.55 * scale, 1.45 * scale, 0.7 * scale, 1.0 * scale, darkGreen);
+  addSphere("PalmLeafC", x + 1.0 * scale, 4.55 * scale, z - 0.25 * scale, 1.35 * scale, 0.72 * scale, 1.05 * scale, leafMat);
 }
 
 [
-  [-18, 11, 1.0], [17, 10, .95], [-13, -10, .9], [15, -11, .9],
-  [-49, -17, .85], [47, 22, 1.0], [36, -21, .82], [-42, 43, .75]
-].forEach(([x,z,s]) => addPalm(x, z, s));
+  [-19, -29, 1.0],
+  [18, -29, 0.95],
+  [-18, -2, 0.95],
+  [19, 6, 0.9],
+  [-47, -20, 0.82],
+  [47, 20, 0.95],
+  [-48, 30, 0.8],
+  [49, -28, 0.86],
+].forEach(([x, z, s]) => addPalm(x, z, s));
 
-function addStreetLight(x: number, z: number, horizontal = true) {
-  addBox("LampPole", x, 2.7, z, 0.12, 5.4, 0.12, concrete);
-  if (horizontal) addBox("LampArm", x + 0.9, 5.25, z, 1.8, 0.1, 0.1, concrete);
-  else addBox("LampArm", x, 5.25, z + 0.9, 0.1, 0.1, 1.8, concrete);
-  addSphere("Lamp", horizontal ? x + .9 : x, 5.25, horizontal ? z : z + .9, .26, yellow);
+function addStreetLight(x: number, z: number, horizontal = false) {
+  addBox("LampPole", x, 2.8, z, 0.12, 5.6, 0.12, concrete);
+  if (horizontal) {
+    addBox("LampArm", x + 0.9, 5.25, z, 1.8, 0.1, 0.1, concrete);
+    addSphere("Lamp", x + 1.8, 5.25, z, 0.22, 0.22, 0.22, yellow);
+  } else {
+    addBox("LampArm", x, 5.25, z + 0.9, 0.1, 0.1, 1.8, concrete);
+    addSphere("Lamp", x, 5.25, z + 1.8, 0.22, 0.22, 0.22, yellow);
+  }
 }
 
-[[-34, -7],[-16, -7],[16, 7],[34, 7]].forEach(([x,z]) => addStreetLight(x,z,true));
+[
+  [-10, -12],
+  [10, -12],
+  [-10, -48],
+  [10, -48],
+  [-46, -31],
+  [46, -31],
+].forEach(([x, z]) => addStreetLight(x, z, false));
 
-function addCar(x: number, z: number, body: StandardMaterial, yaw = 0) {
+function addCar(x: number, z: number, body: StandardMaterial, yaw = 0, scale = 1) {
   const root = new Entity("Car");
-  root.setPosition(x, 0.55, z);
+  root.setPosition(x, 0.58, z);
   root.setEulerAngles(0, yaw, 0);
+  root.setLocalScale(scale, scale, scale);
   app.root.addChild(root);
 
-  const base = addBox("CarBody", 0, .35, 0, 4.1, .72, 2.0, body);
-  const cabin = addBox("CarCabin", 0, .92, 0, 2.25, .72, 1.65, windowMat);
-  const front = addBox("CarFront", 1.6, .32, 0, .55, .28, 1.75, white);
-  root.addChild(base); root.addChild(cabin); root.addChild(front);
+  const base = addBox("CarBody", 0, .38, 0, 4.4, .76, 2.05, body);
+  const cabin = addBox("CarCabin", -0.15, .95, 0, 2.4, .72, 1.67, glass);
+  const hood = addBox("CarHood", 1.25, .64, 0, 1.45, .28, 1.86, body);
+  root.addChild(base);
+  root.addChild(cabin);
+  root.addChild(hood);
 
-  [[-1.25,-1.0],[1.25,-1.0],[-1.25,1.0],[1.25,1.0]].forEach(([wx,wz]) => {
+  [[-1.38,-1.0],[1.38,-1.0],[-1.38,1.0],[1.38,1.0]].forEach(([wx,wz]) => {
     const wheel = new Entity("Wheel");
     wheel.addComponent("render", { type: "cylinder" });
     wheel.setPosition(wx, 0, wz);
-    wheel.setLocalScale(.52,.22,.52);
+    wheel.setLocalScale(.5,.2,.5);
     wheel.setEulerAngles(90, 0, 0);
-    wheel.render!.material = asphalt;
+    wheel.render!.material = dark;
     root.addChild(wheel);
   });
+
+  addBox("Tail", x - Math.cos(yaw * Math.PI / 180) * 2.05 * scale, 0.88,
+    z - Math.sin(yaw * Math.PI / 180) * 2.05 * scale, 0.28, 0.12, 1.55, red);
 }
-addCar(-9, 3, blue, 90);
-addCar(28, -7, red, 90);
-addCar(-40, 11, cream, 0);
+
+addCar(0, -20, blue, 0, 0.95);
+addCar(-7, -38, red, 90, 0.9);
+addCar(11, -52, cream, 90, 0.88);
+addCar(-48, -31, teal, 0, 0.82);
+addCar(47, -31, blue, 180, 0.82);
+addCar(0, -70, warm, 0, 0.78);
 
 function addBillboard(x: number, z: number) {
-  addBox("BillboardPoleA", x - 4, 2.2, z, .16, 4.4, .16, concrete);
-  addBox("BillboardPoleB", x + 4, 2.2, z, .16, 4.4, .16, concrete);
-  const board = addBox("Billboard", x, 4.45, z, 11, 4.8, .2, asphalt);
-  board.setEulerAngles(0, 0, 0);
-  addBox("BillboardAccent", x, 4.48, z - .14, 8.6, .45, .05, green);
+  addBox("BillboardPoleA", x - 4.5, 2.4, z, .18, 4.8, .18, concrete);
+  addBox("BillboardPoleB", x + 4.5, 2.4, z, .18, 4.8, .18, concrete);
+  addBox("Billboard", x, 4.75, z, 12, 5.0, .28, dark);
+  addBox("BillboardTop", x, 6.1, z - .18, 9.2, .42, .05, green);
+  addBox("BillboardLine", x, 4.55, z - .18, 7.8, .18, .05, yellow);
 }
-addBillboard(30, 20);
+addBillboard(34, -12);
 
 function addPortHarcourtSign() {
-  const base = addBox("PHSign", -1, 3.0, -17, 18, 6, .3, concrete);
-  base.setEulerAngles(0, 180, 0);
-  addBox("PHSignGreen", -1, 1.65, -16.8, 11, .55, .1, green);
-  addBox("PHSignGold", -1, 3.85, -16.8, 12, .16, .08, yellow);
+  addBox("PHSignFrame", 0, 3.25, -61, 20, 6.5, .35, dark);
+  addBox("PHSignPanel", 0, 3.25, -60.78, 17.2, 5.5, .14, concrete);
+  addBox("PHSignGreen", 0, 1.75, -60.67, 12, .65, .08, green);
+  addBox("PHSignGold", 0, 3.98, -60.66, 12.8, .18, .06, yellow);
 }
 addPortHarcourtSign();
+
+function addCloud(x: number, y: number, z: number, s = 1) {
+  const cloud = material(0.82, 0.86, 0.89);
+  addSphere("CloudA", x, y, z, 6.5 * s, 2.2 * s, 3.2 * s, cloud);
+  addSphere("CloudB", x + 5 * s, y + .6 * s, z + 1.2 * s, 4.2 * s, 1.7 * s, 2.6 * s, cloud);
+}
+addCloud(-34, 30, -70, 1.0);
+addCloud(30, 26, -84, 0.9);
+addCloud(72, 33, -52, 0.85);
 
 function makePlayer(player: NetPlayer, local: boolean) {
   const root = new Entity("Player_" + player.id);
   root.setPosition(player.x, 0, player.z);
-  root.setEulerAngles(0, (player.yaw * 180) / Math.PI, 0);
+  root.setEulerAngles(0, 180 + (player.yaw * 180) / Math.PI, 0);
   app.root.addChild(root);
 
-  const skin = material(local ? 0.33 : 0.28, local ? 0.17 : 0.12, local ? 0.09 : 0.07);
-  const shirt = material(local ? 0.025 : 0.20, local ? 0.07 : 0.08, local ? 0.055 : 0.12);
-  const accent = material(0.02, 0.55, 0.33);
-  const pants = material(0.045, 0.065, 0.09);
-  const shoe = material(0.88, 0.88, 0.86);
+  const skin = material(local ? 0.34 : 0.27, local ? 0.18 : 0.12, local ? 0.10 : 0.07);
+  const shirt = material(0.022, 0.045, 0.047);
+  const shirtAccent = material(0.02, 0.56, 0.34);
+  const pants = material(0.035, 0.055, 0.075);
+  const shoe = material(0.88, 0.89, 0.88);
+  const cap = material(0.015, 0.025, 0.03);
 
-  addBox("Torso", 0, 1.45, 0, .95, 1.55, .55, shirt);
-  addSphere("Head", 0, 2.62, 0, .62, skin);
-  addBox("ArmL", -.72, 1.45, 0, .28, 1.25, .32, skin);
-  addBox("ArmR", .72, 1.45, 0, .28, 1.25, .32, skin);
-  addBox("LegL", -.28, .55, 0, .33, 1.35, .4, pants);
-  addBox("LegR", .28, .55, 0, .33, 1.35, .4, pants);
-  addBox("ShoeL", -.28, -.05, -.12, .42, .18, .78, shoe);
-  addBox("ShoeR", .28, -.05, -.12, .42, .18, .78, shoe);
-  addBox("BackAccent", 0, 1.48, -.31, .58, .48, .06, accent);
+  addBox("Torso", 0, 1.48, 0, 1.08, 1.6, .62, shirt);
+  addBox("ShoulderL", -.58, 1.68, 0, .24, .5, .68, shirt);
+  addBox("ShoulderR", .58, 1.68, 0, .24, .5, .68, shirt);
+  addSphere("Head", 0, 2.63, 0, .60, .64, .60, skin);
+  addBox("HairCap", 0, 3.03, 0.05, .88, .22, .88, cap);
+  addBox("ArmL", -.72, 1.42, 0, .28, 1.28, .33, skin);
+  addBox("ArmR", .72, 1.42, 0, .28, 1.28, .33, skin);
+  addBox("LegL", -.29, .52, 0, .35, 1.42, .42, pants);
+  addBox("LegR", .29, .52, 0, .35, 1.42, .42, pants);
+  addBox("ShoeL", -.29, -.06, -.08, .44, .18, .82, shoe);
+  addBox("ShoeR", .29, -.06, -.08, .44, .18, .82, shoe);
+  addBox("BackLogo", 0, 1.52, .34, .68, .42, .06, shirtAccent);
 
   playerEntities.set(player.id, root);
 }
@@ -259,19 +369,24 @@ window.addEventListener("keyup", (event) => keyboard.delete(event.key.toLowerCas
 function applyPlayers(players: NetPlayer[]) {
   const live = new Set(players.map((p) => p.id));
   for (const [id, entity] of playerEntities) {
-    if (!live.has(id)) { entity.destroy(); playerEntities.delete(id); }
+    if (!live.has(id)) {
+      entity.destroy();
+      playerEntities.delete(id);
+    }
   }
 
   mapDots.innerHTML = "";
   const scale = 0.42;
+
   for (const player of players) {
     let entity = playerEntities.get(player.id);
     if (!entity) {
       makePlayer(player, player.id === localPlayerId);
       entity = playerEntities.get(player.id)!;
     }
+
     entity.setPosition(player.x, 0, player.z);
-    entity.setEulerAngles(0, (player.yaw * 180) / Math.PI, 0);
+    entity.setEulerAngles(0, 180 + (player.yaw * 180) / Math.PI, 0);
 
     if (player.id !== localPlayerId) {
       const dot = document.createElement("span");
@@ -279,11 +394,9 @@ function applyPlayers(players: NetPlayer[]) {
       dot.style.left = `${50 + Math.max(-45, Math.min(45, player.x * scale))}%`;
       dot.style.top = `${50 + Math.max(-45, Math.min(45, player.z * scale))}%`;
       mapDots.appendChild(dot);
-    } else {
-      const mapPlayer = document.querySelector<HTMLElement>("#map-player");
-      if (mapPlayer) mapPlayer.title = player.name;
     }
   }
+
   playerCount.textContent = String(players.length);
 }
 
@@ -291,28 +404,51 @@ function setConnectionState(label: string, message: string, stateClass: string) 
   connection.textContent = label;
   connection.className = stateClass;
   status.textContent = message;
+
   const dot = document.querySelector<HTMLElement>(".pulse-dot");
   if (dot) {
-    dot.style.background = stateClass === "good" ? "#60efa7" : stateClass === "bad" ? "#ff7b8f" : "#ffd166";
+    dot.style.background =
+      stateClass === "good"
+        ? "#60efa7"
+        : stateClass === "bad"
+          ? "#ff7b8f"
+          : "#ffd166";
   }
 }
 
 function connect() {
-  if (reconnectTimer !== null) { window.clearTimeout(reconnectTimer); reconnectTimer = null; }
-  try { ws = new WebSocket(SERVER_URL); }
-  catch { setConnectionState("ERROR","Unable to open the game server connection.","bad"); reconnect(); return; }
+  if (reconnectTimer !== null) {
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
 
-  setConnectionState("CONNECTING","Connecting to the Port Harcourt authoritative world…","pending");
+  try {
+    ws = new WebSocket(SERVER_URL);
+  } catch {
+    setConnectionState("ERROR", "Unable to open the game server connection.", "bad");
+    reconnect();
+    return;
+  }
+
+  setConnectionState(
+    "CONNECTING",
+    "Connecting to the Port Harcourt authoritative world…",
+    "pending"
+  );
 
   ws.onopen = () => {
-    setConnectionState("ONLINE","Live server connection established.","good");
+    setConnectionState("ONLINE", "Live server connection established.", "good");
     const name = nameInput.value.trim().slice(0, 20) || "Player";
     send({ type: "hello", name });
   };
 
   ws.onmessage = (event) => {
     let message: Connected | Snapshot | Interaction;
-    try { message = JSON.parse(event.data) as Connected | Snapshot | Interaction; } catch { return; }
+    try {
+      message = JSON.parse(event.data) as Connected | Snapshot | Interaction;
+    } catch {
+      return;
+    }
 
     if (message.type === "connected") {
       localPlayerId = message.playerId;
@@ -325,13 +461,22 @@ function connect() {
     }
   };
 
-  ws.onclose = () => { setConnectionState("OFFLINE","Connection lost. Reconnecting…","bad"); reconnect(); };
-  ws.onerror = () => setConnectionState("ERROR","Network error. Retrying…","bad");
+  ws.onclose = () => {
+    setConnectionState("OFFLINE", "Connection lost. Reconnecting…", "bad");
+    reconnect();
+  };
+
+  ws.onerror = () => {
+    setConnectionState("ERROR", "Network error. Retrying…", "bad");
+  };
 }
 
 function reconnect() {
   if (reconnectTimer !== null) return;
-  reconnectTimer = window.setTimeout(() => { reconnectTimer = null; connect(); }, 1500);
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, 1500);
 }
 
 function send(payload: unknown) {
@@ -342,46 +487,76 @@ function setStick(clientX: number, clientY: number) {
   const rect = joystick.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
-  const dx = clientX - cx, dy = clientY - cy;
+  const dx = clientX - cx;
+  const dy = clientY - cy;
   const max = 45;
   const length = Math.hypot(dx, dy) || 1;
   const scale = Math.min(1, max / length);
+
   stick.style.transform = `translate(${dx * scale}px,${dy * scale}px)`;
-  input = { forward: (-dy / 45) * scale, strafe: (dx / 45) * scale };
+  input = {
+    forward: (-dy / 45) * scale,
+    strafe: (dx / 45) * scale
+  };
 }
-function resetStick() { stick.style.transform = "translate(0,0)"; input = { forward: 0, strafe: 0 }; }
+
+function resetStick() {
+  stick.style.transform = "translate(0,0)";
+  input = { forward: 0, strafe: 0 };
+}
 
 joystick.addEventListener("pointerdown", (event) => {
-  joystick.setPointerCapture(event.pointerId); setStick(event.clientX,event.clientY);
+  joystick.setPointerCapture(event.pointerId);
+  setStick(event.clientX, event.clientY);
 });
-joystick.addEventListener("pointermove", (event) => { if (event.buttons) setStick(event.clientX,event.clientY); });
+joystick.addEventListener("pointermove", (event) => {
+  if (event.buttons) setStick(event.clientX, event.clientY);
+});
 joystick.addEventListener("pointerup", resetStick);
 joystick.addEventListener("pointercancel", resetStick);
 
 interact.addEventListener("click", () => send({ type: "interact" }));
-resetCamera.addEventListener("click", () => { manualCamera = false; });
+resetCamera.addEventListener("click", () => {
+  manualCamera = false;
+});
+
 joinButton.addEventListener("click", () => {
-  const nextName = nameInput.value.trim().slice(0,20) || "Player";
+  const nextName = nameInput.value.trim().slice(0, 20) || "Player";
   nameInput.value = nextName;
   identityName.textContent = nextName;
-  send({ type:"hello", name: nextName });
+  send({ type: "hello", name: nextName });
   status.textContent = `Identity updated to ${nextName}.`;
 });
 
 app.on("update", (dt: number) => {
-  let forward = input.forward, strafe = input.strafe;
+  let forward = input.forward;
+  let strafe = input.strafe;
+
   if (keyboard.has("w") || keyboard.has("arrowup")) forward += 1;
   if (keyboard.has("s") || keyboard.has("arrowdown")) forward -= 1;
   if (keyboard.has("d") || keyboard.has("arrowright")) strafe += 1;
   if (keyboard.has("a") || keyboard.has("arrowleft")) strafe -= 1;
 
   const magnitude = Math.hypot(forward, strafe);
-  if (magnitude > 1) { forward /= magnitude; strafe /= magnitude; }
+  if (magnitude > 1) {
+    forward /= magnitude;
+    strafe /= magnitude;
+  }
 
   const now = performance.now();
-  if (now-lastSend >= 50 && ws?.readyState === WebSocket.OPEN &&
-      (Math.abs(forward)>.01 || Math.abs(strafe)>.01)) {
-    send({ type:"input", input:{ sequence:inputSequence++, forward, strafe } });
+  if (
+    now - lastSend >= 50 &&
+    ws?.readyState === WebSocket.OPEN &&
+    (Math.abs(forward) > 0.01 || Math.abs(strafe) > 0.01)
+  ) {
+    send({
+      type: "input",
+      input: {
+        sequence: inputSequence++,
+        forward,
+        strafe
+      }
+    });
     lastSend = now;
   }
 
@@ -389,16 +564,19 @@ app.on("update", (dt: number) => {
   if (!manualCamera && local) {
     const p = local.getPosition();
     const desiredX = p.x;
-    const desiredY = p.y + 5.8;
-    const desiredZ = p.z + 10.5;
+    const desiredY = p.y + 3.55;
+    const desiredZ = p.z + 6.9;
+
     const current = camera.getPosition();
-    const k = Math.min(1, dt * 5);
+    const k = Math.min(1, dt * 6);
+
     camera.setPosition(
-      current.x + (desiredX-current.x)*k,
-      current.y + (desiredY-current.y)*k,
-      current.z + (desiredZ-current.z)*k
+      current.x + (desiredX - current.x) * k,
+      current.y + (desiredY - current.y) * k,
+      current.z + (desiredZ - current.z) * k
     );
-    camera.lookAt(p.x, p.y + 1.15, p.z);
+
+    camera.lookAt(p.x, p.y + 1.18, p.z - 4.8);
   }
 });
 
@@ -407,14 +585,11 @@ function requestLandscapeMode() {
     const orientation = screen.orientation as ScreenOrientation & {
       lock?: (orientation: "landscape") => Promise<void>;
     };
+
     if (orientation?.lock) {
-      orientation.lock("landscape").catch(() => {
-        // Browsers commonly require an installed PWA/fullscreen context.
-      });
+      orientation.lock("landscape").catch(() => {});
     }
-  } catch {
-    // Orientation APIs are optional; the portrait blocker handles unsupported browsers.
-  }
+  } catch {}
 }
 
 window.addEventListener("pointerdown", requestLandscapeMode, { once: true });

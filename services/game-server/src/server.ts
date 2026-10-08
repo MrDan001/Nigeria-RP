@@ -198,7 +198,7 @@ wss.on("connection", (socket) => {
     id,
     name: "Player",
     x: 0,
-    z: 0,
+    z: 6,
     yaw: 0,
     connectedAt: Date.now(),
     lastInputSequence: -1,
@@ -307,15 +307,21 @@ setInterval(() => {
       const nx = input.forward / Math.max(1, length);
       const nz = input.strafe / Math.max(1, length);
 
+      const strafe = input.strafe / Math.max(1, length);
+      const forward = input.forward / Math.max(1, length);
+
+      // Camera/world convention: forward is toward -Z, strafe is +X.
       session.state.x = Math.max(
         -WORLD_LIMIT,
-        Math.min(WORLD_LIMIT, session.state.x + nx * MOVE_SPEED * dt),
+        Math.min(WORLD_LIMIT, session.state.x + strafe * MOVE_SPEED * dt),
       );
 
       session.state.z = Math.max(
         -WORLD_LIMIT,
-        Math.min(WORLD_LIMIT, session.state.z + nz * MOVE_SPEED * dt),
+        Math.min(WORLD_LIMIT, session.state.z - forward * MOVE_SPEED * dt),
       );
+
+      session.state.yaw = Math.atan2(strafe, -forward);
     }
   }
 }, 1000 / TICK_RATE);
