@@ -48,6 +48,13 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #run{right:8.4rem;bottom:1.8rem;width:3.6rem;height:3.6rem;font-size:1.5rem}
 #crch{right:8.8rem;bottom:6.2rem;width:3.2rem;height:3.2rem;font-size:1.3rem}
 #run.on{background:#1b8cf0}
+.rb.on{background:#1b8cf0}
+#act{position:fixed;right:13.5rem;bottom:2.4rem;padding:.8rem 1.1rem;font-size:.95rem;font-weight:700;color:#fff;background:#1b8cf0;border:0;border-radius:.8rem;z-index:3}
+#modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:1rem 1.4rem;max-height:80vh;overflow:auto;z-index:5;color:#fff;font-size:.9rem;pointer-events:auto}
+#modal p{margin:.4rem 0}#modal button{margin-top:.6rem;background:#1b8cf0;border:0;color:#fff;border-radius:.4rem;padding:.4rem .9rem}
+#start,#rot{position:fixed;inset:0;background:#0d1620;color:#fff;place-items:center;text-align:center;z-index:9;font-size:1.1rem}
+#start{display:grid}#rot{display:none;z-index:10}#go{font-size:1.2rem;padding:.8rem 1.6rem;border:0;border-radius:.8rem;background:#1b8cf0;color:#fff}
+@media(orientation:portrait){#rot{display:grid}}
 </style></head><body>
 <div id="game-shell">
 <canvas id="c"></canvas>
@@ -57,7 +64,7 @@ button,input,#joy{pointer-events:auto;font:inherit}
  <div class="p" id="top"><span class="cash">₦ <span id="cash">0</span></span><span class="lv">LEVEL 1</span><span>👤 <b>1</b> online</span><button id="gear">⚙</button></div>
  <div class="p" id="gp"><button id="bo">Change outfit</button><button id="bs">Change skin tone</button></div>
  <div class="p" id="chat"><div id="tabs"><span>GLOBAL</span><span>LOCAL</span><span>SYSTEM</span></div><div id="log"><div><b>System:</b> Welcome to Port Harcourt.</div></div><form id="cf"><input id="ci" placeholder="Type a message..." autocomplete="off"></form></div>
- <div id="col"><button class="ib">📱</button><button class="ib">👥</button><button class="ib">🎒</button><button class="ib">🗺</button></div>
+ <div id="col"><button class="ib" id="ib0">📱</button><button class="ib" id="ib1">👥</button><button class="ib" id="ib2">🎒</button><button class="ib" id="ib3">🗺</button></div>
  <div class="p" id="mis"><i>NEW MISSION</i><b>Get a job from the Job Center</b></div>
  <canvas id="mm" width="240" height="240"></canvas>
  <div id="joy"><div id="knob"></div></div>
@@ -65,9 +72,20 @@ button,input,#joy{pointer-events:auto;font:inherit}
  <div class="p" id="stats"><span>♥ 100<span class="bar"><i style="width:100%;background:#ef4a5a"></i></span></span><span>🛡 0<span class="bar"><i style="width:2%;background:#3b82f6"></i></span></span><span>🍴 82<span class="bar"><i style="width:82%;background:#f5c518"></i></span></span></div>
  <button class="rb" id="fist">✊</button><button class="rb" id="run">🏃</button><button class="rb" id="crch">🧎</button>
 </div>
+<button id="act" style="display:none"></button>
+<div class="p" id="modal" style="display:none"></div>
+<div id="start"><div><div style="font-size:1.6rem;font-weight:800;margin-bottom:1rem">NIGERIA ROLEPLAY</div><button id="go">Tap to play in landscape</button></div></div>
+<div id="rot">Rotate your phone to landscape</div>
 </div>
 <script>
 async function enterLandscape(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.().catch(()=>{});}catch{}try{await screen.orientation?.lock?.('landscape').catch(()=>{});}catch{}}
+const startEl=document.getElementById('start'), goBtn=document.getElementById('go');
+async function enterLandscape(){
+  try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.().catch(()=>{});}catch{}
+  try{await screen.orientation?.lock?.('landscape').catch(()=>{});}catch{}
+}
+async function startGame(){await enterLandscape();if(startEl)startEl.style.display='none';}
+if(goBtn)goBtn.addEventListener('click',startGame);
 void enterLandscape();
 addEventListener('orientationchange',()=>{void enterLandscape();});
 </script>
@@ -103,9 +121,21 @@ add(new THREE.CylinderGeometry(.15,.15,9,6),M(0x555555),8.2,4.5,-62);
 sign(8,3,(g,w,h)=>{g.fillStyle='#1d2a36';g.fillRect(0,0,w,h);g.textAlign='center';g.fillStyle='#fff';g.font='bold 62px system-ui';g.fillText('BIGGER DREAMS',w/2,h*.34);g.fillText('BIGGER HUSTLE',w/2,h*.6);g.fillStyle='#19c37d';g.font='bold 56px system-ui';g.fillText('NIGERIA RP',w/2,h*.88);},5,9.5,-62,0);
 function palm(x,z){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);add(new THREE.CylinderGeometry(.13,.22,7,6),M(0x7a5c3c),0,3.5,0,g);const top=new THREE.Group();top.position.y=7;g.add(top);for(let i=0;i<7;i++){const lg=new THREE.Group(),pv=new THREE.Group();lg.rotation.y=i*.9;pv.rotation.x=.5;add(new THREE.BoxGeometry(.35,.04,3.4),M(0x2f8f3f),0,0,1.7,pv);lg.add(pv);top.add(lg);}}
 for(let i=-12;i<=8;i++){palm(-8.8,i*14+3);palm(8.8,i*14+10);}
-function car(x,z,col,ry){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);add(new THREE.BoxGeometry(1.9,.7,4.4),M(col),0,.7,0,g);add(new THREE.BoxGeometry(1.7,.6,2.3),M(0x1b2630),0,1.3,-.2,g);[[-.95,1.4],[.95,1.4],[-.95,-1.4],[.95,-1.4]].forEach(p=>{const w=add(new THREE.CylinderGeometry(.38,.38,.3,10),M(0x111111),p[0],.38,p[1],g);w.rotation.z=Math.PI/2;});boxes.push({x,z,hw:1.05,hd:2.3});}
-car(-3.6,-10,0x0d0d0f,0);car(3.6,-42,0x8a1c1c,Math.PI);car(-3.6,-70,0x1d4a8a,0);car(3.6,-18,0xc9c9c9,Math.PI);
-
+const cars=[];
+function car(x,z,col,ry,kind='p'){
+ const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);
+ add(new THREE.BoxGeometry(1.9,.7,4.4),M(col),0,.7,0,g);
+ add(new THREE.BoxGeometry(1.7,.6,2.3),M(0x1b2630),0,1.3,-.2,g);
+ [[-.95,1.4],[.95,1.4],[-.95,-1.4],[.95,-1.4]].forEach(p=>{const w=add(new THREE.CylinderGeometry(.38,.38,.3,10),M(0x111111),p[0],.38,p[1],g);w.rotation.z=Math.PI/2;});
+ [-.6,.6].forEach(q=>{add(new THREE.BoxGeometry(.4,.15,.05),new THREE.MeshBasicMaterial({color:0xfff2b0}),q,.75,2.2,g);add(new THREE.BoxGeometry(.4,.15,.05),new THREE.MeshBasicMaterial({color:0xd02020}),q,.75,-2.2,g);});
+ const c={g,box:{x,z,hw:1.05,hd:2.3},kind,v:0,ry,x,z};boxes.push(c.box);cars.push(c);return c;
+}
+car(-3.9,-10,0x0d0d0f,0,'p');
+car(3.9,-42,0x8a1c1c,Math.PI,'p');
+car(-3.9,-70,0x1d4a8a,0,'p');
+car(3.9,-18,0xc9c9c9,Math.PI,'p');
+car(-3.9,16,0x0d0d0f,0,'p');
+[[1.6,10,0x9a9a9a],[1.6,-60,0xd9b13a],[1.6,-130,0x2b5b3a],[-1.6,-30,0x6a2a8a],[-1.6,-100,0xe8e8e8],[-1.6,-170,0x1c3f6e]].forEach(a=>{const c=car(a[0],a[1],a[2],a[0]>0?Math.PI:0,'t');c.v=9;});
 /* ---------- Character: black NIGERIA RP tee, cap, baggy jeans, sneakers ---------- */
 const SKIN=[0x8d5524,0x6b3e1f,0x4a2a14,0xa8703c],HAIR=[0x111111,0x1a1a1a,0x2b1b12,0x111111];
 const OUTFITS=[{top:0x151515,bottom:0x1c2330,shoe:0xf2f2f2,short:false,long:false,cap:true,print:true},{top:0x2f6f4f,bottom:0xa39373,shoe:0x3a2a20,short:false,long:false,cap:false},{top:0xc94a3a,bottom:0x2b2b2b,shoe:0x222222,short:true,long:false,cap:false},{top:0x3a5fa0,bottom:0x1d2a44,shoe:0xcccccc,short:false,long:true,cap:false}];
@@ -133,18 +163,107 @@ const lend=e=>{if(e.pointerId===lid){lid=null;draggingCam=false;}};cv.addEventLi
 $('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?'none':'flex';};$('bo').onclick=()=>{look.o=(look.o+1)%OUTFITS.length;dress();};$('bs').onclick=()=>{look.s=(look.s+1)%SKIN.length;dress();};$('run').onclick=()=>{sprint=!sprint;$('run').classList.toggle('on',sprint);};$('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)return;const d=document.createElement('div');d.innerHTML='<b>You:</b> ';d.append(v);$('log').append(d);$('log').scrollTop=1e5;$('ci').value='';};
 
 /* ---------- Movement: camera-relative, delta-time, one update loop ---------- */
-const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24);let face=Math.PI,speed=0,phase=0;
-function update(dt){let ix=inp.x,iy=inp.y;if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyA||keys.ArrowLeft)ix-=1;let mag=Math.hypot(ix,iy);if(mag>1){ix/=mag;iy/=mag;mag=1;}
-const s=Math.sin(camYaw),c=Math.cos(camYaw);let tx=0,tz=0;if(mag>0){const dx=ix*c-iy*s,dz=-ix*s-iy*c,l=Math.hypot(dx,dz),top=sprint?6.3:4.5;const sp=mag<.7?2*(mag/.7):2+(mag-.7)/.3*(top-2);tx=dx/l*sp;tz=dz/l*sp;}
-const k=1-Math.exp(-dt*10);vel.x+=(tx-vel.x)*k;vel.z+=(tz-vel.z)*k;pos.x+=vel.x*dt;pos.z+=vel.z*dt;
-for(const b of boxes){const ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
-pos.x=clamp(pos.x,-240,240);pos.z=clamp(pos.z,-240,240);speed=Math.hypot(vel.x,vel.z);if(speed>.3){let d=Math.atan2(vel.x,vel.z)-face;d=Math.atan2(Math.sin(d),Math.cos(d));face+=d*(1-Math.exp(-dt*12));}player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);}
-function animate(dt,t){const run=clamp((speed-2)/2.5,0,1),amp=clamp(speed/2,0,1)*(.55+.4*run);phase+=speed*dt*(4.2-1.6*run);const dm=(o,v)=>{o.rotation.x+=(v-o.rotation.x)*Math.min(1,dt*18);};[0,1].forEach(i=>{const p=phase+i*Math.PI,sw=Math.sin(p);dm(leg[i],-sw*amp*.9);dm(knee[i],Math.max(0,Math.cos(p))*amp*(.9+.5*run));dm(arm[i],sw*amp*.8);dm(elbow[i],-(.2+.7*run)*amp-.05);});dm(upper,.04+.14*run*amp);model.position.y=Math.abs(Math.sin(phase))*.04*amp;upper.scale.y=1+Math.sin(t*2)*.006;}
-function updateCam(dt){const f=1-Math.exp(-dt*14);focus.x+=(pos.x-focus.x)*f;focus.z+=(pos.z-focus.z)*f;focus.y=1.4;const d=4.6,cp=Math.cos(camPitch);cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);cam.lookAt(focus);}
+const inp={x:0,y:0},keys={};let sprint=false,crouch=false,punchT=0,driving=false,driveCar=null;
+addEventListener('keydown',e=>{if(e.target.tagName!=='INPUT')keys[e.code]=true;});
+addEventListener('keyup',e=>keys[e.code]=false);
 
+const joy=$('joy'),knob=$('knob');let jid=null;
+function joyMove(e){const r=joy.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-(r.left+R))/R,y=(e.clientY-(r.top+R))/R;
+ const m=Math.hypot(x,y);if(m>1){x/=m;y/=m;}if(m<.12){inp.x=0;inp.y=0;}else{inp.x=x;inp.y=-y;}
+ knob.style.transform='translate('+(x*R*.5)+'px,'+(y*R*.5)+'px)';}
+joy.addEventListener('pointerdown',e=>{jid=e.pointerId;joy.setPointerCapture(jid);joyMove(e);});
+joy.addEventListener('pointermove',e=>{if(e.pointerId===jid)joyMove(e);});
+const jend=e=>{if(e.pointerId===jid){jid=null;inp.x=0;inp.y=0;knob.style.transform='';}};
+joy.addEventListener('pointerup',jend);joy.addEventListener('pointercancel',jend);
+
+let camYaw=0,camPitch=.3,lid=null,lx=0,ly=0;const cv=$('c');
+cv.addEventListener('pointerdown',e=>{if(lid===null){lid=e.pointerId;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(lid);}});
+cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;});
+const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
+
+$('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?'none':'flex';};
+$('bo').onclick=()=>{look.o=(look.o+1)%OUTFITS.length;dress();};
+$('bs').onclick=()=>{look.s=(look.s+1)%SKIN.length;dress();};
+$('run').onclick=()=>{sprint=!sprint;$('run').classList.toggle('on',sprint);};
+$('crch').onclick=()=>{crouch=!crouch;$('crch').classList.toggle('on',crouch);};
+$('fist').onclick=()=>{punchT=.35;};
+$('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)return;const d=document.createElement('div');d.innerHTML='<b>You:</b> ';d.append(v);$('log').append(d);$('log').scrollTop=1e5;$('ci').value='';};
+
+function nearestCar(){
+ let best=null,bd=3.4;
+ for(const c of cars){const dx=pos.x-c.x,dz=pos.z-c.z,d=Math.hypot(dx,dz);if(d<bd){bd=d;best=c;}}
+ return best;
+}
+function enterCar(c){
+ if(!c)return;
+ driving=true;driveCar=c;inp.x=0;inp.y=0;vel.set(0,0,0);
+ player.visible=false;shadow.visible=false;
+ $('act').style.display='none';
+}
+function exitCar(){
+ if(!driveCar)return;
+ pos.x=driveCar.x;pos.z=driveCar.z+2.6;
+ driving=false;player.visible=true;shadow.visible=true;driveCar=null;
+}
+$('act').onclick=()=>driving?exitCar():enterCar(nearestCar());
+
+const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24);
+let face=Math.PI,speed=0,phase=0;
+function update(dt){
+ if(driving){driveUpdate(dt);return;}
+ let ix=inp.x,iy=inp.y;
+ if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyA||keys.ArrowLeft)ix-=1;
+ let mag=Math.hypot(ix,iy);if(mag>1){ix/=mag;iy/=mag;mag=1;}
+ const s=Math.sin(camYaw),c=Math.cos(camYaw);let tx=0,tz=0;
+ if(mag>0){const dx=ix*c-iy*s,dz=-ix*s-iy*c,l=Math.hypot(dx,dz),top=sprint?6.3:4.5;
+  const sp=mag<.7?2*(mag/.7):2+(mag-.7)/.3*(top-2);const cf=crouch?.45:1;tx=dx/l*sp*cf;tz=dz/l*sp*cf;}
+ const k=1-Math.exp(-dt*10);vel.x+=(tx-vel.x)*k;vel.z+=(tz-vel.z)*k;
+ pos.x+=vel.x*dt;pos.z+=vel.z*dt;
+ for(const b of boxes){const ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);
+  if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
+ pos.x=clamp(pos.x,-240,240);pos.z=clamp(pos.z,-240,240);
+ speed=Math.hypot(vel.x,vel.z);
+ if(speed>.3){let d=Math.atan2(vel.x,vel.z)-face;d=Math.atan2(Math.sin(d),Math.cos(d));face+=d*(1-Math.exp(-dt*12));}
+ player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);
+}
+function driveUpdate(dt){
+ if(!driveCar){driving=false;return;}
+ let ax=0,az=0;
+ if(keys.KeyW||keys.ArrowUp)az-=1;if(keys.KeyS||keys.ArrowDown)az+=1;
+ if(keys.KeyA||keys.ArrowLeft)ax-=1;if(keys.KeyD||keys.ArrowRight)ax+=1;
+ const turn=ax*(keys.ShiftLeft?1.45:1),throttle=az;
+ driveCar.ry+=turn*dt*1.6;
+ driveCar.g.rotation.y=driveCar.ry;
+ driveCar.v+=(throttle*9-driveCar.v)*Math.min(1,dt*3.5);
+ driveCar.x+=Math.sin(driveCar.ry)*driveCar.v*dt;
+ driveCar.z+=Math.cos(driveCar.ry)*driveCar.v*dt;
+ driveCar.x=clamp(driveCar.x,-6.6,6.6);driveCar.z=clamp(driveCar.z,-240,240);
+ speed=Math.abs(driveCar.v);
+ pos.set(driveCar.x,0,driveCar.z);focus.x=pos.x;focus.z=pos.z;
+}
+function animate(dt,t){
+ if(driving)return;
+ const run=clamp((speed-2)/2.5,0,1),amp=clamp(speed/2,0,1)*(.55+.4*run);phase+=speed*dt*(4.2-1.6*run);
+ const dm=(o,v)=>{o.rotation.x+=(v-o.rotation.x)*Math.min(1,dt*18);};
+ [0,1].forEach(i=>{const p=phase+i*Math.PI,sw=Math.sin(p);dm(leg[i],-sw*amp*.9);dm(knee[i],Math.max(0,Math.cos(p))*amp*(.9+.5*run));dm(arm[i],sw*amp*.8);dm(elbow[i],-(.2+.7*run)*amp-.05);});
+ dm(upper,.04+.14*run*amp);model.position.y=Math.abs(Math.sin(phase))*.04*amp;upper.scale.y=1+Math.sin(t*2)*.006;
+ if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[1].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[1].rotation.x=-.3;}
+ model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);
+}
+function updateCam(dt){
+ const f=1-Math.exp(-dt*14);focus.x+=(pos.x-focus.x)*f;focus.z+=(pos.z-focus.z)*f;focus.y=1.4;
+ const d=driving?8:4.6,cp=Math.cos(camPitch);
+ cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);cam.lookAt(focus);
+}
 /* ---------- HUD: compass and minimap ---------- */
 const cc=$('comp').getContext('2d'),LAB={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
 function drawComp(){const w=880,h=84,hd=((-camYaw*57.2958)%360+360)%360,ppd=w/110;cc.clearRect(0,0,w,h);cc.textAlign='center';for(let d=Math.floor((hd-60)/15)*15;d<=hd+60;d+=15){const x=w/2+(d-hd)*ppd,n=((d%360)+360)%360,L=LAB[n];cc.fillStyle=L?'#fff':'rgba(255,255,255,.55)';cc.font=(L?'bold 34px':'24px')+' system-ui';cc.fillText(L||n,x,66);cc.fillRect(x-1.5,12,3,L?16:10);}cc.fillStyle='#fff';cc.beginPath();cc.moveTo(w/2-10,0);cc.lineTo(w/2+10,0);cc.lineTo(w/2,13);cc.fill();}
 const mc=$('mm').getContext('2d');function drawMap(){const R=120;mc.clearRect(0,0,240,240);mc.save();mc.beginPath();mc.arc(R,R,118,0,7);mc.clip();mc.fillStyle='#16313a';mc.fillRect(0,0,240,240);mc.translate(R,R);mc.rotate(camYaw);mc.scale(1.6,1.6);mc.translate(-pos.x,-pos.z);mc.fillStyle='#4b535a';mc.fillRect(-5,-500,10,1000);mc.fillStyle='#78808a';mc.fillRect(-8,-500,3,1000);mc.fillRect(5,-500,3,1000);mc.fillStyle='#9aa0a6';for(const b of bld)mc.fillRect(b.x-b.hw,b.z-b.hd,b.hw*2,b.hd*2);mc.restore();mc.save();mc.translate(R,R);mc.rotate(Math.PI-(face-camYaw));mc.fillStyle='#4ade80';mc.strokeStyle='#0b2';mc.beginPath();mc.moveTo(0,-11);mc.lineTo(8,9);mc.lineTo(0,5);mc.lineTo(-8,9);mc.closePath();mc.fill();mc.restore();mc.fillStyle='#fff';mc.font='bold 22px system-ui';mc.textAlign='center';mc.fillText('N',R+Math.sin(camYaw)*98,R-Math.cos(camYaw)*98+8);}
-let last=performance.now(),t=0;function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;update(dt);animate(dt,t);updateCam(dt);renderer.render(scene,cam);drawComp();drawMap();}requestAnimationFrame(loop);
+let last=performance.now(),t=0;function loop(now){
+ requestAnimationFrame(loop);
+ const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
+ update(dt);animate(dt,t);updateCam(dt);
+ if(!driving){const nc=nearestCar();if(nc){$('act').style.display='block';$('act').textContent='🚗 Drive';}else{$('act').style.display='none';}}else{$('act').style.display='block';$('act').textContent='🚪 Exit';}
+ renderer.render(scene,cam);drawComp();drawMap();
+}requestAnimationFrame(loop);
 </script></body></html>
