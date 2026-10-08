@@ -543,7 +543,7 @@ function shopUI(){const p=shopP;if(!p.items){panel('<b>'+p.name+'</b><p>Jobs and
  panel('<b>'+p.name+'</b><p>'+(p.k==='Talk'?'“Wetin you wan buy?”':'Welcome in!')+'</p><p>Cash: ₦'+cash.toLocaleString()+'</p>'+p.items.map((it,i)=>'<button data-b="'+i+'">'+it[0]+' – ₦'+it[1].toLocaleString()+'</button>').join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
 act2.onclick=()=>{if(curPoi){shopP=curPoi;pMsg='';shopUI();}};
 modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.b;if(i===undefined||!shopP||!shopP.items)return;const it=shopP.items[+i];
- if(cash>=it[1]){cash-=it[1];inv[it[0]]=(inv[it[0]]||0)+1;pMsg='Bought '+it[0]+'.';money();}else pMsg='Not enough cash.';shopUI();});
+ if(cash>=it[1]){NRS.walletChange(-it[1],0,(r)=>{if(r.ok){inv[it[0]]=(inv[it[0]]||0)+1;pMsg='Bought '+it[0]+'.';}else pMsg=r.message||'Purchase failed.';money();shopUI();});return;}else pMsg='Not enough cash.';shopUI();});
 $('ib2').onclick=()=>{const k=Object.keys(inv);panel('<b>🎒 Backpack</b><p>📱 Phone</p>'+k.map(n=>'<p>'+n+' ×'+inv[n]+'</p>').join('')+'<p>Cash: ₦'+cash.toLocaleString()+'</p>');};
 
 /* ---------- Stage 5: pedestrians, zebra crossings, keke / danfo / okada traffic ---------- */
@@ -686,7 +686,7 @@ $('ib2').onclick=()=>{bagMsg='';bagUI();};
 $('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
 modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
-  if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{if(dep){cash-=n;bank+=n;}else{bank-=n;cash+=n;}pMsg=(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.';money();}bankUI();}
+  if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();});return;}bankUI();}
  else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();}}});
@@ -694,7 +694,7 @@ function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt
  const H=Math.round(hunger),P=Math.round(hp);if(H!==lh){lh=H;$('hgv').textContent=H;$('hgb').style.width=H+'%';}if(P!==lp){lp=P;$('hpv').textContent=P;$('hpb').style.width=P+'%';}
  beacon.visible=!!job&&!inside;
  if(job){beacon.position.set(job.x,20,job.z);const d=Math.hypot(pos.x-job.x,pos.z-job.z);
-  if(!inside&&d<5){cash+=job.pay;money();delete inv.Parcel;sys('Delivered! You earned ₦'+f(job.pay));jobN++;job=null;mis('<i>JOB DONE</i><b>Return to the Job Center for the next job</b>');}
+  if(!inside&&d<5&&job&&!job._claimed){job._claimed=true;NRS.walletChange(job.pay,0,(r)=>{if(r.ok){delete inv.Parcel;sys('Delivered! You earned ₦'+f(job.pay));jobN++;job=null;mis('<i>JOB DONE</i><b>Return to the Job Center for the next job</b>');}else{job._claimed=false;sys(r.message||'Reward failed.');}money();},'job');}
   else mis('<i>DELIVERY</i><b>'+job.n+'</b>'+Math.round(d/5)*5+' m away');}}
 
 /* ---------- Expanded 3D map: tap the minimap or 🗺 ---------- */
@@ -791,4 +791,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script></body></html>
+</script><script src="/nrs-online.js"></script></body></html>

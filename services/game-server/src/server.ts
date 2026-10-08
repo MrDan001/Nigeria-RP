@@ -1,398 +1,74 @@
-import { WebSocketServer, WebSocket } from "ws";
-import { randomUUID } from "node:crypto";
+import {WebSocketServer,WebSocket} from "ws";
+import {Pool} from "pg";
+import {randomBytes,randomUUID,scrypt as scryptCb,timingSafeEqual,createHash} from "node:crypto";
+import {promisify} from "node:util";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+const scrypt=promisify(scryptCb);
+type Job={n:string;x:number;z:number;pay:number}|null;
+type Inv=Record<string,number>;
+type Account={id:string;username:string;usernameLower:string;passwordSalt:string;passwordHash:string;cash:number;bank:number;x:number;z:number;yaw:number;hp:number;hunger:number;job:Job;inventory:Inv;createdAt:number;updatedAt:number};
+type Player={id:string;name:string;x:number;z:number;yaw:number;hp:number;hunger:number;level:number;xp:number;cash:number;bank:number;job:Job;inventory:Inv;lastSeq:number};
+type Session={socket:WebSocket;account:Account;state:Player;input:{sequence:number;forward:number;strafe:number};lastMessageAt:number};
+type FileDb={accounts:Record<string,Account>;sessions:Record<string,{accountId:string;expiresAt:number}>};
 
-type Input = {
-  sequence: number;
-  forward: number;
-  strafe: number;
-};
+const PORT=Number(process.env.PORT??8080),TICK=20,SNAP=10,SPEED=4.2,LIMIT=500;
+const DATA_DIR=process.env.NRS_DATA_DIR??"/data",DATA_FILE=process.env.NRS_DATA_FILE??path.join(DATA_DIR,"accounts.json"),DATABASE_URL=process.env.DATABASE_URL??process.env.POSTGRES_URL??"";
+const players=new Map<string,Session>(),active=new Map<string,WebSocket>();let pool:Pool|null=null;let fileDb:FileDb={accounts:{},sessions:{}};
+const JOBS=[{n:"Parcel to Mile 1 Market",x:-6.5,z:95,pay:6000},{n:"Parcel to Rumuola",x:110,z:70,pay:9000},{n:"Parcel to the Waterfront",x:90,z:150,pay:12000}];
 
-type PlayerState = {
-  id: string;
-  name: string;
-  x: number;
-  z: number;
-  yaw: number;
-  connectedAt: number;
-  lastInputSequence: number;
-};
+const send=(s:WebSocket,m:unknown)=>{if(s.readyState===WebSocket.OPEN)s.send(JSON.stringify(m));};
+const broadcast=(m:unknown)=>{for(const s of players.values())send(s.socket,m);};
+const clean=(n:string)=>n.trim().replace(/[^A-Za-z0-9 _-]/g,"").replace(/\s+/g," ").slice(0,20);
+const toInv=(v:unknown):Inv=>{const o:Inv={};if(!v||typeof v!=="object"||Array.isArray(v))return o;for(const[k,r]of Object.entries(v as Record<string,unknown>)){const n=Math.floor(Number(r));if(Number.isFinite(n)&&n>0)o[k.slice(0,60)]=Math.min(9999,n);}return o;};
+const toJob=(v:unknown):Job=>{if(!v||typeof v!=="object"||Array.isArray(v))return null;const j=v as any,n=String(j.n??""),x=Number(j.x),z=Number(j.z),pay=Number(j.pay);return n&&Number.isFinite(x)&&Number.isFinite(z)&&Number.isFinite(pay)?{n:n.slice(0,100),x,z,pay}:null;};
+const jobsMatch=(j:Job)=>!j||JOBS.some(x=>x.n===j.n&&x.x===j.x&&x.z===j.z&&x.pay===j.pay);
+const snap=()=>[...players.values()].map(s=>({id:s.state.id,name:s.state.name,x:+s.state.x.toFixed(3),z:+s.state.z.toFixed(3),yaw:+s.state.yaw.toFixed(3),level:s.state.level}));
+const sha=(s:string)=>createHash("sha256").update(s).digest("hex");
 
-type Session = {
-  socket: WebSocket;
-  state: PlayerState;
-  latestInput: Input;
-  lastMessageAt: number;
-  velocityX: number;
-  velocityZ: number;
-};
-
-type ClientMessage =
-  | { type: "hello"; name?: string }
-  | { type: "input"; input: Input }
-  | { type: "interact"; targetId?: string };
-
-const PORT = Number(process.env.PORT ?? 8080);
-const TICK_RATE = 20;
-const SNAPSHOT_RATE = 10;
-const MOVE_SPEED = 4.2;
-const WORLD_LIMIT = 500;
-const MAX_NAME_LENGTH = 20;
-const INPUT_TIMEOUT_MS = 750;
-
-const players = new Map<string, Session>();
-
-function send(socket: WebSocket, message: unknown) {
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(message));
-  }
+async function hpw(p:string,s?:string){const salt=s??randomBytes(16).toString("hex"),b=await scrypt(p,Buffer.from(salt,"hex"),64)as Buffer;return{salt,hash:b.toString("hex")};}
+async function verify(p:string,s:string,h:string){const b=await scrypt(p,Buffer.from(s,"hex"),64)as Buffer,e=Buffer.from(h,"hex");return e.length===b.length&&timingSafeEqual(e,b);}
+function writeFile(){const tmp=DATA_FILE+".tmp";fs.writeFileSync(tmp,JSON.stringify(fileDb));fs.renameSync(tmp,DATA_FILE);}
+async function initStore(){
+ if(DATABASE_URL){pool=new Pool({connectionString:DATABASE_URL,max:10});await pool.query('CREATE TABLE IF NOT EXISTS nrs_accounts(id TEXT PRIMARY KEY,username TEXT NOT NULL,username_lower TEXT NOT NULL UNIQUE,password_salt TEXT NOT NULL,password_hash TEXT NOT NULL,cash BIGINT NOT NULL DEFAULT 5000,bank BIGINT NOT NULL DEFAULT 0,x DOUBLE PRECISION NOT NULL DEFAULT 0,z DOUBLE PRECISION NOT NULL DEFAULT 24,yaw DOUBLE PRECISION NOT NULL DEFAULT 3.14159265359,hp DOUBLE PRECISION NOT NULL DEFAULT 100,hunger DOUBLE PRECISION NOT NULL DEFAULT 82,level INTEGER NOT NULL DEFAULT 1,xp INTEGER NOT NULL DEFAULT 0,job JSONB,inventory JSONB NOT NULL DEFAULT \'{}\'::jsonb,created_at BIGINT NOT NULL,updated_at BIGINT NOT NULL);CREATE TABLE IF NOT EXISTS nrs_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE,expires_at BIGINT NOT NULL,created_at BIGINT NOT NULL);CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);');console.log("NRS storage: PostgreSQL");return;}
+ fs.mkdirSync(DATA_DIR,{recursive:true});try{const x=JSON.parse(fs.readFileSync(DATA_FILE,"utf8"));if(x?.accounts&&x?.sessions)fileDb=x;}catch{writeFile();}console.warn("NRS storage: file "+DATA_FILE+"; mount /data or set DATABASE_URL for durable Railway persistence");
 }
+function row(r:any):Account{return{id:String(r.id),username:String(r.username),usernameLower:String(r.username_lower),passwordSalt:String(r.password_salt),passwordHash:String(r.password_hash),cash:Number(r.cash),bank:Number(r.bank),x:Number(r.x),z:Number(r.z),yaw:Number(r.yaw),hp:Number(r.hp),hunger:Number(r.hunger),level:Number(r.level),xp:Number(r.xp),job:r.job??null,inventory:r.inventory??{},createdAt:Number(r.created_at),updatedAt:Number(r.updated_at)};}
+async function findUser(u:string){if(pool){const r=await pool.query("SELECT * FROM nrs_accounts WHERE username_lower=$1",[u]);return r.rows[0]?row(r.rows[0]):null;}return fileDb.accounts[u]??null;}
+async function findId(id:string){if(pool){const r=await pool.query("SELECT * FROM nrs_accounts WHERE id=$1",[id]);return r.rows[0]?row(r.rows[0]):null;}return Object.values(fileDb.accounts).find(a=>a.id===id)??null;}
+async function insert(a:Account){if(pool)await pool.query("INSERT INTO nrs_accounts(id,username,username_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb,$17,$18)",[a.id,a.username,a.usernameLower,a.passwordSalt,a.passwordHash,a.cash,a.bank,a.x,a.z,a.yaw,a.hp,a.hunger,a.level,a.xp,JSON.stringify(a.job),JSON.stringify(a.inventory),a.createdAt,a.updatedAt]);else{fileDb.accounts[a.usernameLower]=a;writeFile();}}
+async function save(a:Account){a.updatedAt=Date.now();if(pool)await pool.query("UPDATE nrs_accounts SET username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11,job=$12::jsonb,inventory=$13::jsonb,updated_at=$14 WHERE id=$1",[a.id,a.username,a.cash,a.bank,a.x,a.z,a.yaw,a.hp,a.hunger,a.level,a.xp,JSON.stringify(a.job),JSON.stringify(a.inventory),a.updatedAt]);else{fileDb.accounts[a.usernameLower]=a;writeFile();}}
+async function makeAccount(u:string,p:string){if(p.length<6)throw Error("PASSWORD_TOO_SHORT");if(!/^[A-Za-z0-9][A-Za-z0-9 _-]{2,19}$/.test(u))throw Error("USERNAME_INVALID");const ul=u.toLowerCase();if(await findUser(ul))throw Error("USERNAME_TAKEN");const{salt,hash}=await hpw(p),now=Date.now(),a:Account={id:randomUUID(),username:u,usernameLower:ul,passwordSalt:salt,passwordHash:hash,cash:5000,bank:0,x:0,z:24,yaw:Math.PI,hp:100,hunger:82,level:1,xp:0,job:null,inventory:{},createdAt:now,updatedAt:now};try{await insert(a);}catch(e:any){if(e?.code==="23505")throw Error("USERNAME_TAKEN");throw e;}return a;}
+async function sessionToken(id:string){const t=randomBytes(32).toString("base64url"),h=sha(t),exp=Date.now()+30*86400000;if(pool){await pool.query("DELETE FROM nrs_sessions WHERE account_id=$1",[id]);await pool.query("INSERT INTO nrs_sessions(token_hash,account_id,expires_at,created_at)VALUES($1,$2,$3,$4)",[h,id,exp,Date.now()]);}else{for(const[k,v]of Object.entries(fileDb.sessions))if(v.accountId===id)delete fileDb.sessions[k];fileDb.sessions[h]={accountId:id,expiresAt:exp};writeFile();}return t;}
+async function resume(t:string){const h=sha(t);let v:any=null;if(pool){const r=await pool.query("SELECT account_id,expires_at FROM nrs_sessions WHERE token_hash=$1",[h]);if(r.rows[0])v={accountId:String(r.rows[0].account_id),expiresAt:Number(r.rows[0].expires_at)};}else v=fileDb.sessions[h]??null;if(!v||v.expiresAt<Date.now())return null;return findId(v.accountId);}
+function mkState(a:Account):Player{return{id:a.id,name:a.username,x:a.x,z:a.z,yaw:a.yaw,hp:a.hp,hunger:a.hunger,level:a.level,xp:a.xp,cash:a.cash,bank:a.bank,job:a.job,inventory:toInv(a.inventory),lastSeq:-1};}
+async function persist(s:Session){const a=s.account;a.x=s.state.x;a.z=s.state.z;a.yaw=s.state.yaw;a.hp=s.state.hp;a.hunger=s.state.hunger;a.level=s.state.level;a.xp=s.state.xp;a.cash=s.state.cash;a.bank=s.state.bank;a.job=s.state.job;a.inventory=s.state.inventory;await save(a);}
 
-function snapshot() {
-  return [...players.values()].map(({ state }) => ({
-    id: state.id,
-    name: state.name,
-    x: Number(state.x.toFixed(3)),
-    z: Number(state.z.toFixed(3)),
-    yaw: Number(state.yaw.toFixed(3)),
-  }));
-}
-
-function broadcast(message: unknown) {
-  for (const { socket } of players.values()) send(socket, message);
-}
-
-function cleanName(name: string | undefined) {
-  const value = name?.trim().replace(/[^a-zA-Z0-9 _-]/g, "");
-  return value ? value.slice(0, MAX_NAME_LENGTH) : "Player";
-}
-
-function validInput(input: Input) {
-  return Number.isInteger(input.sequence) &&
-    input.sequence >= 0 &&
-    Number.isFinite(input.forward) &&
-    Number.isFinite(input.strafe) &&
-    Math.abs(input.forward) <= 2 &&
-    Math.abs(input.strafe) <= 2;
-}
-
-const WEB_DIST_DIR = [
-  path.resolve(__dirname, "../../web-client/dist"),
-  path.resolve(process.cwd(), "services/web-client/dist"),
-  path.resolve(process.cwd(), "../web-client/dist"),
-].find((candidate) => fs.existsSync(candidate)) ??
-  path.resolve(__dirname, "../../web-client/dist");
-
-const MIME_TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".mjs": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".ico": "image/x-icon",
-  ".wasm": "application/wasm",
-};
-
-function sendJson(response: http.ServerResponse, status: number, payload: unknown) {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(payload));
-}
-
-function serveWebClient(request: http.IncomingMessage, response: http.ServerResponse) {
-  const requestUrl = new URL(
-    request.url ?? "/",
-    "http://" + (request.headers.host ?? "localhost"),
-  );
-
-  if (requestUrl.pathname === "/health") {
-    sendJson(response, 200, {
-      ok: true,
-      service: "nigeria-rp-game-server",
-      players: players.size,
-      tickRate: TICK_RATE,
-      snapshotRate: SNAPSHOT_RATE,
-    });
-    return;
-  }
-
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    response.writeHead(405, { allow: "GET, HEAD" });
-    response.end();
-    return;
-  }
-
-  let pathname: string;
-
-  try {
-    pathname = decodeURIComponent(requestUrl.pathname);
-  } catch {
-    response.writeHead(400);
-    response.end("Bad request");
-    return;
-  }
-
-  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const filePath = path.resolve(WEB_DIST_DIR, relativePath);
-
-  if (
-    filePath !== WEB_DIST_DIR &&
-    !filePath.startsWith(WEB_DIST_DIR + path.sep)
-  ) {
-    response.writeHead(403);
-    response.end("Forbidden");
-    return;
-  }
-
-  let finalPath = filePath;
-
-  if (!fs.existsSync(finalPath) || !fs.statSync(finalPath).isFile()) {
-    // Allow browser-side routes to fall back to the built entrypoint.
-    if (!path.extname(relativePath)) {
-      finalPath = path.join(WEB_DIST_DIR, "index.html");
-    } else {
-      response.writeHead(404);
-      response.end("Not found");
-      return;
-    }
-  }
-
-  try {
-    const stat = fs.statSync(finalPath);
-    response.writeHead(200, {
-      "content-type": MIME_TYPES[path.extname(finalPath).toLowerCase()] ??
-        "application/octet-stream",
-      "content-length": stat.size,
-      "cache-control": path.basename(finalPath) === "index.html"
-        ? "no-cache"
-        : "public, max-age=31536000, immutable",
-    });
-
-    if (request.method === "HEAD") {
-      response.end();
-      return;
-    }
-
-    if (path.basename(finalPath) === "index.html") {
-      try {
-        const html = fs.readFileSync(finalPath, "utf8");
-        const injected = html.includes("/multiplayer.js")
-          ? html
-          : html.replace("</body>", '<script src="/multiplayer.js"></script></body>');
-        const body = Buffer.from(injected, "utf8");
-        response.setHeader("content-length", body.length);
-        response.end(body);
-      } catch {
-        sendJson(response, 500, { ok: false, error: "INDEX_INJECTION_ERROR" });
-      }
-      return;
-    }
-
-    fs.createReadStream(finalPath).pipe(response);
-  } catch {
-    sendJson(response, 500, { ok: false, error: "STATIC_FILE_ERROR" });
-  }
-}
-
-const httpServer = http.createServer((request, response) => {
-  serveWebClient(request, response);
+const webDir=[path.resolve(__dirname,"../../web-client/dist"),path.resolve(process.cwd(),"services/web-client/dist"),path.resolve(process.cwd(),"../web-client/dist")].find(fs.existsSync)??path.resolve(__dirname,"../../web-client/dist");
+const mime:any={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".jpg":"image/jpeg",".svg":"image/svg+xml",".webp":"image/webp"};
+const httpServer=http.createServer((req,res)=>{const u=new URL(req.url??"/","http://"+(req.headers.host??"localhost"));if(u.pathname==="/health"){res.writeHead(200,{"content-type":"application/json"});res.end(JSON.stringify({ok:true,players:players.size,storage:pool?"postgres":"file"}));return;}if(req.method!=="GET"&&req.method!=="HEAD"){res.writeHead(405);res.end();return;}let p;try{p=decodeURIComponent(u.pathname)}catch{res.writeHead(400);res.end();return;}const rel=p==="/"?"index.html":p.replace(/^\/+/,""),file=path.resolve(webDir,rel);if(file!==webDir&&!file.startsWith(webDir+path.sep)){res.writeHead(403);res.end();return;}let final=file;if(!fs.existsSync(final)||!fs.statSync(final).isFile()){if(!path.extname(rel))final=path.join(webDir,"index.html");else{res.writeHead(404);res.end();return;}}const stat=fs.statSync(final);res.writeHead(200,{"content-type":mime[path.extname(final).toLowerCase()]??"application/octet-stream","content-length":stat.size,"cache-control":path.basename(final)==="index.html"?"no-cache":"public,max-age=31536000,immutable"});if(req.method==="HEAD")return res.end();fs.createReadStream(final).pipe(res);});
+const wss=new WebSocketServer({server:httpServer,maxPayload:16384});
+wss.on("connection",socket=>{
+ let ok=false,id:string|null=null;const timer=setTimeout(()=>{if(!ok){send(socket,{type:"authError",code:"AUTH_REQUIRED",message:"Please log in or create an account."});socket.close(4002);}},12000);
+ const finish=async(a:Account,t:string)=>{ok=true;id=a.id;clearTimeout(timer);const old=active.get(a.id);if(old&&old!==socket){send(old,{type:"authError",code:"ACCOUNT_OPENED_ELSEWHERE",message:"This account is open on another device."});old.close(4001);}const s:Session={socket,account:a,state:mkState(a),input:{sequence:-1,forward:0,strafe:0},lastMessageAt:Date.now()};players.set(a.id,s);active.set(a.id,socket);send(socket,{type:"authOk",token:t,player:{...s.state},players:snap()});broadcast({type:"playerJoined",player:snap().find(p=>p.id===a.id)});};
+ socket.on("message",raw=>void(async()=>{let m:any;try{m=JSON.parse(raw.toString())}catch{return;}
+  if(!ok){try{
+   if(m.type==="authRegister"){const a=await makeAccount(clean(String(m.username??"")),String(m.password??""));await finish(a,await sessionToken(a.id));return;}
+   if(m.type==="authLogin"){const a=await findUser(clean(String(m.username??"")).toLowerCase());if(!a||!(await verify(String(m.password??""),a.passwordSalt,a.passwordHash)))throw Error("INVALID_CREDENTIALS");await finish(a,await sessionToken(a.id));return;}
+   if(m.type==="authResume"){const t=String(m.token??"");const a=await resume(t);if(!a)throw Error("INVALID_SESSION");await finish(a,t);return;}
+   send(socket,{type:"authError",code:"AUTH_REQUIRED",message:"Please log in or create an account."});
+  }catch(e){const c=e instanceof Error?e.message:"AUTH_FAILED";const messages:any={PASSWORD_TOO_SHORT:"Password must be at least 6 characters.",USERNAME_INVALID:"Use letters, numbers, spaces, _ or - only.",USERNAME_TAKEN:"That username is already taken.",INVALID_CREDENTIALS:"Wrong username or password.",INVALID_SESSION:"Session expired. Please log in again."};send(socket,{type:"authError",code:c,message:messages[c]??"Could not complete the account request."});}return;}
+  const s=id?players.get(id):null;if(!s)return;s.lastMessageAt=Date.now();
+  if(m.type==="input"){const i=m.input;if(!i||!Number.isInteger(i.sequence)||i.sequence<=s.state.lastSeq||!Number.isFinite(i.forward)||!Number.isFinite(i.strafe)||Math.abs(i.forward)>2||Math.abs(i.strafe)>2)return;s.state.lastSeq=i.sequence;s.input={sequence:i.sequence,forward:Math.max(-1,Math.min(1,i.forward)),strafe:Math.max(-1,Math.min(1,i.strafe))};return;}
+  if(m.type==="walletChange"){const dc=Math.trunc(Number(m.cashDelta??0)),db=Math.trunc(Number(m.bankDelta??0)),reason=String(m.reason??"");if(!m.requestId||!Number.isFinite(dc)||!Number.isFinite(db)||Math.abs(dc)>50000000||Math.abs(db)>50000000||dc>0&&reason!=="job"){send(socket,{type:"walletResult",requestId:m.requestId??"",ok:false,message:"Invalid wallet request."});return;}if(dc>0){const j=s.state.job;if(!j||Math.hypot(s.state.x-j.x,s.state.z-j.z)>7||dc!==Math.trunc(j.pay)){send(socket,{type:"walletResult",requestId:m.requestId,ok:false,message:"Job reward is not valid here."});return;}s.state.job=null;}const nc=s.state.cash+dc,nb=s.state.bank+db;if(nc<0||nb<0){send(socket,{type:"walletResult",requestId:m.requestId,ok:false,message:"Insufficient funds."});return;}s.state.cash=nc;s.state.bank=nb;await persist(s);send(socket,{type:"walletResult",requestId:m.requestId,ok:true,cash:nc,bank:nb});return;}
+  if(m.type==="saveProgress"){if(m.hp!==undefined)s.state.hp=Math.max(1,Math.min(100,Number(m.hp)||1));if(m.hunger!==undefined)s.state.hunger=Math.max(0,Math.min(100,Number(m.hunger)||0));if(m.job!==undefined){const j=toJob(m.job);if(jobsMatch(j))s.state.job=j;}if(m.inventory!==undefined)s.state.inventory=toInv(m.inventory);await persist(s);return;}
+  if(m.type==="interact")send(socket,{type:"interactionResult",accepted:true,targetId:m.targetId??null});
+ })().catch(e=>{console.error(e);send(socket,{type:"error",code:"SERVER_ERROR"});});});
+ const close=()=>{clearTimeout(timer);if(!id)return;const s=players.get(id);if(!s||s.socket!==socket)return;void persist(s).catch(console.error);players.delete(id);if(active.get(id)===socket)active.delete(id);broadcast({type:"playerLeft",playerId:id});};socket.on("close",close);socket.on("error",close);
 });
-
-const wss = new WebSocketServer({
-  server: httpServer,
-  maxPayload: 16 * 1024,
-});
-
-wss.on("connection", (socket) => {
-  const id = randomUUID();
-  const spawnIndex = players.size % 8;
-  const spawns = [
-    { x: 0, z: 6 },
-    { x: 3, z: 6 },
-    { x: -3, z: 6 },
-    { x: 0, z: 10 },
-    { x: 3, z: 10 },
-    { x: -3, z: 10 },
-    { x: 6, z: 10 },
-    { x: -6, z: 10 },
-  ];
-  const spawn = spawns[spawnIndex];
-  const state: PlayerState = {
-    id,
-    name: "Player",
-    x: spawn.x,
-    z: spawn.z,
-    yaw: 0,
-    connectedAt: Date.now(),
-    lastInputSequence: -1,
-  };
-
-  const session: Session = {
-    socket,
-    state,
-    latestInput: { sequence: -1, forward: 0, strafe: 0 },
-    lastMessageAt: Date.now(),
-    velocityX: 0,
-    velocityZ: 0,
-  };
-
-  players.set(id, session);
-
-  send(socket, {
-    type: "connected",
-    protocolVersion: 2,
-    playerId: id,
-    serverTickRate: TICK_RATE,
-    players: snapshot(),
-  });
-
-  broadcast({ type: "playerJoined", player: state });
-
-  socket.on("message", (raw) => {
-    const player = players.get(id);
-    if (!player) return;
-
-    player.lastMessageAt = Date.now();
-
-    let message: ClientMessage;
-    try {
-      message = JSON.parse(raw.toString()) as ClientMessage;
-    } catch {
-      send(socket, { type: "error", code: "INVALID_JSON" });
-      return;
-    }
-
-    if (message.type === "hello") {
-      player.state.name = cleanName(message.name);
-      send(socket, { type: "identity", player: player.state });
-      broadcast({ type: "playerUpdated", player: player.state });
-      return;
-    }
-
-    if (message.type === "input") {
-      if (!validInput(message.input)) {
-        send(socket, { type: "error", code: "INVALID_INPUT" });
-        return;
-      }
-
-      if (message.input.sequence <= player.state.lastInputSequence) return;
-
-      player.state.lastInputSequence = message.input.sequence;
-      player.latestInput = {
-        sequence: message.input.sequence,
-        forward: Math.max(-1, Math.min(1, message.input.forward)),
-        strafe: Math.max(-1, Math.min(1, message.input.strafe)),
-      };
-      return;
-    }
-
-    if (message.type === "interact") {
-      send(socket, {
-        type: "interactionResult",
-        accepted: true,
-        targetId: message.targetId?.trim() || null,
-        message: "Interaction request received by authoritative server.",
-      });
-    }
-  });
-
-  socket.on("close", () => {
-    if (players.get(id)?.socket === socket) {
-      players.delete(id);
-      broadcast({ type: "playerLeft", playerId: id });
-    }
-  });
-
-  socket.on("error", () => {
-    if (players.get(id)?.socket === socket) {
-      players.delete(id);
-      broadcast({ type: "playerLeft", playerId: id });
-    }
-  });
-});
-
-// Fresh movement model:
-// - joystick input describes a desired direction
-// - the server accelerates/decelerates instead of teleporting between snapshots
-// - the character turns toward the direction of travel
-// - reversing is a controlled turn, not a sign flip that causes jitter
-setInterval(() => {
-  const dt = 1 / TICK_RATE;
-  const now = Date.now();
-
-  for (const session of players.values()) {
-    const input = now - session.lastMessageAt > INPUT_TIMEOUT_MS
-      ? { forward: 0, strafe: 0 }
-      : session.latestInput;
-
-    const inputLength = Math.hypot(input.forward, input.strafe);
-    const hasInput = inputLength > 0.01;
-
-    let desiredX = 0;
-    let desiredZ = 0;
-
-    if (hasInput) {
-      const f = input.forward / Math.max(1, inputLength);
-      const s = input.strafe / Math.max(1, inputLength);
-
-      // World convention: forward = -Z, right = +X.
-      desiredX = s * MOVE_SPEED;
-      desiredZ = -f * MOVE_SPEED;
-
-      const targetYaw = Math.atan2(desiredX, desiredZ);
-      let delta = targetYaw - session.state.yaw;
-      while (delta > Math.PI) delta -= Math.PI * 2;
-      while (delta < -Math.PI) delta += Math.PI * 2;
-
-      const turnRate = 12;
-      session.state.yaw += delta * Math.min(1, turnRate * dt);
-
-      while (session.state.yaw > Math.PI) session.state.yaw -= Math.PI * 2;
-      while (session.state.yaw < -Math.PI) session.state.yaw += Math.PI * 2;
-    }
-
-    const acceleration = hasInput ? 28 : 34;
-    const blend = Math.min(1, acceleration * dt);
-
-    session.velocityX += (desiredX - session.velocityX) * blend;
-    session.velocityZ += (desiredZ - session.velocityZ) * blend;
-
-    if (!hasInput) {
-      const damping = Math.pow(0.0005, dt);
-      session.velocityX *= damping;
-      session.velocityZ *= damping;
-    }
-
-    session.state.x = Math.max(
-      -WORLD_LIMIT,
-      Math.min(WORLD_LIMIT, session.state.x + session.velocityX * dt),
-    );
-    session.state.z = Math.max(
-      -WORLD_LIMIT,
-      Math.min(WORLD_LIMIT, session.state.z + session.velocityZ * dt),
-    );
-
-    if (Math.hypot(session.velocityX, session.velocityZ) < 0.01) {
-      session.velocityX = 0;
-      session.velocityZ = 0;
-    }
-  }
-}, 1000 / TICK_RATE);
-
-setInterval(() => {
-  broadcast({
-    type: "snapshot",
-    serverTime: Date.now(),
-    players: snapshot(),
-  });
-}, 1000 / SNAPSHOT_RATE);
-
-httpServer.listen(PORT, () => {
-  console.log(`NRS web + game server listening on :${PORT}`);
-});
+setInterval(()=>{const dt=1/TICK,now=Date.now();for(const s of players.values()){const i=now-s.lastMessageAt>750?{forward:0,strafe:0}:s.input,len=Math.hypot(i.forward,i.strafe),on=len>.01;let vx=0,vz=0;if(on){const f=i.forward/Math.max(1,len),st=i.strafe/Math.max(1,len);vx=st*SPEED;vz=-f*SPEED;const ty=Math.atan2(vx,vz);let d=ty-s.state.yaw;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;s.state.yaw+=d*Math.min(1,12*dt);}s.state.x=Math.max(-LIMIT,Math.min(LIMIT,s.state.x+vx*dt));s.state.z=Math.max(-LIMIT,Math.min(LIMIT,s.state.z+vz*dt));}},1000/TICK);
+setInterval(()=>broadcast({type:"snapshot",serverTime:Date.now(),players:snap()}),1000/SNAP);
+setInterval(()=>{for(const s of players.values())void persist(s).catch(console.error)},5000);
+async function main(){await initStore();httpServer.listen(PORT,()=>console.log("NRS server listening on :"+PORT));}
+void main().catch(e=>{console.error("NRS startup failed",e);process.exit(1);});
