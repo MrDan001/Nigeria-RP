@@ -87,7 +87,8 @@ function addBox(
   h: number,
   d: number,
   mat: StandardMaterial,
-  yaw = 0
+  yaw = 0,
+  parent?: Entity
 ) {
   const entity = new Entity(name);
   entity.addComponent("render", { type: "box" });
@@ -95,7 +96,7 @@ function addBox(
   entity.setLocalScale(w, h, d);
   entity.setEulerAngles(0, yaw, 0);
   entity.render!.material = mat;
-  app.root.addChild(entity);
+  (parent ?? app.root).addChild(entity);
   return entity;
 }
 
@@ -107,14 +108,15 @@ function addSphere(
   sx: number,
   sy: number,
   sz: number,
-  mat: StandardMaterial
+  mat: StandardMaterial,
+  parent?: Entity
 ) {
   const entity = new Entity(name);
   entity.addComponent("render", { type: "sphere" });
   entity.setPosition(x, y, z);
   entity.setLocalScale(sx, sy, sz);
   entity.render!.material = mat;
-  app.root.addChild(entity);
+  (parent ?? app.root).addChild(entity);
   return entity;
 }
 
@@ -324,10 +326,25 @@ addCloud(-34, 30, -70, 1.0);
 addCloud(30, 26, -84, 0.9);
 addCloud(72, 33, -52, 0.85);
 
+type PlayerVisual = {
+  root: Entity;
+  leftArm: Entity;
+  rightArm: Entity;
+  leftLeg: Entity;
+  rightLeg: Entity;
+  phase: number;
+  walkBlend: number;
+  targetX: number;
+  targetZ: number;
+  targetYaw: number;
+};
+
+const playerEntities = new Map<string, PlayerVisual>();
+
 function makePlayer(player: NetPlayer, local: boolean) {
   const root = new Entity("Player_" + player.id);
   root.setPosition(player.x, 0, player.z);
-  root.setEulerAngles(0, 180 + (player.yaw * 180) / Math.PI, 0);
+  root.setEulerAngles(0, (player.yaw * 180) / Math.PI, 0);
   app.root.addChild(root);
 
   const skin = material(local ? 0.34 : 0.27, local ? 0.18 : 0.12, local ? 0.10 : 0.07);
@@ -337,23 +354,38 @@ function makePlayer(player: NetPlayer, local: boolean) {
   const shoe = material(0.88, 0.89, 0.88);
   const cap = material(0.015, 0.025, 0.03);
 
-  addBox("Torso", 0, 1.48, 0, 1.08, 1.6, .62, shirt);
-  addBox("ShoulderL", -.58, 1.68, 0, .24, .5, .68, shirt);
-  addBox("ShoulderR", .58, 1.68, 0, .24, .5, .68, shirt);
-  addSphere("Head", 0, 2.63, 0, .60, .64, .60, skin);
-  addBox("HairCap", 0, 3.03, 0.05, .88, .22, .88, cap);
-  addBox("ArmL", -.72, 1.42, 0, .28, 1.28, .33, skin);
-  addBox("ArmR", .72, 1.42, 0, .28, 1.28, .33, skin);
-  addBox("LegL", -.29, .52, 0, .35, 1.42, .42, pants);
-  addBox("LegR", .29, .52, 0, .35, 1.42, .42, pants);
-  addBox("ShoeL", -.29, -.06, -.08, .44, .18, .82, shoe);
-  addBox("ShoeR", .29, -.06, -.08, .44, .18, .82, shoe);
-  addBox("BackLogo", 0, 1.52, .34, .68, .42, .06, shirtAccent);
+  addBox("Torso", 0, 1.48, 0, 1.08, 1.6, .62, shirt, 0, root);
+  addBox("ShoulderL", -.58, 1.68, 0, .24, .5, .68, shirt, 0, root);
+  addBox("ShoulderR", .58, 1.68, 0, .24, .5, .68, shirt, 0, root);
+  addSphere("Head", 0, 2.63, 0, .60, .64, .60, skin, root);
+  addBox("HairCap", 0, 3.03, 0.05, .88, .22, .88, cap, 0, root);
 
-  playerEntities.set(player.id, root);
+  const leftArm = addBox("ArmL", -.72, 1.42, 0, .28, 1.28, .33, skin, 0, root);
+  const rightArm = addBox("ArmR", .72, 1.42, 0, .28, 1.28, skin, 0, root);
+  const leftLeg = addBox("LegL", -.29, .52, 0, .35, 1.42, .42, pants, 0, root);
+  const rightLeg = addBox("LegR", .29, .52, 0, .35, 1.42, .42, pants, 0, root);
+
+  addBox("ShoeL", -.29, -.06, -.08, .44, .18, .82, shoe, 0, root);
+  addBox("ShoeR", .29, -.06, -.08, .44, .18, .82, shoe, 0, root);
+  addBox("BackLogo", 0, 1.52, .34, .68, .42, .06, shirtAccent, 0, root);
+
+  const visual: PlayerVisual = {
+    root,
+    leftArm,
+    rightArm,
+    leftLeg,
+    rightLeg,
+    phase: 0,
+    walkBlend: 0,
+    targetX: player.x,
+    targetZ: player.z,
+    targetYaw: player.yaw
+  };
+
+  playerEntities.set(player.id, visual);
+  return visual;
 }
 
-const playerEntities = new Map<string, Entity>();
 let localPlayerId = "";
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -361,6 +393,7 @@ let inputSequence = 0;
 let input = { forward: 0, strafe: 0 };
 let lastSend = 0;
 let manualCamera = false;
+const MOVE_VISUAL_DISTANCE = 0.05;
 
 const keyboard = new Set<string>();
 window.addEventListener("keydown", (event) => keyboard.add(event.key.toLowerCase()));
@@ -368,9 +401,10 @@ window.addEventListener("keyup", (event) => keyboard.delete(event.key.toLowerCas
 
 function applyPlayers(players: NetPlayer[]) {
   const live = new Set(players.map((p) => p.id));
-  for (const [id, entity] of playerEntities) {
+
+  for (const [id, visual] of playerEntities) {
     if (!live.has(id)) {
-      entity.destroy();
+      visual.root.destroy();
       playerEntities.delete(id);
     }
   }
@@ -379,14 +413,13 @@ function applyPlayers(players: NetPlayer[]) {
   const scale = 0.42;
 
   for (const player of players) {
-    let entity = playerEntities.get(player.id);
-    if (!entity) {
-      makePlayer(player, player.id === localPlayerId);
-      entity = playerEntities.get(player.id)!;
-    }
+    let visual = playerEntities.get(player.id);
+    if (!visual) visual = makePlayer(player, player.id === localPlayerId);
 
-    entity.setPosition(player.x, 0, player.z);
-    entity.setEulerAngles(0, 180 + (player.yaw * 180) / Math.PI, 0);
+    // Snap only the network target. The render loop interpolates toward it.
+    visual.targetX = player.x;
+    visual.targetZ = player.z;
+    visual.targetYaw = player.yaw;
 
     if (player.id !== localPlayerId) {
       const dot = document.createElement("span");
@@ -560,23 +593,69 @@ app.on("update", (dt: number) => {
     lastSend = now;
   }
 
-  const local = localPlayerId ? playerEntities.get(localPlayerId) : undefined;
-  if (!manualCamera && local) {
-    const p = local.getPosition();
-    const desiredX = p.x;
-    const desiredY = p.y + 3.55;
-    const desiredZ = p.z + 6.9;
+  // Smooth network rendering + actual third-person character movement.
+  for (const visual of playerEntities.values()) {
+    const p = visual.root.getPosition();
+    const dx = visual.targetX - p.x;
+    const dz = visual.targetZ - p.z;
+    const distance = Math.hypot(dx, dz);
+    const follow = 1 - Math.exp(-dt * 14);
 
-    const current = camera.getPosition();
-    const k = Math.min(1, dt * 6);
-
-    camera.setPosition(
-      current.x + (desiredX - current.x) * k,
-      current.y + (desiredY - current.y) * k,
-      current.z + (desiredZ - current.z) * k
+    visual.root.setPosition(
+      p.x + dx * follow,
+      0,
+      p.z + dz * follow
     );
 
-    camera.lookAt(p.x, p.y + 1.18, p.z - 4.8);
+    let yawDelta = visual.targetYaw - visual.root.getEulerAngles().y * Math.PI / 180;
+    while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+    while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+
+    const currentYaw = visual.root.getEulerAngles().y * Math.PI / 180;
+    const nextYaw = currentYaw + yawDelta * Math.min(1, dt * 16);
+    visual.root.setEulerAngles(0, nextYaw * 180 / Math.PI, 0);
+
+    const moving = distance > 0.004;
+    const speedFactor = Math.min(1, distance / Math.max(0.001, MOVE_VISUAL_DISTANCE));
+    visual.walkBlend += ((moving ? 1 : 0) - visual.walkBlend) * Math.min(1, dt * 10);
+    if (visual.walkBlend > 0.01) visual.phase += dt * (7.5 + 5.5 * speedFactor);
+
+    const swing = Math.sin(visual.phase) * 0.48 * visual.walkBlend;
+    visual.leftArm.setEulerAngles(swing * 35, 0, 0);
+    visual.rightArm.setEulerAngles(-swing * 35, 0, 0);
+    visual.leftLeg.setEulerAngles(-swing * 24, 0, 0);
+    visual.rightLeg.setEulerAngles(swing * 24, 0, 0);
+
+    if (moving && distance > 1.2) {
+      visual.root.setPosition(visual.targetX, 0, visual.targetZ);
+    }
+  }
+
+  const local = localPlayerId ? playerEntities.get(localPlayerId) : undefined;
+  if (!manualCamera && local) {
+    const p = local.root.getPosition();
+    const yaw = local.root.getEulerAngles().y * Math.PI / 180;
+
+    // Camera sits behind and above the character and rotates with their facing.
+    const cameraDistance = 7.4;
+    const cameraHeight = 3.9;
+    const lookAhead = 1.8;
+    const desiredX = p.x + Math.sin(yaw) * cameraDistance;
+    const desiredY = p.y + cameraHeight;
+    const desiredZ = p.z + Math.cos(yaw) * cameraDistance;
+    const lookX = p.x - Math.sin(yaw) * lookAhead;
+    const lookZ = p.z - Math.cos(yaw) * lookAhead;
+
+    const current = camera.getPosition();
+    const cameraFollow = 1 - Math.exp(-dt * 7);
+
+    camera.setPosition(
+      current.x + (desiredX - current.x) * cameraFollow,
+      current.y + (desiredY - current.y) * cameraFollow,
+      current.z + (desiredZ - current.z) * cameraFollow
+    );
+
+    camera.lookAt(lookX, p.y + 1.25, lookZ);
   }
 });
 
