@@ -8,6 +8,9 @@
 <title>Nigeria Roleplay - Port Harcourt Build</title>
 <style>
 html{font-size:clamp(8px,2.7vh,15px)}
+#game-shell{position:fixed;inset:0;width:100vw;height:100vh;overflow:hidden}
+@media (orientation:portrait){#game-shell{width:100vh;height:100vw;left:50%;top:50%;right:auto;bottom:auto;inset:auto;transform:translate(-50%,-50%) rotate(90deg);transform-origin:center center}}
+@media (orientation:landscape){#game-shell{width:100vw;height:100vh;transform:none}}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:none;font-family:system-ui,sans-serif;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:linear-gradient(#5b86c6 0%,#a9b8d8 38%,#f0b985 52%,#e9b98c 100%)}
 #c{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
 #hud{position:fixed;inset:0;pointer-events:none;color:#fff}
@@ -46,6 +49,7 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #crch{right:8.8rem;bottom:6.2rem;width:3.2rem;height:3.2rem;font-size:1.3rem}
 #run.on{background:#1b8cf0}
 </style></head><body>
+<div id="game-shell">
 <canvas id="c"></canvas>
 <div id="hud">
  <div class="p" id="brand"><div class="lg">N</div><div><b>NIGERIA ROLEPLAY</b><small>PORT HARCOURT • ONLINE WORLD</small></div></div>
@@ -60,6 +64,7 @@ button,input,#joy{pointer-events:auto;font:inherit}
  <div class="p" id="loc">📍 Port Harcourt<br><small>Rivers State</small></div>
  <div class="p" id="stats"><span>♥ 100<span class="bar"><i style="width:100%;background:#ef4a5a"></i></span></span><span>🛡 0<span class="bar"><i style="width:2%;background:#3b82f6"></i></span></span><span>🍴 82<span class="bar"><i style="width:82%;background:#f5c518"></i></span></span></div>
  <button class="rb" id="fist">✊</button><button class="rb" id="run">🏃</button><button class="rb" id="crch">🧎</button>
+</div>
 </div>
 <script>
 async function enterLandscape(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.().catch(()=>{});}catch{}try{await screen.orientation?.lock?.('landscape').catch(()=>{});}catch{}}
@@ -77,8 +82,8 @@ const scene=new THREE.Scene();scene.fog=new THREE.Fog(0xe9b98c,35,150);
 const cam=new THREE.PerspectiveCamera(60,1,.1,220);
 scene.add(new THREE.HemisphereLight(0xffd8b0,0x6a5a48,.95));
 const sun=new THREE.DirectionalLight(0xffc58a,.9);sun.position.set(-30,18,-40);scene.add(sun);
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
-addEventListener('resize',resize);resize();
+function resize(){const shell=document.getElementById('game-shell');const w=shell.clientWidth,h=shell.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,50));resize();
 
 /* ---------- Port Harcourt street ---------- */
 function add(g,m,x,y,z,p){const o=new THREE.Mesh(g,m);o.position.set(x,y,z);(p||scene).add(o);return o;}
