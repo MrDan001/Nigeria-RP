@@ -25,6 +25,8 @@ type Session = {
   state: PlayerState;
   latestInput: Input;
   lastMessageAt: number;
+  velocityX: number;
+  velocityZ: number;
 };
 
 type ClientMessage =
@@ -209,13 +211,15 @@ wss.on("connection", (socket) => {
     state,
     latestInput: { sequence: -1, forward: 0, strafe: 0 },
     lastMessageAt: Date.now(),
+    velocityX: 0,
+    velocityZ: 0,
   };
 
   players.set(id, session);
 
   send(socket, {
     type: "connected",
-    protocolVersion: 1,
+    protocolVersion: 2,
     playerId: id,
     serverTickRate: TICK_RATE,
     players: snapshot(),
@@ -250,7 +254,6 @@ wss.on("connection", (socket) => {
         return;
       }
 
-      // Reject old or replayed input sequences.
       if (message.input.sequence <= player.state.lastInputSequence) return;
 
       player.state.lastInputSequence = message.input.sequence;
@@ -263,14 +266,10 @@ wss.on("connection", (socket) => {
     }
 
     if (message.type === "interact") {
-      const targetId = message.targetId?.trim() || null;
-
-      // Laboratory interaction is intentionally simple, but the server
-      // remains the authority over whether the request is accepted.
       send(socket, {
         type: "interactionResult",
         accepted: true,
-        targetId,
+        targetId: message.targetId?.trim() || null,
         message: "Interaction request received by authoritative server.",
       });
     }
@@ -291,7 +290,11 @@ wss.on("connection", (socket) => {
   });
 });
 
-// Fixed authoritative simulation tick.
+// Fresh movement model:
+// - joystick input describes a desired direction
+// - the server accelerates/decelerates instead of teleporting between snapshots
+// - the character turns toward the direction of travel
+// - reversing is a controlled turn, not a sign flip that causes jitter
 setInterval(() => {
   const dt = 1 / TICK_RATE;
   const now = Date.now();
@@ -301,27 +304,56 @@ setInterval(() => {
       ? { forward: 0, strafe: 0 }
       : session.latestInput;
 
-    const length = Math.hypot(input.forward, input.strafe);
+    const inputLength = Math.hypot(input.forward, input.strafe);
+    const hasInput = inputLength > 0.01;
 
-    if (length > 0) {
-      const nx = input.forward / Math.max(1, length);
-      const nz = input.strafe / Math.max(1, length);
+    let desiredX = 0;
+    let desiredZ = 0;
 
-      const strafe = input.strafe / Math.max(1, length);
-      const forward = input.forward / Math.max(1, length);
+    if (hasInput) {
+      const f = input.forward / Math.max(1, inputLength);
+      const s = input.strafe / Math.max(1, inputLength);
 
-      // Camera/world convention: forward is toward -Z, strafe is +X.
-      session.state.x = Math.max(
-        -WORLD_LIMIT,
-        Math.min(WORLD_LIMIT, session.state.x + strafe * MOVE_SPEED * dt),
-      );
+      // World convention: forward = -Z, right = +X.
+      desiredX = s * MOVE_SPEED;
+      desiredZ = -f * MOVE_SPEED;
 
-      session.state.z = Math.max(
-        -WORLD_LIMIT,
-        Math.min(WORLD_LIMIT, session.state.z - forward * MOVE_SPEED * dt),
-      );
+      const targetYaw = Math.atan2(desiredX, desiredZ);
+      let delta = targetYaw - session.state.yaw;
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
 
-      session.state.yaw = Math.atan2(strafe, -forward);
+      const turnRate = 12;
+      session.state.yaw += delta * Math.min(1, turnRate * dt);
+
+      while (session.state.yaw > Math.PI) session.state.yaw -= Math.PI * 2;
+      while (session.state.yaw < -Math.PI) session.state.yaw += Math.PI * 2;
+    }
+
+    const acceleration = hasInput ? 28 : 34;
+    const blend = Math.min(1, acceleration * dt);
+
+    session.velocityX += (desiredX - session.velocityX) * blend;
+    session.velocityZ += (desiredZ - session.velocityZ) * blend;
+
+    if (!hasInput) {
+      const damping = Math.pow(0.0005, dt);
+      session.velocityX *= damping;
+      session.velocityZ *= damping;
+    }
+
+    session.state.x = Math.max(
+      -WORLD_LIMIT,
+      Math.min(WORLD_LIMIT, session.state.x + session.velocityX * dt),
+    );
+    session.state.z = Math.max(
+      -WORLD_LIMIT,
+      Math.min(WORLD_LIMIT, session.state.z + session.velocityZ * dt),
+    );
+
+    if (Math.hypot(session.velocityX, session.velocityZ) < 0.01) {
+      session.velocityX = 0;
+      session.velocityZ = 0;
     }
   }
 }, 1000 / TICK_RATE);
