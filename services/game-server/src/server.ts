@@ -179,6 +179,21 @@ function serveWebClient(request: http.IncomingMessage, response: http.ServerResp
       return;
     }
 
+    if (path.basename(finalPath) === "index.html") {
+      try {
+        const html = fs.readFileSync(finalPath, "utf8");
+        const injected = html.includes("/multiplayer.js")
+          ? html
+          : html.replace("</body>", '<script src="/multiplayer.js"></script></body>');
+        const body = Buffer.from(injected, "utf8");
+        response.setHeader("content-length", body.length);
+        response.end(body);
+      } catch {
+        sendJson(response, 500, { ok: false, error: "INDEX_INJECTION_ERROR" });
+      }
+      return;
+    }
+
     fs.createReadStream(finalPath).pipe(response);
   } catch {
     sendJson(response, 500, { ok: false, error: "STATIC_FILE_ERROR" });
