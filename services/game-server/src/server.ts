@@ -1,74 +1,923 @@
-import {WebSocketServer,WebSocket} from "ws";
-import {Pool} from "pg";
-import {randomBytes,randomUUID,scrypt as scryptCb,timingSafeEqual,createHash} from "node:crypto";
-import {promisify} from "node:util";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-const scrypt=promisify(scryptCb);
-type Job={n:string;x:number;z:number;pay:number}|null;
-type Inv=Record<string,number>;
-type Account={id:string;username:string;usernameLower:string;passwordSalt:string;passwordHash:string;cash:number;bank:number;x:number;z:number;yaw:number;hp:number;hunger:number;job:Job;inventory:Inv;createdAt:number;updatedAt:number};
-type Player={id:string;name:string;x:number;z:number;yaw:number;hp:number;hunger:number;level:number;xp:number;cash:number;bank:number;job:Job;inventory:Inv;lastSeq:number};
-type Session={socket:WebSocket;account:Account;state:Player;input:{sequence:number;forward:number;strafe:number};lastMessageAt:number};
-type FileDb={accounts:Record<string,Account>;sessions:Record<string,{accountId:string;expiresAt:number}>};
+import { createHash, randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { WebSocketServer, WebSocket } from "ws";
+import { Pool } from "pg";
 
-const PORT=Number(process.env.PORT??8080),TICK=20,SNAP=10,SPEED=4.2,LIMIT=500;
-const DATA_DIR=process.env.NRS_DATA_DIR??"/data",DATA_FILE=process.env.NRS_DATA_FILE??path.join(DATA_DIR,"accounts.json"),DATABASE_URL=process.env.DATABASE_URL??process.env.POSTGRES_URL??"";
-const players=new Map<string,Session>(),active=new Map<string,WebSocket>();let pool:Pool|null=null;let fileDb:FileDb={accounts:{},sessions:{}};
-const JOBS=[{n:"Parcel to Mile 1 Market",x:-6.5,z:95,pay:6000},{n:"Parcel to Rumuola",x:110,z:70,pay:9000},{n:"Parcel to the Waterfront",x:90,z:150,pay:12000}];
+const scrypt = promisify(scryptCb);
 
-const send=(s:WebSocket,m:unknown)=>{if(s.readyState===WebSocket.OPEN)s.send(JSON.stringify(m));};
-const broadcast=(m:unknown)=>{for(const s of players.values())send(s.socket,m);};
-const clean=(n:string)=>n.trim().replace(/[^A-Za-z0-9 _-]/g,"").replace(/\s+/g," ").slice(0,20);
-const toInv=(v:unknown):Inv=>{const o:Inv={};if(!v||typeof v!=="object"||Array.isArray(v))return o;for(const[k,r]of Object.entries(v as Record<string,unknown>)){const n=Math.floor(Number(r));if(Number.isFinite(n)&&n>0)o[k.slice(0,60)]=Math.min(9999,n);}return o;};
-const toJob=(v:unknown):Job=>{if(!v||typeof v!=="object"||Array.isArray(v))return null;const j=v as any,n=String(j.n??""),x=Number(j.x),z=Number(j.z),pay=Number(j.pay);return n&&Number.isFinite(x)&&Number.isFinite(z)&&Number.isFinite(pay)?{n:n.slice(0,100),x,z,pay}:null;};
-const jobsMatch=(j:Job)=>!j||JOBS.some(x=>x.n===j.n&&x.x===j.x&&x.z===j.z&&x.pay===j.pay);
-const snap=()=>[...players.values()].map(s=>({id:s.state.id,name:s.state.name,x:+s.state.x.toFixed(3),z:+s.state.z.toFixed(3),yaw:+s.state.yaw.toFixed(3),level:s.state.level}));
-const sha=(s:string)=>createHash("sha256").update(s).digest("hex");
+type JobState = { n: string; x: number; z: number; pay: number } | null;
+type Inventory = Record<string, number>;
 
-async function hpw(p:string,s?:string){const salt=s??randomBytes(16).toString("hex"),b=await scrypt(p,Buffer.from(salt,"hex"),64)as Buffer;return{salt,hash:b.toString("hex")};}
-async function verify(p:string,s:string,h:string){const b=await scrypt(p,Buffer.from(s,"hex"),64)as Buffer,e=Buffer.from(h,"hex");return e.length===b.length&&timingSafeEqual(e,b);}
-function writeFile(){const tmp=DATA_FILE+".tmp";fs.writeFileSync(tmp,JSON.stringify(fileDb));fs.renameSync(tmp,DATA_FILE);}
-async function initStore(){
- if(DATABASE_URL){pool=new Pool({connectionString:DATABASE_URL,max:10});await pool.query('CREATE TABLE IF NOT EXISTS nrs_accounts(id TEXT PRIMARY KEY,username TEXT NOT NULL,username_lower TEXT NOT NULL UNIQUE,password_salt TEXT NOT NULL,password_hash TEXT NOT NULL,cash BIGINT NOT NULL DEFAULT 5000,bank BIGINT NOT NULL DEFAULT 0,x DOUBLE PRECISION NOT NULL DEFAULT 0,z DOUBLE PRECISION NOT NULL DEFAULT 24,yaw DOUBLE PRECISION NOT NULL DEFAULT 3.14159265359,hp DOUBLE PRECISION NOT NULL DEFAULT 100,hunger DOUBLE PRECISION NOT NULL DEFAULT 82,level INTEGER NOT NULL DEFAULT 1,xp INTEGER NOT NULL DEFAULT 0,job JSONB,inventory JSONB NOT NULL DEFAULT \'{}\'::jsonb,created_at BIGINT NOT NULL,updated_at BIGINT NOT NULL);CREATE TABLE IF NOT EXISTS nrs_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE,expires_at BIGINT NOT NULL,created_at BIGINT NOT NULL);CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);');console.log("NRS storage: PostgreSQL");return;}
- fs.mkdirSync(DATA_DIR,{recursive:true});try{const x=JSON.parse(fs.readFileSync(DATA_FILE,"utf8"));if(x?.accounts&&x?.sessions)fileDb=x;}catch{writeFile();}console.warn("NRS storage: file "+DATA_FILE+"; mount /data or set DATABASE_URL for durable Railway persistence");
+type Account = {
+  id: string;
+  username: string;
+  usernameLower: string;
+  passwordSalt: string;
+  passwordHash: string;
+  cash: number;
+  bank: number;
+  x: number;
+  z: number;
+  yaw: number;
+  hp: number;
+  hunger: number;
+  level: number;
+  xp: number;
+  job: JobState;
+  inventory: Inventory;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type PlayerState = {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  yaw: number;
+  hp: number;
+  hunger: number;
+  level: number;
+  xp: number;
+  cash: number;
+  bank: number;
+  job: JobState;
+  inventory: Inventory;
+  lastSequence: number;
+};
+
+type Session = {
+  socket: WebSocket;
+  account: Account;
+  player: PlayerState;
+  input: { sequence: number; forward: number; strafe: number };
+  lastMessageAt: number;
+};
+
+type FileStore = {
+  accounts: Record<string, Account>;
+  sessions: Record<string, { accountId: string; expiresAt: number }>;
+};
+
+const PORT = Number(process.env.PORT ?? 8080);
+const TICK_RATE = 20;
+const SNAPSHOT_RATE = 10;
+const MOVE_SPEED = 4.2;
+const WORLD_LIMIT = 500;
+const SESSION_DAYS = 30;
+const DATA_FILE = process.env.NRS_DATA_FILE ?? path.join(process.env.NRS_DATA_DIR ?? "/data", "accounts.json");
+const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
+
+const players = new Map<string, Session>();
+const activeAccounts = new Map<string, WebSocket>();
+
+let pool: Pool | null = null;
+let fileStore: FileStore = { accounts: {}, sessions: {} };
+
+const JOBS: Array<Exclude<JobState, null>> = [
+  { n: "Parcel to Mile 1 Market", x: -6.5, z: 95, pay: 6000 },
+  { n: "Parcel to Rumuola", x: 110, z: 70, pay: 9000 },
+  { n: "Parcel to the Waterfront", x: 90, z: 150, pay: 12000 },
+];
+
+function send(socket: WebSocket, message: unknown) {
+  if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
 }
-function row(r:any):Account{return{id:String(r.id),username:String(r.username),usernameLower:String(r.username_lower),passwordSalt:String(r.password_salt),passwordHash:String(r.password_hash),cash:Number(r.cash),bank:Number(r.bank),x:Number(r.x),z:Number(r.z),yaw:Number(r.yaw),hp:Number(r.hp),hunger:Number(r.hunger),level:Number(r.level),xp:Number(r.xp),job:r.job??null,inventory:r.inventory??{},createdAt:Number(r.created_at),updatedAt:Number(r.updated_at)};}
-async function findUser(u:string){if(pool){const r=await pool.query("SELECT * FROM nrs_accounts WHERE username_lower=$1",[u]);return r.rows[0]?row(r.rows[0]):null;}return fileDb.accounts[u]??null;}
-async function findId(id:string){if(pool){const r=await pool.query("SELECT * FROM nrs_accounts WHERE id=$1",[id]);return r.rows[0]?row(r.rows[0]):null;}return Object.values(fileDb.accounts).find(a=>a.id===id)??null;}
-async function insert(a:Account){if(pool)await pool.query("INSERT INTO nrs_accounts(id,username,username_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb,$17,$18)",[a.id,a.username,a.usernameLower,a.passwordSalt,a.passwordHash,a.cash,a.bank,a.x,a.z,a.yaw,a.hp,a.hunger,a.level,a.xp,JSON.stringify(a.job),JSON.stringify(a.inventory),a.createdAt,a.updatedAt]);else{fileDb.accounts[a.usernameLower]=a;writeFile();}}
-async function save(a:Account){a.updatedAt=Date.now();if(pool)await pool.query("UPDATE nrs_accounts SET username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11,job=$12::jsonb,inventory=$13::jsonb,updated_at=$14 WHERE id=$1",[a.id,a.username,a.cash,a.bank,a.x,a.z,a.yaw,a.hp,a.hunger,a.level,a.xp,JSON.stringify(a.job),JSON.stringify(a.inventory),a.updatedAt]);else{fileDb.accounts[a.usernameLower]=a;writeFile();}}
-async function makeAccount(u:string,p:string){if(p.length<6)throw Error("PASSWORD_TOO_SHORT");if(!/^[A-Za-z0-9][A-Za-z0-9 _-]{2,19}$/.test(u))throw Error("USERNAME_INVALID");const ul=u.toLowerCase();if(await findUser(ul))throw Error("USERNAME_TAKEN");const{salt,hash}=await hpw(p),now=Date.now(),a:Account={id:randomUUID(),username:u,usernameLower:ul,passwordSalt:salt,passwordHash:hash,cash:5000,bank:0,x:0,z:24,yaw:Math.PI,hp:100,hunger:82,level:1,xp:0,job:null,inventory:{},createdAt:now,updatedAt:now};try{await insert(a);}catch(e:any){if(e?.code==="23505")throw Error("USERNAME_TAKEN");throw e;}return a;}
-async function sessionToken(id:string){const t=randomBytes(32).toString("base64url"),h=sha(t),exp=Date.now()+30*86400000;if(pool){await pool.query("DELETE FROM nrs_sessions WHERE account_id=$1",[id]);await pool.query("INSERT INTO nrs_sessions(token_hash,account_id,expires_at,created_at)VALUES($1,$2,$3,$4)",[h,id,exp,Date.now()]);}else{for(const[k,v]of Object.entries(fileDb.sessions))if(v.accountId===id)delete fileDb.sessions[k];fileDb.sessions[h]={accountId:id,expiresAt:exp};writeFile();}return t;}
-async function resume(t:string){const h=sha(t);let v:any=null;if(pool){const r=await pool.query("SELECT account_id,expires_at FROM nrs_sessions WHERE token_hash=$1",[h]);if(r.rows[0])v={accountId:String(r.rows[0].account_id),expiresAt:Number(r.rows[0].expires_at)};}else v=fileDb.sessions[h]??null;if(!v||v.expiresAt<Date.now())return null;return findId(v.accountId);}
-function mkState(a:Account):Player{return{id:a.id,name:a.username,x:a.x,z:a.z,yaw:a.yaw,hp:a.hp,hunger:a.hunger,level:a.level,xp:a.xp,cash:a.cash,bank:a.bank,job:a.job,inventory:toInv(a.inventory),lastSeq:-1};}
-async function persist(s:Session){const a=s.account;a.x=s.state.x;a.z=s.state.z;a.yaw=s.state.yaw;a.hp=s.state.hp;a.hunger=s.state.hunger;a.level=s.state.level;a.xp=s.state.xp;a.cash=s.state.cash;a.bank=s.state.bank;a.job=s.state.job;a.inventory=s.state.inventory;await save(a);}
 
-const webDir=[path.resolve(__dirname,"../../web-client/dist"),path.resolve(process.cwd(),"services/web-client/dist"),path.resolve(process.cwd(),"../web-client/dist")].find(fs.existsSync)??path.resolve(__dirname,"../../web-client/dist");
-const mime:any={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".jpg":"image/jpeg",".svg":"image/svg+xml",".webp":"image/webp"};
-const httpServer=http.createServer((req,res)=>{const u=new URL(req.url??"/","http://"+(req.headers.host??"localhost"));if(u.pathname==="/health"){res.writeHead(200,{"content-type":"application/json"});res.end(JSON.stringify({ok:true,players:players.size,storage:pool?"postgres":"file"}));return;}if(req.method!=="GET"&&req.method!=="HEAD"){res.writeHead(405);res.end();return;}let p;try{p=decodeURIComponent(u.pathname)}catch{res.writeHead(400);res.end();return;}const rel=p==="/"?"index.html":p.replace(/^\/+/,""),file=path.resolve(webDir,rel);if(file!==webDir&&!file.startsWith(webDir+path.sep)){res.writeHead(403);res.end();return;}let final=file;if(!fs.existsSync(final)||!fs.statSync(final).isFile()){if(!path.extname(rel))final=path.join(webDir,"index.html");else{res.writeHead(404);res.end();return;}}const stat=fs.statSync(final);res.writeHead(200,{"content-type":mime[path.extname(final).toLowerCase()]??"application/octet-stream","content-length":stat.size,"cache-control":path.basename(final)==="index.html"?"no-cache":"public,max-age=31536000,immutable"});if(req.method==="HEAD")return res.end();fs.createReadStream(final).pipe(res);});
-const wss=new WebSocketServer({server:httpServer,maxPayload:16384});
-wss.on("connection",socket=>{
- let ok=false,id:string|null=null;const timer=setTimeout(()=>{if(!ok){send(socket,{type:"authError",code:"AUTH_REQUIRED",message:"Please log in or create an account."});socket.close(4002);}},12000);
- const finish=async(a:Account,t:string)=>{ok=true;id=a.id;clearTimeout(timer);const old=active.get(a.id);if(old&&old!==socket){send(old,{type:"authError",code:"ACCOUNT_OPENED_ELSEWHERE",message:"This account is open on another device."});old.close(4001);}const s:Session={socket,account:a,state:mkState(a),input:{sequence:-1,forward:0,strafe:0},lastMessageAt:Date.now()};players.set(a.id,s);active.set(a.id,socket);send(socket,{type:"authOk",token:t,player:{...s.state},players:snap()});broadcast({type:"playerJoined",player:snap().find(p=>p.id===a.id)});};
- socket.on("message",raw=>void(async()=>{let m:any;try{m=JSON.parse(raw.toString())}catch{return;}
-  if(!ok){try{
-   if(m.type==="authRegister"){const a=await makeAccount(clean(String(m.username??"")),String(m.password??""));await finish(a,await sessionToken(a.id));return;}
-   if(m.type==="authLogin"){const a=await findUser(clean(String(m.username??"")).toLowerCase());if(!a||!(await verify(String(m.password??""),a.passwordSalt,a.passwordHash)))throw Error("INVALID_CREDENTIALS");await finish(a,await sessionToken(a.id));return;}
-   if(m.type==="authResume"){const t=String(m.token??"");const a=await resume(t);if(!a)throw Error("INVALID_SESSION");await finish(a,t);return;}
-   send(socket,{type:"authError",code:"AUTH_REQUIRED",message:"Please log in or create an account."});
-  }catch(e){const c=e instanceof Error?e.message:"AUTH_FAILED";const messages:any={PASSWORD_TOO_SHORT:"Password must be at least 6 characters.",USERNAME_INVALID:"Use letters, numbers, spaces, _ or - only.",USERNAME_TAKEN:"That username is already taken.",INVALID_CREDENTIALS:"Wrong username or password.",INVALID_SESSION:"Session expired. Please log in again."};send(socket,{type:"authError",code:c,message:messages[c]??"Could not complete the account request."});}return;}
-  const s=id?players.get(id):null;if(!s)return;s.lastMessageAt=Date.now();
-  if(m.type==="input"){const i=m.input;if(!i||!Number.isInteger(i.sequence)||i.sequence<=s.state.lastSeq||!Number.isFinite(i.forward)||!Number.isFinite(i.strafe)||Math.abs(i.forward)>2||Math.abs(i.strafe)>2)return;s.state.lastSeq=i.sequence;s.input={sequence:i.sequence,forward:Math.max(-1,Math.min(1,i.forward)),strafe:Math.max(-1,Math.min(1,i.strafe))};return;}
-  if(m.type==="walletChange"){const dc=Math.trunc(Number(m.cashDelta??0)),db=Math.trunc(Number(m.bankDelta??0)),reason=String(m.reason??"");if(!m.requestId||!Number.isFinite(dc)||!Number.isFinite(db)||Math.abs(dc)>50000000||Math.abs(db)>50000000||dc>0&&reason!=="job"){send(socket,{type:"walletResult",requestId:m.requestId??"",ok:false,message:"Invalid wallet request."});return;}if(dc>0){const j=s.state.job;if(!j||Math.hypot(s.state.x-j.x,s.state.z-j.z)>7||dc!==Math.trunc(j.pay)){send(socket,{type:"walletResult",requestId:m.requestId,ok:false,message:"Job reward is not valid here."});return;}s.state.job=null;}const nc=s.state.cash+dc,nb=s.state.bank+db;if(nc<0||nb<0){send(socket,{type:"walletResult",requestId:m.requestId,ok:false,message:"Insufficient funds."});return;}s.state.cash=nc;s.state.bank=nb;await persist(s);send(socket,{type:"walletResult",requestId:m.requestId,ok:true,cash:nc,bank:nb});return;}
-  if(m.type==="saveProgress"){if(m.hp!==undefined)s.state.hp=Math.max(1,Math.min(100,Number(m.hp)||1));if(m.hunger!==undefined)s.state.hunger=Math.max(0,Math.min(100,Number(m.hunger)||0));if(m.job!==undefined){const j=toJob(m.job);if(jobsMatch(j))s.state.job=j;}if(m.inventory!==undefined)s.state.inventory=toInv(m.inventory);await persist(s);return;}
-  if(m.type==="interact")send(socket,{type:"interactionResult",accepted:true,targetId:m.targetId??null});
- })().catch(e=>{console.error(e);send(socket,{type:"error",code:"SERVER_ERROR"});});});
- const close=()=>{clearTimeout(timer);if(!id)return;const s=players.get(id);if(!s||s.socket!==socket)return;void persist(s).catch(console.error);players.delete(id);if(active.get(id)===socket)active.delete(id);broadcast({type:"playerLeft",playerId:id});};socket.on("close",close);socket.on("error",close);
+function broadcast(message: unknown) {
+  for (const session of players.values()) send(session.socket, message);
+}
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function sanitizeUsername(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[^A-Za-z0-9 _-]/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 20);
+}
+
+function normalizeInventory(value: unknown): Inventory {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Inventory = {};
+  for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
+    const count = Math.floor(Number(raw));
+    if (Number.isFinite(count) && count > 0) out[name.slice(0, 60)] = Math.min(9999, count);
+  }
+  return out;
+}
+
+function normalizeJob(value: unknown): JobState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  const n = typeof v.n === "string" ? v.n.slice(0, 100) : "";
+  const x = Number(v.x);
+  const z = Number(v.z);
+  const pay = Number(v.pay);
+  if (!n || !Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(pay)) return null;
+  return { n, x, z, pay };
+}
+
+function normalizeAccount(account: Account): Account {
+  return {
+    ...account,
+    cash: Math.max(0, Math.floor(Number(account.cash) || 0)),
+    bank: Math.max(0, Math.floor(Number(account.bank) || 0)),
+    x: Number.isFinite(Number(account.x)) ? Number(account.x) : 0,
+    z: Number.isFinite(Number(account.z)) ? Number(account.z) : 24,
+    yaw: Number.isFinite(Number(account.yaw)) ? Number(account.yaw) : Math.PI,
+    hp: Math.max(1, Math.min(100, Number(account.hp) || 100)),
+    hunger: Math.max(0, Math.min(100, Number(account.hunger) || 82)),
+    level: Math.max(1, Math.floor(Number(account.level) || 1)),
+    xp: Math.max(0, Math.floor(Number(account.xp) || 0)),
+    job: normalizeJob(account.job),
+    inventory: normalizeInventory(account.inventory),
+  };
+}
+
+function publicPlayer(player: PlayerState) {
+  return {
+    id: player.id,
+    name: player.name,
+    x: Number(player.x.toFixed(3)),
+    z: Number(player.z.toFixed(3)),
+    yaw: Number(player.yaw.toFixed(3)),
+    level: player.level,
+  };
+}
+
+function accountPayload(player: PlayerState) {
+  return {
+    id: player.id,
+    name: player.name,
+    x: player.x,
+    z: player.z,
+    yaw: player.yaw,
+    hp: player.hp,
+    hunger: player.hunger,
+    level: player.level,
+    xp: player.xp,
+    cash: player.cash,
+    bank: player.bank,
+    job: player.job,
+    inventory: player.inventory,
+  };
+}
+
+function snapshot() {
+  return [...players.values()].map((session) => publicPlayer(session.player));
+}
+
+function isValidKnownJob(value: JobState) {
+  return value === null || JOBS.some(
+    (job) => job.n === value?.n && job.x === value.x && job.z === value.z && job.pay === value.pay,
+  );
+}
+
+async function hashPassword(password: string, saltHex?: string) {
+  const salt = saltHex ?? randomBytes(16).toString("hex");
+  const result = await scrypt(password, Buffer.from(salt, "hex"), 64) as Buffer;
+  return { salt, hash: result.toString("hex") };
+}
+
+async function verifyPassword(password: string, saltHex: string, expectedHash: string) {
+  const result = await scrypt(password, Buffer.from(saltHex, "hex"), 64) as Buffer;
+  const expected = Buffer.from(expectedHash, "hex");
+  return expected.length === result.length && timingSafeEqual(expected, result);
+}
+
+function writeFileStore() {
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  const tempPath = DATA_FILE + ".tmp";
+  fs.writeFileSync(tempPath, JSON.stringify(fileStore), "utf8");
+  fs.renameSync(tempPath, DATA_FILE);
+}
+
+async function initStore() {
+  if (DATABASE_URL) {
+    pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_accounts (" +
+      "id TEXT PRIMARY KEY," +
+      "username TEXT NOT NULL," +
+      "username_lower TEXT NOT NULL UNIQUE," +
+      "password_salt TEXT NOT NULL," +
+      "password_hash TEXT NOT NULL," +
+      "cash BIGINT NOT NULL DEFAULT 5000," +
+      "bank BIGINT NOT NULL DEFAULT 0," +
+      "x DOUBLE PRECISION NOT NULL DEFAULT 0," +
+      "z DOUBLE PRECISION NOT NULL DEFAULT 24," +
+      "yaw DOUBLE PRECISION NOT NULL DEFAULT 3.14159265359," +
+      "hp DOUBLE PRECISION NOT NULL DEFAULT 100," +
+      "hunger DOUBLE PRECISION NOT NULL DEFAULT 82," +
+      "level INTEGER NOT NULL DEFAULT 1," +
+      "xp INTEGER NOT NULL DEFAULT 0," +
+      "job JSONB," +
+      "inventory JSONB NOT NULL DEFAULT '{}'::jsonb," +
+      "created_at BIGINT NOT NULL," +
+      "updated_at BIGINT NOT NULL" +
+      ");" +
+      "CREATE TABLE IF NOT EXISTS nrs_sessions (" +
+      "token_hash TEXT PRIMARY KEY," +
+      "account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE," +
+      "expires_at BIGINT NOT NULL," +
+      "created_at BIGINT NOT NULL" +
+      ");" +
+      "CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);",
+    );
+    console.log("NRS durable storage: PostgreSQL");
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  try {
+    fileStore = JSON.parse(fs.readFileSync(DATA_FILE, "utf8")) as FileStore;
+  } catch {
+    fileStore = { accounts: {}, sessions: {} };
+    writeFileStore();
+  }
+  console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
+}
+
+function accountFromRow(row: any): Account {
+  return normalizeAccount({
+    id: String(row.id),
+    username: String(row.username),
+    usernameLower: String(row.username_lower),
+    passwordSalt: String(row.password_salt),
+    passwordHash: String(row.password_hash),
+    cash: Number(row.cash),
+    bank: Number(row.bank),
+    x: Number(row.x),
+    z: Number(row.z),
+    yaw: Number(row.yaw),
+    hp: Number(row.hp),
+    hunger: Number(row.hunger),
+    level: Number(row.level),
+    xp: Number(row.xp),
+    job: row.job ?? null,
+    inventory: row.inventory ?? {},
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
+  });
+}
+
+async function findAccountByUsername(usernameLower: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE username_lower=$1 LIMIT 1", [usernameLower]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  return fileStore.accounts[usernameLower] ? normalizeAccount(fileStore.accounts[usernameLower]) : null;
+}
+
+async function findAccountById(accountId: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE id=$1 LIMIT 1", [accountId]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  const account = Object.values(fileStore.accounts).find((item) => item.id === accountId);
+  return account ? normalizeAccount(account) : null;
+}
+
+async function insertAccount(account: Account) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_accounts (" +
+      "id,username,username_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb,$17,$18)",
+      [
+        account.id,
+        account.username,
+        account.usernameLower,
+        account.passwordSalt,
+        account.passwordHash,
+        account.cash,
+        account.bank,
+        account.x,
+        account.z,
+        account.yaw,
+        account.hp,
+        account.hunger,
+        account.level,
+        account.xp,
+        JSON.stringify(account.job),
+        JSON.stringify(account.inventory),
+        account.createdAt,
+        account.updatedAt,
+      ],
+    );
+    return;
+  }
+
+  fileStore.accounts[account.usernameLower] = account;
+  writeFileStore();
+}
+
+async function saveAccount(account: Account) {
+  account.updatedAt = Date.now();
+
+  if (pool) {
+    await pool.query(
+      "UPDATE nrs_accounts SET " +
+      "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14 WHERE id=$1",
+      [
+        account.id,
+        account.username,
+        account.cash,
+        account.bank,
+        account.x,
+        account.z,
+        account.yaw,
+        account.hp,
+        account.hunger,
+        account.level,
+        account.xp,
+        JSON.stringify(account.job),
+        JSON.stringify(account.inventory),
+        account.updatedAt,
+      ],
+    );
+    return;
+  }
+
+  fileStore.accounts[account.usernameLower] = account;
+  writeFileStore();
+}
+
+async function createAccount(username: string, password: string) {
+  if (username.length < 3) throw new Error("USERNAME_TOO_SHORT");
+  if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{2,19}$/.test(username)) throw new Error("USERNAME_INVALID");
+  if (password.length < 6) throw new Error("PASSWORD_TOO_SHORT");
+
+  const usernameLower = username.toLowerCase();
+  if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+
+  const { salt, hash } = await hashPassword(password);
+  const now = Date.now();
+  const account: Account = {
+    id: randomUUID(),
+    username,
+    usernameLower,
+    passwordSalt: salt,
+    passwordHash: hash,
+    cash: 5000,
+    bank: 0,
+    x: 0,
+    z: 24,
+    yaw: Math.PI,
+    hp: 100,
+    hunger: 82,
+    level: 1,
+    xp: 0,
+    job: null,
+    inventory: {},
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await insertAccount(account);
+  } catch (error: any) {
+    if (error?.code === "23505") throw new Error("USERNAME_TAKEN");
+    throw error;
+  }
+
+  return account;
+}
+
+async function createSession(accountId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = hashToken(token);
+  const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+  if (pool) {
+    await pool.query("DELETE FROM nrs_sessions WHERE account_id=$1", [accountId]);
+    await pool.query(
+      "INSERT INTO nrs_sessions(token_hash,account_id,expires_at,created_at) VALUES ($1,$2,$3,$4)",
+      [tokenHash, accountId, expiresAt, Date.now()],
+    );
+  } else {
+    for (const [key, value] of Object.entries(fileStore.sessions)) {
+      if (value.accountId === accountId) delete fileStore.sessions[key];
+    }
+    fileStore.sessions[tokenHash] = { accountId, expiresAt };
+    writeFileStore();
+  }
+
+  return token;
+}
+
+async function resolveSession(token: string) {
+  const tokenHash = hashToken(token);
+  let session: { accountId: string; expiresAt: number } | null = null;
+
+  if (pool) {
+    const result = await pool.query(
+      "SELECT account_id,expires_at FROM nrs_sessions WHERE token_hash=$1 LIMIT 1",
+      [tokenHash],
+    );
+    if (result.rows[0]) {
+      session = {
+        accountId: String(result.rows[0].account_id),
+        expiresAt: Number(result.rows[0].expires_at),
+      };
+    }
+  } else {
+    session = fileStore.sessions[tokenHash] ?? null;
+  }
+
+  if (!session || session.expiresAt < Date.now()) return null;
+  return findAccountById(session.accountId);
+}
+
+function makePlayer(account: Account): PlayerState {
+  return {
+    id: account.id,
+    name: account.username,
+    x: account.x,
+    z: account.z,
+    yaw: account.yaw,
+    hp: account.hp,
+    hunger: account.hunger,
+    level: account.level,
+    xp: account.xp,
+    cash: account.cash,
+    bank: account.bank,
+    job: account.job,
+    inventory: normalizeInventory(account.inventory),
+    lastSequence: -1,
+  };
+}
+
+async function persistSession(session: Session) {
+  const account = session.account;
+  account.username = session.player.name;
+  account.usernameLower = account.username.toLowerCase();
+  account.x = session.player.x;
+  account.z = session.player.z;
+  account.yaw = session.player.yaw;
+  account.hp = session.player.hp;
+  account.hunger = session.player.hunger;
+  account.level = session.player.level;
+  account.xp = session.player.xp;
+  account.cash = session.player.cash;
+  account.bank = session.player.bank;
+  account.job = normalizeJob(session.player.job);
+  account.inventory = normalizeInventory(session.player.inventory);
+  await saveAccount(account);
+}
+
+const webDirCandidates = [
+  path.resolve(__dirname, "../../web-client/dist"),
+  path.resolve(process.cwd(), "services/web-client/dist"),
+  path.resolve(process.cwd(), "../web-client/dist"),
+];
+
+const WEB_DIR = webDirCandidates.find((candidate) => fs.existsSync(candidate)) ?? webDirCandidates[0];
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+};
+
+const httpServer = http.createServer((request, response) => {
+  const url = new URL(request.url ?? "/", "http://" + (request.headers.host ?? "localhost"));
+
+  if (url.pathname === "/health") {
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({
+      ok: true,
+      service: "nigeria-rp-game-server",
+      players: players.size,
+      storage: pool ? "postgres" : "file-fallback",
+    }));
+    return;
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.writeHead(405, { allow: "GET, HEAD" });
+    response.end();
+    return;
+  }
+
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    response.writeHead(400);
+    response.end("Bad request");
+    return;
+  }
+
+  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\\/+/, "");
+  const requested = path.resolve(WEB_DIR, relative);
+
+  if (requested !== WEB_DIR && !requested.startsWith(WEB_DIR + path.sep)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  let finalPath = requested;
+
+  if (!fs.existsSync(finalPath) || !fs.statSync(finalPath).isFile()) {
+    if (!path.extname(relative)) {
+      finalPath = path.join(WEB_DIR, "index.html");
+    } else {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+  }
+
+  try {
+    const stat = fs.statSync(finalPath);
+    response.writeHead(200, {
+      "content-type": MIME[path.extname(finalPath).toLowerCase()] ?? "application/octet-stream",
+      "content-length": stat.size,
+      "cache-control": path.basename(finalPath) === "index.html"
+        ? "no-cache"
+        : "public, max-age=31536000, immutable",
+    });
+
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+
+    fs.createReadStream(finalPath).pipe(response);
+  } catch {
+    response.writeHead(500);
+    response.end("Static file error");
+  }
 });
-setInterval(()=>{const dt=1/TICK,now=Date.now();for(const s of players.values()){const i=now-s.lastMessageAt>750?{forward:0,strafe:0}:s.input;const len=Math.hypot(i.forward,i.strafe),on=len>.01;let vx=0,vz=0;if(on){const f=i.forward/Math.max(1,len),st=i.strafe/Math.max(1,len);vx=st*SPEED;vz=-f*SPEED;const ty=Math.atan2(vx,vz);let d=ty-s.state.yaw;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;s.state.yaw+=d*Math.min(1,12*dt);}s.state.x=Math.max(-LIMIT,Math.min(LIMIT,s.state.x+vx*dt));s.state.z=Math.max(-LIMIT,Math.min(LIMIT,s.state.z+vz*dt));}},1000/TICK);
-setInterval(()=>broadcast({type:"snapshot",serverTime:Date.now(),players:snap()}),1000/SNAP);
-setInterval(()=>{for(const s of players.values())void persist(s).catch(console.error)},5000);
-async function main(){await initStore();httpServer.listen(PORT,()=>console.log("NRS server listening on :"+PORT));}
-void main().catch(e=>{console.error("NRS startup failed",e);process.exit(1);});
+
+const wss = new WebSocketServer({ server: httpServer, maxPayload: 16 * 1024 });
+
+wss.on("connection", (socket) => {
+  let authenticated = false;
+  let accountId: string | null = null;
+
+  const authTimer = setTimeout(() => {
+    if (!authenticated) {
+      send(socket, {
+        type: "authError",
+        code: "AUTH_REQUIRED",
+        message: "Please log in or create an account.",
+      });
+      socket.close(4002, "Authentication required");
+    }
+  }, 12000);
+
+  const finishAuthentication = async (account: Account, token: string) => {
+    const previousSocket = activeAccounts.get(account.id);
+
+    if (previousSocket && previousSocket !== socket) {
+      send(previousSocket, {
+        type: "authError",
+        code: "ACCOUNT_OPENED_ELSEWHERE",
+        message: "This account was opened on another device.",
+      });
+      previousSocket.close(4001, "Account opened elsewhere");
+    }
+
+    authenticated = true;
+    accountId = account.id;
+    clearTimeout(authTimer);
+
+    const session: Session = {
+      socket,
+      account,
+      player: makePlayer(account),
+      input: { sequence: -1, forward: 0, strafe: 0 },
+      lastMessageAt: Date.now(),
+    };
+
+    players.set(account.id, session);
+    activeAccounts.set(account.id, socket);
+
+    send(socket, {
+      type: "authOk",
+      token,
+      player: accountPayload(session.player),
+      players: snapshot(),
+    });
+
+    broadcast({
+      type: "playerJoined",
+      player: publicPlayer(session.player),
+    });
+  };
+
+  socket.on("message", (raw) => {
+    void (async () => {
+      let message: any;
+
+      try {
+        message = JSON.parse(raw.toString());
+      } catch {
+        send(socket, { type: "error", code: "INVALID_JSON" });
+        return;
+      }
+
+      if (!authenticated) {
+        try {
+          if (message.type === "authRegister") {
+            const username = sanitizeUsername(message.username);
+            const password = String(message.password ?? "");
+            const account = await createAccount(username, password);
+            const token = await createSession(account.id);
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          if (message.type === "authLogin") {
+            const username = sanitizeUsername(message.username);
+            const account = await findAccountByUsername(username.toLowerCase());
+
+            if (!account || !(await verifyPassword(
+              String(message.password ?? ""),
+              account.passwordSalt,
+              account.passwordHash,
+            ))) {
+              throw new Error("INVALID_CREDENTIALS");
+            }
+
+            const token = await createSession(account.id);
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          if (message.type === "authResume") {
+            const token = String(message.token ?? "").trim();
+            const account = token ? await resolveSession(token) : null;
+
+            if (!account) throw new Error("INVALID_SESSION");
+
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          send(socket, {
+            type: "authError",
+            code: "AUTH_REQUIRED",
+            message: "Please log in or create an account.",
+          });
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "AUTH_FAILED";
+          const messages: Record<string, string> = {
+            PASSWORD_TOO_SHORT: "Password must be at least 6 characters.",
+            USERNAME_TOO_SHORT: "Username must be at least 3 characters.",
+            USERNAME_INVALID: "Use letters, numbers, spaces, _ or - only.",
+            USERNAME_TAKEN: "That username is already taken.",
+            INVALID_CREDENTIALS: "Wrong username or password.",
+            INVALID_SESSION: "Session expired. Please log in again.",
+          };
+
+          send(socket, {
+            type: "authError",
+            code,
+            message: messages[code] ?? "Could not complete the account request.",
+          });
+        }
+
+        return;
+      }
+
+      const session = accountId ? players.get(accountId) : null;
+      if (!session) return;
+
+      session.lastMessageAt = Date.now();
+
+      if (message.type === "input") {
+        const input = message.input;
+
+        if (
+          !input ||
+          !Number.isInteger(input.sequence) ||
+          input.sequence <= session.player.lastSequence ||
+          !Number.isFinite(input.forward) ||
+          !Number.isFinite(input.strafe) ||
+          Math.abs(input.forward) > 2 ||
+          Math.abs(input.strafe) > 2
+        ) {
+          send(socket, { type: "error", code: "INVALID_INPUT" });
+          return;
+        }
+
+        session.player.lastSequence = input.sequence;
+        session.input = {
+          sequence: input.sequence,
+          forward: Math.max(-1, Math.min(1, Number(input.forward))),
+          strafe: Math.max(-1, Math.min(1, Number(input.strafe))),
+        };
+        return;
+      }
+
+      if (message.type === "walletChange") {
+        const requestId = String(message.requestId ?? "");
+        const cashDelta = Math.trunc(Number(message.cashDelta ?? 0));
+        const bankDelta = Math.trunc(Number(message.bankDelta ?? 0));
+        const reason = String(message.reason ?? "");
+
+        if (
+          !requestId ||
+          !Number.isFinite(cashDelta) ||
+          !Number.isFinite(bankDelta) ||
+          Math.abs(cashDelta) > 50_000_000 ||
+          Math.abs(bankDelta) > 50_000_000
+        ) {
+          send(socket, { type: "walletResult", requestId, ok: false, message: "Invalid wallet request." });
+          return;
+        }
+
+        if (cashDelta > 0) {
+          const activeJob = session.player.job;
+
+          if (
+            reason !== "job" ||
+            !activeJob ||
+            !isValidKnownJob(activeJob) ||
+            Math.hypot(session.player.x - activeJob.x, session.player.z - activeJob.z) > 7 ||
+            cashDelta !== Math.trunc(activeJob.pay)
+          ) {
+            send(socket, {
+              type: "walletResult",
+              requestId,
+              ok: false,
+              message: "Job reward is not valid here.",
+            });
+            return;
+          }
+
+          session.player.job = null;
+        }
+
+        const nextCash = session.player.cash + cashDelta;
+        const nextBank = session.player.bank + bankDelta;
+
+        if (nextCash < 0 || nextBank < 0) {
+          send(socket, {
+            type: "walletResult",
+            requestId,
+            ok: false,
+            message: "Insufficient funds.",
+          });
+          return;
+        }
+
+        session.player.cash = nextCash;
+        session.player.bank = nextBank;
+        await persistSession(session);
+
+        send(socket, {
+          type: "walletResult",
+          requestId,
+          ok: true,
+          cash: nextCash,
+          bank: nextBank,
+        });
+        return;
+      }
+
+      if (message.type === "saveProgress") {
+        if (message.hp !== undefined) {
+          session.player.hp = Math.max(1, Math.min(100, Number(message.hp) || 1));
+        }
+
+        if (message.hunger !== undefined) {
+          session.player.hunger = Math.max(0, Math.min(100, Number(message.hunger) || 0));
+        }
+
+        if (message.job !== undefined) {
+          const requestedJob = normalizeJob(message.job);
+          if (isValidKnownJob(requestedJob)) session.player.job = requestedJob;
+        }
+
+        if (message.inventory !== undefined) {
+          session.player.inventory = normalizeInventory(message.inventory);
+        }
+
+        await persistSession(session);
+        return;
+      }
+
+      if (message.type === "interact") {
+        send(socket, {
+          type: "interactionResult",
+          accepted: true,
+          targetId: String(message.targetId ?? ""),
+        });
+      }
+    })().catch((error) => {
+      console.error("message-handler", error);
+      send(socket, { type: "error", code: "SERVER_ERROR" });
+    });
+  });
+
+  const cleanup = () => {
+    clearTimeout(authTimer);
+
+    if (!accountId) return;
+
+    const session = players.get(accountId);
+    if (!session || session.socket !== socket) return;
+
+    void persistSession(session).catch((error) => console.error("save-on-close", error));
+
+    players.delete(accountId);
+
+    if (activeAccounts.get(accountId) === socket) {
+      activeAccounts.delete(accountId);
+    }
+
+    broadcast({
+      type: "playerLeft",
+      playerId: accountId,
+    });
+  };
+
+  socket.on("close", cleanup);
+  socket.on("error", cleanup);
+});
+
+setInterval(() => {
+  const dt = 1 / TICK_RATE;
+  const now = Date.now();
+
+  for (const session of players.values()) {
+    const input = now - session.lastMessageAt > 750
+      ? { forward: 0, strafe: 0 }
+      : session.input;
+
+    const length = Math.hypot(input.forward, input.strafe);
+
+    if (length > 0.01) {
+      const f = input.forward / Math.max(1, length);
+      const s = input.strafe / Math.max(1, length);
+
+      const velocityX = s * MOVE_SPEED;
+      const velocityZ = -f * MOVE_SPEED;
+
+      session.player.x = Math.max(
+        -WORLD_LIMIT,
+        Math.min(WORLD_LIMIT, session.player.x + velocityX * dt),
+      );
+
+      session.player.z = Math.max(
+        -WORLD_LIMIT,
+        Math.min(WORLD_LIMIT, session.player.z + velocityZ * dt),
+      );
+
+      const targetYaw = Math.atan2(velocityX, velocityZ);
+      let delta = targetYaw - session.player.yaw;
+
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+
+      session.player.yaw += delta * Math.min(1, 12 * dt);
+    }
+  }
+}, 1000 / TICK_RATE);
+
+setInterval(() => {
+  broadcast({
+    type: "snapshot",
+    serverTime: Date.now(),
+    players: snapshot(),
+  });
+}, 1000 / SNAPSHOT_RATE);
+
+setInterval(() => {
+  for (const session of players.values()) {
+    void persistSession(session).catch((error) => console.error("periodic-save", error));
+  }
+}, 5000);
+
+async function main() {
+  await initStore();
+  httpServer.listen(PORT, () => {
+    console.log("NRS web + multiplayer server listening on :" + PORT);
+  });
+}
+
+void main().catch((error) => {
+  console.error("NRS startup failed", error);
+  process.exit(1);
+});
