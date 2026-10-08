@@ -42,6 +42,8 @@ const authUsername = document.querySelector<HTMLInputElement>("#auth-username");
 const authPassword = document.querySelector<HTMLInputElement>("#auth-password");
 const authConfirmWrap = document.querySelector<HTMLElement>("#auth-confirm-wrap");
 const authConfirm = document.querySelector<HTMLInputElement>("#auth-confirm");
+const authPasswordToggle = document.querySelector<HTMLButtonElement>("#auth-password-toggle");
+const authConfirmToggle = document.querySelector<HTMLButtonElement>("#auth-confirm-toggle");
 const authError = document.querySelector<HTMLElement>("#auth-error");
 const authSubmit = document.querySelector<HTMLButtonElement>("#auth-submit");
 const authConnection = document.querySelector<HTMLElement>("#auth-connection");
@@ -57,7 +59,8 @@ const mapDots = document.querySelector<HTMLDivElement>("#player-map-dots");
 
 if (!canvas || !connection || !status || !onlineCount || !levelBadge || !authScreen ||
     !authForm || !authTitle || !authCopy || !authLoginTab || !authRegisterTab ||
-    !authUsername || !authPassword || !authConfirmWrap || !authConfirm || !authError ||
+    !authUsername || !authPassword || !authConfirmWrap || !authConfirm ||
+    !authPasswordToggle || !authConfirmToggle || !authError ||
     !authSubmit || !authConnection || !startScreen || !joystick || !stick ||
     !interact || !resetCamera || !nameInput || !joinButton || !identityName || !mapDots) {
   throw new Error("NRS client UI is missing required elements.");
@@ -534,6 +537,16 @@ function hideAuth() {
   authError.textContent = "";
 }
 
+function setPasswordVisible(input: HTMLInputElement, button: HTMLButtonElement) {
+  const visible = input.type === "password";
+  input.type = visible ? "text" : "password";
+  button.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+  button.setAttribute("aria-pressed", String(visible));
+}
+
+authPasswordToggle.addEventListener("click", () => setPasswordVisible(authPassword, authPasswordToggle));
+authConfirmToggle.addEventListener("click", () => setPasswordVisible(authConfirm, authConfirmToggle));
+
 function setAuthMode(mode: "login" | "register") {
   authMode = mode;
   const registering = mode === "register";
@@ -543,6 +556,8 @@ function setAuthMode(mode: "login" | "register") {
     : "Log in to load your character, money, jobs and progress.";
   authLoginTab.classList.toggle("on", !registering);
   authRegisterTab.classList.toggle("on", registering);
+  authLoginTab.setAttribute("aria-selected", String(!registering));
+  authRegisterTab.setAttribute("aria-selected", String(registering));
   authConfirmWrap.hidden = !registering;
   authConfirm.required = registering;
   authPassword.autocomplete = registering ? "new-password" : "current-password";
@@ -585,6 +600,7 @@ async function submitAuth() {
   }
 
   authSubmit.disabled = true;
+  authScreen.setAttribute("aria-busy", "true");
   authError.textContent = "";
   send({ type: authMode === "register" ? "authRegister" : "authLogin", username, password });
 }
@@ -635,6 +651,7 @@ function connect() {
       applyPlayers(auth.players);
       inputSequence = 0;
       manualCamera = false;
+      authScreen.setAttribute("aria-busy", "false");
       hideAuth();
       status.textContent = "Connected. Your saved character is loaded.";
       sys(`Welcome, ${auth.player.name}.`);
@@ -645,6 +662,7 @@ function connect() {
       const auth = message as AuthError;
       if (auth.code === "INVALID_SESSION") clearAuthToken();
       showAuth(auth.message ?? "Authentication failed.");
+      authScreen.setAttribute("aria-busy", "false");
       authSubmit.disabled = false;
       return;
     }
@@ -660,6 +678,7 @@ function connect() {
 
   ws.onclose = () => {
     authenticated = false;
+    authScreen.setAttribute("aria-busy", "false");
     authSubmit.disabled = true;
     setConnectionState("OFFLINE", "Connection lost. Reconnecting…", "bad");
     reconnect();
