@@ -43,10 +43,6 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #run.on{background:#1b8cf0}
 .rb.on{background:#1b8cf0}
 #act{position:fixed;right:13.5rem;bottom:2.4rem;padding:.8rem 1.1rem;font-size:.95rem;font-weight:700;color:#fff;background:#1b8cf0;border:0;border-radius:.8rem;z-index:3}
-#ignition{position:fixed;right:16.8rem;bottom:2.2rem;width:3.6rem;height:3.6rem;font-size:1.05rem;display:none;z-index:3}
-#ignition.on{background:#18a06b}
-#carstatus{position:fixed;right:13rem;bottom:11.6rem;display:none;padding:.35rem .6rem;font-size:.72rem;z-index:3}
-body.drv #ignition{display:grid}body.drv #carstatus{display:block}
 #modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:1rem 1.4rem;max-height:80vh;overflow:auto;z-index:5;color:#fff;font-size:.9rem;pointer-events:auto}
 #modal p{margin:.4rem 0}#modal button{margin-top:.6rem;background:#1b8cf0;border:0;color:#fff;border-radius:.4rem;padding:.4rem .9rem}
 #fm{display:block;width:min(60vh,20rem);height:min(60vh,20rem);margin:.5rem auto}
@@ -84,8 +80,6 @@ body.drv #joy,body.drv #fist,body.drv #run,body.drv #crch,body.drv #jump{display
 <div id="wheel"><svg id="wsv" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#1a1a1a" stroke-width="9"/><circle cx="50" cy="50" r="44" fill="none" stroke="#777" stroke-width="1.5"/><rect x="47" y="2" width="6" height="10" fill="#ffc928"/><path d="M8 52H36M64 52H92M50 56V92" stroke="#222" stroke-width="7"/><circle cx="50" cy="50" r="13" fill="#2a2a2a" stroke="#777" stroke-width="2"/></svg></div>
 <button class="ped" id="brk">BRAKE</button><button class="ped" id="gas">GAS</button>
 <button class="rb" id="hb">HB</button><button class="rb" id="radio">📻</button><button class="rb" id="hn">📯</button><button class="rb" id="jump">⤴</button>
-<button class="rb" id="ignition" title="Engine start/stop">⏻</button>
-<div class="p" id="carstatus">ENGINE OFF</div>
 <input type="file" id="mf" accept="audio/*" style="display:none">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -128,70 +122,6 @@ function palm(x,z){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
  add(new THREE.CylinderGeometry(.13,.22,7,6),M(0x7a5c3c),0,3.5,0,g);const top=new THREE.Group();top.position.y=7;g.add(top);
  for(let i=0;i<7;i++){const lg=new THREE.Group(),pv=new THREE.Group();lg.rotation.y=i*.9;pv.rotation.x=.5;add(new THREE.BoxGeometry(.35,.04,3.4),M(0x2f8f3f),0,0,1.7,pv);lg.add(pv);top.add(lg);}}
 for(let i=-12;i<=8;i++){palm(-8.8,i*14+3);palm(8.8,i*14+10);}
-
-/* ---------- Lived-in Port Harcourt street ---------- */
-function streetLight(x,z){
- const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
- add(new THREE.CylinderGeometry(.08,.11,8,7),M(0x55575a),0,4,0,g);
- add(new THREE.BoxGeometry(1.7,.08,.08),M(0x3c3e40),x<0?0.72:-0.72,7.65,0,g);
- add(new THREE.SphereGeometry(.14,8,6),new THREE.MeshBasicMaterial({color:0xffe4a0}),x<0?1.5:-1.5,7.6,0,g);
-}
-for(let z=-180;z<=180;z+=28){streetLight(-7.9,z);streetLight(7.9,z+8);}
-
-/* junctions and drainage make the block feel less like a single straight road */
-for(const z of [-34,-96,-158])flat(24,4,M(0x35383b),0,.026,z);
-for(const z of [-34,-96,-158]){flat(24,.24,M(0xd6c66e),0,.034,z-2.0);flat(24,.24,M(0xd6c66e),0,.034,z+2.0);}
-flat(1.0,500,M(0x292b2e),-9.15,.024,0);flat(1.0,500,M(0x292b2e),9.15,.024,0);
-
-function shop(x,z,w,d,h,col,name,sub,side){
- const m=M(col),o=add(new THREE.BoxGeometry(w,h,d),m,x,h/2,z);
- boxes.push({x,z,hw:w/2,hd:d/2});
- const face=x+(side<0?w/2+.035:-w/2-.035);
- sign(Math.min(6.8,w*1.7),1.25,(g,tw,th)=>{
-  g.fillStyle='#11161b';g.fillRect(0,0,tw,th);
-  g.fillStyle='#fff';g.textAlign='center';g.font='bold 52px system-ui';g.fillText(name,tw/2,th*.55);
-  g.fillStyle='#19c37d';g.font='bold 28px system-ui';g.fillText(sub,tw/2,th*.84);
- },face,h*.66,z,side<0?Math.PI/2:-Math.PI/2);
- add(new THREE.BoxGeometry(w*1.05,.12,d*.82),M(0xb63e34),x+(side<0?.42:-.42),h*.43,z);
- return {x,z,w,d,h,name};
-}
-const stores=[
- shop(-11.2,-6,3.8,5.2,3.3,0xc7a36a,'MAMA NNEKA BUKA','LOCAL FOOD',-1),
- shop(11.2,-30,3.8,5.2,3.5,0xd4d4d4,'HEALTH PLUS','PHARMACY',1),
- shop(-11.2,-60,3.8,5.2,3.2,0x81986f,'RIVERS MINI MART','GROCERIES',-1),
- shop(11.2,-92,3.8,5.2,3.5,0xa98967,'COLD STORE','FROZEN FOODS',1),
- shop(-11.2,-128,3.8,5.2,3.4,0x778fa9,'PORT PHONE HUB','PHONES & POS',-1),
- shop(11.2,-158,3.8,5.2,3.3,0xb06c48,'FRESH MARKET','DAILY NEEDS',1)
-];
-
-function kiosk(x,z,name){
- const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
- add(new THREE.CylinderGeometry(.035,.035,2.5,8),M(0x805b3c),-.72,1.25,0,g);
- add(new THREE.CylinderGeometry(.035,.035,2.5,8),M(0x805b3c),.72,1.25,0,g);
- const roof=add(new THREE.CylinderGeometry(1.3,1.3,.14,24),M(0x1e8a55),0,2.5,0,g);roof.scale.z=.72;
- add(new THREE.BoxGeometry(2.0,.09,.78),M(0x60412d),0,.88,0,g);
- sign(2.0,.58,(c,w,h)=>{c.fillStyle='#152019';c.fillRect(0,0,w,h);c.fillStyle='#fff';c.textAlign='center';c.font='bold 38px system-ui';c.fillText(name,w/2,h*.68);},x,1.82,z,0);
- return {x,z,name,g};
-}
-const kiosks=[
- kiosk(-7.35,-16,'SUYA'),kiosk(7.35,-52,'FRUIT'),kiosk(-7.35,-88,'POS'),
- kiosk(7.35,-122,'BREAD'),kiosk(-7.35,-148,'PROVISIONS')
-];
-/* utility poles and overhead power lines */
-for(let z=-168;z<=12;z+=36){
- const p=add(new THREE.CylinderGeometry(.07,.1,9,7),M(0x4e4f51),-10.1,4.5,z);
- add(new THREE.BoxGeometry(2.5,.07,.07),M(0x343638),-10.1,8.2,z);
-}
-for(let z=-168;z<=12;z+=36){
- const p=add(new THREE.CylinderGeometry(.07,.1,9,7),M(0x4e4f51),10.1,4.5,z);
- add(new THREE.BoxGeometry(2.5,.07,.07),M(0x343638),10.1,8.2,z);
-}
-function groundWire(x1,x2,z,y){
- const g=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,Math.hypot(x2-x1,0),4),new THREE.MeshBasicMaterial({color:0x1f2224}));
- g.position.set((x1+x2)/2,y,z);g.rotation.z=Math.PI/2;scene.add(g);
-}
-for(let z=-168;z<=12;z+=36)groundWire(-11.2,11.2,z,8.2);
-
 /* cars */
 const cars=[];
 function car(x,z,col,ry,kind){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);
@@ -202,7 +132,7 @@ function car(x,z,col,ry,kind){const g=new THREE.Group();g.position.set(x,0,z);g.
  const wh=[];
  [[-.95,1.4,1],[.95,1.4,1],[-.95,-1.4,0],[.95,-1.4,0]].forEach(p=>{const pv=new THREE.Group();pv.position.set(p[0],.38,p[1]);g.add(pv);const sp=new THREE.Group();pv.add(sp);
   const w=add(new THREE.CylinderGeometry(.38,.38,.3,10),M(0x111111),0,0,0,sp);w.rotation.z=Math.PI/2;add(new THREE.BoxGeometry(.34,.1,.6),M(0x999999),0,0,0,sp);wh.push({pv,sp,f:p[2]});});
- const c={g,body,tail,wh,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0,engineOn:false,gear:1,rpm:.2};boxes.push(c.box);cars.push(c);return c;}
+ const c={g,body,tail,wh,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0};boxes.push(c.box);cars.push(c);return c;}
 car(-3.9,-10,0x0d0d0f,0,'p');car(3.9,-42,0x8a1c1c,Math.PI,'p');car(-3.9,-70,0x1d4a8a,0,'p');car(3.9,-18,0xc9c9c9,Math.PI,'p');car(-3.9,16,0x0d0d0f,0,'p');
 [[1.6,10,0x9a9a9a],[1.6,-60,0xd9b13a],[1.6,-130,0x2b5b3a],[-1.6,-30,0x6a2a8a],[-1.6,-100,0xe8e8e8],[-1.6,-170,0x1c3f6e]].forEach(a=>{const c=car(a[0],a[1],a[2],a[0]>0?Math.PI:0,'t');c.v=9;});
 
@@ -265,48 +195,6 @@ $('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)retur
 
 /* ---------- Movement: camera-relative, delta-time, one update loop ---------- */
 const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24);
-
-/* ---------- Moving people / street sellers ---------- */
-const pedestrians=[],vendors=[];
-function ped(x,z,skin,shirt,speed,dir){
- const g=new THREE.Group();g.position.set(x,.01,z);scene.add(g);
- const sm=M(skin),tm=M(shirt),dm=M(0x263342),hm=M(0x171717);
- add(new THREE.CylinderGeometry(.09,.1,.24,8),sm,0,.8,0,g);
- add(new THREE.BoxGeometry(.22,.35,.17),tm,0,.5,0,g);
- add(new THREE.CylinderGeometry(.045,.05,.24,7),dm,-.07,.24,0,g);
- add(new THREE.CylinderGeometry(.045,.05,.24,7),dm,.07,.24,0,g);
- add(new THREE.CylinderGeometry(.035,.04,.25,7),tm,-.16,.53,0,g);
- add(new THREE.CylinderGeometry(.035,.04,.25,7),tm,.16,.53,0,g);
- add(new THREE.SphereGeometry(.095,8,7),hm,0,.9,-.01,g);
- return {g,x,z,baseX:x,speed,dir,phase:Math.random()*Math.PI*2,turn:2+Math.random()*5};
-}
-const pedSeeds=[
-[-7.1,20,0x8d5524,0x2f6f4f,.72,1],[7.1,8,0x6b3e1f,0x315f8f,.78,-1],
-[-7.1,-4,0xa8703c,0xb64535,.66,1],[7.1,-20,0x4a2a14,0xc7a347,.74,-1],
-[-7.1,-38,0x8d5524,0x7c4b2d,.70,1],[7.1,-56,0x6b3e1f,0x233d2e,.86,-1],
-[-7.1,-72,0x4a2a14,0x6d4db4,.68,1],[7.1,-86,0xa8703c,0x2d6b5b,.76,-1],
-[-7.1,-104,0x6b3e1f,0x9b3b3b,.67,1],[7.1,-118,0x8d5524,0x2f6f4f,.82,-1],
-[-7.1,-136,0xa8703c,0x385c8f,.74,1],[7.1,-150,0x4a2a14,0xa07c34,.69,-1],
-[-7.1,-168,0x8d5524,0x7c3f68,.80,1],[7.1,-184,0x6b3e1f,0x4f7657,.73,-1],
-[-7.1,44,0xa8703c,0x8a5c38,.65,1],[7.1,56,0x8d5524,0x335a7d,.77,-1]
-];
-pedSeeds.forEach(a=>pedestrians.push(ped(...a)));
-kiosks.forEach((k,i)=>{
- const v=ped(k.x,k.z+.95,[0x8d5524,0x6b3e1f,0xa8703c,0x4a2a14][i%4],[0xc74738,0x1f7a55,0xd19a3f,0x5b6fa8][i%4],0,1);
- vendors.push({x:k.x,z:k.z+.95,name:['Suya seller','Fruit seller','POS agent','Bread seller','Provision seller'][i],g:v.g,kind:'vendor'});
-});
-function updatePedestrians(dt){
- for(const p of pedestrians){
-  if(p.speed<=0)continue;
-  p.z+=p.dir*p.speed*dt;p.phase+=p.speed*dt*5;
-  const swing=Math.sin(p.phase)*.45;
-  p.g.position.x=p.baseX+Math.sin(p.phase*.35)*.04;p.g.position.z=p.z;
-  p.g.children[2].rotation.x=swing;p.g.children[3].rotation.x=-swing;
-  p.g.children[4].rotation.x=-swing*.7;p.g.children[5].rotation.x=swing*.7;
-  p.turn-=dt;if(p.turn<0){p.turn=3+Math.random()*6;p.dir*=-1;}
-  if(p.z<-198)p.z=198;if(p.z>198)p.z=-198;
- }
-}
 let face=Math.PI,speed=0,phase=0;
 function update(dt){if(driving){driveUpdate(dt);return;}
  let ix=inp.x,iy=inp.y;
@@ -346,15 +234,12 @@ function mapDraw(m,S,sc,rot,clip){const R=S/2;m.clearRect(0,0,S,S);m.save();if(c
  m.fillStyle='#4b535a';m.fillRect(-5,-500,10,1000);m.fillStyle='#78808a';m.fillRect(-8,-500,3,1000);m.fillRect(5,-500,3,1000);
  m.fillStyle='#9aa0a6';for(const b of bld)m.fillRect(b.x-b.hw,b.z-b.hd,b.hw*2,b.hd*2);
  m.fillStyle='#e8c14a';for(const c of cars)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);
- m.fillStyle='#5fb57a';for(const st of stores)m.fillRect(st.x-st.w/2,st.z-st.d/2,st.w,st.d);
- m.fillStyle='#d9c45a';for(const k of kiosks)m.fillRect(k.x-.62,k.z-.4,1.24,.8);
- m.fillStyle='#f2f2f2';for(const p of pedestrians)m.fillRect(p.g.position.x-.16,p.g.position.z-.16,.32,.32);
  m.translate(pos.x,pos.z);m.rotate(Math.PI-face);m.scale(1/sc,1/sc);m.fillStyle='#4ade80';m.beginPath();m.moveTo(0,-11);m.lineTo(8,9);m.lineTo(0,5);m.lineTo(-8,9);m.closePath();m.fill();m.restore();
  if(clip){m.fillStyle='#fff';m.font='bold 22px system-ui';m.textAlign='center';m.fillText('N',R+Math.sin(camYaw)*98,R-Math.cos(camYaw)*98+8);}}
 function drawMap(){mapDraw(mc,240,1.6,true,true);const f=$('fm');if(f)mapDraw(f.getContext('2d'),400,1.1,false,false);}
 
 /* ---------- Vehicles, traffic, buttons ---------- */
-let driving=null,punchT=0,crouch=false,nearCar=null,nearVendor=null,nearStore=null,locT='',ac;
+let driving=null,punchT=0,crouch=false,nearCar=null,locT='',ac;
 const tr=cars.filter(c=>c.kind==='t');
 function setCar(c){c.g.position.set(c.x,0,c.z);c.g.rotation.y=c.ry;c.body.rotation.x=c.pitch;c.body.rotation.z=c.roll;c.box.x=c.x;c.box.z=c.z;}
 function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=bagA;const obs=tr.slice();if(!driving)obs.push(pos);cars.forEach(c=>{if(c.kind!=='t')obs.push(c);});
@@ -363,12 +248,6 @@ function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=ba
   c.v+=clamp((gap<8?0:gap<18?3:9)-c.v,-14*dt,5*dt);c.z+=dz*c.v*dt;if(Math.abs(c.z)>220)c.z=-dz*220;c.wh.forEach(w=>w.sp.rotation.x+=c.v*dt/.38);setCar(c);}}
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
 function driveUpdate(dt){const c=driving;
- if(!c.engineOn){
-  gasP+=(0-gasP)*Math.min(1,dt*10);brkP+=(1-brkP)*Math.min(1,dt*8);
-  c.v=c.vx=c.vz=0;c.pitch*=.88;c.roll*=.88;setCar(c);pos.set(c.x,0,c.z);face=c.ry;
-  if(eng)engine(false);
-  return;
- }
  if(keys.KeyD||keys.ArrowRight)wheelA=Math.min(150,wheelA+260*dt);else if(keys.KeyA||keys.ArrowLeft)wheelA=Math.max(-150,wheelA-260*dt);else if(!wheelHeld)wheelA*=Math.exp(-dt*5);
  gasP+=((keys.KeyW||keys.ArrowUp?1:gasT)-gasP)*Math.min(1,dt*6);brkP+=((keys.KeyS||keys.ArrowDown?1:brkT)-brkP)*Math.min(1,dt*8);
  const th=gasP,br=brkP,hb=hbP||keys.Space,st=wheelA/150,sn=Math.sin(c.ry),cs=Math.cos(c.ry);
@@ -397,31 +276,10 @@ function hudAct(){const a=$('act');
  if(locT){locT='';$('loc').innerHTML='📍 Port Harcourt<br><small>Rivers State</small>';}
  nearCar=null;let bd=3.4;for(const c of cars){if(c.kind==='t')continue;const d=Math.hypot(c.x-pos.x,c.z-pos.z);if(d<bd){bd=d;nearCar=c;}}
  a.style.display=nearCar?'block':'none';a.textContent='Enter car';}
-function toggleEngine(){
- if(!driving)return;
- const c=driving;c.engineOn=!c.engineOn;
- if(c.engineOn){try{ctx().resume?.();}catch{}engine(true);}
- else{engine(false);radioSet(0);c.v=c.vx=c.vz=0;gasT=brkT=gasP=brkP=0;}
- $('ignition').classList.toggle('on',c.engineOn);$('ignition').textContent=c.engineOn?'⏻ ON':'⏻';
-}
-$('ignition').onclick=toggleEngine;
 $('act').onclick=()=>{
- if(driving){
-  const c=driving;if(Math.abs(c.v)>5||Math.hypot(c.vx,c.vz)>5)return;
-  c.v=c.vx=c.vz=0;c.engineOn=false;c.box.hw=1.05;c.box.hd=2.3;
-  pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
-  player.visible=true;shadow.visible=true;driving=null;document.body.classList.remove('drv');$('act').classList.remove('dr');
-  $('ignition').classList.remove('on');$('ignition').textContent='⏻';engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';
- }else if(nearCar){
-  driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.engineOn=false;driving.box.hw=driving.box.hd=1.4;
-  vel.set(0,0,0);player.visible=false;shadow.visible=false;camPitch=.28;wheelA=0;
-  document.body.classList.add('drv');$('act').classList.add('dr');$('ignition').classList.remove('on');$('ignition').textContent='⏻';engine(false);radioSet(0);
- }else if(nearVendor){
-  panel('<b>🧺 '+nearVendor.name+'</b><p>Roadside seller</p><p>Fresh local goods and services are available here.</p>');
- }else if(nearStore){
-  panel('<b>🏪 '+nearStore.name+'</b><p>Local Port Harcourt business location.</p><p>Ready for the economy/shop system.</p>');
- }
-};
+ if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
+  player.visible=true;shadow.visible=true;driving=null;document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
+ else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);player.visible=false;shadow.visible=false;camPitch=.28;wheelA=0;document.body.classList.add('drv');$('act').classList.add('dr');engine(true);}};
 function ctx(){return ac=ac||new (window.AudioContext||window.webkitAudioContext)();}
 function horn(){const a=ctx(),o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.value=420;g.gain.value=.08;o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.35);}
 function punch(){if(punchT>0||driving)return;punchT=.35;pHand^=1;if(Math.hypot(pos.x-6.6,pos.z-22)<2)bagV+=5*Math.sign(6.6-pos.x);}
@@ -466,6 +324,6 @@ modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.i;
 
 let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
- update(dt);traffic(dt);updatePedestrians(dt);animate(dt,t);hudAct();updateCam(dt);renderer.render(scene,cam);drawComp();drawMap();}
+ update(dt);traffic(dt);animate(dt,t);hudAct();updateCam(dt);renderer.render(scene,cam);drawComp();drawMap();}
 requestAnimationFrame(loop);
 </script></body></html>
