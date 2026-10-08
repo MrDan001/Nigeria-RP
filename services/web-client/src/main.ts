@@ -14,14 +14,39 @@ const SERVER_URL =
 
 type NetPlayer = { id: string; name: string; x: number; z: number; yaw: number };
 type Snapshot = { type: "snapshot"; players: NetPlayer[]; serverTime: number };
-type Connected = { type: "connected"; playerId: string; players: NetPlayer[] };
+type AuthOk = {
+  type: "authOk";
+  token: string;
+  player: {
+    id: string; name: string; x: number; z: number; yaw: number;
+    hp: number; hunger: number; level: number; xp: number;
+    cash: number; bank: number; job: unknown; inventory: Record<string, number>;
+  };
+  players: NetPlayer[];
+};
+type AuthError = { type: "authError"; code: string; message?: string };
 type Interaction = { type: "interactionResult"; accepted: boolean; message?: string };
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas");
 const connection = document.querySelector<HTMLSpanElement>("#connection");
 const status = document.querySelector<HTMLElement>("#status");
-const playerCount = document.querySelector<HTMLElement>("#player-count");
-const joystick = document.querySelector<HTMLDivElement>("#joystick");
+const onlineCount = document.querySelector<HTMLElement>("#online-count");
+const levelBadge = document.querySelector<HTMLElement>("#level-badge");
+const authScreen = document.querySelector<HTMLDivElement>("#auth-screen");
+const authForm = document.querySelector<HTMLFormElement>("#auth-form");
+const authTitle = document.querySelector<HTMLElement>("#auth-title");
+const authCopy = document.querySelector<HTMLElement>("#auth-copy");
+const authLoginTab = document.querySelector<HTMLButtonElement>("#auth-login-tab");
+const authRegisterTab = document.querySelector<HTMLButtonElement>("#auth-register-tab");
+const authUsername = document.querySelector<HTMLInputElement>("#auth-username");
+const authPassword = document.querySelector<HTMLInputElement>("#auth-password");
+const authConfirmWrap = document.querySelector<HTMLElement>("#auth-confirm-wrap");
+const authConfirm = document.querySelector<HTMLInputElement>("#auth-confirm");
+const authError = document.querySelector<HTMLElement>("#auth-error");
+const authSubmit = document.querySelector<HTMLButtonElement>("#auth-submit");
+const authConnection = document.querySelector<HTMLElement>("#auth-connection");
+const startScreen = document.querySelector<HTMLElement>("#start");
+const joystick = document.querySelector<HTMLDivElement>("#joy");
 const stick = document.querySelector<HTMLDivElement>("#stick");
 const interact = document.querySelector<HTMLButtonElement>("#interact");
 const resetCamera = document.querySelector<HTMLButtonElement>("#reset-camera");
@@ -30,7 +55,10 @@ const joinButton = document.querySelector<HTMLButtonElement>("#join-button");
 const identityName = document.querySelector<HTMLElement>("#identity-name");
 const mapDots = document.querySelector<HTMLDivElement>("#player-map-dots");
 
-if (!canvas || !connection || !status || !playerCount || !joystick || !stick ||
+if (!canvas || !connection || !status || !onlineCount || !levelBadge || !authScreen ||
+    !authForm || !authTitle || !authCopy || !authLoginTab || !authRegisterTab ||
+    !authUsername || !authPassword || !authConfirmWrap || !authConfirm || !authError ||
+    !authSubmit || !authConnection || !startScreen || !joystick || !stick ||
     !interact || !resetCamera || !nameInput || !joinButton || !identityName || !mapDots) {
   throw new Error("NRS client UI is missing required elements.");
 }
@@ -410,6 +438,9 @@ function makePlayer(player: NetPlayer, local: boolean) {
   return visual;
 }
 
+const AUTH_TOKEN_KEY = "nrs_session_token_v1";
+let authMode: "login" | "register" = "login";
+let authenticated = false;
 let localPlayerId = "";
 let ws: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -454,13 +485,14 @@ function applyPlayers(players: NetPlayer[]) {
     }
   }
 
-  playerCount.textContent = String(players.length);
+  onlineCount.textContent = String(players.length);
 }
 
 function setConnectionState(label: string, message: string, stateClass: string) {
   connection.textContent = label;
   connection.className = stateClass;
   status.textContent = message;
+  authConnection.textContent = message;
 
   const dot = document.querySelector<HTMLElement>(".pulse-dot");
   if (dot) {
@@ -472,6 +504,97 @@ function setConnectionState(label: string, message: string, stateClass: string) 
           : "#ffd166";
   }
 }
+
+function readAuthToken() {
+  try { return localStorage.getItem(AUTH_TOKEN_KEY) ?? ""; } catch { return ""; }
+}
+
+function storeAuthToken(token: string) {
+  try { localStorage.setItem(AUTH_TOKEN_KEY, token); } catch {}
+}
+
+function clearAuthToken() {
+  try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch {}
+}
+
+function showAuth(message = "") {
+  authenticated = false;
+  authScreen.classList.remove("hide");
+  authScreen.setAttribute("aria-hidden", "false");
+  startScreen.style.display = "grid";
+  authError.textContent = message;
+  authSubmit.disabled = !(ws?.readyState === WebSocket.OPEN);
+}
+
+function hideAuth() {
+  authenticated = true;
+  authScreen.classList.add("hide");
+  authScreen.setAttribute("aria-hidden", "true");
+  startScreen.style.display = "none";
+  authError.textContent = "";
+}
+
+function setAuthMode(mode: "login" | "register") {
+  authMode = mode;
+  const registering = mode === "register";
+  authTitle.textContent = registering ? "Create your citizen account" : "Welcome back";
+  authCopy.textContent = registering
+    ? "Create an account to keep your character, money and progress."
+    : "Log in to load your character, money, jobs and progress.";
+  authLoginTab.classList.toggle("on", !registering);
+  authRegisterTab.classList.toggle("on", registering);
+  authConfirmWrap.hidden = !registering;
+  authConfirm.required = registering;
+  authPassword.autocomplete = registering ? "new-password" : "current-password";
+  authSubmit.textContent = registering ? "CREATE ACCOUNT" : "LOG IN";
+  authError.textContent = "";
+}
+
+function applyAuthenticatedPlayer(player: AuthOk["player"]) {
+  localPlayerId = player.id;
+  nameInput.value = player.name;
+  nameInput.disabled = true;
+  joinButton.style.display = "none";
+  identityName.textContent = player.name;
+  levelBadge.textContent = `LEVEL ${player.level}`;
+  $("cash").textContent = Math.round(player.cash).toLocaleString();
+  $("hpv").textContent = String(Math.round(player.hp));
+  $("hgv").textContent = String(Math.round(player.hunger));
+  $("hpb").style.width = `${Math.round(player.hp)}%`;
+  $("hgb").style.width = `${Math.round(player.hunger)}%`;
+
+  cash = Math.max(0, Math.trunc(player.cash));
+  bank = Math.max(0, Math.trunc(player.bank));
+  hp = Math.max(1, Math.min(100, Number(player.hp) || 1));
+  hunger = Math.max(0, Math.min(100, Number(player.hunger) || 0));
+  job = player.job as typeof job;
+  inv = { ...player.inventory };
+}
+
+async function submitAuth() {
+  if (ws?.readyState !== WebSocket.OPEN) {
+    authError.textContent = "Still connecting to the game server. Please try again in a moment.";
+    return;
+  }
+
+  const username = authUsername.value.trim();
+  const password = authPassword.value;
+  if (authMode === "register" && authConfirm.value !== password) {
+    authError.textContent = "Passwords do not match.";
+    return;
+  }
+
+  authSubmit.disabled = true;
+  authError.textContent = "";
+  send({ type: authMode === "register" ? "authRegister" : "authLogin", username, password });
+}
+
+authLoginTab.addEventListener("click", () => setAuthMode("login"));
+authRegisterTab.addEventListener("click", () => setAuthMode("register"));
+authForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void submitAuth();
+});
 
 function connect() {
   if (reconnectTimer !== null) {
@@ -494,31 +617,50 @@ function connect() {
   );
 
   ws.onopen = () => {
-    setConnectionState("ONLINE", "Live server connection established.", "good");
-    const name = nameInput.value.trim().slice(0, 20) || "Player";
-    send({ type: "hello", name });
+    setConnectionState("ONLINE", "Secure game server connection established.", "good");
+    authSubmit.disabled = false;
+    const token = readAuthToken();
+    if (token) send({ type: "authResume", token });
+    else showAuth();
   };
 
   ws.onmessage = (event) => {
-    let message: Connected | Snapshot | Interaction;
-    try {
-      message = JSON.parse(event.data) as Connected | Snapshot | Interaction;
-    } catch {
+    let message: AuthOk | AuthError | Snapshot | Interaction | { type: string };
+    try { message = JSON.parse(event.data) as typeof message; } catch { return; }
+
+    if (message.type === "authOk") {
+      const auth = message as AuthOk;
+      storeAuthToken(auth.token);
+      applyAuthenticatedPlayer(auth.player);
+      applyPlayers(auth.players);
+      inputSequence = 0;
+      manualCamera = false;
+      hideAuth();
+      status.textContent = "Connected. Your saved character is loaded.";
+      sys(`Welcome, ${auth.player.name}.`);
       return;
     }
 
-    if (message.type === "connected") {
-      localPlayerId = message.playerId;
-      applyPlayers(message.players);
-      manualCamera = false;
-    } else if (message.type === "snapshot") {
-      applyPlayers(message.players);
+    if (message.type === "authError") {
+      const auth = message as AuthError;
+      if (auth.code === "INVALID_SESSION") clearAuthToken();
+      showAuth(auth.message ?? "Authentication failed.");
+      authSubmit.disabled = false;
+      return;
+    }
+
+    if (!authenticated) return;
+
+    if (message.type === "snapshot") {
+      applyPlayers((message as Snapshot).players);
     } else if (message.type === "interactionResult") {
-      status.textContent = message.message ?? "Interaction request processed.";
+      status.textContent = (message as Interaction).message ?? "Interaction request processed.";
     }
   };
 
   ws.onclose = () => {
+    authenticated = false;
+    authSubmit.disabled = true;
     setConnectionState("OFFLINE", "Connection lost. Reconnecting…", "bad");
     reconnect();
   };
@@ -537,7 +679,13 @@ function reconnect() {
 }
 
 function send(payload: unknown) {
-  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
+  if (ws?.readyState !== WebSocket.OPEN) return;
+  const type = typeof payload === "object" && payload !== null
+    ? String((payload as { type?: unknown }).type ?? "")
+    : "";
+  if (authenticated || ["authRegister", "authLogin", "authResume"].includes(type)) {
+    ws.send(JSON.stringify(payload));
+  }
 }
 
 function setStick(clientX: number, clientY: number) {
@@ -578,11 +726,7 @@ resetCamera.addEventListener("click", () => {
 });
 
 joinButton.addEventListener("click", () => {
-  const nextName = nameInput.value.trim().slice(0, 20) || "Player";
-  nameInput.value = nextName;
-  identityName.textContent = nextName;
-  send({ type: "hello", name: nextName });
-  status.textContent = `Identity updated to ${nextName}.`;
+  if (authenticated) status.textContent = "Your account name is the authenticated citizen identity.";
 });
 
 app.on("update", (dt: number) => {
@@ -603,7 +747,7 @@ app.on("update", (dt: number) => {
   }
 
   const now = performance.now();
-  if (now - lastSend >= 50 && ws?.readyState === WebSocket.OPEN) {
+  if (authenticated && now - lastSend >= 50 && ws?.readyState === WebSocket.OPEN) {
     send({
       type: "input",
       input: {
