@@ -712,13 +712,7 @@ async function enterLandscapeGame() {
   await requestLandscapeMode();
 }
 
-window.addEventListener("pointerdown", () => {
-  void enterLandscapeGame();
-}, { once: true });
-
-window.addEventListener("touchstart", () => {
-  void enterLandscapeGame();
-}, { once: true });
+undefined
 
 window.addEventListener("resize", () => app.resizeCanvas());
 window.addEventListener("orientationchange", () => {
@@ -726,6 +720,8 @@ window.addEventListener("orientationchange", () => {
   void requestLandscapeMode();
 });
 
+
+void enterLandscapeGame();
 
 app.start();
 connect();
