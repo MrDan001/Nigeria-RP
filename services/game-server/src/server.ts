@@ -525,7 +525,7 @@ const httpServer = http.createServer((request, response) => {
     return;
   }
 
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\\/+/, "");
+  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const requested = path.resolve(WEB_DIR, relative);
 
   if (requested !== WEB_DIR && !requested.startsWith(WEB_DIR + path.sep)) {
