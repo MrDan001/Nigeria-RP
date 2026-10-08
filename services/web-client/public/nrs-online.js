@@ -315,13 +315,7 @@
     for (const player of players || []) {
       if (!player?.id) continue;
       seen.add(player.id);
-      if (player.id === S.id) {
-        S.target = {
-          x: Number(player.x) || 0,
-          z: Number(player.z) || 0,
-          yaw: Number(player.yaw) || 0
-        };
-      } else {
+      if (player.id !== S.id) {
         remote(player);
       }
     }
@@ -531,15 +525,6 @@
             strafe: Math.max(-1, Math.min(1, dx)) * magnitude
           }
         });
-      } else if (now - (S.last || 0) > 120) {
-        send({
-          type: "input",
-          input: {
-            sequence: S.seq++,
-            forward: 0,
-            strafe: 0
-          }
-        });
       }
 
       S.last = now;
@@ -556,19 +541,6 @@
       group.rotation.y += delta * follow;
     }
 
-    if (S.target && S.authed && !driving && !inside) {
-      const dx = S.target.x - pos.x;
-      const dz = S.target.z - pos.z;
-      const distance = Math.hypot(dx, dz);
-
-      if (distance > 3) {
-        pos.x = S.target.x;
-        pos.z = S.target.z;
-      } else if (distance > .25) {
-        const follow = 1 - Math.exp(-dt * 5);
-        pos.x += dx * follow;
-        pos.z += dz * follow;
-      }
     }
   };
 
