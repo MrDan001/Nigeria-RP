@@ -66,6 +66,7 @@ body.drv #wheel{display:block}body.drv .ped{display:block}body.drv #hb,body.drv 
 #ign.on{background:#1fa35a;border-color:#6dffb0}#ign.st{background:#c98a10;border-color:#ffd36b}
 body.drv #ign{display:grid}body.drv #mis{display:none}
 body.drv #joy,body.drv #fist,body.drv #run,body.drv #crch,body.drv #jump{display:none}
+#fbtn{position:fixed;right:16.5rem;bottom:5.6rem;padding:.8rem 1.1rem;font-size:.9rem;font-weight:700;color:#fff;background:#1d8a4a;border:0;border-radius:.8rem;z-index:3;display:none}body.drv #fbtn{right:auto;left:50%;transform:translateX(-50%);bottom:5.4rem}
 #act2{position:fixed;right:16.5rem;bottom:5.6rem;padding:.8rem 1.1rem;font-size:.9rem;font-weight:700;color:#fff;background:#e08a1e;border:0;border-radius:.8rem;z-index:3;display:none}body.drv #act2{display:none!important}
 #mm{pointer-events:auto}
 #bigmap{position:fixed;inset:0;z-index:8;display:none;touch-action:none}#bml{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
@@ -84,6 +85,14 @@ body.drv #loc,body.drv #stats{display:none}
 body.drv #dcl{display:flex}
 #dcl .dbtn{width:3rem;height:3rem}
 #dcl #ign{position:static;width:3.2rem;height:3.2rem}
+#fg{position:relative;width:2.9rem;height:2.9rem;flex:none;text-shadow:none}
+#fg svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px .3rem rgba(0,0,0,.7))}
+#fg .t{fill:rgba(20,22,28,.45);stroke:rgba(255,255,255,.22);stroke-width:2.6}
+#fg .r{fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;transition:stroke-dashoffset .4s linear,stroke .3s}
+#fg .ic{fill:none;stroke:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#fg.lo .r,#fg.lo .ic{stroke:#ffb020}#fg.em .r,#fg.em .ic{stroke:#ff4040}
+#fg.em{animation:fgb .7s steps(2) infinite}@keyframes fgb{50%{opacity:.35}}
+#fgl{position:absolute;left:0;right:0;bottom:-.75rem;text-align:center;font-size:.5rem;font-weight:700;letter-spacing:.06em;color:#fff;text-shadow:0 1px .3rem #000}
 #spd{min-width:8rem;text-align:center;line-height:1;text-shadow:0 1px .45rem rgba(0,0,0,.8);padding:0 .3rem;color:#fff}
 #spv{font-size:2.7rem;font-weight:800;letter-spacing:.04em;font-variant-numeric:tabular-nums}
 #spv i{opacity:.28;font-style:normal}
@@ -116,6 +125,7 @@ body.drv #camB{display:grid}
  <button class="rb" id="fist">✊</button><button class="rb" id="run">🏃</button><button class="rb" id="crch">🧎</button>
 </div>
 <button id="act" style="display:none"></button><div class="p" id="modal" style="display:none"></div><div id="start"><div><div style="font-size:1.6rem;font-weight:800;margin-bottom:1rem">NIGERIA ROLEPLAY</div><button id="go">Tap to play in landscape</button></div></div><div id="rot">Rotate your phone to landscape</div><div id="dcl"><button class="dbtn" id="sigL"><svg viewBox="0 0 24 24"><path class="fl" d="M3 12l8-8v5h10v6H11v5z"/></svg></button><button class="dbtn" id="hzd"><svg viewBox="0 0 24 24"><path d="M12 3L2 20h20z"/><path d="M12 10l-3.6 7h7.2z"/></svg></button><button class="dbtn" id="sigR"><svg viewBox="0 0 24 24"><path class="fl" d="M21 12l-8-8v5H3v6h10v5z"/></svg></button>
+<div id="fg"><svg viewBox="0 0 40 40"><circle class="t" cx="20" cy="20" r="16"/><circle id="fgr" class="r" cx="20" cy="20" r="16" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" transform="rotate(-90 20 20)"/><path class="ic" d="M14 27V14.5a1.5 1.5 0 0 1 1.5-1.5h6a1.5 1.5 0 0 1 1.5 1.5V27M12.5 27h12M14 16.5h9M23 18h2a1.3 1.3 0 0 1 1.3 1.3v4.4a1.4 1.4 0 0 0 2.8 0V17l-2.6-2.6"/></svg><span id="fgl">20 L</span></div>
 <div id="spd"><div id="spv"><i>00</i>0</div><span id="spk">ENGINE OFF · TAP ⏻</span><span id="spz"></span></div>
 <button class="dbtn" id="ign"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.8 6.8a7.5 7.5 0 1 0 10.4 0"/></svg></button><button class="dbtn" id="lite"><svg viewBox="0 0 24 24"><path d="M10 6C6 6 3 8.5 3 12s3 6 7 6c1 0 2-.4 2-1.2V7.2C12 6.4 11 6 10 6z"/><path d="M15.5 8H21M15.5 12H21M15.5 16H21"/></svg></button></div>
 <div id="wheel"><svg id="wsv" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#161616" stroke-width="11"/><circle cx="50" cy="50" r="44" fill="none" stroke="#3a3a3a" stroke-width="8" stroke-dasharray="1.6 2.4"/><circle cx="50" cy="50" r="49.3" fill="none" stroke="#7d7d7d" stroke-width="1"/><circle cx="50" cy="50" r="38.7" fill="none" stroke="#6a6a6a" stroke-width="1"/><path d="M6 53Q28 47 38 52M94 53Q72 47 62 52M44 62L42 93H58L56 62" fill="#1d1d1d" stroke="#555" stroke-width="1.2" stroke-linejoin="round"/><rect x="46" y="1" width="8" height="12" rx="2" fill="#ffc928"/><circle cx="50" cy="50" r="15" fill="#262626" stroke="#8a8a8a" stroke-width="2"/><circle cx="50" cy="50" r="9" fill="#333" stroke="#555" stroke-width="1"/><path d="M45 52h10M50 46v3" stroke="#bbb" stroke-width="1.6" stroke-linecap="round"/></svg></div>
@@ -165,7 +175,7 @@ function palm(x,z){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
  for(let i=0;i<7;i++){const lg=new THREE.Group(),pv=new THREE.Group();lg.rotation.y=i*.9;pv.rotation.x=.5;add(new THREE.BoxGeometry(.35,.04,3.4),M(0x2f8f3f),0,0,1.7,pv);lg.add(pv);top.add(lg);}}
 /* ---------- Stage 3: Port Harcourt map ---------- */
 const HR=[[-110,'Trans Amadi Road',-240,240],[70,'Ikwerre Road',-240,240],[-190,'Peter Odili Road',-240,240]],
- VR=[[0,'Aba Road',-250,250],[-90,'Old GRA Avenue',-240,70],[90,'Waterfront Road',-110,198]],RB=[[-90,-110],[90,70]];
+ VR=[[0,'Aba Road',-250,250],[-90,'Old GRA Avenue',-240,70],[90,'Waterlines Road',-110,198]],RB=[[-90,-110],[90,70]];
 const asp=M(0x3a3d40),swm=M(0xa9a59a),wht=M(0xeeeeee),isRB=(x,z)=>RB.some(b=>b[0]===x&&b[1]===z);
 const disc=(r,m,x,y,z)=>{const o=add(new THREE.CircleGeometry(r,32),m,x,y,z);o.rotation.x=-Math.PI/2;return o;};
 function strips(lo,hi,gaps,cb){let a=lo;gaps.sort((p,q)=>p[0]-q[0]).forEach(g=>{if(g[0]-g[1]>a)cb(a,g[0]-g[1]);a=Math.max(a,g[0]+g[1]);});if(hi>a)cb(a,hi);}
@@ -183,13 +193,13 @@ const ZN=[['Mile 1 Market',-85,-12,78,112,0x8c7050,'#7a5c3e',.9,[4,7],[6,9],[0xd
  ['Old GRA',-240,-100,-240,-120,0x4f8a3f,'#3f7a3a',.45,[5,8],[10,13],[0xf0e8d0,0xe8d5b0,0xcdbf9d],-100,-150],
  ['Trans Amadi',100,240,-240,-120,0x7c7a6e,'#6a6860',.55,[6,9],[16,20],[0x9aa0a6,0xb0b4b8,0x7f95aa],100,-150],
  ['Rumuola',100,240,-100,60,0x6d6a5a,'#5f5c50',.85,[9,18],[10,14],[0xb8c8d8,0xd8d2c0,0xc9ccd0,0xe0b878],100,-20],
- ['Waterfront',-240,240,115,200,0xb8a878,'#a89868',.4,[4,8],[12,16],[0xc9ccd0,0xd6d0c4,0x9fb4c8],78,150]
+ ['Waterlines',-240,240,115,200,0xb8a878,'#a89868',.4,[4,8],[12,16],[0xc9ccd0,0xd6d0c4,0x9fb4c8],78,150]
 ].map(a=>({n:a[0],x1:a[1],x2:a[2],z1:a[3],z2:a[4],gc:a[5],mc:a[6],d:a[7],h:a[8],w:a[9],cols:a[10],lx:a[11],lz:a[12]}));
 const DEF={n:'Port Harcourt Centre',d:.5,h:[6,14],w:[10,14],cols:[0xcdbf9d,0xc9ccd0,0xb8c8d8,0xd8d2c0]};
 const zoneAt=(x,z)=>ZN.find(a=>x>=a.x1&&x<=a.x2&&z>=a.z1&&z<=a.z2);
 let inside=null;const zn=()=>inside?inside.name:(zoneAt(pos.x,pos.z)||DEF).n;
 ZN.forEach(a=>flat(a.x2-a.x1,a.z2-a.z1,M(a.gc),(a.x1+a.x2)/2,.005,(a.z1+a.z2)/2));
-/* waterfront: river, pier, boats */
+/* waterlines: river, pier, boats */
 flat(520,70,new THREE.MeshLambertMaterial({color:0x2a6f8f}),0,.06,230);boxes.push({x:0,z:230,hw:260,hd:35});
 flat(8,40,M(0x7a5c3c),90,.08,185);[[-60,0xc94a3a],[20,0x2b5b3a],[140,0xd9b13a]].forEach(b=>add(new THREE.BoxGeometry(3,1,8),M(b[1]),b[0],.5,215));
 /* generated districts */
@@ -277,7 +287,7 @@ function car(x,z,col,ry,kind){const G=carGeo(),g=new THREE.Group();g.position.se
   add(G.tire,G.tireM,0,0,0,sp);add(G.rim,G.rimM,0,0,0,sp);
   for(let i=0;i<5;i++){const o=add(G.spoke,G.spM,0,0,0,sp);o.rotation.x=i*Math.PI/5;}
   add(G.hub,G.rimM,0,0,0,sp);add(G.hubc,G.spM,0,0,0,sp);wh.push({pv,sp,f:q[2]});});
- const c={g,body,tail,hl,rev,sw,wh,amL,amR,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0};boxes.push(c.box);cars.push(c);return c;}
+ const c={id:'c'+cars.length,fuel:20,g,body,tail,hl,rev,sw,wh,amL,amR,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0};boxes.push(c.box);cars.push(c);return c;}
 car(-3.9,-10,0x0d0d0f,0,'p');car(3.9,-42,0x8a1c1c,Math.PI,'p');car(-3.9,-70,0x1d4a8a,0,'p');car(3.9,-18,0xc9c9c9,Math.PI,'p');car(-3.9,16,0x0d0d0f,0,'p');
 [[1.6,10,0x9a9a9a],[1.6,-60,0xd9b13a],[1.6,-130,0x2b5b3a],[-1.6,-30,0x6a2a8a],[-1.6,-100,0xe8e8e8],[-1.6,-170,0x1c3f6e]].forEach(a=>{const c=car(a[0],a[1],a[2],a[0]>0?Math.PI:0,'t');c.v=9;});
 
@@ -382,7 +392,7 @@ function mapDraw(m,S,sc,rot,clip){const R=S/2;m.clearRect(0,0,S,S);m.save();if(c
  m.strokeStyle='rgba(90,0,10,.85)';m.lineWidth=clip?8:10;m.stroke();m.strokeStyle='#ff2a3a';m.lineWidth=clip?5.5:7;m.stroke();
  m.strokeStyle='rgba(255,255,255,.9)';m.lineWidth=clip?1.2:1.6;m.setLineDash([3,5]);m.lineDashOffset=-(performance.now()/60)%8;m.stroke();m.restore();}
  m.fillStyle='#9aa0a6';for(const b of bld)m.fillRect(b.x-b.hw,b.z-b.hd,b.hw*2,b.hd*2);
- m.fillStyle='#ff9f43';for(const p of POI)m.fillRect(p.x-2,p.z-2,4,4);if(job){m.fillStyle='#ffc928';m.beginPath();m.arc(job.x,job.z,6/sc,0,7);m.fill();}m.fillStyle='#e8c14a';for(const c of cars)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);for(const c of TV)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);m.fillStyle='#fff';for(const p of PEDS)m.fillRect(p.x-.9,p.z-.9,1.8,1.8);
+ m.fillStyle='#ff9f43';for(const p of POI)m.fillRect(p.x-2,p.z-2,4,4);for(const s of FS){m.fillStyle='#fff';m.beginPath();m.arc(s.x,s.z,8/sc,0,7);m.fill();m.fillStyle=s.col;m.beginPath();m.arc(s.x,s.z,6/sc,0,7);m.fill();m.fillStyle='#fff';m.fillRect(s.x-1.6/sc,s.z-3/sc,3.2/sc,6/sc);}if(job){m.fillStyle='#ffc928';m.beginPath();m.arc(job.x,job.z,6/sc,0,7);m.fill();}m.fillStyle='#e8c14a';for(const c of cars)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);for(const c of TV)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);m.fillStyle='#fff';for(const p of PEDS)m.fillRect(p.x-.9,p.z-.9,1.8,1.8);
  if(!clip){m.fillStyle='#fff';m.textAlign='center';m.font='bold '+(12/sc)+'px system-ui';ZN.forEach(a=>m.fillText(a.n,(a.x1+a.x2)/2,(a.z1+a.z2)/2));m.fillStyle='#cfe3ff';m.font=(10/sc)+'px system-ui';HR.forEach(r=>m.fillText(r[1],-150,r[0]-7));VR.forEach(r=>m.fillText(r[1],r[0],r[2]+14));}
  m.translate(pos.x,pos.z);m.rotate(Math.PI-face);m.scale(1/sc,1/sc);m.fillStyle='#4ade80';m.beginPath();m.moveTo(0,-11);m.lineTo(8,9);m.lineTo(0,5);m.lineTo(-8,9);m.closePath();m.fill();m.restore();
  if(clip){m.fillStyle='#fff';m.font='bold 22px system-ui';m.textAlign='center';m.fillText('N',R+Math.sin(camYaw)*98,R-Math.cos(camYaw)*98+8);}}
@@ -398,7 +408,9 @@ function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=ba
   c.v+=clamp((gap<8?0:gap<18?3:(c.vm||9))-c.v,-14*dt,5*dt);c.z+=dz*c.v*dt;if(Math.abs(c.z)>190)c.z=-dz*190;c.wh.forEach(w=>w.sp.rotation.x+=c.v*dt/.38);setCar(c);}}
 const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornKey=false;
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
+const TANK=40,FUEL_PER_M=.004,FUEL_IDLE=.002; /* litres: 1 L per 250 m, small idle burn */
 function driveUpdate(dt){const c=driving;
+ if(c.on&&c.fuel<=0){c.fuel=0;c.on=false;engine(false);setIgn();sys('⛽ Out of fuel! The engine has cut out. Get fuel from a petrol station.');}
  if(keys.KeyD||keys.ArrowRight)wheelA=Math.min(WLOCK,wheelA+420*dt);else if(keys.KeyA||keys.ArrowLeft)wheelA=Math.max(-WLOCK,wheelA-420*dt);
  else if(!wheelHeld&&wheelA){const rs=(70+Math.abs(wheelA)*4.2)*(1+Math.abs(c.v)*3.6/70)*dt;wheelA=Math.abs(wheelA)<=rs?0:wheelA-Math.sign(wheelA)*rs;}
  if(!!keys.KeyH!==hornKey){hornKey=!!keys.KeyH;hornSync();}
@@ -409,7 +421,8 @@ function driveUpdate(dt){const c=driving;
  let a=0;
  if(th>.05)a+=fv<-.5?th*14:th*(14-2.2*gear)*Math.max(0,1-kmh/150);
  if(br>.05){if(fv>.5)a-=br*16;else if(fv>-6)a-=br*4.5;}
- fv+=a*dt;fv-=Math.sign(fv)*Math.min(Math.abs(fv),(.35+.0006*fv*fv+(hb?6:0))*dt);
+ fv+=a*dt;fv-=Math.sign(fv)*Math.min(Math.abs(fv),(.35+.0006*fv*fv+(hb?6:0)+(c.fuel<=0?3:0))*dt);
+ if(c.on&&c.fuel>0)c.fuel=Math.max(0,c.fuel-(Math.abs(fv)*dt*FUEL_PER_M*(.7+.6*th)+FUEL_IDLE*dt));
  lv*=Math.exp(-(hb?1.2:(kmh>90&&Math.abs(st)>.7?4:7))*dt);
  c.steer+=(st*.6/(1+kmh/45)-c.steer)*(1-Math.exp(-dt*8));
  const yaw=fv/2.8*Math.tan(c.steer)*(hb?1.4:1);c.ry-=yaw*dt;
@@ -445,6 +458,7 @@ function crank(){const a=ctx(),t=a.currentTime,o=a.createOscillator(),g=a.create
 function setHl(c){c.hl.color.setHex(c.hlOn||c.kind==='t'?0xfff6d0:0xb9b49a);}
 function ignition(){const c=driving;if(!c||c.starting)return;
  if(c.on){c.on=false;c.hlOn=false;engine(false);setHl(c);setIgn();return;}
+ if(c.fuel<=0){sys('⛽ Out of fuel. Get fuel from a petrol station.');return;}
  c.starting=true;crank();setIgn();
  setTimeout(()=>{c.starting=false;if(driving===c){c.on=true;c.hlOn=true;engine(true);setHl(c);}setIgn();},650);}
 $('ign').onclick=ignition;
@@ -497,7 +511,7 @@ $('radio').onclick=()=>panel('<b>📻 Car radio</b><p>'+['Off','Naija Beats FM (
 modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.i;if(i){radioSet(+i);modal.style.display='none';modal.innerHTML='';}});
 
 /* ---------- Stage 4: shops, market stalls, roadside sellers ---------- */
-let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[];
+let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
 const mini=(t,x,y,z,w,bg)=>add(new THREE.PlaneGeometry(w,w/4),new THREE.MeshBasicMaterial({side:THREE.DoubleSide,map:tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);})}),x,y,z);
@@ -675,7 +689,7 @@ act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.k==='Enter')return enterRoom(
 /* bank + ATM */
 function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
 /* job center */
-const JOBS=[['Parcel to Mile 1 Market',-6.5,95,6000],['Parcel to Rumuola',110,70,9000],['Parcel to the Waterfront',90,150,12000]];
+const JOBS=[['Parcel to Mile 1 Market',-6.5,95,6000],['Parcel to Rumuola',110,70,9000],['Parcel to Waterlines',90,150,12000]];
 function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.n+'</b></p><p>Deliver it, then come back for the next one.</p>');
  else{const j=JOBS[jobN%JOBS.length];panel('<b>💼 Job Center</b><p>“We need a rider for a delivery.”</p><p><b>'+j[0]+'</b><br>Pay: ₦'+f(j[3])+'</p><button data-j="1">Accept job</button>');}}
 /* backpack */
@@ -686,7 +700,7 @@ $('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank 
 modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();});return;}bankUI();}
- else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}
+ else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];NRS.acceptJob(j[0],(r)=>{if(r.ok){job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();}}});
 function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
@@ -732,6 +746,7 @@ function mapFrame(){const d=Math.min(devicePixelRatio||1,2),W=Math.round(innerWi
  ZN.forEach(a=>mlab(a.n,(a.x1+a.x2)/2,10,(a.z1+a.z2)/2,'rgba(15,91,58,.85)',15,d));
  HR.forEach(r=>mlab(r[1],-150,2,r[0],'rgba(29,74,138,.85)',12,d));VR.forEach(r=>mlab(r[1],r[0],2,(r[2]+r[3])/2,'rgba(29,74,138,.85)',12,d));
  if(MP.dist<150)for(const q of POI)mlab(q.name,q.x,4,q.z,'rgba(190,100,20,.9)',11,d);
+ for(const s of FS)mlab('⛽ '+s.brand+' · '+s.road,s.x,8,s.z,s.bg,12,d);
  if(job)mlab('📦 Drop-off',job.x,30,job.z,'rgba(190,150,0,.95)',14,d);
  mlab('YOU',p.x,9*s+2,p.z,'rgba(20,120,60,.95)',14,d);}
 
@@ -782,12 +797,84 @@ function sigTick(t){const c=driving,B=['sigL','hzd','sigR'];
  c.amL.color.setHex(L&&on?AMN:AMO);c.amR.color.setHex(R&&on?AMN:AMO);
  $('sigL').classList.toggle('bl',L&&!hz&&on);$('sigR').classList.toggle('bl',R&&!hz&&on);$('hzd').classList.toggle('bl',hz&&on);}
 function drvHud(){const c=driving,k=Math.round(Math.abs(c.v)*3.6),s=String(k).padStart(3,'0'),z=Math.min(s.match(/^0*/)[0].length,2);
- const gt=c.starting?'STARTING…':c.on?'KM/H · '+(c.v<-.5?'R':'G'+(c.gear||1)):'ENGINE OFF · TAP ⏻',zz=zn(),key=s+gt+zz;
+ const gt=c.fuel<=0&&!c.on?'OUT OF FUEL':c.starting?'STARTING…':c.on?'KM/H · '+(c.v<-.5?'R':'G'+(c.gear||1)):'ENGINE OFF · TAP ⏻',zz=zn(),key=s+gt+zz;
  if(key!==spT){spT=key;$('spv').innerHTML='<i>'+s.slice(0,z)+'</i>'+s.slice(z);$('spk').textContent=gt;$('spz').textContent=zz;}
- $('lite').classList.toggle('on',!!c.hlOn);}
+ $('lite').classList.toggle('on',!!c.hlOn);
+ fuelHud(c);}
+let fgT='';
+function fuelHud(c){const p=Math.max(0,Math.min(1,c.fuel/TANK)),l=Math.ceil(c.fuel),key=l+'|'+Math.round(p*100);if(key===fgT)return;fgT=key;
+ $('fgr').setAttribute('stroke-dashoffset',String(100*(1-p)));$('fgl').textContent=l+' L';const g=$('fg');g.classList.toggle('lo',p<=.25&&p>.1);g.classList.toggle('em',p<=.1);}
+
+
+/* ---------- Fuel stations: 8 roadside forecourts, buy petrol at ₦1,250/L ---------- */
+/* naira per litre: NNPC is cheapest, then Restopark, then DBase, Hydropet is dearest (keep in sync with the server) */
+const FBR={NNPC:{p:1250,c:'#0b7d3e',a:'#ffd21f',bg:'rgba(11,125,62,.92)'},Restopark:{p:1350,c:'#d9701a',a:'#ffffff',bg:'rgba(217,112,26,.92)'},DBase:{p:1450,c:'#4b2a8a',a:'#ffb020',bg:'rgba(75,42,138,.92)'},Hydropet:{p:1550,c:'#c0272d',a:'#ffffff',bg:'rgba(192,39,45,.92)'}};
+/* [brand, axis (H = runs east-west, V = north-south), road, side (+1/-1), start position along the road] */
+const FSPOTS=[['NNPC','V',VR[0],1,-75],['DBase','V',VR[1],1,-35],['Hydropet','H',HR[1],-1,-50],['Restopark','H',HR[0],1,45],
+ ['DBase','H',HR[2],1,-160],['NNPC','H',HR[2],1,160],['Restopark','H',HR[1],-1,170],['Hydropet','V',VR[2],-1,135]];
+function fsFree(x1,x2,z1,z2,own){
+ if(x1<-232||x2>232||z1<-232||z2>186)return false;
+ if(RB.some(b=>b[0]>x1-22&&b[0]<x2+22&&b[1]>z1-22&&b[1]<z2+22))return false;
+ for(const r of HR)if(r!==own&&z2>r[0]-7&&z1<r[0]+7&&x2>r[2]-10&&x1<r[3]+10)return false;
+ for(const r of VR)if(r!==own&&x2>r[0]-7&&x1<r[0]+7&&z2>r[2]-10&&z1<r[3]+10)return false;
+ const cx=(x1+x2)/2,cz=(z1+z2)/2,hx=(x2-x1)/2,hz=(z2-z1)/2;
+ return!boxes.some(b=>Math.abs(cx-b.x)<hx+b.hw+1.5&&Math.abs(cz-b.z)<hz+b.hd+1.5);}
+function fsBuild(brand,axis,road,side,cx,cz){
+ const B=FBR[brand],col=parseInt(B.c.slice(1),16),th=axis==='V'?side*Math.PI/2:(side>0?0:Math.PI),sn=Math.sin(th),cs=Math.cos(th);
+ const g=new THREE.Group();g.position.set(cx,0,cz);g.rotation.y=th;scene.add(g);
+ const W=(lx,lz)=>[cx+lx*cs+lz*sn,cz-lx*sn+lz*cs];
+ const wb=(lx,lz,hx,hz)=>{const p=W(lx,lz),sw=Math.abs(sn)>.5;boxes.push({x:p[0],z:p[1],hw:sw?hz:hx,hd:sw?hx:hz});};
+ const pl=(w,d,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,d),m,x,y,z,g);o.rotation.x=-Math.PI/2;return o;};
+ const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const o=add(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex(tw,th2,fn),side:THREE.DoubleSide}),x,y,z,g);o.rotation.y=ry;return o;};
+ pl(18,14,M(0x9a9a96),0,.03,1);pl(14,3,M(0x8d8d88),0,.035,-7.5);
+ pl(.25,12,M(0xf2c230),-8.6,.04,1);pl(.25,12,M(0xf2c230),8.6,.04,1);
+ /* canopy */
+ add(new THREE.BoxGeometry(12,.5,7),M(0xe9e9e4),0,5.2,.5,g);
+ add(new THREE.BoxGeometry(12.2,.95,.3),M(col),0,5.1,-3.1,g);add(new THREE.BoxGeometry(12.2,.12,.32),M(parseInt(B.a.slice(1),16)),0,4.58,-3.1,g);
+ add(new THREE.BoxGeometry(11.2,.08,6.2),new THREE.MeshBasicMaterial({color:0xfff4d0}),0,4.93,.5,g);
+ [[-5,-2.5],[5,-2.5],[-5,3.5],[5,3.5]].forEach(p=>{add(new THREE.CylinderGeometry(.22,.22,5,10),M(0xd8d8d2),p[0],2.5,p[1],g);wb(p[0],p[1],.3,.3);});
+ lab(9,.8,512,46,(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle='#fff';c.textAlign='center';fit(c,brand.toUpperCase(),44,w-20);c.fillText(brand.toUpperCase(),w/2,h*.8);},0,5.1,-3.27,Math.PI);
+ /* pumps */
+ const pumps=[];
+ [-3,3].forEach(px=>{add(new THREE.BoxGeometry(1.3,.25,4.4),M(0x777772),px,.125,.5,g);
+  add(new THREE.BoxGeometry(.8,1.7,1.1),M(col),px,1.1,.5,g);add(new THREE.BoxGeometry(.82,.45,1.12),M(0x151a20),px,1.55,.5,g);
+  add(new THREE.BoxGeometry(.5,.12,.6),M(parseInt(B.a.slice(1),16)),px,2.0,.5,g);
+  [-1,1].forEach(sd=>{add(new THREE.CylinderGeometry(.05,.05,.9,6),M(0x222222),px+sd*.46,.9,.5,g);});
+  wb(px,.5,.5,.7);const p=W(px,.5);pumps.push({x:p[0],z:p[1]});});
+ /* shop kiosk */
+ add(new THREE.BoxGeometry(9,3.2,3),M(0xf1efe8),0,1.6,6.3,g);add(new THREE.BoxGeometry(9.2,.5,3.2),M(col),0,3.3,6.3,g);wb(0,6.3,4.5,1.5);
+ add(new THREE.PlaneGeometry(6,1.7),new THREE.MeshBasicMaterial({color:0x2a3c48,side:THREE.DoubleSide}),0,1.7,4.78,g).rotation.y=Math.PI;
+ lab(7,1.3,512,96,(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle=B.a;c.fillRect(0,h-9,w,9);c.fillStyle='#fff';c.textAlign='center';fit(c,brand+' Fuel Station',46,w-30);c.fillText(brand+' Fuel Station',w/2,h*.6);},0,3.35,4.68,Math.PI);
+ /* roadside price pylon */
+ add(new THREE.CylinderGeometry(.16,.16,9,8),M(0x888888),-8,4.5,-5.5,g);wb(-8,-5.5,.3,.3);
+ const pyl=(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle=B.a;c.fillRect(0,0,w,14);c.fillRect(0,h-14,w,14);c.fillStyle='#fff';c.textAlign='center';fit(c,brand.toUpperCase(),64,w-24);c.fillText(brand.toUpperCase(),w/2,100);
+  c.font='84px system-ui';c.fillText('⛽',w/2,205);c.fillStyle=B.a;c.font='bold 30px system-ui';c.fillText('PETROL',w/2,255);c.fillStyle='#fff';c.font='bold 40px system-ui';c.fillText('₦'+B.p.toLocaleString()+'/L',w/2,310);};
+ lab(3.6,4.6,288,368,pyl,-7.9,7.6,-5.5,Math.PI/2);lab(3.6,4.6,288,368,pyl,-8.1,7.6,-5.5,-Math.PI/2);
+ FS.push({brand,price:B.p,name:brand+' Fuel Station',road:road[1],x:cx,z:cz,col:B.c,bg:B.bg,pumps});}
+FSPOTS.forEach(sp=>{const brand=sp[0],axis=sp[1],road=sp[2],side=sp[3],a0=sp[4];
+ for(let k=0;k<=30;k++){const along=a0+(k%2?1:-1)*Math.ceil(k/2)*4;let x1,x2,z1,z2,cx,cz;
+  if(axis==='V'){const a=road[0]+side*6,b=road[0]+side*22;x1=Math.min(a,b);x2=Math.max(a,b);z1=along-9;z2=along+9;cx=road[0]+side*14;cz=along;if(along<road[2]+12||along>road[3]-12)continue;}
+  else{const a=road[0]+side*6,b=road[0]+side*22;z1=Math.min(a,b);z2=Math.max(a,b);x1=along-9;x2=along+9;cz=road[0]+side*14;cx=along;if(along<road[2]+12||along>road[3]-12)continue;}
+  if(fsFree(x1,x2,z1,z2,road)){fsBuild(brand,axis,road,side,cx,cz);return;}}
+ console.warn('No free spot for fuel station',brand,road[1]);});
+const fbtn=document.createElement('button');fbtn.id='fbtn';document.body.appendChild(fbtn);
+let curFS=null,fsOpen=null,fuelBusy=false,fuelMsg='';
+function fsNear(){if(inside)return null;const c=driving;if(c&&Math.abs(c.v)>3)return null;const R=c?7:4.5;let best=null,bd=R;
+ for(const s of FS)for(const p of s.pumps){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd){bd=d;best=s;}}return best;}
+function fuelAct(){const s=fsNear();if(s!==curFS){curFS=s;fbtn.style.display=s?'block':'none';if(s)fbtn.textContent='⛽ Buy fuel · '+s.brand;}}
+function fuelCar(){if(driving)return driving;let b=null,bd=7;for(const c of cars){if(c.kind==='t'||!c.id)continue;const d=Math.hypot(c.x-pos.x,c.z-pos.z);if(d<bd){bd=d;b=c;}}return b;}
+function fuelUI(s){fsOpen=s;const c=fuelCar(),head='<b>⛽ '+s.name+'</b><p>Petrol: ₦'+f(s.price)+' per litre<br>Your cash: ₦'+f(cash)+'</p>';
+ if(!c){panel(head+'<p><i>Bring a car next to the pump to buy fuel.</i></p>');return;}
+ const space=Math.max(0,Math.floor(TANK-c.fuel+1e-6)),opts=[1,5,10].filter(n=>n<space);if(space>0)opts.push(space);
+ panel(head+'<p>Fuel: <b>'+c.fuel.toFixed(1)+'</b> / '+TANK+' L</p>'+(space<1?'<p><i>Tank is full.</i></p>':opts.map(n=>'<button data-fl="'+n+'">'+(n===space&&n>1?'Fill ('+n+' L)':n+' L')+' · ₦'+f(n*s.price)+'</button>').join('<br>'))+(fuelMsg?'<p><i>'+fuelMsg+'</i></p>':''));}
+fbtn.onclick=()=>{if(!curFS)return;fuelMsg='';fuelUI(curFS);};
+modal.addEventListener('click',e=>{const n=e.target.dataset&&e.target.dataset.fl;if(!n||!fsOpen||fuelBusy)return;const c=fuelCar();if(!c)return;
+ const L=Math.floor(+n),cost=L*fsOpen.price;if(L<1)return;
+ if(cash<cost){fuelMsg='Not enough cash. You need ₦'+f(cost)+'.';fuelUI(fsOpen);return;}
+ fuelBusy=true;NRS.buyFuel(c.id,L,fsOpen.brand,(r)=>{fuelBusy=false;if(r.ok){c.fuel=r.fuel;fuelMsg='Bought '+L+' L for ₦'+f(cost)+'.';sys('⛽ Bought '+L+' L of petrol for ₦'+f(cost)+'.');}else fuelMsg=r.message||'Purchase failed.';money();fuelUI(fsOpen);});});
 
 let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
- update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
+ update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
 </script><script src="/nrs-online.js?v=20261008-auth-gate-online-cache-rebuild"></script></body></html>
