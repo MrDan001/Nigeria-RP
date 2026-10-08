@@ -44,3 +44,7 @@ Five real players on Android/browser devices must be able to:
 10. disconnect and reconnect with progress intact.
 
 Nothing else outranks making this foundation reliable.
+
+
+## Account Authentication
+Players register with Email, Username (`Firstname_lastname`), Password, and Repeat password; login uses Email and Password.
