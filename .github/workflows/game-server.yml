@@ -1,0 +1,43 @@
+name: Game Server CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/game-server/**"
+      - "services/web-client/**"
+      - "package.json"
+  pull_request:
+    paths:
+      - "services/game-server/**"
+      - "services/web-client/**"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-game-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Typecheck game server
+        run: npm run typecheck --workspace nigeria-rp-game-server
+
+      - name: Build game server
+        run: npm run build --workspace nigeria-rp-game-server
+
+      - name: Build browser client
+        run: npm run build --workspace nigeria-rp-web-client
