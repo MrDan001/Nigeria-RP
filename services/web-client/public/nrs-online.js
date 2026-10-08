@@ -12,6 +12,7 @@
     authed: false,
     id: null,
     token: readToken(),
+    initialConnection: true,
     seq: 0,
     remotes: new Map(),
     target: null,
@@ -322,7 +323,7 @@
     }
   }
 
-  function snapshot(players) {
+  function snapshot(players, authoritativeOnlineCount = null) {
     const seen = new Set();
     for (const player of players || []) {
       if (!player?.id) continue;
@@ -336,7 +337,7 @@
       if (!seen.has(id)) remove(id);
     }
 
-    online((players || []).length);
+    online(authoritativeOnlineCount ?? (players || []).length);
   }
 
   function connect() {
@@ -358,10 +359,13 @@
       S.open = true;
       $("nrsSubmit").disabled = false;
 
-      if (S.token) {
+      // A fresh page load always starts at the account gate.
+      // The saved token is retained only for recovery after a transient reconnect.
+      if (!S.initialConnection && S.token) {
         status("Restoring your account…");
         send({ type: "authResume", token: S.token });
       } else {
+        S.initialConnection = false;
         status("Ready — log in or create your citizen account.");
       }
     };
@@ -373,7 +377,7 @@
       if (message.type === "authOk") {
         writeToken(message.token);
         syncAccount(message.player);
-        snapshot(message.players || []);
+        snapshot(message.players || [], message.onlineCount);
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
         return;
@@ -393,13 +397,13 @@
       if (!S.authed) return;
 
       if (message.type === "snapshot") {
-        snapshot(message.players || []);
+        snapshot(message.players || [], message.onlineCount);
       } else if (message.type === "playerJoined") {
-        remote(message.player);
-        online(S.online + 1);
+        if (message.player?.id !== S.id) remote(message.player);
+        online(message.onlineCount);
       } else if (message.type === "playerLeft") {
         remove(message.playerId);
-        online(Math.max(0, S.online - 1));
+        online(message.onlineCount);
       } else if (message.type === "walletResult") {
         const request = S.pending.shift();
         S.busy = false;
