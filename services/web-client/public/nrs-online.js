@@ -506,8 +506,15 @@
     baseUpdate(dt);
 
     if (S.authed && S.open && !driving && !inside) {
-      const ix = inp.x;
-      const iy = inp.y;
+      let ix = inp.x;
+      let iy = inp.y;
+      if (keys.KeyW || keys.ArrowUp) iy += 1;
+      if (keys.KeyS || keys.ArrowDown) iy -= 1;
+      if (keys.KeyD || keys.ArrowRight) ix += 1;
+      if (keys.KeyA || keys.ArrowLeft) ix -= 1;
+
+      const raw = Math.hypot(ix, iy);
+      if (raw > 1) { ix /= raw; iy /= raw; }
       const magnitude = Math.min(1, Math.hypot(ix, iy));
       const sn = Math.sin(camYaw);
       const cs = Math.cos(camYaw);
@@ -525,6 +532,17 @@
             strafe: Math.max(-1, Math.min(1, dx)) * magnitude
           }
         });
+        S.moving = true;
+      } else if (S.moving) {
+        send({
+          type: "input",
+          input: {
+            sequence: S.seq++,
+            forward: 0,
+            strafe: 0
+          }
+        });
+        S.moving = false;
       }
 
       S.last = now;
@@ -543,6 +561,21 @@
 
     }
   };
+
+  function stopMoving() {
+    try {
+      for (const k of Object.keys(keys)) keys[k] = false;
+      inp.x = 0;
+      inp.y = 0;
+    } catch (_) {}
+    if (S.moving && S.authed && S.open) {
+      send({ type: "input", input: { sequence: S.seq++, forward: 0, strafe: 0 } });
+    }
+    S.moving = false;
+  }
+
+  window.addEventListener("blur", stopMoving);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stopMoving(); });
 
   setVisible(false);
   connect();
