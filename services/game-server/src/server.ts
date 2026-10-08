@@ -15,6 +15,8 @@ type Account = {
   id: string;
   username: string;
   usernameLower: string;
+  email: string;
+  emailLower: string;
   passwordSalt: string;
   passwordHash: string;
   cash: number;
@@ -98,6 +100,14 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function sanitizeEmail(value: unknown) {
+  return String(value ?? "").trim().slice(0, 160);
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function sanitizeUsername(value: unknown) {
   return String(value ?? "")
     .trim()
@@ -130,6 +140,8 @@ function normalizeJob(value: unknown): JobState {
 function normalizeAccount(account: Account): Account {
   return {
     ...account,
+    email: typeof account.email === "string" ? account.email : "",
+    emailLower: typeof account.emailLower === "string" ? account.emailLower : "",
     cash: Math.max(0, Math.floor(Number(account.cash) || 0)),
     bank: Math.max(0, Math.floor(Number(account.bank) || 0)),
     x: Number.isFinite(Number(account.x)) ? Number(account.x) : 0,
@@ -210,6 +222,8 @@ async function initStore() {
       "id TEXT PRIMARY KEY," +
       "username TEXT NOT NULL," +
       "username_lower TEXT NOT NULL UNIQUE," +
+      "email TEXT," +
+      "email_lower TEXT," +
       "password_salt TEXT NOT NULL," +
       "password_hash TEXT NOT NULL," +
       "cash BIGINT NOT NULL DEFAULT 5000," +
@@ -234,6 +248,13 @@ async function initStore() {
       ");" +
       "CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);",
     );
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
+    await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
+    await pool.query("UPDATE nrs_accounts SET email_lower=LOWER(email) WHERE email_lower IS NULL OR email_lower=''");
+    await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email SET NOT NULL");
+    await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email_lower SET NOT NULL");
+    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
     console.log("NRS durable storage: PostgreSQL");
     return;
   }
@@ -253,6 +274,8 @@ function accountFromRow(row: any): Account {
     id: String(row.id),
     username: String(row.username),
     usernameLower: String(row.username_lower),
+    email: String(row.email ?? ""),
+    emailLower: String(row.email_lower ?? ""),
     passwordSalt: String(row.password_salt),
     passwordHash: String(row.password_hash),
     cash: Number(row.cash),
@@ -269,6 +292,15 @@ function accountFromRow(row: any): Account {
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   });
+}
+
+async function findAccountByEmail(emailLower: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE email_lower=$1 LIMIT 1", [emailLower]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  const found = Object.values(fileStore.accounts).find((item) => String(item.emailLower ?? "").toLowerCase() === emailLower);
+  return found ? normalizeAccount(found) : null;
 }
 
 async function findAccountByUsername(usernameLower: string) {
@@ -292,12 +324,14 @@ async function insertAccount(account: Account) {
   if (pool) {
     await pool.query(
       "INSERT INTO nrs_accounts (" +
-      "id,username,username_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at" +
-      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb,$17,$18)",
+      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20)",
       [
         account.id,
         account.username,
         account.usernameLower,
+        account.email,
+        account.emailLower,
         account.passwordSalt,
         account.passwordHash,
         account.cash,
@@ -354,13 +388,17 @@ async function saveAccount(account: Account) {
   writeFileStore();
 }
 
-async function createAccount(username: string, password: string) {
+async function createAccount(email: string, username: string, password: string) {
+  email = sanitizeEmail(email);
+  const emailLower = email.toLowerCase();
+  if (!isValidEmail(email)) throw new Error("EMAIL_INVALID");
   if (username.length < 3) throw new Error("USERNAME_TOO_SHORT");
-  if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{2,19}$/.test(username)) throw new Error("USERNAME_INVALID");
+  if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) throw new Error("USERNAME_INVALID");
   if (password.length < 6) throw new Error("PASSWORD_TOO_SHORT");
 
   const usernameLower = username.toLowerCase();
   if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+  if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
 
   const { salt, hash } = await hashPassword(password);
   const now = Date.now();
@@ -368,6 +406,8 @@ async function createAccount(username: string, password: string) {
     id: randomUUID(),
     username,
     usernameLower,
+    email,
+    emailLower,
     passwordSalt: salt,
     passwordHash: hash,
     cash: 5000,
@@ -644,17 +684,18 @@ wss.on("connection", (socket) => {
       if (!authenticated) {
         try {
           if (message.type === "authRegister") {
+            const email = sanitizeEmail(message.email);
             const username = sanitizeUsername(message.username);
             const password = String(message.password ?? "");
-            const account = await createAccount(username, password);
+            const account = await createAccount(email, username, password);
             const token = await createSession(account.id);
             await finishAuthentication(account, token);
             return;
           }
 
           if (message.type === "authLogin") {
-            const username = sanitizeUsername(message.username);
-            const account = await findAccountByUsername(username.toLowerCase());
+            const email = sanitizeEmail(message.email);
+            const account = await findAccountByEmail(email.toLowerCase());
 
             if (!account || !(await verifyPassword(
               String(message.password ?? ""),

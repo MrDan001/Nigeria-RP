@@ -98,6 +98,7 @@
     #nrsAccount .eye:active{background:rgba(255,255,255,.08)}
     #nrsAccount .eye svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
     #nrsAccount .error{min-height:18px;color:#ff98a6;font-size:10px;line-height:1.35}
+    #nrsAccount .hint{font-size:9px;color:rgba(255,255,255,.42);line-height:1.3}
     #nrsAccount .submit{
       width:100%;min-height:48px;border:0;border-radius:10px;
       background:linear-gradient(180deg,#259af5,#177bd0);color:#fff;
@@ -135,10 +136,18 @@
 
       <form id="nrsForm" autocomplete="on">
         <label class="field">
+          <span>Email</span>
+          <div class="inputWrap">
+            <input id="nrsEmail" name="email" type="email" autocomplete="email" maxlength="160" placeholder="Enter your email address" required>
+          </div>
+        </label>
+
+        <label class="field" id="nrsUsernameWrap" hidden>
           <span>Username</span>
           <div class="inputWrap">
-            <input id="nrsUser" name="username" autocomplete="username" maxlength="20" minlength="3" placeholder="Enter your username" required>
+            <input id="nrsUser" name="username" autocomplete="username" maxlength="31" placeholder="Firstname_lastname">
           </div>
+          <div class="hint">Must be Firstname_lastname. Paid/custom names are not enabled yet.</div>
         </label>
 
         <label class="field">
@@ -152,9 +161,9 @@
         </label>
 
         <label class="field" id="nrsConfirmWrap" hidden>
-          <span>Confirm password</span>
+          <span>Repeat password</span>
           <div class="inputWrap">
-            <input id="nrsConfirm" name="confirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Re-enter your password">
+            <input id="nrsConfirm" name="confirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Repeat your password">
             <button class="eye" id="nrsConfirmEye" type="button" aria-label="Show password" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.4"/></svg>
             </button>
@@ -179,13 +188,16 @@
     $("nrsReg").classList.toggle("active", isRegister);
     $("nrsLogin").setAttribute("aria-selected", String(!isRegister));
     $("nrsReg").setAttribute("aria-selected", String(isRegister));
+    $("nrsUsernameWrap").hidden = !isRegister;
+    $("nrsUser").required = isRegister;
+    $("nrsEmail").autocomplete = isRegister ? "email" : "username";
     $("nrsConfirmWrap").hidden = !isRegister;
     $("nrsConfirm").required = isRegister;
     $("nrsPass").autocomplete = isRegister ? "new-password" : "current-password";
     $("nrsAuthTitle").textContent = isRegister ? "Create your citizen account" : "Welcome back";
     $("nrsAuthCopy").textContent = isRegister
-      ? "Create one account and keep your character, money and progress."
-      : "Log in to load your character, money, jobs and progress.";
+      ? "Create one account with your email and your Firstname_lastname citizen name."
+      : "Log in with the email linked to your citizen account.";
     $("nrsSubmit").textContent = isRegister ? "CREATE ACCOUNT" : "LOG IN & ENTER";
     $("nrsError").textContent = "";
   }
@@ -422,11 +434,22 @@
   $("nrsForm").addEventListener("submit", (event) => {
     event.preventDefault();
 
+    const email = $("nrsEmail").value.trim();
     const username = $("nrsUser").value.trim();
     const password = $("nrsPass").value;
     const confirm = $("nrsConfirm").value;
 
     $("nrsError").textContent = "";
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      $("nrsError").textContent = "Enter a valid email address.";
+      return;
+    }
+
+    if (registerMode && !/^[A-Za-z]+_[A-Za-z]+$/.test(username)) {
+      $("nrsError").textContent = "Username must be Firstname_lastname, for example Dan_mccoll.";
+      return;
+    }
 
     if (registerMode && password !== confirm) {
       $("nrsError").textContent = "Passwords do not match.";
@@ -444,7 +467,8 @@
 
     send({
       type: registerMode ? "authRegister" : "authLogin",
-      username,
+      email,
+      ...(registerMode ? { username } : {}),
       password
     });
   });
