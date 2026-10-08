@@ -10,6 +10,7 @@ const scrypt = promisify(scryptCb);
 
 type JobState = { n: string; x: number; z: number; pay: number } | null;
 type Inventory = Record<string, number>;
+type FuelMap = Record<string, number>;
 
 type Account = {
   id: string;
@@ -30,6 +31,7 @@ type Account = {
   xp: number;
   job: JobState;
   inventory: Inventory;
+  fuel: FuelMap;
   createdAt: number;
   updatedAt: number;
 };
@@ -48,6 +50,7 @@ type PlayerState = {
   bank: number;
   job: JobState;
   inventory: Inventory;
+  fuel: FuelMap;
   lastSequence: number;
 };
 
@@ -58,6 +61,8 @@ type Session = {
   input: { sequence: number; forward: number; strafe: number };
   lastMessageAt: number;
   lastInputAt: number;
+  lastSyncAt: number;
+  rejectedSyncs: number;
 };
 
 type FileStore = {
@@ -68,10 +73,18 @@ type FileStore = {
 const PORT = Number(process.env.PORT ?? 8080);
 const TICK_RATE = 20;
 const SNAPSHOT_RATE = 10;
-const MOVE_SPEED = 4.2;
+const MOVE_SPEED = 4.5; // matches the client's normal walk top speed; posSync corrects sprint/crouch
 const WORLD_LIMIT = 500;
 const SESSION_DAYS = 30;
 const INPUT_TIMEOUT_MS = 400;
+const FUEL_TANK = 40; // litres, must match the client
+// Naira per litre, by station brand. NNPC is cheapest, then Restopark, then DBase, Hydropet is dearest.
+// Keep in sync with FBR in the web client.
+const FUEL_PRICES: Record<string, number> = { NNPC: 1250, Restopark: 1350, DBase: 1450, Hydropet: 1550 };
+const FUEL_START = 20; // litres a car holds before its first save
+const SYNC_MAX_SPEED = 50; // m/s, a bit above top car speed
+const SYNC_SLACK = 3; // metres of tolerance
+const SYNC_MAX_ELAPSED = 5; // seconds counted per sync, stops idle-then-teleport
 const PROTOCOL_VERSION = 1;
 const DATA_FILE = process.env.NRS_DATA_FILE ?? path.join(process.env.NRS_DATA_DIR ?? "/data", "accounts.json");
 const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
@@ -85,7 +98,7 @@ let fileStore: FileStore = { accounts: {}, sessions: {} };
 const JOBS: Array<Exclude<JobState, null>> = [
   { n: "Parcel to Mile 1 Market", x: -6.5, z: 95, pay: 6000 },
   { n: "Parcel to Rumuola", x: 110, z: 70, pay: 9000 },
-  { n: "Parcel to the Waterfront", x: 90, z: 150, pay: 12000 },
+  { n: "Parcel to Waterlines", x: 90, z: 150, pay: 12000 },
 ];
 
 function send(socket: WebSocket, message: unknown) {
@@ -122,10 +135,22 @@ function normalizeInventory(value: unknown): Inventory {
   return out;
 }
 
+function normalizeFuel(value: unknown): FuelMap {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: FuelMap = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>).slice(0, 40)) {
+    if (!/^c\d{1,3}$/.test(key)) continue;
+    const litres = Number(raw);
+    if (Number.isFinite(litres)) out[key] = Math.round(Math.max(0, Math.min(FUEL_TANK, litres)) * 100) / 100;
+  }
+  return out;
+}
+
 function normalizeJob(value: unknown): JobState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const v = value as Record<string, unknown>;
-  const n = typeof v.n === "string" ? v.n.slice(0, 100) : "";
+  let n = typeof v.n === "string" ? v.n.slice(0, 100) : "";
+  if (n === "Parcel to the Waterfront") n = "Parcel to Waterlines"; // renamed; keeps old saved jobs payable
   const x = Number(v.x);
   const z = Number(v.z);
   const pay = Number(v.pay);
@@ -149,6 +174,7 @@ function normalizeAccount(account: Account): Account {
     xp: Math.max(0, Math.floor(Number(account.xp) || 0)),
     job: normalizeJob(account.job),
     inventory: normalizeInventory(account.inventory),
+    fuel: normalizeFuel(account.fuel),
   };
 }
 
@@ -178,6 +204,7 @@ function accountPayload(player: PlayerState) {
     bank: player.bank,
     job: player.job,
     inventory: player.inventory,
+    fuel: player.fuel,
   };
 }
 
@@ -244,6 +271,7 @@ async function initStore() {
       ");" +
       "CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);",
     );
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -285,6 +313,7 @@ function accountFromRow(row: any): Account {
     xp: Number(row.xp),
     job: row.job ?? null,
     inventory: row.inventory ?? {},
+    fuel: row.fuel ?? {},
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   });
@@ -359,7 +388,7 @@ async function saveAccount(account: Account) {
     await pool.query(
       "UPDATE nrs_accounts SET " +
       "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
-      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14 WHERE id=$1",
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb WHERE id=$1",
       [
         account.id,
         account.username,
@@ -375,6 +404,7 @@ async function saveAccount(account: Account) {
         JSON.stringify(account.job),
         JSON.stringify(account.inventory),
         account.updatedAt,
+        JSON.stringify(account.fuel),
       ],
     );
     return;
@@ -417,6 +447,7 @@ async function createAccount(email: string, username: string, password: string) 
     xp: 0,
     job: null,
     inventory: {},
+    fuel: {},
     createdAt: now,
     updatedAt: now,
   };
@@ -474,6 +505,7 @@ async function resolveSession(token: string) {
   } else {
     session = fileStore.sessions[tokenHash] ?? null;
   }
+  
 
   if (!session || session.expiresAt < Date.now()) return null;
   return findAccountById(session.accountId);
@@ -494,6 +526,7 @@ function makePlayer(account: Account): PlayerState {
     bank: account.bank,
     job: account.job,
     inventory: normalizeInventory(account.inventory),
+    fuel: normalizeFuel(account.fuel),
     lastSequence: -1,
   };
 }
@@ -513,6 +546,7 @@ async function persistSession(session: Session) {
   account.bank = session.player.bank;
   account.job = normalizeJob(session.player.job);
   account.inventory = normalizeInventory(session.player.inventory);
+  account.fuel = normalizeFuel(session.player.fuel);
   await saveAccount(account);
 }
 
@@ -650,6 +684,8 @@ wss.on("connection", (socket) => {
       input: { sequence: -1, forward: 0, strafe: 0 },
       lastMessageAt: Date.now(),
       lastInputAt: 0,
+      lastSyncAt: Date.now(),
+      rejectedSyncs: 0,
     };
 
     players.set(account.id, session);
@@ -781,6 +817,96 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "posSync") {
+        const x = Number(message.x);
+        const z = Number(message.z);
+        const yaw = Number(message.yaw);
+
+        if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return;
+
+        const now = Date.now();
+        const elapsed = Math.min(SYNC_MAX_ELAPSED, Math.max(0, (now - session.lastSyncAt) / 1000));
+        const allowed = SYNC_SLACK + SYNC_MAX_SPEED * elapsed;
+        const moved = Math.hypot(x - session.player.x, z - session.player.z);
+
+        if (moved <= allowed) {
+          session.player.x = x;
+          session.player.z = z;
+          if (Number.isFinite(yaw)) session.player.yaw = yaw;
+          session.lastSyncAt = now;
+          session.rejectedSyncs = 0;
+        } else {
+          session.rejectedSyncs += 1;
+          session.lastSyncAt = now;
+
+          // Client keeps disagreeing: snap it back to the server's position.
+          if (session.rejectedSyncs >= 3) {
+            session.rejectedSyncs = 0;
+            send(socket, { type: "posCorrect", x: session.player.x, z: session.player.z });
+          }
+        }
+        return;
+      }
+
+      if (message.type === "buyFuel") {
+        const carId = String(message.carId ?? "");
+        const price = FUEL_PRICES[String(message.brand ?? "")];
+        const litres = Math.floor(Number(message.litres));
+        const fail = (text: string) => send(socket, { type: "fuelResult", ok: false, message: text });
+
+        if (!price || !/^c\d{1,3}$/.test(carId) || !Number.isFinite(litres) || litres < 1 || litres > FUEL_TANK) {
+          fail("Invalid fuel request.");
+          return;
+        }
+
+        const current = session.player.fuel[carId] ?? FUEL_START;
+
+        if (litres > Math.floor(FUEL_TANK - current + 1e-6)) {
+          fail("The tank can't hold that much.");
+          return;
+        }
+
+        const cost = litres * price;
+
+        if (session.player.cash < cost) {
+          fail("Not enough cash.");
+          return;
+        }
+
+        session.player.cash -= cost;
+        session.player.fuel[carId] = Math.round((current + litres) * 100) / 100;
+        await persistSession(session);
+
+        send(socket, {
+          type: "fuelResult",
+          ok: true,
+          carId,
+          fuel: session.player.fuel[carId],
+          cash: session.player.cash,
+        });
+        return;
+      }
+
+      if (message.type === "acceptJob") {
+        const jobName = String(message.name ?? "");
+        const known = JOBS.find((job) => job.n === jobName);
+
+        if (!known) {
+          send(socket, { type: "jobResult", ok: false, message: "Unknown job." });
+          return;
+        }
+
+        if (session.player.job) {
+          send(socket, { type: "jobResult", ok: false, message: "You already have an active job." });
+          return;
+        }
+
+        session.player.job = { ...known };
+        await persistSession(session);
+        send(socket, { type: "jobResult", ok: true, job: session.player.job });
+        return;
+      }
+
       if (message.type === "walletChange") {
         const requestId = String(message.requestId ?? "");
         const cashDelta = Math.trunc(Number(message.cashDelta ?? 0));
@@ -856,9 +982,17 @@ wss.on("connection", (socket) => {
           session.player.hunger = Math.max(0, Math.min(100, Number(message.hunger) || 0));
         }
 
-        if (message.job !== undefined) {
-          const requestedJob = normalizeJob(message.job);
-          if (isValidKnownJob(requestedJob)) session.player.job = requestedJob;
+        // Jobs are server-authoritative (acceptJob / walletChange). A client save must never
+        // set or clear them, or a stale save could restore an already-paid job.
+
+        if (message.fuel !== undefined) {
+          // Fuel can only go DOWN through a client save (driving burns it). Refuelling must
+          // go through a server-checked purchase, so a client can't just report a full tank.
+          const reported = normalizeFuel(message.fuel);
+          for (const [key, litres] of Object.entries(reported)) {
+            const ceiling = session.player.fuel[key] ?? FUEL_START;
+            session.player.fuel[key] = Math.min(ceiling, litres);
+          }
         }
 
         if (message.inventory !== undefined) {
