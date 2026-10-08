@@ -3,7 +3,10 @@
 
   const SESSION_KEY = "nrs_rp_session_v2";
   // Remove the old overlay's token so it cannot interfere with the new flow.
-  try { localStorage.removeItem("nrs_session_token"); } catch {}
+  try {
+    localStorage.removeItem("nrs_session_token");
+    localStorage.removeItem(SESSION_KEY); // tokens now live in sessionStorage only
+  } catch {}
 
   const N = window.NRS = window.NRS || {};
   const S = N.session = {
@@ -13,6 +16,7 @@
     id: null,
     token: readToken(),
     initialConnection: true,
+    resume: false,
     seq: 0,
     remotes: new Map(),
     target: null,
@@ -24,14 +28,14 @@
   const $ = (id) => document.getElementById(id);
 
   function readToken() {
-    try { return localStorage.getItem(SESSION_KEY) || ""; } catch { return ""; }
+    try { return sessionStorage.getItem(SESSION_KEY) || ""; } catch { return ""; }
   }
 
   function writeToken(token) {
     S.token = token || "";
     try {
-      if (S.token) localStorage.setItem(SESSION_KEY, S.token);
-      else localStorage.removeItem(SESSION_KEY);
+      if (S.token) sessionStorage.setItem(SESSION_KEY, S.token);
+      else sessionStorage.removeItem(SESSION_KEY);
     } catch {}
   }
 
@@ -359,13 +363,16 @@
       S.open = true;
       $("nrsSubmit").disabled = false;
 
-      // A fresh page load always starts at the account gate.
-      // The saved token is retained only for recovery after a transient reconnect.
-      if (!S.initialConnection && S.token) {
+      S.initialConnection = false;
+
+      // Auto-resume ONLY when a logged-in session was dropped mid-play.
+      // Any other connect (fresh load, dropped login screen) stays on the gate.
+      if (S.resume && S.token) {
+        S.resume = false;
         status("Restoring your account…");
         send({ type: "authResume", token: S.token });
       } else {
-        S.initialConnection = false;
+        S.resume = false;
         status("Ready — log in or create your citizen account.");
       }
     };
@@ -418,6 +425,7 @@
     };
 
     socket.onclose = () => {
+      S.resume = S.authed; // was a real session live when the link dropped?
       S.open = false;
       S.authed = false;
 
@@ -585,8 +593,6 @@
       let delta = target.yaw - group.rotation.y;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
       group.rotation.y += delta * follow;
-    }
-
     }
   };
 
