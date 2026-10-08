@@ -661,11 +661,13 @@ wss.on("connection", (socket) => {
       token,
       player: accountPayload(session.player),
       players: snapshot(),
+      onlineCount: players.size,
     });
 
     broadcast({
       type: "playerJoined",
       player: publicPlayer(session.player),
+      onlineCount: players.size,
     });
   };
 
@@ -899,6 +901,7 @@ wss.on("connection", (socket) => {
     broadcast({
       type: "playerLeft",
       playerId: accountId,
+      onlineCount: players.size,
     });
   };
 
@@ -950,6 +953,7 @@ setInterval(() => {
     type: "snapshot",
     serverTime: Date.now(),
     players: snapshot(),
+    onlineCount: players.size,
   });
 }, 1000 / SNAPSHOT_RATE);
 
