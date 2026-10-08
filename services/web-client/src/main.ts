@@ -326,6 +326,25 @@ addCloud(-34, 30, -70, 1.0);
 addCloud(30, 26, -84, 0.9);
 addCloud(72, 33, -52, 0.85);
 
+function addCapsule(
+  name: string,
+  x: number,
+  y: number,
+  z: number,
+  radius: number,
+  height: number,
+  mat: StandardMaterial,
+  parent: Entity,
+) {
+  const entity = new Entity(name);
+  entity.addComponent("render", { type: "capsule" });
+  entity.setLocalPosition(x, y, z);
+  entity.setLocalScale(radius * 2, height, radius * 2);
+  entity.render!.material = mat;
+  parent.addChild(entity);
+  return entity;
+}
+
 type PlayerVisual = {
   root: Entity;
   leftArm: Entity;
@@ -333,10 +352,11 @@ type PlayerVisual = {
   leftLeg: Entity;
   rightLeg: Entity;
   phase: number;
-  walkBlend: number;
+  walkAmount: number;
   targetX: number;
   targetZ: number;
   targetYaw: number;
+  initialized: boolean;
 };
 
 const playerEntities = new Map<string, PlayerVisual>();
@@ -347,27 +367,30 @@ function makePlayer(player: NetPlayer, local: boolean) {
   root.setEulerAngles(0, (player.yaw * 180) / Math.PI, 0);
   app.root.addChild(root);
 
-  const skin = material(local ? 0.34 : 0.27, local ? 0.18 : 0.12, local ? 0.10 : 0.07);
-  const shirt = material(0.022, 0.045, 0.047);
-  const shirtAccent = material(0.02, 0.56, 0.34);
-  const pants = material(0.035, 0.055, 0.075);
-  const shoe = material(0.88, 0.89, 0.88);
-  const cap = material(0.015, 0.025, 0.03);
+  // Human proportions: smaller head, shoulders, tapered torso,
+  // separate arms/legs and shoes. Nothing is left floating in world space.
+  const skin = material(local ? 0.52 : 0.42, local ? 0.28 : 0.22, local ? 0.16 : 0.13);
+  const shirt = material(0.035, 0.08, 0.075);
+  const shirtAccent = material(0.02, 0.48, 0.31);
+  const pants = material(0.025, 0.045, 0.065);
+  const shoe = material(0.78, 0.82, 0.85);
+  const hair = material(0.025, 0.018, 0.015);
 
-  addBox("Torso", 0, 1.48, 0, 1.08, 1.6, .62, shirt, 0, root);
-  addBox("ShoulderL", -.58, 1.68, 0, .24, .5, .68, shirt, 0, root);
-  addBox("ShoulderR", .58, 1.68, 0, .24, .5, .68, shirt, 0, root);
-  addSphere("Head", 0, 2.63, 0, .60, .64, .60, skin, root);
-  addBox("HairCap", 0, 3.03, 0.05, .88, .22, .88, cap, 0, root);
+  addBox("Torso", 0, 1.38, 0, 0.92, 1.32, 0.52, shirt, 0, root);
+  addBox("Waist", 0, 0.78, 0, 0.70, 0.24, 0.48, pants, 0, root);
 
-  const leftArm = addBox("ArmL", -.72, 1.42, 0, .28, 1.28, .33, skin, 0, root);
-  const rightArm = addBox("ArmR", .72, 1.42, 0, .28, 1.28, skin, 0, root);
-  const leftLeg = addBox("LegL", -.29, .52, 0, .35, 1.42, .42, pants, 0, root);
-  const rightLeg = addBox("LegR", .29, .52, 0, .35, 1.42, .42, pants, 0, root);
+  const leftArm = addCapsule("ArmL", -0.63, 1.38, 0, 0.13, 1.05, skin, root);
+  const rightArm = addCapsule("ArmR", 0.63, 1.38, 0, 0.13, 1.05, skin, root);
 
-  addBox("ShoeL", -.29, -.06, -.08, .44, .18, .82, shoe, 0, root);
-  addBox("ShoeR", .29, -.06, -.08, .44, .18, .82, shoe, 0, root);
-  addBox("BackLogo", 0, 1.52, .34, .68, .42, .06, shirtAccent, 0, root);
+  const leftLeg = addCapsule("LegL", -0.24, 0.37, 0, 0.16, 1.28, pants, root);
+  const rightLeg = addCapsule("LegR", 0.24, 0.37, 0, 0.16, 1.28, pants, root);
+
+  addBox("ShoeL", -0.24, -0.04, -0.10, 0.34, 0.18, 0.62, shoe, 0, root);
+  addBox("ShoeR", 0.24, -0.04, -0.10, 0.34, 0.18, 0.62, shoe, 0, root);
+
+  addSphere("Head", 0, 2.40, 0, 0.46, 0.50, 0.46, skin, root);
+  addBox("Hair", 0, 2.73, 0.02, 0.70, 0.16, 0.70, hair, 0, root);
+  addBox("ShirtMark", 0, 1.42, 0.29, 0.42, 0.28, 0.04, shirtAccent, 0, root);
 
   const visual: PlayerVisual = {
     root,
@@ -376,10 +399,11 @@ function makePlayer(player: NetPlayer, local: boolean) {
     leftLeg,
     rightLeg,
     phase: 0,
-    walkBlend: 0,
+    walkAmount: 0,
     targetX: player.x,
     targetZ: player.z,
-    targetYaw: player.yaw
+    targetYaw: player.yaw,
+    initialized: true
   };
 
   playerEntities.set(player.id, visual);
@@ -562,6 +586,8 @@ joinButton.addEventListener("click", () => {
 });
 
 app.on("update", (dt: number) => {
+  // Fresh input pipeline: joystick/keyboard expresses intent only.
+  // The server owns acceleration, collision bounds and facing.
   let forward = input.forward;
   let strafe = input.strafe;
 
@@ -570,18 +596,14 @@ app.on("update", (dt: number) => {
   if (keyboard.has("d") || keyboard.has("arrowright")) strafe += 1;
   if (keyboard.has("a") || keyboard.has("arrowleft")) strafe -= 1;
 
-  const magnitude = Math.hypot(forward, strafe);
-  if (magnitude > 1) {
-    forward /= magnitude;
-    strafe /= magnitude;
+  const inputLength = Math.hypot(forward, strafe);
+  if (inputLength > 1) {
+    forward /= inputLength;
+    strafe /= inputLength;
   }
 
   const now = performance.now();
-  if (
-    now - lastSend >= 50 &&
-    ws?.readyState === WebSocket.OPEN &&
-    (Math.abs(forward) > 0.01 || Math.abs(strafe) > 0.01)
-  ) {
+  if (now - lastSend >= 50 && ws?.readyState === WebSocket.OPEN) {
     send({
       type: "input",
       input: {
@@ -593,91 +615,117 @@ app.on("update", (dt: number) => {
     lastSend = now;
   }
 
-  // Smooth network rendering + actual third-person character movement.
+  // Render interpolation is independent from the 20Hz server tick.
+  // This removes the old snapshot-jump effect.
   for (const visual of playerEntities.values()) {
-    const p = visual.root.getPosition();
-    const dx = visual.targetX - p.x;
-    const dz = visual.targetZ - p.z;
-    const distance = Math.hypot(dx, dz);
-    const follow = 1 - Math.exp(-dt * 14);
+    const position = visual.root.getPosition();
+    const follow = 1 - Math.exp(-dt * 18);
 
     visual.root.setPosition(
-      p.x + dx * follow,
+      position.x + (visual.targetX - position.x) * follow,
       0,
-      p.z + dz * follow
+      position.z + (visual.targetZ - position.z) * follow
     );
 
-    let yawDelta = visual.targetYaw - visual.root.getEulerAngles().y * Math.PI / 180;
+    let currentYaw = visual.root.getEulerAngles().y * Math.PI / 180;
+    let yawDelta = visual.targetYaw - currentYaw;
+
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
     while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
 
-    const currentYaw = visual.root.getEulerAngles().y * Math.PI / 180;
-    const nextYaw = currentYaw + yawDelta * Math.min(1, dt * 16);
-    visual.root.setEulerAngles(0, nextYaw * 180 / Math.PI, 0);
+    currentYaw += yawDelta * Math.min(1, dt * 14);
+    visual.root.setEulerAngles(0, currentYaw * 180 / Math.PI, 0);
 
-    const moving = distance > 0.004;
-    const speedFactor = Math.min(1, distance / Math.max(0.001, MOVE_VISUAL_DISTANCE));
-    visual.walkBlend += ((moving ? 1 : 0) - visual.walkBlend) * Math.min(1, dt * 10);
-    if (visual.walkBlend > 0.01) visual.phase += dt * (7.5 + 5.5 * speedFactor);
+    const distance = Math.hypot(
+      visual.targetX - position.x,
+      visual.targetZ - position.z
+    );
+    const moving = distance > 0.003;
 
-    const swing = Math.sin(visual.phase) * 0.48 * visual.walkBlend;
-    visual.leftArm.setEulerAngles(swing * 35, 0, 0);
-    visual.rightArm.setEulerAngles(-swing * 35, 0, 0);
-    visual.leftLeg.setEulerAngles(-swing * 24, 0, 0);
-    visual.rightLeg.setEulerAngles(swing * 24, 0, 0);
+    visual.walkAmount += ((moving ? 1 : 0) - visual.walkAmount) *
+      Math.min(1, dt * 12);
 
-    if (moving && distance > 1.2) {
-      visual.root.setPosition(visual.targetX, 0, visual.targetZ);
+    if (visual.walkAmount > 0.01) {
+      visual.phase += dt * 9;
     }
+
+    const stride = Math.sin(visual.phase) * 0.48 * visual.walkAmount;
+
+    visual.leftArm.setLocalEulerAngles(stride * 32, 0, 0);
+    visual.rightArm.setLocalEulerAngles(-stride * 32, 0, 0);
+    visual.leftLeg.setLocalEulerAngles(-stride * 26, 0, 0);
+    visual.rightLeg.setLocalEulerAngles(stride * 26, 0, 0);
   }
 
   const local = localPlayerId ? playerEntities.get(localPlayerId) : undefined;
+
   if (!manualCamera && local) {
     const p = local.root.getPosition();
     const yaw = local.root.getEulerAngles().y * Math.PI / 180;
 
-    // Camera sits behind and above the character and rotates with their facing.
-    const cameraDistance = 7.4;
-    const cameraHeight = 3.9;
-    const lookAhead = 1.8;
-    const desiredX = p.x + Math.sin(yaw) * cameraDistance;
-    const desiredY = p.y + cameraHeight;
-    const desiredZ = p.z + Math.cos(yaw) * cameraDistance;
-    const lookX = p.x - Math.sin(yaw) * lookAhead;
-    const lookZ = p.z - Math.cos(yaw) * lookAhead;
+    // Stable third-person camera: behind + above the player,
+    // with enough distance to keep the whole body visible.
+    const distance = 6.2;
+    const height = 3.15;
+    const lookAhead = 1.0;
 
-    const current = camera.getPosition();
-    const cameraFollow = 1 - Math.exp(-dt * 7);
+    const desiredX = p.x + Math.sin(yaw) * distance;
+    const desiredZ = p.z + Math.cos(yaw) * distance;
+
+    const cameraPosition = camera.getPosition();
+    const cameraFollow = 1 - Math.exp(-dt * 8);
 
     camera.setPosition(
-      current.x + (desiredX - current.x) * cameraFollow,
-      current.y + (desiredY - current.y) * cameraFollow,
-      current.z + (desiredZ - current.z) * cameraFollow
+      cameraPosition.x + (desiredX - cameraPosition.x) * cameraFollow,
+      cameraPosition.y + (p.y + height - cameraPosition.y) * cameraFollow,
+      cameraPosition.z + (desiredZ - cameraPosition.z) * cameraFollow
     );
 
-    camera.lookAt(lookX, p.y + 1.25, lookZ);
+    camera.lookAt(
+      p.x - Math.sin(yaw) * lookAhead,
+      p.y + 1.20,
+      p.z - Math.cos(yaw) * lookAhead
+    );
   }
 });
 
-function requestLandscapeMode() {
+async function requestLandscapeMode() {
   try {
     const orientation = screen.orientation as ScreenOrientation & {
       lock?: (orientation: "landscape") => Promise<void>;
     };
 
+    // Installed/PWA launches can honor the manifest without a gesture.
     if (orientation?.lock) {
-      orientation.lock("landscape").catch(() => {});
+      await orientation.lock("landscape").catch(() => {});
     }
   } catch {}
 }
 
-window.addEventListener("pointerdown", requestLandscapeMode, { once: true });
-window.addEventListener("touchstart", requestLandscapeMode, { once: true });
+async function enterLandscapeGame() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+  } catch {}
+
+  await requestLandscapeMode();
+}
+
+window.addEventListener("pointerdown", () => {
+  void enterLandscapeGame();
+}, { once: true });
+
+window.addEventListener("touchstart", () => {
+  void enterLandscapeGame();
+}, { once: true });
+
 window.addEventListener("resize", () => app.resizeCanvas());
 window.addEventListener("orientationchange", () => {
   app.resizeCanvas();
-  requestLandscapeMode();
+  void requestLandscapeMode();
 });
+
 
 app.start();
 connect();
