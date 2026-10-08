@@ -99,7 +99,41 @@ body.drv #dcl{display:flex}
 #hb{right:1.4rem;bottom:9.8rem}#camB{right:1.4rem;bottom:13.3rem;display:none}
 body.drv #camB{display:grid}
 #act.dr{right:12rem;bottom:1rem;top:auto;font-size:.8rem;padding:.55rem .9rem;background:rgba(150,35,35,.88)}
-#auth-screen{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:1rem;background:rgba(4,9,15,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);touch-action:auto;color:#fff}#auth-screen.hide{display:none}#auth-card{width:min(29rem,calc(100vw - 2rem));padding:1.35rem 1.25rem;box-shadow:0 1.6rem 4rem rgba(0,0,0,.4)}.auth-brand{display:flex;align-items:center;gap:.65rem}.auth-brand strong{display:block;font-size:1rem;letter-spacing:.05em}.auth-brand small{display:block;font-size:.62rem;opacity:.65;letter-spacing:.08em;margin-top:.12rem}.auth-eyebrow{margin-top:1.3rem;font-size:.62rem;letter-spacing:.14em;opacity:.55}.auth-card h1{margin:.25rem 0 .3rem;font-size:1.55rem}.auth-card p{margin:0 0 1rem;font-size:.78rem;line-height:1.45;opacity:.72}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin:.8rem 0 1rem}.auth-tabs button{pointer-events:auto;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:.5rem;padding:.58rem .45rem;font-weight:800;font-size:.68rem}.auth-tabs button.on{background:#1b8cf0;border-color:#4ba7ff}.auth-card label{display:block;font-size:.68rem;opacity:.82;margin:.55rem 0}.auth-card input{width:100%;margin-top:.28rem;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.2);color:#fff;border-radius:.55rem;padding:.72rem .7rem;outline:none}.auth-card input:focus{border-color:#4ba7ff}.auth-card form button[type=submit]{width:100%;border:0;background:#1b8cf0;color:#fff;border-radius:.6rem;padding:.75rem;font-weight:900;font-size:.72rem;margin-top:.65rem}.auth-card form button[type=submit]:disabled{opacity:.55}.auth-card #auth-error{min-height:1.2rem;color:#ff9eaa;font-size:.68rem;line-height:1.35;margin-top:.35rem}.auth-card #auth-connection{text-align:center;margin-top:.75rem;font-size:.6rem;opacity:.5}.auth-card .lg{flex:0 0 auto}@media(max-width:600px){#auth-card{padding:1.1rem}.auth-card h1{font-size:1.35rem}}</style></head><body>
+#auth-screen{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:clamp(.75rem,2vw,1.25rem);background:rgba(3,8,14,.84);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);touch-action:manipulation;color:#fff;isolation:isolate}
+#auth-card{position:relative;z-index:10000;width:min(30rem,calc(100vw - 1.5rem));max-height:min(90vh,44rem);overflow:auto;padding:clamp(1rem,3vw,1.5rem);background:linear-gradient(180deg,rgba(16,27,42,.98),rgba(8,16,27,.98));border:1px solid rgba(255,255,255,.14);border-radius:1.15rem;box-shadow:0 1.8rem 4rem rgba(0,0,0,.48);pointer-events:auto;touch-action:manipulation}
+.auth-brand{display:flex;align-items:center;gap:.7rem}
+.auth-brand .lg{width:2.8rem;height:2.8rem;flex:0 0 2.8rem;border-radius:.7rem;background:#1b8cf0;display:grid;place-items:center;font-weight:900;font-size:1.55rem}
+.auth-brand strong{display:block;font-size:.98rem;letter-spacing:.055em}
+.auth-brand small{display:block;font-size:.6rem;opacity:.62;letter-spacing:.09em;margin-top:.12rem}
+.auth-eyebrow{margin-top:1.15rem;color:#8ea0b4;font-size:.6rem;font-weight:800;letter-spacing:.16em}
+#auth-title{margin:.35rem 0 .25rem;font-size:clamp(1.45rem,4vw,1.9rem);line-height:1.08}
+#auth-copy{margin:0;color:rgba(255,255,255,.7);font-size:.76rem;line-height:1.45}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin:1rem 0 1.05rem}
+.auth-tabs button{position:relative;z-index:10001;display:block;width:100%;min-height:2.7rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);color:#fff;border-radius:.7rem;padding:.65rem .6rem;font-weight:900;font-size:.68rem;letter-spacing:.03em;cursor:pointer;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.auth-tabs button.on{background:#1b8cf0;border-color:#55b2ff;box-shadow:0 .35rem 1rem rgba(27,140,240,.22)}
+#auth-form{display:grid;gap:.8rem}
+.auth-field{display:grid;gap:.32rem}
+.auth-field>span{font-size:.67rem;font-weight:800;color:#d8e1ea;letter-spacing:.025em}
+.auth-input-wrap{position:relative}
+.auth-input{display:block;width:100%;height:3rem;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:#07111d;color:#fff;border-radius:.68rem;padding:0 3.1rem 0 .8rem;outline:none;font-size:.82rem;-webkit-appearance:none;appearance:none}
+.auth-input::placeholder{color:rgba(255,255,255,.32)}
+.auth-input:focus{border-color:#46a7ff;box-shadow:0 0 0 3px rgba(70,167,255,.12)}
+.password-toggle{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);z-index:10002;width:2.35rem;height:2.35rem;border:0;border-radius:.55rem;background:transparent;color:#aebfd1;display:grid;place-items:center;padding:0;cursor:pointer;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.password-toggle:active{background:rgba(255,255,255,.08)}
+.password-toggle svg{width:1.15rem;height:1.15rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#auth-error{min-height:1.15rem;margin-top:.05rem;color:#ff9eaa;font-size:.68rem;line-height:1.35}
+#auth-submit{width:100%;height:3rem;border:0;background:linear-gradient(180deg,#2598f6,#177bd0);color:#fff;border-radius:.7rem;font-weight:900;font-size:.72rem;letter-spacing:.04em;cursor:pointer;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 .45rem 1.2rem rgba(27,140,240,.2)}
+#auth-submit:disabled{opacity:.5;cursor:not-allowed}
+#auth-connection{text-align:center;margin-top:.85rem;color:rgba(255,255,255,.45);font-size:.6rem;line-height:1.35}
+#auth-card[aria-busy="true"] #auth-submit{cursor:wait}
+@media(max-width:700px){
+  #auth-card{width:min(29rem,calc(100vw - 1.2rem));padding:1rem;border-radius:1rem}
+  .auth-tabs{gap:.45rem}
+}
+@media(max-width:480px){
+  #auth-card{width:calc(100vw - 1rem);padding:.9rem}
+  #auth-copy{font-size:.72rem}
+}</style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
  <div class="p" id="brand"><div class="lg">N</div><div><b>NIGERIA ROLEPLAY</b><small>PORT HARCOURT • ONLINE WORLD</small></div></div>
@@ -116,21 +150,43 @@ body.drv #camB{display:grid}
  <button class="rb" id="fist">✊</button><button class="rb" id="run">🏃</button><button class="rb" id="crch">🧎</button>
 </div>
 <button id="act" style="display:none"></button><div class="p" id="modal" style="display:none"></div><div id="start"><div><div style="font-size:1.6rem;font-weight:800;margin-bottom:1rem">NIGERIA ROLEPLAY</div><button id="go">Tap to play in landscape</button></div></div><div id="rot">Rotate your phone to landscape</div><div id="auth-screen" aria-hidden="false">
-  <div id="auth-card" class="p">
+  <section id="auth-card" aria-busy="false">
     <div class="auth-brand"><span class="lg">N</span><div><strong>NIGERIA ROLEPLAY</strong><small>PORT HARCOURT • ONLINE WORLD</small></div></div>
     <div class="auth-eyebrow">PLAYER ACCOUNT</div>
     <h1 id="auth-title">Welcome back</h1>
     <p id="auth-copy">Log in to load your character, money, jobs and progress.</p>
-    <div class="auth-tabs"><button id="auth-login-tab" type="button" class="on">LOG IN</button><button id="auth-register-tab" type="button">CREATE ACCOUNT</button></div>
+    <div class="auth-tabs" role="tablist" aria-label="Account access">
+      <button id="auth-login-tab" type="button" class="on" role="tab" aria-selected="true">LOG IN</button>
+      <button id="auth-register-tab" type="button" role="tab" aria-selected="false">CREATE ACCOUNT</button>
+    </div>
     <form id="auth-form" autocomplete="on">
-      <label>Username<input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="20" required></label>
-      <label>Password<input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" required></label>
-      <label id="auth-confirm-wrap" hidden>Confirm password<input id="auth-confirm" name="confirmPassword" type="password" autocomplete="new-password" minlength="6"></label>
+      <label class="auth-field">
+        <span>Username</span>
+        <div class="auth-input-wrap"><input class="auth-input" id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="20" placeholder="Enter your username" required></div>
+      </label>
+      <label class="auth-field">
+        <span>Password</span>
+        <div class="auth-input-wrap">
+          <input class="auth-input" id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Enter your password" required>
+          <button class="password-toggle" id="auth-password-toggle" type="button" aria-label="Show password" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5-9.5-5-9.5-5Z"></path><circle cx="12" cy="12" r="2.4"></circle></svg>
+          </button>
+        </div>
+      </label>
+      <label class="auth-field" id="auth-confirm-wrap" hidden>
+        <span>Confirm password</span>
+        <div class="auth-input-wrap">
+          <input class="auth-input" id="auth-confirm" name="confirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Re-enter your password">
+          <button class="password-toggle" id="auth-confirm-toggle" type="button" aria-label="Show password" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5-9.5-5-9.5-5Z"></path><circle cx="12" cy="12" r="2.4"></circle></svg>
+          </button>
+        </div>
+      </label>
       <div id="auth-error" role="alert" aria-live="polite"></div>
       <button id="auth-submit" type="submit">LOG IN</button>
     </form>
     <div id="auth-connection">Connecting securely to the game server…</div>
-  </div>
+  </section>
 </div>
 <div id="dcl"><button class="dbtn" id="sigL"><svg viewBox="0 0 24 24"><path class="fl" d="M3 12l8-8v5h10v6H11v5z"/></svg></button><button class="dbtn" id="hzd"><svg viewBox="0 0 24 24"><path d="M12 3L2 20h20z"/><path d="M12 10l-3.6 7h7.2z"/></svg></button><button class="dbtn" id="sigR"><svg viewBox="0 0 24 24"><path class="fl" d="M21 12l-8-8v5H3v6h10v5z"/></svg></button>
 <div id="spd"><div id="spv"><i>00</i>0</div><span id="spk">ENGINE OFF · TAP ⏻</span><span id="spz"></span></div>
