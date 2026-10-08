@@ -99,12 +99,12 @@ body.drv #dcl{display:flex}
 #hb{right:1.4rem;bottom:9.8rem}#camB{right:1.4rem;bottom:13.3rem;display:none}
 body.drv #camB{display:grid}
 #act.dr{right:12rem;bottom:1rem;top:auto;font-size:.8rem;padding:.55rem .9rem;background:rgba(150,35,35,.88)}
-</style></head><body>
+#auth-screen{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:1rem;background:rgba(4,9,15,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);touch-action:auto;color:#fff}#auth-screen.hide{display:none}#auth-card{width:min(29rem,calc(100vw - 2rem));padding:1.35rem 1.25rem;box-shadow:0 1.6rem 4rem rgba(0,0,0,.4)}.auth-brand{display:flex;align-items:center;gap:.65rem}.auth-brand strong{display:block;font-size:1rem;letter-spacing:.05em}.auth-brand small{display:block;font-size:.62rem;opacity:.65;letter-spacing:.08em;margin-top:.12rem}.auth-eyebrow{margin-top:1.3rem;font-size:.62rem;letter-spacing:.14em;opacity:.55}.auth-card h1{margin:.25rem 0 .3rem;font-size:1.55rem}.auth-card p{margin:0 0 1rem;font-size:.78rem;line-height:1.45;opacity:.72}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin:.8rem 0 1rem}.auth-tabs button{pointer-events:auto;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;border-radius:.5rem;padding:.58rem .45rem;font-weight:800;font-size:.68rem}.auth-tabs button.on{background:#1b8cf0;border-color:#4ba7ff}.auth-card label{display:block;font-size:.68rem;opacity:.82;margin:.55rem 0}.auth-card input{width:100%;margin-top:.28rem;box-sizing:border-box;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.2);color:#fff;border-radius:.55rem;padding:.72rem .7rem;outline:none}.auth-card input:focus{border-color:#4ba7ff}.auth-card form button[type=submit]{width:100%;border:0;background:#1b8cf0;color:#fff;border-radius:.6rem;padding:.75rem;font-weight:900;font-size:.72rem;margin-top:.65rem}.auth-card form button[type=submit]:disabled{opacity:.55}.auth-card #auth-error{min-height:1.2rem;color:#ff9eaa;font-size:.68rem;line-height:1.35;margin-top:.35rem}.auth-card #auth-connection{text-align:center;margin-top:.75rem;font-size:.6rem;opacity:.5}.auth-card .lg{flex:0 0 auto}@media(max-width:600px){#auth-card{padding:1.1rem}.auth-card h1{font-size:1.35rem}}</style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
  <div class="p" id="brand"><div class="lg">N</div><div><b>NIGERIA ROLEPLAY</b><small>PORT HARCOURT • ONLINE WORLD</small></div></div>
  <div class="p" id="compw"><canvas id="comp" width="880" height="84"></canvas></div>
- <div class="p" id="top"><span class="cash">₦ <span id="cash">0</span></span><span class="lv">LEVEL 1</span><span>👤 <b>1</b> online</span><button id="gear">⚙</button></div>
+ <div class="p" id="top"><span class="cash">₦ <span id="cash">0</span></span><span class="lv" id="level-badge">LEVEL 1</span><span>👤 <b id="online-count">0</b> online</span><button id="gear">⚙</button></div>
  <div class="p" id="gp"><button id="bo">Change outfit</button><button id="bs">Change skin tone</button></div>
  <div class="p" id="chat"><div id="tabs"><span>GLOBAL</span><span>LOCAL</span><span>SYSTEM</span><span id="cx">✕</span></div><div id="log"><div><b>System:</b> Welcome to Port Harcourt.</div></div><form id="cf"><input id="ci" placeholder="Type a message..." autocomplete="off"></form></div>
  <div id="col"><button class="ib" id="chatB">✉️<span id="chatBadge">1</span></button><button class="ib" id="ib0">📱</button><button class="ib" id="ib1">👥</button><button class="ib" id="ib2">🎒</button><button class="ib" id="ib3">🗺</button></div>
@@ -115,7 +115,23 @@ body.drv #camB{display:grid}
  <div class="p" id="stats"><span>♥ <b id="hpv">100</b><span class="bar"><i id="hpb" style="width:100%;background:#ef4a5a"></i></span></span><span>🛡 0<span class="bar"><i style="width:2%;background:#3b82f6"></i></span></span><span>🍴 <b id="hgv">82</b><span class="bar"><i id="hgb" style="width:82%;background:#f5c518"></i></span></span></div>
  <button class="rb" id="fist">✊</button><button class="rb" id="run">🏃</button><button class="rb" id="crch">🧎</button>
 </div>
-<button id="act" style="display:none"></button><div class="p" id="modal" style="display:none"></div><div id="start"><div><div style="font-size:1.6rem;font-weight:800;margin-bottom:1rem">NIGERIA ROLEPLAY</div><button id="go">Tap to play in landscape</button></div></div><div id="rot">Rotate your phone to landscape</div>
+<button id="act" style="display:none"></button><div class="p" id="modal" style="display:none"></div><div id="start"><div><div style="font-size:1.6rem;font-weight:800;margin-bottom:1rem">NIGERIA ROLEPLAY</div><button id="go">Tap to play in landscape</button></div></div><div id="rot">Rotate your phone to landscape</div><div id="auth-screen" aria-hidden="false">
+  <div id="auth-card" class="p">
+    <div class="auth-brand"><span class="lg">N</span><div><strong>NIGERIA ROLEPLAY</strong><small>PORT HARCOURT • ONLINE WORLD</small></div></div>
+    <div class="auth-eyebrow">PLAYER ACCOUNT</div>
+    <h1 id="auth-title">Welcome back</h1>
+    <p id="auth-copy">Log in to load your character, money, jobs and progress.</p>
+    <div class="auth-tabs"><button id="auth-login-tab" type="button" class="on">LOG IN</button><button id="auth-register-tab" type="button">CREATE ACCOUNT</button></div>
+    <form id="auth-form" autocomplete="on">
+      <label>Username<input id="auth-username" name="username" autocomplete="username" minlength="3" maxlength="20" required></label>
+      <label>Password<input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" required></label>
+      <label id="auth-confirm-wrap" hidden>Confirm password<input id="auth-confirm" name="confirmPassword" type="password" autocomplete="new-password" minlength="6"></label>
+      <div id="auth-error" role="alert" aria-live="polite"></div>
+      <button id="auth-submit" type="submit">LOG IN</button>
+    </form>
+    <div id="auth-connection">Connecting securely to the game server…</div>
+  </div>
+</div>
 <div id="dcl"><button class="dbtn" id="sigL"><svg viewBox="0 0 24 24"><path class="fl" d="M3 12l8-8v5h10v6H11v5z"/></svg></button><button class="dbtn" id="hzd"><svg viewBox="0 0 24 24"><path d="M12 3L2 20h20z"/><path d="M12 10l-3.6 7h7.2z"/></svg></button><button class="dbtn" id="sigR"><svg viewBox="0 0 24 24"><path class="fl" d="M21 12l-8-8v5H3v6h10v5z"/></svg></button>
 <div id="spd"><div id="spv"><i>00</i>0</div><span id="spk">ENGINE OFF · TAP ⏻</span><span id="spz"></span></div>
 <button class="dbtn" id="ign"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.8 6.8a7.5 7.5 0 1 0 10.4 0"/></svg></button><button class="dbtn" id="lite"><svg viewBox="0 0 24 24"><path d="M10 6C6 6 3 8.5 3 12s3 6 7 6c1 0 2-.4 2-1.2V7.2C12 6.4 11 6 10 6z"/><path d="M15.5 8H21M15.5 12H21M15.5 16H21"/></svg></button></div>
