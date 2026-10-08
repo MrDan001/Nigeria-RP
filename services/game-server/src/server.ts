@@ -55,6 +55,7 @@ type Session = {
   player: PlayerState;
   input: { sequence: number; forward: number; strafe: number };
   lastMessageAt: number;
+  lastInputAt: number;
 };
 
 type FileStore = {
@@ -68,6 +69,8 @@ const SNAPSHOT_RATE = 10;
 const MOVE_SPEED = 4.2;
 const WORLD_LIMIT = 500;
 const SESSION_DAYS = 30;
+const INPUT_TIMEOUT_MS = 400;
+const PROTOCOL_VERSION = 1;
 const DATA_FILE = process.env.NRS_DATA_FILE ?? path.join(process.env.NRS_DATA_DIR ?? "/data", "accounts.json");
 const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
 
@@ -607,6 +610,7 @@ wss.on("connection", (socket) => {
       player: makePlayer(account),
       input: { sequence: -1, forward: 0, strafe: 0 },
       lastMessageAt: Date.now(),
+      lastInputAt: 0,
     };
 
     players.set(account.id, session);
@@ -614,6 +618,7 @@ wss.on("connection", (socket) => {
 
     send(socket, {
       type: "authOk",
+      protocolVersion: PROTOCOL_VERSION,
       token,
       player: accountPayload(session.player),
       players: snapshot(),
@@ -722,6 +727,7 @@ wss.on("connection", (socket) => {
         }
 
         session.player.lastSequence = input.sequence;
+        session.lastInputAt = Date.now();
         session.input = {
           sequence: input.sequence,
           forward: Math.max(-1, Math.min(1, Number(input.forward))),
@@ -862,7 +868,7 @@ setInterval(() => {
   const now = Date.now();
 
   for (const session of players.values()) {
-    const input = now - session.lastMessageAt > 750
+    const input = now - session.lastInputAt > INPUT_TIMEOUT_MS
       ? { forward: 0, strafe: 0 }
       : session.input;
 
