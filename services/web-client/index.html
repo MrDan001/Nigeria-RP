@@ -280,7 +280,7 @@ function refreshHousePlaque(v,h){const image=v?.plaque?.material?.map?.image,ctx
 function createHouseExterior(h){
  if(!h||!h.id||!Number.isFinite(Number(h.x))||!Number.isFinite(Number(h.z)))return null;
  if(HOUSE_VISUALS[h.id]){const v=HOUSE_VISUALS[h.id];v.home=h;refreshHousePlaque(v,h);return v;}
- const cls=HOUSE_SIZES[h.cls]?h.cls:"flat",s=HOUSE_SIZES[cls],m=houseMats(cls),g=new THREE.Group(),w=s.w,d=s.d,H=s.h,front=d/2;
+ const cls=HOUSE_SIZES[h.cls]?h.cls:"flat",s=HOUSE_SIZES[cls],m=houseMats(cls),g=new THREE.Group(),w=s.w,d=s.d,H=s.h,front=cls==="hut"?w*.48:d/2;
  g.position.set(Number(h.x),0,Number(h.z));scene.add(g);
  const A=(geo,mat,x,y,z)=>add(geo,mat,x,y,z,g);
  // Plot, concrete apron, rainwater gutter and foundation.
@@ -298,7 +298,7 @@ function createHouseExterior(h){
   A(new THREE.CylinderGeometry(w*.69,w*.69,.11,12),m.trim,0,.22+H,0);
   houseDoor(A,m,0,1.25,front+.12,1.0,2.0);
   [-1,1].forEach(q=>houseFrontWindow(A,m,q*1.45,1.55,front+.1,.55,.65));
-  for(let i=0;i<8;i++){const a=i*Math.PI/4;A(new THREE.BoxGeometry(.025,1.15,.025),m.trim,Math.cos(a)*w*.46,1.35,Math.sin(a)*d*.46);}
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;A(new THREE.BoxGeometry(.025,1.15,.025),m.trim,Math.cos(a)*w*.46,1.35,Math.sin(a)*w*.46);}
  }else if(cls==="faceme"){
   // Three-unit shared compound, separate doorways, repeated windows and red tiled gable roof.
   A(houseGable(w+1.1,d+1.0,1.4,m.roof),m.roof,0,.22+H,0);
@@ -377,11 +377,13 @@ function createHouseExterior(h){
 }
 function syncHouseExteriors(houses){
  if(!Array.isArray(houses))return;
- houses.forEach(h=>{const v=createHouseExterior(h);if(v){v.home=h;}});
+ houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else if(Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});
  for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
  const mine=houses.find(h=>h.occupiedByMe);
  if(mine){const size=HOUSE_SIZES[mine.cls]||HOUSE_SIZES.flat;POI.push({x:mine.x,z:mine.z+size.d/2+2.2,k:"Enter",name:"Enter your "+(HOUSE_LABELS[mine.cls]||"home").toLowerCase(),t:"home",housePoi:true,houseId:mine.id,r:3.5});}
 }
+let houseVisualCheckT=0;
+function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});}
 
 const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(512,Math.round(512*h/w),fn),fog:true});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
@@ -585,7 +587,7 @@ $('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)retur
 /* ---------- Movement: camera-relative, delta-time, one update loop ---------- */
 const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24);
 let face=Math.PI,speed=0,phase=0;
-function update(dt){if(driving){driveUpdate(dt);return;}
+function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);return;}
  let ix=inp.x,iy=inp.y;
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyA||keys.ArrowLeft)ix-=1;
  let mag=Math.hypot(ix,iy);if(mag>1){ix/=mag;iy/=mag;mag=1;}
@@ -1298,4 +1300,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v5"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v6"></script></body></html>
