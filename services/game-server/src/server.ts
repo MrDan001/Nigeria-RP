@@ -8,6 +8,10 @@ import { Pool } from "pg";
 import {
   GameClock,
   HOUSES,
+  HOUSE_CLASSES,
+  MAX_PREPAID_DAYS,
+  findHouse,
+  houseRent,
   newLife,
   newWorld,
   normalizeLife,
@@ -272,6 +276,34 @@ async function saveWorld() {
   writeFileStore();
 }
 
+function housingSnapshot(session: Session) {
+  return HOUSES.map((house) => {
+    const cls = HOUSE_CLASSES.find((item) => item.id === house.cls)!;
+    const tenant = world.houseTenants[house.id] ?? null;
+    return {
+      id: house.id, cls: house.cls, name: cls.name, rentPerDay: cls.rentPerDay,
+      zone: house.zone, x: house.x, z: house.z, placed: house.placed,
+      vacant: tenant === null, occupiedByMe: tenant === session.player.id,
+    };
+  });
+}
+
+function sendHousingState(session: Session) {
+  send(session.socket, {
+    type: "housingState", houses: housingSnapshot(session),
+    life: session.player.life, cash: session.player.cash, today: clock.dayKey(),
+  });
+}
+
+const HOME_FURNITURE: Record<string, string[]> = {
+  hut: ["Foam mattress", "Plastic chair", "Small table", "Standing fan", "Curtains"],
+  faceme: ["Bed", "Wardrobe", "Two chairs", "Shared kitchen", "Curtains"],
+  flat: ["Sofa set", "Bed and wardrobe", "Dining table", "Kitchen counter", "Television"],
+  estate: ["Large sofa set", "Bedroom suite", "Dining set", "Kitchen cabinets", "Television", "Generator"],
+  mansion: ["Luxury sofa set", "Master bedroom suite", "Dining room", "Fitted kitchen", "Television", "Air conditioning"],
+  palace: ["Luxury lounge", "Premium bedroom suite", "Formal dining set", "Fitted kitchen", "Multiple televisions", "Air conditioning", "Decorative lighting"],
+};
+
 // Settle one online player's life up to today's Nigeria-time day (rent days used, home lost).
 // Returns null when no midnight has passed since the last settle.
 function settleSession(session: Session) {
@@ -302,7 +334,9 @@ async function runMidnight() {
       rentUsed: result.rentUsed,
       homeLost: result.homeLost,
     });
+    sendHousingState(session);
   }
+  await saveWorld();
 }
 
 async function initStore() {
@@ -786,6 +820,7 @@ wss.on("connection", (socket) => {
       player: accountPayload(session.player),
       players: snapshot(),
       onlineCount: players.size,
+      houses: housingSnapshot(session),
     });
 
     broadcast({
@@ -1093,6 +1128,109 @@ wss.on("connection", (socket) => {
 
       if (message.type === "getLife") {
         send(socket, { type: "lifeState", life: session.player.life, today: clock.dayKey() });
+        return;
+      }
+
+      if (message.type === "getHousing") {
+        sendHousingState(session);
+        return;
+      }
+
+      if (message.type === "rentHouse") {
+        const houseId = String(message.houseId ?? "");
+        const days = Math.floor(Number(message.days));
+        const house = findHouse(houseId);
+        const fail = (text: string) => send(socket, {
+          type: "housingResult", ok: false, action: "rent", message: text,
+          houses: housingSnapshot(session), life: session.player.life, cash: session.player.cash, today: clock.dayKey(),
+        });
+        if (!house || !Number.isInteger(days) || days < 1 || days > MAX_PREPAID_DAYS) {
+          fail("Choose a valid home and 1–7 prepaid days.");
+          return;
+        }
+        if (session.player.life.homeId && session.player.life.homeId !== houseId) {
+          fail("You already have a home. Extend its rent or wait until you are evicted before renting another.");
+          return;
+        }
+        const tenant = world.houseTenants[houseId] ?? null;
+        if (tenant && tenant !== session.player.id) {
+          fail("This home is already occupied.");
+          return;
+        }
+        const totalDays = (session.player.life.homeId === houseId ? session.player.life.rentDays : 0) + days;
+        if (totalDays > MAX_PREPAID_DAYS) {
+          fail("You can keep a maximum of 7 prepaid rent days. Choose fewer days.");
+          return;
+        }
+        const daily = houseRent(houseId);
+        const cost = daily * days;
+        if (session.player.cash < cost) {
+          fail("Not enough cash. You need ₦" + cost.toLocaleString("en-NG") + ".");
+          return;
+        }
+        session.player.cash -= cost;
+        session.player.life = {
+          ...session.player.life, homeId: houseId, rentDays: totalDays, lastDay: clock.dayKey(),
+        };
+        world.houseTenants[houseId] = session.player.id;
+        await saveWorld();
+        await persistSession(session);
+        send(socket, {
+          type: "housingResult", ok: true, action: "rent",
+          message: "Home secured for " + totalDays + " prepaid day(s). Paid ₦" + cost.toLocaleString("en-NG") + ".",
+          houses: housingSnapshot(session), life: session.player.life, cash: session.player.cash, today: clock.dayKey(),
+        });
+        for (const other of players.values()) {
+          if (other.player.id !== session.player.id) sendHousingState(other);
+        }
+        return;
+      }
+
+      if (message.type === "enterHome") {
+        const home = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
+        if (!home || world.houseTenants[home.id] !== session.player.id) {
+          send(socket, { type: "homeInterior", ok: false, message: "You do not currently rent a home." });
+          return;
+        }
+        const cls = HOUSE_CLASSES.find((item) => item.id === home.cls)!;
+        send(socket, {
+          type: "homeInterior", ok: true,
+          home: { id: home.id, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
+          furniture: HOME_FURNITURE[home.cls] ?? [],
+        });
+        return;
+      }
+
+      if (message.type === "parkCars" || message.type === "retrieveCars") {
+        const parked = message.type === "parkCars";
+        session.player.life = {
+          ...session.player.life, parkedCars: parked ? [...session.player.life.ownedCars] : [],
+        };
+        await persistSession(session);
+        send(socket, {
+          type: "parkingResult", ok: true, parked,
+          message: parked ? "Your cars are stored safely in the parking lot." : "Your stored cars are ready.",
+          life: session.player.life, today: clock.dayKey(),
+        });
+        return;
+      }
+
+      if (message.type === "respawn") {
+        const home = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
+        const atHome = Boolean(home && world.houseTenants[home!.id] === session.player.id);
+        const x = atHome && home ? home.x + 5 : 0;
+        const z = atHome && home ? home.z + 5 : 0;
+        session.player.x = x;
+        session.player.z = z;
+        session.player.hp = 100;
+        session.player.hunger = Math.max(session.player.hunger, 70);
+        await persistSession(session);
+        send(socket, { type: "posCorrect", x, z });
+        send(socket, {
+          type: "respawnResult", ok: true, atHome,
+          message: atHome ? "You respawned at home." : "You have no home, so you respawned at the public parking lot.",
+          x, z, life: session.player.life, today: clock.dayKey(),
+        });
         return;
       }
 

@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test:stage1": "tsx src/test-stage1.ts"
+    "test:stage1": "tsx src/test-stage1.ts",
+    "test:stage2": "tsx src/test-stage2.ts"
   },
   "engines": {
     "node": ">=20.9.0"

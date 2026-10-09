@@ -263,6 +263,7 @@
     writeToken(S.token);
 
     cash = Number(player.cash) || 0;
+    N.cash = cash;
     bank = Number(player.bank) || 0;
     hp = Number(player.hp) || 100;
     hunger = Number(player.hunger) || 82;
@@ -417,6 +418,8 @@
       if (message.type === "authOk") {
         writeToken(message.token);
         syncAccount(message.player);
+        N.houses = message.houses || [];
+        window.dispatchEvent(new CustomEvent("nrs-housing", { detail: { houses: N.houses, life: N.life, cash, today: N.today } }));
         snapshot(message.players || [], message.onlineCount);
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
@@ -449,6 +452,7 @@
         S.fuelCb = null;
         if (message.ok) {
           cash = Number(message.cash) || 0;
+          N.cash = cash;
           money();
         }
         cb?.(message);
@@ -469,12 +473,32 @@
           sys("🏚 Your home was lost: the prepaid rent ran out.");
         }
         window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
+      } else if (message.type === "housingState" || message.type === "housingResult") {
+        N.houses = message.houses || N.houses || [];
+        N.life = message.life || N.life;
+        N.today = message.today || N.today;
+        if (message.cash !== undefined) { cash = Number(message.cash) || 0; money(); }
+        if (message.type === "housingResult" && message.message) sys(message.message);
+        window.dispatchEvent(new CustomEvent("nrs-housing", { detail: { ...message, houses: N.houses, life: N.life, cash, today: N.today } }));
+      } else if (message.type === "homeInterior") {
+        window.dispatchEvent(new CustomEvent("nrs-home-interior", { detail: message }));
+        if (!message.ok && message.message) sys(message.message);
+      } else if (message.type === "parkingResult") {
+        N.life = message.life || N.life;
+        if (message.message) sys(message.message);
+        window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
+      } else if (message.type === "respawnResult") {
+        N.life = message.life || N.life;
+        if (message.message) sys(message.message);
+        window.dispatchEvent(new CustomEvent("nrs-respawn", { detail: message }));
+        window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
       } else if (message.type === "walletResult") {
         const request = S.pending.shift();
         S.busy = false;
         if (message.ok) {
           cash = Number(message.cash) || 0;
           bank = Number(message.bank) || 0;
+          N.cash = cash;
           money();
         }
         request?.cb?.(message);
@@ -589,6 +613,12 @@
 
   // Ask the server for the current life state (answer arrives as a "nrs-life" window event).
   N.getLife = () => send({ type: "getLife" });
+  N.getHousing = () => send({ type: "getHousing" });
+  N.rentHouse = (houseId, days = 1) => send({ type: "rentHouse", houseId, days });
+  N.enterHome = () => send({ type: "enterHome" });
+  N.parkCars = () => send({ type: "parkCars" });
+  N.retrieveCars = () => send({ type: "retrieveCars" });
+  N.respawn = () => send({ type: "respawn" });
 
   // Test-only. The server ignores these unless it was started with NRS_DEBUG_CLOCK=1.
   N.debugSkipDays = (days) => send({ type: "debugSkipDays", days });

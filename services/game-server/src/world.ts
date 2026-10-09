@@ -144,7 +144,7 @@ const HOUSE_PLAN: ReadonlyArray<{ cls: HouseClassId; zone: string; count: number
   { cls: "hut", zone: "Rumuola", count: 4, tag: "rum" },
   { cls: "faceme", zone: "Mile 1 Market", count: 3, tag: "m1" },
   { cls: "faceme", zone: "Rumuola", count: 3, tag: "rum" },
-  { cls: "flat", zone: "D-Line", count: 4, tag: "dl" },
+  { cls: "flat", zone: "D-Line", count: 3, tag: "dl" },
   { cls: "flat", zone: "Waterlines", count: 4, tag: "wl" },
   { cls: "estate", zone: "Trans Amadi", count: 4, tag: "ta" },
   { cls: "mansion", zone: "Old GRA", count: 3, tag: "gra" },

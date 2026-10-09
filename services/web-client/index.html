@@ -75,7 +75,15 @@ body.drv #joy,body.drv #fist,body.drv #run,body.drv #crch,body.drv #jump{display
 #bmb{position:absolute;right:.8rem;top:.6rem;display:flex;gap:.5rem}#bmb button{border:1px solid rgba(255,255,255,.3);background:rgba(10,18,32,.85);color:#fff;border-radius:.6rem;padding:.5rem .8rem;font-size:.85rem}#bmb button.on{background:#1b8cf0}
 #plc{position:absolute;left:.6rem;top:.6rem;bottom:.6rem;width:21rem;max-width:46vw;display:flex;flex-direction:column;background:rgba(10,18,32,.92);border:1px solid rgba(255,255,255,.14);border-radius:.9rem;color:#fff;overflow:hidden;z-index:2}
 #plh{padding:.7rem 1rem .4rem;font-weight:800;font-size:1.1rem}
-#plt{display:flex;gap:.4rem;padding:0 .8rem .6rem;border-bottom:1px solid rgba(255,255,255,.1)}
+.hometools{display:flex;flex-wrap:wrap;gap:.35rem;padding:.55rem .7rem;border-bottom:1px solid rgba(255,255,255,.1)}
+.hometools button,.hrent,.home-days{border:0;border-radius:.45rem;padding:.35rem .5rem;background:#155e43;color:#fff;font-size:.7rem;font-weight:800}
+.home-days{background:#24364b;max-width:3.8rem}
+.hrent{background:#087f5b;white-space:nowrap}
+.hrent:disabled{background:#4b5563;opacity:.65}
+.pr.home-row{gap:.35rem}.pr.home-row .pn{min-width:5rem}
+.pr.home-row .pd{font-size:.67rem}
+.home-state{font-weight:800;color:#7de3b2}
+#plt{display:flex;flex-wrap:wrap;gap:.4rem;padding:0 .8rem .6rem;border-bottom:1px solid rgba(255,255,255,.1)}
 #plt button{border:0;border-radius:2rem;padding:.35rem .75rem;background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-size:.78rem}
 #plt button.on{background:#1b8cf0}
 #pll{flex:1;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
@@ -152,7 +160,7 @@ body.drv #camB{display:grid}
 <button class="ped" id="brk" data-l="BRAKE" aria-label="Brake"></button><button class="ped" id="gas" data-l="GAS" aria-label="Gas"></button>
 <button class="dbtn" id="hb">HB</button><button class="dbtn" id="radio">📻</button><button class="dbtn" id="hn"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5c1.6 1.2 1.6 3.8 0 5"/></svg></button><button class="dbtn" id="camB"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></button><button class="rb" id="jump">⤴</button>
 <input type="file" id="mf" accept="audio/*" style="display:none">
-<div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="shop" class="on">Shops</button><button data-t="svc">Services</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
+<div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="shop" class="on">Shops</button><button data-t="svc">Services</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button><button data-t="homes">Homes</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
 <div id="navb"><i>NAVIGATION</i><b></b><small></small><button id="navx">✕ Cancel</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -826,24 +834,53 @@ function plData(tab){const o=[],seen={};
  if(tab==='shop')POI.forEach(q=>{if(((q.k==='Enter'&&q.t==='shop')||q.k==='Talk')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:q.k==='Enter'?'Shop · '+rdName(q.x,q.z):'Street stall · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:hex(q.col),r:7});}});
  else if(tab==='svc'){POI.forEach(q=>{if((q.t==='job'||q.t==='bank'||q.t==='atm')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:'Service · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:q.t==='atm'?'#0a4d8c':hex(q.col),r:7});}});if(job)o.push({n:'Drop-off · '+job.n,sub:'Current job · ₦'+f(job.pay),x:job.x,z:job.z,ico:'📦',c:'#b8860b',r:6});}
  else if(tab==='fuel')FS.forEach(q=>o.push({n:q.brand+' · '+q.road,sub:'₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11}));
+ else if(tab==='homes'){
+  const N=window.NRS||{},life=N.life||{};
+  (N.houses||[]).forEach(h=>{const mine=!!h.occupiedByMe,free=!!h.vacant;
+   o.push({n:(h.name||'Home')+' · '+h.id,sub:h.zone+' · ₦'+f(h.rentPerDay)+'/day · '+(mine?'YOUR HOME':free?'VACANT':'TAKEN')+(mine?' · '+(life.rentDays||0)+' day(s) prepaid':''),x:h.x,z:h.z,ico:({hut:'🛖',faceme:'🏘️',flat:'🏢',estate:'🏡',mansion:'🏰',palace:'👑'})[h.cls]||'🏠',c:mine?'#087f5b':free?'#245c8e':'#4b5563',r:8,houseId:h.id,house:h,home:true});});
+ }
  else{ZN.forEach(a=>o.push({n:a.n,sub:'District',x:(a.x1+a.x2)/2,z:(a.z1+a.z2)/2,ico:'🏙',c:'#0f5b3a',r:Math.min(30,Math.min(a.x2-a.x1,a.z2-a.z1)/3)}));o.push({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25});}
  const p=myPos();o.forEach(q=>q.d=Math.hypot(q.x-p.x,q.z-p.z));return o.sort((a,b)=>a.d-b.d);}
 function plRender(){plItems=plData(plTab);plSel=-1;
- pll.innerHTML=plItems.length?plItems.map((q,i)=>'<div class="pr" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><span class="pd">'+fmtD(q.d)+'</span><button class="pg">GO</button></div>').join(''):'<div style="padding:1rem;opacity:.7;font-size:.8rem">Nothing here yet.</div>';
+ const tools=plTab==='homes'?'<div class="hometools"><button data-housing-action="enter">🏠 Enter my home</button><button data-housing-action="park">🚗 Park all cars</button><button data-housing-action="retrieve">🔑 Retrieve cars</button><button data-housing-action="respawn">↪ Respawn</button></div>':'';
+ const rows=plItems.map((q,i)=>{if(q.home){const life=(window.NRS||{}).life||{},own=life.homeId===q.houseId,daysLeft=Math.max(0,7-(own?(life.rentDays||0):0));const canRent=(q.house.vacant||q.house.occupiedByMe)&&(!life.homeId||own)&&daysLeft>0;
+  const opts=Array.from({length:Math.max(1,daysLeft)},(_,j)=>'<option value="'+(j+1)+'">'+(j+1)+'d</option>').join('');
+  return '<div class="pr home-row" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><select class="home-days" aria-label="Prepaid days" '+(!canRent?'disabled':'')+'>'+opts+'</select><button class="hrent" data-house-action="rent" data-house-id="'+q.houseId+'" '+(!canRent?'disabled':'')+'>'+(own?'Add rent':q.house.vacant?'Rent':'Taken')+'</button><button class="pg">GO</button></div>';
+ }
+ return '<div class="pr" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><span class="pd">'+fmtD(q.d)+'</span><button class="pg">GO</button></div>';
+ }).join('');
+ pll.innerHTML=tools+(rows||'<div style="padding:1rem;opacity:.7;font-size:.8rem">'+(plTab==='homes'?'Loading homes…':'Nothing here yet.')+'</div>');
  pll.scrollTop=0;document.querySelectorAll('#plt button').forEach(b=>b.classList.toggle('on',b.dataset.t===plTab));}
-function plShow(on){plc.style.display=on?'flex':'none';$('bigmap').classList.toggle('pl',on);$('bmpl').classList.toggle('on',on);if(on)plRender();}
+function plShow(on){plc.style.display=on?'flex':'none';$('bigmap').classList.toggle('pl',on);$('bmpl').classList.toggle('on',on);if(on){if(plTab==='homes'&&window.NRS)window.NRS.getHousing();plRender();}}
 function plTick(){const n=performance.now();if(n-plT<700||plc.style.display==='none')return;plT=n;const p=myPos();
- plItems.forEach((q,i)=>{q.d=Math.hypot(q.x-p.x,q.z-p.z);const e=pll.children[i];if(e&&e.firstChild){const d=e.querySelector('.pd');if(d)d.textContent=fmtD(q.d);}});}
+ plItems.forEach((q,i)=>{q.d=Math.hypot(q.x-p.x,q.z-p.z);const e=pll.querySelector('.pr[data-i="'+i+'"]');if(e&&e.firstChild){const d=e.querySelector('.pd');if(d)d.textContent=fmtD(q.d);}});}
 function navUI(){nvB.style.display=NAV?'block':'none';if(!NAV)return;const p=myPos(),d=NAV.dist||Math.hypot(NAV.x-p.x,NAV.z-p.z);
  nvB.querySelector('b').textContent=NAV.ico+' '+NAV.name;nvB.querySelector('small').textContent=fmtD(d)+' · follow the red route';}
 function navStart(q){NAV={name:q.n,x:q.x,z:q.z,ico:q.ico,r:q.r||7,dist:0};nbc.position.set(q.x,20,q.z);rtT=0;
  const p=myPos(),dd=Math.hypot(q.x-p.x,q.z-p.z);if(MP.open){MP.x=(p.x+q.x)/2;MP.z=(p.z+q.z)/2;MP.dist=clamp(dd*1.5+70,120,420);}
  ROUTE=buildRoute(p.x,p.z,q.x,q.z);rtDirty=true;let L=0;for(let i=1;i<ROUTE.length;i++)L+=Math.hypot(ROUTE[i][0]-ROUTE[i-1][0],ROUTE[i][1]-ROUTE[i-1][1]);NAV.dist=L;navUI();sys('🧭 Navigation started: '+q.n);}
 function navStop(msg){NAV=null;nbc.visible=false;ROUTE=null;rtDirty=true;navUI();if(msg)sys(msg);}
-pll.addEventListener('click',e=>{const r=e.target.closest('.pr');if(!r)return;const i=+r.dataset.i,q=plItems[i];if(!q)return;
+pll.addEventListener('click',e=>{
+ const action=e.target.closest('[data-housing-action],[data-house-action]');
+ if(action){const N=window.NRS;if(!N)return;
+  if(action.dataset.housingAction==='enter')N.enterHome();
+  else if(action.dataset.housingAction==='park')N.parkCars();
+  else if(action.dataset.housingAction==='retrieve')N.retrieveCars();
+  else if(action.dataset.housingAction==='respawn')N.respawn();
+  else if(action.dataset.houseAction==='rent'){const row=action.closest('.pr'),days=Number(row?.querySelector('.home-days')?.value||1);N.rentHouse(action.dataset.houseId,days);}
+  return;
+ }
+ const r=e.target.closest('.pr');if(!r)return;const i=+r.dataset.i,q=plItems[i];if(!q)return;
  if(e.target.closest('.pg')){navStart(q);return;}
- plSel=i;[...pll.children].forEach((c,k)=>c.classList&&c.classList.toggle('sel',k===i));MP.x=q.x;MP.z=q.z;MP.dist=Math.min(MP.dist,160);});
-document.querySelectorAll('#plt button').forEach(b=>b.onclick=()=>{plTab=b.dataset.t;plRender();});
+ plSel=i;pll.querySelectorAll('.pr').forEach((c,k)=>c.classList.toggle('sel',k===i));MP.x=q.x;MP.z=q.z;MP.dist=Math.min(MP.dist,160);
+});
+document.querySelectorAll('#plt button').forEach(b=>b.onclick=()=>{plTab=b.dataset.t;plRender();if(plTab==='homes'&&window.NRS)window.NRS.getHousing();});
+
+function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.forEach(c=>{if(!c.id||!c.g||!c.box)return;if(!c._parkingBox)c._parkingBox={hw:c.box.hw,hd:c.box.hd};const stored=parked.has(c.id);c.g.visible=!stored;c.box.hw=stored?0:c._parkingBox.hw;c.box.hd=stored?0:c._parkingBox.hd;});}
+window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
+window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
+window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;const h=d.home||{},items=(d.furniture||[]).map(x=>'<li>'+esc(x)+'</li>').join('');panel('<b>🏠 '+esc(h.name||'Your home')+'</b><p>'+esc(h.zone||'Port Harcourt')+' · '+Number(h.rentDays||0)+' prepaid rent day(s)</p><p><b>Furnished interior</b></p><ul>'+items+'</ul><p>Your home is saved to your account.</p>');});
+window.addEventListener('nrs-respawn',e=>{const d=e.detail||{};if(d.ok){pos.set(Number(d.x)||0,0,Number(d.z)||0);vel.set(0,0,0);}});
 $('bmpl').onclick=()=>plShow(plc.style.display==='none');
 $('navx').onclick=()=>navStop('Navigation cancelled.');
 

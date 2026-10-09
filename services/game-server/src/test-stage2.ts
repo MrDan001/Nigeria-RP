@@ -1,0 +1,86 @@
+import assert from "node:assert/strict";
+import {
+  CAR_IDS,
+  GameClock,
+  HOUSES,
+  HOUSE_CLASSES,
+  MAX_PREPAID_DAYS,
+  newLife,
+  normalizeLife,
+  settleLife,
+  houseRent,
+} from "./world";
+
+let passed = 0;
+function test(name: string, fn: () => void) {
+  try {
+    fn();
+    passed += 1;
+    console.log("ok   " + name);
+  } catch (error) {
+    console.error("FAIL " + name + "\\n     " + (error as Error).message);
+    process.exitCode = 1;
+  }
+}
+
+test("housing catalogue has 30 unique homes in the planned districts", () => {
+  assert.equal(HOUSES.length, 30);
+  assert.equal(new Set(HOUSES.map((h) => h.id)).size, 30);
+  assert.ok(HOUSES.every((h) => h.zone && Number.isFinite(h.x) && Number.isFinite(h.z)));
+  for (const zone of ["Mile 1 Market", "Rumuola", "D-Line", "Waterlines", "Trans Amadi", "Old GRA"]) {
+    assert.ok(HOUSES.some((h) => h.zone === zone), zone);
+  }
+});
+
+test("all six rent prices match the approved housing plan", () => {
+  assert.deepEqual(HOUSE_CLASSES.map((h) => [h.name, h.rentPerDay]), [
+    ["Local Hut", 1000],
+    ["Face-Me-I-Face-You", 2500],
+    ["Flat", 4000],
+    ["Estate House", 7500],
+    ["Mansion", 10000],
+    ["Palace", 20000],
+  ]);
+  for (const house of HOUSES) assert.ok(houseRent(house.id) > 0, house.id);
+  assert.equal(MAX_PREPAID_DAYS, 7);
+});
+
+test("parking state persists and only owned car ids survive normalization", () => {
+  const today = new GameClock().dayKey();
+  const life = { ...newLife(today), parkedCars: ["c0", "c2"] };
+  assert.deepEqual(normalizeLife(JSON.parse(JSON.stringify(life)), today), life);
+  const repaired = normalizeLife({ ...life, ownedCars: ["c0"], parkedCars: ["c0", "c2", "unknown"] }, today);
+  assert.deepEqual(repaired.parkedCars, ["c0"]);
+  assert.ok(repaired.parkedCars.every((id) => CAR_IDS.includes(id)));
+});
+
+test("prepaid rent counts Nigeria-time midnights and evicts after days are exhausted", () => {
+  const clock = new GameClock();
+  const homeId = HOUSES[0].id;
+  const life = { ...newLife(clock.dayKey()), homeId, rentDays: 2 };
+  clock.skipDays(1);
+  let result = settleLife(life, clock.dayKey());
+  assert.equal(result.life.rentDays, 1);
+  assert.equal(result.homeLost, null);
+  clock.skipDays(1);
+  result = settleLife(result.life, clock.dayKey());
+  assert.equal(result.life.rentDays, 0);
+  assert.equal(result.homeLost, null);
+  clock.skipDays(1);
+  result = settleLife(result.life, clock.dayKey());
+  assert.equal(result.homeLost, homeId);
+  assert.equal(result.life.homeId, null);
+  assert.deepEqual(result.life.parkedCars, []);
+});
+
+test("rent settlement does not consume rent when the player has no home", () => {
+  const clock = new GameClock();
+  const life = newLife(clock.dayKey());
+  clock.skipDays(12);
+  const result = settleLife(life, clock.dayKey());
+  assert.equal(result.homeLost, null);
+  assert.equal(result.rentUsed, 0);
+  assert.equal(result.life.homeId, null);
+});
+
+console.log("\\n" + passed + " Stage 2 checks passed" + (process.exitCode ? " (with failures)" : ""));
