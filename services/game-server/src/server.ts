@@ -571,3 +571,141 @@ async function createAccount(email: string, username: string, password: string) 
     cash: 5000,
     bank: 0,
     x: 0,
+  z: 24,
+    yaw: Math.PI,
+    hp: 100,
+    hunger: 82,
+    level: 1,
+    xp: 0,
+    job: null,
+    inventory: {},
+    fuel: {},
+    life: newLife(clock.dayKey()),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await insertAccount(account);
+  } catch (error: any) {
+    if (error?.code === "23505") {
+      if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
+      if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+    }
+    throw error;
+  }
+
+  return account;
+}
+
+async function createSession(accountId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = hashToken(token);
+  const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+  if (pool) {
+    await pool.query("DELETE FROM nrs_sessions WHERE account_id=$1", [accountId]);
+    await pool.query(
+      "INSERT INTO nrs_sessions(token_hash,account_id,expires_at,created_at) VALUES ($1,$2,$3,$4)",
+      [tokenHash, accountId, expiresAt, Date.now()],
+    );
+  } else {
+    for (const [key, value] of Object.entries(fileStore.sessions)) {
+      if (value.accountId === accountId) delete fileStore.sessions[key];
+    }
+    fileStore.sessions[tokenHash] = { accountId, expiresAt };
+    writeFileStore();
+  }
+
+  return token;
+}
+
+async function resolveSession(token: string) {
+  const tokenHash = hashToken(token);
+  let session: { accountId: string; expiresAt: number } | null = null;
+
+  if (pool) {
+    const result = await pool.query(
+      "SELECT account_id,expires_at FROM nrs_sessions WHERE token_hash=$1 LIMIT 1",
+      [tokenHash],
+    );
+    if (result.rows[0]) {
+      session = {
+        accountId: String(result.rows[0].account_id),
+        expiresAt: Number(result.rows[0].expires_at),
+      };
+    }
+  } else {
+    session = fileStore.sessions[tokenHash] ?? null;
+  }
+  
+
+  if (!session || session.expiresAt < Date.now()) return null;
+  return findAccountById(session.accountId);
+}
+
+function makePlayer(account: Account): PlayerState {
+  return {
+    id: account.id,
+    name: account.username,
+    x: account.x,
+    z: account.z,
+    yaw: account.yaw,
+    hp: account.hp,
+    hunger: account.hunger,
+    level: account.level,
+    xp: account.xp,
+    cash: account.cash,
+    bank: account.bank,
+    job: account.job,
+    inventory: normalizeInventory(account.inventory),
+    fuel: normalizeFuel(account.fuel),
+    life: account.life,
+    lastSequence: -1,
+  };
+}
+
+async function persistSession(session: Session) {
+  const account = session.account;
+  account.username = session.player.name;
+  account.usernameLower = account.username.toLowerCase();
+  account.x = session.player.x;
+  account.z = session.player.z;
+  account.yaw = session.player.yaw;
+  account.hp = session.player.hp;
+  account.hunger = session.player.hunger;
+  account.level = session.player.level;
+  account.xp = session.player.xp;
+  account.cash = session.player.cash;
+  account.bank = session.player.bank;
+  account.job = normalizeJob(session.player.job);
+  account.inventory = normalizeInventory(session.player.inventory);
+  account.fuel = normalizeFuel(session.player.fuel);
+  account.life = session.player.life;
+  await saveAccount(account);
+}
+
+const webDirCandidates = [
+  path.resolve(__dirname, "../../web-client/dist"),
+  path.resolve(process.cwd(), "services/web-client/dist"),
+  path.resolve(process.cwd(), "../web-client/dist"),
+];
+
+const WEB_DIR = webDirCandidates.find((candidate) => fs.existsSync(candidate)) ?? webDirCandidates[0];
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+};
+
+const httpServer = http.createServer((request, response) => {
+  const url = new URL(request.url ?? "/", "htt
