@@ -80,6 +80,8 @@ type Session = {
   lastInputAt: number;
   lastSyncAt: number;
   rejectedSyncs: number;
+  inHome: boolean;
+  homeReturn: { x: number; z: number } | null;
 };
 
 type FileStore = {
@@ -235,7 +237,8 @@ function accountPayload(player: PlayerState) {
 }
 
 function snapshot() {
-  return [...players.values()].map((session) => publicPlayer(session.player));
+  // Private home interiors are not visible to other players in the shared street world.
+  return [...players.values()].filter((session) => !session.inHome).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -286,6 +289,13 @@ function housingSnapshot(session: Session) {
       vacant: tenant === null, occupiedByMe: tenant === session.player.id,
     };
   });
+}
+
+function homeInteriorPosition(homeId: string) {
+  const found = HOUSES.findIndex((house) => house.id === homeId);
+  const index = Math.max(0, found);
+  // Six columns by five rows, each room separated and kept inside WORLD_LIMIT.
+  return { x: 280 + (index % 6) * 28, z: 280 + Math.floor(index / 6) * 27 };
 }
 
 function sendHousingState(session: Session) {
@@ -650,8 +660,9 @@ async function persistSession(session: Session) {
   const account = session.account;
   account.username = session.player.name;
   account.usernameLower = account.username.toLowerCase();
-  account.x = session.player.x;
-  account.z = session.player.z;
+  // If a player disconnects or the server restarts indoors, resume outside the room.
+  account.x = session.inHome && session.homeReturn ? session.homeReturn.x : session.player.x;
+  account.z = session.inHome && session.homeReturn ? session.homeReturn.z : session.player.z;
   account.yaw = session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
@@ -804,6 +815,8 @@ wss.on("connection", (socket) => {
       lastInputAt: 0,
       lastSyncAt: Date.now(),
       rejectedSyncs: 0,
+      inHome: false,
+      homeReturn: null,
     };
 
     // Offline players are settled here: any midnights that passed while they were away.
@@ -950,6 +963,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "posSync") {
+        if (session.inHome) return;
         const x = Number(message.x);
         const z = Number(message.z);
         const yaw = Number(message.yaw);
@@ -1197,16 +1211,55 @@ wss.on("connection", (socket) => {
 
       if (message.type === "enterHome") {
         const home = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
+        if (session.inHome) {
+          send(socket, { type: "homeInterior", ok: false, message: "You are already inside your home." });
+          return;
+        }
         if (!home || world.houseTenants[home.id] !== session.player.id) {
           send(socket, { type: "homeInterior", ok: false, message: "You do not currently rent a home." });
           return;
         }
         const cls = HOUSE_CLASSES.find((item) => item.id === home.cls)!;
+        const room = homeInteriorPosition(home.id);
+        session.homeReturn = { x: session.player.x, z: session.player.z };
+        session.inHome = true;
+        session.player.x = room.x;
+        session.player.z = room.z + 1.4;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
         send(socket, {
           type: "homeInterior", ok: true,
-          home: { id: home.id, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
+          home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
+          roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
+          returnX: session.homeReturn.x, returnZ: session.homeReturn.z,
           furniture: HOME_FURNITURE[home.cls] ?? [],
         });
+        broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "exitHome") {
+        if (!session.inHome) {
+          send(socket, { type: "homeExitResult", ok: false, message: "You are not inside a home." });
+          return;
+        }
+        const destination = session.homeReturn ?? { x: 0, z: 24 };
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        session.inHome = false;
+        session.homeReturn = null;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        send(socket, {
+          type: "homeExitResult", ok: true,
+          x: session.player.x, z: session.player.z,
+          message: "You are back outside your home.",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
         return;
       }
 
@@ -1320,6 +1373,7 @@ setInterval(() => {
   const now = Date.now();
 
   for (const session of players.values()) {
+    if (session.inHome) continue;
     const input = now - session.lastInputAt > INPUT_TIMEOUT_MS
       ? { forward: 0, strafe: 0 }
       : session.input;
