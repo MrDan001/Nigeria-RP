@@ -268,6 +268,10 @@
     hunger = Number(player.hunger) || 82;
     job = player.job || null;
 
+    // Server-owned "life" state (job rank, home, prepaid rent, cars). Read-only on the client.
+    N.life = player.life || null;
+    N.today = player.today || "";
+
     // Restore each car's saved fuel (cars are matched by their fixed id, e.g. c0..c4).
     const savedFuel = player.fuel || {};
     for (const car of cars) {
@@ -458,6 +462,13 @@
         S.jobCb = null;
         if (message.ok && message.job) job = message.job;
         cb?.(message);
+      } else if (message.type === "lifeState" || message.type === "lifeUpdate") {
+        N.life = message.life || N.life;
+        N.today = message.today || N.today;
+        if (message.type === "lifeUpdate" && message.homeLost) {
+          sys("🏚 Your home was lost: the prepaid rent ran out.");
+        }
+        window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
       } else if (message.type === "walletResult") {
         const request = S.pending.shift();
         S.busy = false;
@@ -575,6 +586,13 @@
     S.fuelCb = callback;
     send({ type: "buyFuel", carId, litres, brand });
   };
+
+  // Ask the server for the current life state (answer arrives as a "nrs-life" window event).
+  N.getLife = () => send({ type: "getLife" });
+
+  // Test-only. The server ignores these unless it was started with NRS_DEBUG_CLOCK=1.
+  N.debugSkipDays = (days) => send({ type: "debugSkipDays", days });
+  N.debugGiveHome = (houseId, rentDays) => send({ type: "debugGiveHome", houseId, rentDays });
 
   N.saveProgress = () => {
     if (!S.authed || !S.open) return;

@@ -5,6 +5,17 @@ import { createHash, randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqua
 import { promisify } from "node:util";
 import { WebSocketServer, WebSocket } from "ws";
 import { Pool } from "pg";
+import {
+  GameClock,
+  HOUSES,
+  newLife,
+  newWorld,
+  normalizeLife,
+  normalizeWorld,
+  settleLife,
+  type Life,
+  type WorldState,
+} from "./world";
 
 const scrypt = promisify(scryptCb);
 
@@ -32,6 +43,7 @@ type Account = {
   job: JobState;
   inventory: Inventory;
   fuel: FuelMap;
+  life: Life;
   createdAt: number;
   updatedAt: number;
 };
@@ -51,6 +63,7 @@ type PlayerState = {
   job: JobState;
   inventory: Inventory;
   fuel: FuelMap;
+  life: Life;
   lastSequence: number;
 };
 
@@ -68,6 +81,7 @@ type Session = {
 type FileStore = {
   accounts: Record<string, Account>;
   sessions: Record<string, { accountId: string; expiresAt: number }>;
+  world?: WorldState;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -88,6 +102,11 @@ const SYNC_MAX_ELAPSED = 5; // seconds counted per sync, stops idle-then-telepor
 const PROTOCOL_VERSION = 1;
 const DATA_FILE = process.env.NRS_DATA_FILE ?? path.join(process.env.NRS_DATA_DIR ?? "/data", "accounts.json");
 const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
+
+// Debug clock: lets a test skip days without waiting. Off unless NRS_DEBUG_CLOCK=1.
+const DEBUG_CLOCK = process.env.NRS_DEBUG_CLOCK === "1";
+const clock = new GameClock();
+let world: WorldState = newWorld(clock.dayKey());
 
 const players = new Map<string, Session>();
 const activeAccounts = new Map<string, WebSocket>();
@@ -175,6 +194,7 @@ function normalizeAccount(account: Account): Account {
     job: normalizeJob(account.job),
     inventory: normalizeInventory(account.inventory),
     fuel: normalizeFuel(account.fuel),
+    life: normalizeLife(account.life, clock.dayKey()),
   };
 }
 
@@ -205,6 +225,8 @@ function accountPayload(player: PlayerState) {
     job: player.job,
     inventory: player.inventory,
     fuel: player.fuel,
+    life: player.life,
+    today: clock.dayKey(),
   };
 }
 
@@ -235,6 +257,52 @@ function writeFileStore() {
   const tempPath = DATA_FILE + ".tmp";
   fs.writeFileSync(tempPath, JSON.stringify(fileStore), "utf8");
   fs.renameSync(tempPath, DATA_FILE);
+}
+
+async function saveWorld() {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('world',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(world), Date.now()],
+    );
+    return;
+  }
+  fileStore.world = world;
+  writeFileStore();
+}
+
+// Settle one online player's life up to today's Nigeria-time day (rent days used, home lost).
+// Returns null when no midnight has passed since the last settle.
+function settleSession(session: Session) {
+  const result = settleLife(session.player.life, clock.dayKey());
+  if (result.midnights === 0) return null;
+  session.player.life = result.life;
+  if (result.homeLost && world.houseTenants[result.homeLost] === session.player.id) {
+    world.houseTenants[result.homeLost] = null;
+    void saveWorld().catch((error) => console.error("save-world", error));
+  }
+  return result;
+}
+
+async function runMidnight() {
+  const today = clock.dayKey();
+  if (today === world.lastDay) return;
+  world.lastDay = today;
+  await saveWorld();
+
+  for (const session of players.values()) {
+    const result = settleSession(session);
+    if (!result) continue;
+    await persistSession(session);
+    send(session.socket, {
+      type: "lifeUpdate",
+      life: session.player.life,
+      today,
+      rentUsed: result.rentUsed,
+      homeLost: result.homeLost,
+    });
+  }
 }
 
 async function initStore() {
@@ -272,6 +340,13 @@ async function initStore() {
       "CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);",
     );
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
+    );
+    const worldRow = await pool.query("SELECT value FROM nrs_world WHERE key='world' LIMIT 1");
+    world = normalizeWorld(worldRow.rows[0]?.value, clock.dayKey());
+    await saveWorld();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -290,6 +365,8 @@ async function initStore() {
     fileStore = { accounts: {}, sessions: {} };
     writeFileStore();
   }
+  world = normalizeWorld(fileStore.world, clock.dayKey());
+  await saveWorld();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
 
@@ -314,6 +391,7 @@ function accountFromRow(row: any): Account {
     job: row.job ?? null,
     inventory: row.inventory ?? {},
     fuel: row.fuel ?? {},
+    life: row.life ?? {},
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   });
@@ -388,7 +466,7 @@ async function saveAccount(account: Account) {
     await pool.query(
       "UPDATE nrs_accounts SET " +
       "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
-      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb WHERE id=$1",
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb WHERE id=$1",
       [
         account.id,
         account.username,
@@ -405,6 +483,7 @@ async function saveAccount(account: Account) {
         JSON.stringify(account.inventory),
         account.updatedAt,
         JSON.stringify(account.fuel),
+        JSON.stringify(account.life),
       ],
     );
     return;
@@ -448,6 +527,7 @@ async function createAccount(email: string, username: string, password: string) 
     job: null,
     inventory: {},
     fuel: {},
+    life: newLife(clock.dayKey()),
     createdAt: now,
     updatedAt: now,
   };
@@ -527,6 +607,7 @@ function makePlayer(account: Account): PlayerState {
     job: account.job,
     inventory: normalizeInventory(account.inventory),
     fuel: normalizeFuel(account.fuel),
+    life: account.life,
     lastSequence: -1,
   };
 }
@@ -547,6 +628,7 @@ async function persistSession(session: Session) {
   account.job = normalizeJob(session.player.job);
   account.inventory = normalizeInventory(session.player.inventory);
   account.fuel = normalizeFuel(session.player.fuel);
+  account.life = session.player.life;
   await saveAccount(account);
 }
 
@@ -582,6 +664,8 @@ const httpServer = http.createServer((request, response) => {
       service: "nigeria-rp-game-server",
       players: players.size,
       storage: pool ? "postgres" : "file-fallback",
+      day: clock.dayKey(),
+      debugClock: DEBUG_CLOCK,
     }));
     return;
   }
@@ -687,6 +771,10 @@ wss.on("connection", (socket) => {
       lastSyncAt: Date.now(),
       rejectedSyncs: 0,
     };
+
+    // Offline players are settled here: any midnights that passed while they were away.
+    const settled = settleSession(session);
+    if (settled) await persistSession(session);
 
     players.set(account.id, session);
     activeAccounts.set(account.id, socket);
@@ -1003,6 +1091,43 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "getLife") {
+        send(socket, { type: "lifeState", life: session.player.life, today: clock.dayKey() });
+        return;
+      }
+
+      // Test-only tools, refused unless the server was started with NRS_DEBUG_CLOCK=1.
+      if (message.type === "debugSkipDays" || message.type === "debugGiveHome") {
+        if (!DEBUG_CLOCK) {
+          send(socket, { type: "error", code: "DEBUG_DISABLED" });
+          return;
+        }
+
+        if (message.type === "debugSkipDays") {
+          const days = Math.floor(Number(message.days));
+          if (!Number.isFinite(days) || days < 1 || days > 60) {
+            send(socket, { type: "error", code: "INVALID_DAYS" });
+            return;
+          }
+          clock.skipDays(days);
+          await runMidnight();
+        } else {
+          const houseId = String(message.houseId ?? "");
+          const rentDays = Math.max(0, Math.min(7, Math.floor(Number(message.rentDays) || 0)));
+          if (!HOUSES.some((house) => house.id === houseId)) {
+            send(socket, { type: "error", code: "UNKNOWN_HOUSE" });
+            return;
+          }
+          session.player.life = { ...session.player.life, homeId: houseId, rentDays };
+          world.houseTenants[houseId] = session.player.id;
+          await saveWorld();
+          await persistSession(session);
+        }
+
+        send(socket, { type: "lifeState", life: session.player.life, today: clock.dayKey() });
+        return;
+      }
+
       if (message.type === "interact") {
         send(socket, {
           type: "interactionResult",
@@ -1096,6 +1221,11 @@ setInterval(() => {
     void persistSession(session).catch((error) => console.error("periodic-save", error));
   }
 }, 5000);
+
+// Checks twice a minute whether Nigeria time has crossed midnight.
+setInterval(() => {
+  void runMidnight().catch((error) => console.error("midnight", error));
+}, 30000);
 
 async function main() {
   await initStore();
