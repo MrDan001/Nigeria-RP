@@ -450,4 +450,124 @@ function accountFromRow(row: any): Account {
 
 async function findAccountByEmail(emailLower: string) {
   if (pool) {
-    const result = await pool.query("SELECT * 
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE email_lower=$1 LIMIT 1", [emailLower]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  const found = Object.values(fileStore.accounts).find((item) => String(item.emailLower ?? "").toLowerCase() === emailLower);
+  return found ? normalizeAccount(found) : null;
+}
+
+async function findAccountByUsername(usernameLower: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE username_lower=$1 LIMIT 1", [usernameLower]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  return fileStore.accounts[usernameLower] ? normalizeAccount(fileStore.accounts[usernameLower]) : null;
+}
+
+async function findAccountById(accountId: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE id=$1 LIMIT 1", [accountId]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  const account = Object.values(fileStore.accounts).find((item) => item.id === accountId);
+  return account ? normalizeAccount(account) : null;
+}
+
+async function insertAccount(account: Account) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_accounts (" +
+      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,fuel,life" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21::jsonb,$22::jsonb)",
+      [
+        account.id,
+        account.username,
+        account.usernameLower,
+        account.email,
+        account.emailLower,
+        account.passwordSalt,
+        account.passwordHash,
+        account.cash,
+        account.bank,
+        account.x,
+        account.z,
+        account.yaw,
+        account.hp,
+        account.hunger,
+        account.level,
+        account.xp,
+        JSON.stringify(account.job),
+        JSON.stringify(account.inventory),
+        account.createdAt,
+        account.updatedAt,
+        JSON.stringify(account.fuel),
+        JSON.stringify(account.life),
+      ],
+    );
+    return;
+  }
+
+  fileStore.accounts[account.usernameLower] = account;
+  writeFileStore();
+}
+
+async function saveAccount(account: Account) {
+  account.updatedAt = Date.now();
+
+  if (pool) {
+    await pool.query(
+      "UPDATE nrs_accounts SET " +
+      "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb WHERE id=$1",
+      [
+        account.id,
+        account.username,
+        account.cash,
+        account.bank,
+        account.x,
+        account.z,
+        account.yaw,
+        account.hp,
+        account.hunger,
+        account.level,
+        account.xp,
+        JSON.stringify(account.job),
+        JSON.stringify(account.inventory),
+        account.updatedAt,
+        JSON.stringify(account.fuel),
+        JSON.stringify(account.life),
+      ],
+    );
+    return;
+  }
+
+  fileStore.accounts[account.usernameLower] = account;
+  writeFileStore();
+}
+
+async function createAccount(email: string, username: string, password: string) {
+  email = sanitizeEmail(email);
+  const emailLower = email.toLowerCase();
+  if (!isValidEmail(email)) throw new Error("EMAIL_INVALID");
+  if (username.length < 3) throw new Error("USERNAME_TOO_SHORT");
+  if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) throw new Error("USERNAME_INVALID");
+  if (password.length < 6) throw new Error("PASSWORD_TOO_SHORT");
+
+  const usernameLower = username.toLowerCase();
+  if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+  if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
+
+  const { salt, hash } = await hashPassword(password);
+  const now = Date.now();
+  const account: Account = {
+    id: randomUUID(),
+    username,
+    usernameLower,
+    email,
+    emailLower,
+    passwordSalt: salt,
+    passwordHash: hash,
+    cash: 5000,
+    bank: 0,
+    x: 0,
