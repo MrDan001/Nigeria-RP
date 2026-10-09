@@ -244,7 +244,7 @@ function houseMats(cls){
  return HOUSE_MATERIALS[cls]={
   wall:new THREE.MeshLambertMaterial({map:wallMap}),roof:new THREE.MeshLambertMaterial({map:roofMap}),
   trim:M(p.trim),door:M(p.door),accent:M(p.accent),wood:M(p.door),gold:M(0xc7a75f),metal:M(0x303638),
-  concrete:M(0xa9a79e),grass:M(0x4d7040),
+  concrete:M(0xa9a79e),grass:M(0x4d7040),green:M(0x2d713d),
   glass:new THREE.MeshPhongMaterial({color:0x4c8193,transparent:true,opacity:.82,shininess:75,side:THREE.DoubleSide}),
   darkGlass:new THREE.MeshPhongMaterial({color:0x263841,transparent:true,opacity:.88,shininess:80,side:THREE.DoubleSide})
  };
@@ -362,6 +362,26 @@ function createHouseExterior(h){
   A(new THREE.BoxGeometry(9.1,.15,.22),m.gold,0,4.08,front+1.4);
   const dome=new THREE.Mesh(new THREE.SphereGeometry(2,24,14,0,Math.PI*2,0,Math.PI/2),m.roof);dome.position.set(0,.22+H+.55,-.2);dome.scale.set(1.1,1.35,1);g.add(dome);
   A(new THREE.CylinderGeometry(.075,.075,.75,10),m.gold,0,.22+H+3,-.2);
+ }
+ // Small architectural systems help each rental read as a real occupied Nigerian property.
+ // A rooftop water tank belongs on the flat-roof apartment, with platform, lid and feed pipe.
+ if(cls==="flat"){
+  A(new THREE.BoxGeometry(2.0,.16,1.9),m.concrete,-w*.32,H+.36,-d*.25);
+  A(new THREE.CylinderGeometry(.7,.76,1.45,14),m.metal,-w*.32,H+1.15,-d*.25);
+  A(new THREE.CylinderGeometry(.73,.73,.09,14),m.trim,-w*.32,H+1.91,-d*.25);
+  A(new THREE.CylinderGeometry(.08,.08,.62,8),m.metal,-w*.32,H+.05,-d*.25);
+  // Solar panels sit low on the roof so they do not obscure the building silhouette.
+  for(let i=0;i<2;i++){const solar=A(new THREE.BoxGeometry(1.45,.07,.92),m.darkGlass,w*.17+i*1.58,H+.43,-d*.23);solar.rotation.x=-.12;}
+ }
+ if(cls==="estate"){
+  for(let i=0;i<2;i++){const solar=A(new THREE.BoxGeometry(1.3,.06,.8),m.darkGlass,3.7+i*1.35,.22+H*.8+.13,-.55);solar.rotation.x=-.18;}
+ }
+ if(["flat","estate","mansion","palace"].includes(cls)){
+  const acX=w/2+.08,acZ=-d*.18,acY=Math.min(H*.68,2.65);
+  A(new THREE.BoxGeometry(.42,.5,.72),m.concrete,acX,acY,acZ);
+  A(new THREE.BoxGeometry(.06,.35,.52),m.metal,acX+.23,acY,acZ);
+  for(let i=0;i<5;i++)A(new THREE.BoxGeometry(.035,.29,.045),m.trim,acX+.27,acY-.02,acZ-.19+i*.095);
+  A(new THREE.BoxGeometry(.6,.06,.82),m.metal,acX,acY-.3,acZ);
  }
  // Windows on the visible side wall, roof gutters, plinth and front entrance porch.
  [-1,1].forEach(side=>{const sx=side*(w/2+.04);houseSideWindow(A,m,sx,Math.min(H*.6,2.1),0,1.45,1.0,side);A(new THREE.CylinderGeometry(.045,.045,H,8),m.metal,side*(w/2-.2),.22+H/2,front-.2);});
@@ -964,81 +984,151 @@ function homeRoom(d){
  const h=d.home||{},id=String(h.id||'my-home');
  if(HOME_ROOMS[id])return HOME_ROOMS[id];
  const ix=Number(d.roomX)||280,iz=Number(d.roomZ)||280,cls=h.cls||'flat';
- const colors=cls==='hut'?{wall:0xbba07c,floor:0x8b7150,wood:0x65462e,soft:0xd2b48c,trim:0x5f412c}
-  :cls==='faceme'?{wall:0xd6c9b0,floor:0x9c8b70,wood:0x694c35,soft:0x91a3ad,trim:0x5f4635}
-  :cls==='flat'?{wall:0xe7e2d7,floor:0x9c927e,wood:0x65462e,soft:0x476a80,trim:0x5b4433}
-  :cls==='estate'?{wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d}
-  :cls==='mansion'?{wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645}
-  :{wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55};
- const wall=new THREE.MeshLambertMaterial({color:colors.wall,side:THREE.DoubleSide});
- const trim=M(colors.trim),wood=M(colors.wood),soft=M(colors.soft),mattress=M(0xf0eee6),dark=M(0x26313a);
- flat(11.7,11.7,M(colors.floor),ix,.025,iz);
- flat(4.8,2.7,new THREE.MeshLambertMaterial({color:cls==='hut'?0x594638:0x5b4b3d,side:THREE.DoubleSide}),ix+.4,.035,iz+.6);
- add(new THREE.BoxGeometry(.18,4,12),wall,ix-5.91,2,iz);
- add(new THREE.BoxGeometry(.18,4,12),wall,ix+5.91,2,iz);
- add(new THREE.BoxGeometry(12,4,.18),wall,ix,2,iz-5.91);
- add(new THREE.BoxGeometry(4.8,4,.18),wall,ix-3.6,2,iz+5.91);
- add(new THREE.BoxGeometry(4.8,4,.18),wall,ix+3.6,2,iz+5.91);
- add(new THREE.BoxGeometry(2.4,1.35,.18),wall,ix,3.325,iz+5.91);
- const ceiling=add(new THREE.PlaneGeometry(12,12),new THREE.MeshLambertMaterial({color:0xcfc9bc,side:THREE.DoubleSide}),ix,4.03,iz);ceiling.rotation.x=-Math.PI/2;
- // Door frame and a visibly open wooden door, leaving a clear way in and out.
- add(new THREE.BoxGeometry(.12,2.55,.22),trim,ix-1.28,1.28,iz+5.82);
- add(new THREE.BoxGeometry(.12,2.55,.22),trim,ix+1.28,1.28,iz+5.82);
- add(new THREE.BoxGeometry(2.68,.14,.22),trim,ix,2.58,iz+5.82);
- const door=new THREE.Group();door.position.set(ix-1.2,0,iz+5.72);door.rotation.y=-.72;scene.add(door);
- add(new THREE.BoxGeometry(2.05,2.28,.12),wood,1.02,1.14,0,door);
- add(new THREE.SphereGeometry(.07,8,8),M(0xd4b36a),1.78,1.08,.075,door);
- // Side windows and inner window frames give the room daylight and real depth.
- [-1,1].forEach(side=>{const wx=ix+side*5.79,wz=iz-.35;
-  add(new THREE.BoxGeometry(.05,1.35,1.95),new THREE.MeshLambertMaterial({color:0x79b7d0,side:THREE.DoubleSide,transparent:true,opacity:.8}),wx,2.45,wz);
-  add(new THREE.BoxGeometry(.09,.09,2.12),trim,wx,3.13,wz);
-  add(new THREE.BoxGeometry(.09,.09,2.12),trim,wx,1.77,wz);
-  add(new THREE.BoxGeometry(.09,1.42,.09),trim,wx,2.45,wz-.98);
-  add(new THREE.BoxGeometry(.09,1.42,.09),trim,wx,2.45,wz+.98);
- });
- // Bed, mattress, pillows, and wardrobe.
- const bedX=ix-3.25,bedZ=iz-2.65,bw=cls==='hut'||cls==='faceme'?1.55:2.05;
- add(new THREE.BoxGeometry(bw+.16,.42,2.65),wood,bedX,.34,bedZ);
- add(new THREE.BoxGeometry(bw,.22,2.46),mattress,bedX,.66,bedZ+.02);
- add(new THREE.BoxGeometry(bw+.2,1.35,.18),trim,bedX,1.0,bedZ-1.29);
- add(new THREE.BoxGeometry(.58,.13,.43),M(0xfaf8f0),bedX-bw*.23,.83,bedZ-.78);
- add(new THREE.BoxGeometry(.58,.13,.43),M(0xfaf8f0),bedX+bw*.23,.83,bedZ-.78);
- add(new THREE.BoxGeometry(1.0,2.25,1.45),wood,ix-4.95,1.13,iz+.55);
- add(new THREE.BoxGeometry(1.03,.06,1.48),trim,ix-4.95,2.28,iz+.55);
- // A sofa lounge and coffee table for anything above the basic room classes.
- if(!['hut','faceme'].includes(cls)){
-  add(new THREE.BoxGeometry(3.25,.48,1.05),soft,ix+2.05,.48,iz+1.15);
-  add(new THREE.BoxGeometry(3.25,1.0,.28),soft,ix+2.05,1.0,iz+.68);
-  [-1,1].forEach(side=>add(new THREE.BoxGeometry(.28,.76,1.05),soft,ix+2.05+side*1.49,.72,iz+1.15));
-  add(new THREE.BoxGeometry(1.9,.22,1.05),wood,ix+.6,.48,iz+2.75);
-  add(new THREE.BoxGeometry(1.8,.08,.95),trim,ix+.6,.63,iz+2.75);
-  add(new THREE.BoxGeometry(2.0,1.14,.12),dark,ix+3.4,1.85,iz-5.53);
-  add(new THREE.BoxGeometry(1.78,.91,.04),M(0x131b23),ix+3.4,1.85,iz-5.45);
-  add(new THREE.BoxGeometry(2.35,.38,.65),wood,ix+3.4,.33,iz-5.05);
-  add(new THREE.BoxGeometry(2.0,.12,.68),trim,ix+3.4,.56,iz-5.05);
+ const plans={
+  hut:{w:8.2,d:8.0,height:2.8,wall:0xbba07c,floor:0x8b7150,wood:0x65462e,soft:0xd2b48c,trim:0x5f412c,accent:0x9a7448},
+  faceme:{w:10.2,d:8.8,height:3.0,wall:0xd6c9b0,floor:0x9c8b70,wood:0x694c35,soft:0x91a3ad,trim:0x5f4635,accent:0xb05c43},
+  flat:{w:12.2,d:10.8,height:3.25,wall:0xe7e2d7,floor:0x9c927e,wood:0x65462e,soft:0x476a80,trim:0x5b4433,accent:0x276276},
+  estate:{w:14.2,d:12.2,height:3.5,wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d,accent:0xb89a68},
+  mansion:{w:16.2,d:14.2,height:3.9,wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645,accent:0xc0a16a},
+  palace:{w:18.2,d:16.2,height:4.25,wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55,accent:0xe1c678}
+ };
+ const p=plans[cls]||plans.flat,w=p.w,depth=p.d,height=p.height,frontZ=depth/2,doorW=1.75,doorH=2.35;
+ const g=new THREE.Group();g.position.set(ix,0,iz);scene.add(g);
+ const A=(geo,mat,x,y,z)=>add(geo,mat,x,y,z,g);
+ const wall=new THREE.MeshLambertMaterial({color:p.wall,side:THREE.DoubleSide});
+ const floorMat=M(p.floor),trim=M(p.trim),wood=M(p.wood),soft=M(p.soft),accent=M(p.accent);
+ const dark=M(0x202b32),metal=M(0x343b3f),cream=M(0xf4eee0),glass=new THREE.MeshPhongMaterial({color:0x78aebd,transparent:true,opacity:.72,shininess:80,side:THREE.DoubleSide});
+ const brass=M(0xc7a55d),rug=M(cls==='hut'?0x8f633d:cls==='palace'?0x6c252c:0x76513b);
+ A(new THREE.BoxGeometry(w,.12,depth),floorMat,0,-.06,0);
+ A(new THREE.BoxGeometry(w+.06,.045,depth+.06),trim,0,.012,0);
+ A(new THREE.PlaneGeometry(w,depth),new THREE.MeshLambertMaterial({color:0xd0cabd,side:THREE.DoubleSide}),0,height,0).rotation.x=-Math.PI/2;
+ // Per-class room envelope: compact traditional room, shared compound room, apartment, family house and luxury suites.
+ const sideWinDepth=Math.min(1.65,depth*.15),sideWinHeight=1.05,sideWinY=Math.min(2.05,height*.62);
+ function sideWall(side){
+  const x=side*w/2,windows=[-depth*.22,depth*.22].map(v=>({z:v,start:v-sideWinDepth/2,end:v+sideWinDepth/2})).sort((a,b)=>a.start-b.start);
+  let cursor=-depth/2;
+  windows.forEach(win=>{
+   const before=win.start-cursor;
+   if(before>.05)A(new THREE.BoxGeometry(.18,height,before),wall,x,height/2,cursor+before/2);
+   const lower=sideWinY-sideWinHeight/2,upper=height-(sideWinY+sideWinHeight/2);
+   if(lower>.05)A(new THREE.BoxGeometry(.18,lower,sideWinDepth),wall,x,lower/2,win.z);
+   if(upper>.05)A(new THREE.BoxGeometry(.18,upper,sideWinDepth),wall,x,sideWinY+sideWinHeight/2+upper/2,win.z);
+   A(new THREE.BoxGeometry(.055,sideWinHeight,sideWinDepth-.08),glass,x-side*.025,sideWinY,win.z);
+   A(new THREE.BoxGeometry(.12,.075,sideWinDepth+.12),trim,x-side*.04,sideWinY+sideWinHeight/2+.025,win.z);
+   A(new THREE.BoxGeometry(.12,.075,sideWinDepth+.12),trim,x-side*.04,sideWinY-sideWinHeight/2-.025,win.z);
+   A(new THREE.BoxGeometry(.12,sideWinHeight+.12,.075),trim,x-side*.04,sideWinY,win.z-sideWinDepth/2-.025);
+   A(new THREE.BoxGeometry(.12,sideWinHeight+.12,.075),trim,x-side*.04,sideWinY,win.z+sideWinDepth/2+.025);
+   A(new THREE.BoxGeometry(.08,sideWinHeight,.045),metal,x-side*.055,sideWinY,win.z);
+   A(new THREE.BoxGeometry(.12,.05,sideWinDepth),metal,x-side*.055,sideWinY,win.z);
+   cursor=win.end;
+  });
+  if(depth/2-cursor>.05)A(new THREE.BoxGeometry(.18,height,depth/2-cursor),wall,x,height/2,cursor+(depth/2-cursor)/2);
  }
- // Small table, fan, kitchen counter, dining set and tier-specific decoration.
- add(new THREE.CylinderGeometry(.06,.06,.62,8),wood,ix+.2,.34,iz-.45);
- add(new THREE.CylinderGeometry(.63,.63,.12,12),trim,ix+.2,.68,iz-.45);
- add(new THREE.CylinderGeometry(.035,.035,.55,8),dark,ix+.2,1.02,iz-.45);
- add(new THREE.BoxGeometry(1.15,.08,.08),M(0x30363b),ix+.2,1.28,iz-.45);
- add(new THREE.BoxGeometry(2.25,.75,.72),wood,ix+4.75,.42,iz-2.4);
- add(new THREE.BoxGeometry(2.3,.12,.78),trim,ix+4.75,.84,iz-2.4);
- if(['estate','mansion','palace'].includes(cls)){
-  add(new THREE.BoxGeometry(2.8,.95,.72),wood,ix+3.65,.5,iz-3.85);
-  add(new THREE.BoxGeometry(2.85,.12,.77),trim,ix+3.65,1.03,iz-3.85);
-  add(new THREE.BoxGeometry(.12,1.35,.85),wood,ix+2.55,1.02,iz-3.85);
-  add(new THREE.BoxGeometry(.12,1.35,.85),wood,ix+4.75,1.02,iz-3.85);
-  for(let k=0;k<3;k++)add(new THREE.BoxGeometry(.36,.2,.25),M(0x8f8f86),ix+2.85+k*.8,.64,iz-3.85);
-  if(cls==='palace')for(let k=0;k<3;k++)add(new THREE.CylinderGeometry(.06,.06,2.4,8),trim,ix-1.5+k*1.5,2.7,iz-5.5);
+ sideWall(-1);sideWall(1);
+ // Rear wall has a real window opening; the front wall leaves a walkable doorway.
+ const backWinW=Math.min(3.1,w*.3),backWinH=1.15,backWinY=Math.min(2.05,height*.62),backZ=-depth/2;
+ const sideWidth=(w-backWinW)/2;
+ A(new THREE.BoxGeometry(sideWidth,height,.18),wall,-backWinW/2-sideWidth/2,height/2,backZ);
+ A(new THREE.BoxGeometry(sideWidth,height,.18),wall,backWinW/2+sideWidth/2,height/2,backZ);
+ const lowerBack=backWinY-backWinH/2,upperBack=height-(backWinY+backWinH/2);
+ if(lowerBack>.05)A(new THREE.BoxGeometry(backWinW,lowerBack,.18),wall,0,lowerBack/2,backZ);
+ if(upperBack>.05)A(new THREE.BoxGeometry(backWinW,upperBack,.18),wall,0,backWinY+backWinH/2+upperBack/2,backZ);
+ A(new THREE.BoxGeometry(backWinW-.1,backWinH-.08,.055),glass,0,backWinY,backZ+.045);
+ A(new THREE.BoxGeometry(backWinW+.16,.075,.13),trim,0,backWinY+backWinH/2+.025,backZ+.045);
+ A(new THREE.BoxGeometry(backWinW+.16,.075,.13),trim,0,backWinY-backWinH/2-.025,backZ+.045);
+ A(new THREE.BoxGeometry(.08,backWinH+.12,.13),trim,-backWinW/2-.04,backWinY,backZ+.045);
+ A(new THREE.BoxGeometry(.08,backWinH+.12,.13),trim,backWinW/2+.04,backWinY,backZ+.045);
+ A(new THREE.BoxGeometry(.06,backWinH,.06),metal,0,backWinY,backZ+.085);
+ A(new THREE.BoxGeometry(backWinW, .06,.06),metal,0,backWinY,backZ+.085);
+ const frontSeg=(w-doorW)/2;
+ A(new THREE.BoxGeometry(frontSeg,height,.18),wall,-doorW/2-frontSeg/2,height/2,frontZ);
+ A(new THREE.BoxGeometry(frontSeg,height,.18),wall,doorW/2+frontSeg/2,height/2,frontZ);
+ A(new THREE.BoxGeometry(doorW,height-doorH,.18),wall,0,doorH+(height-doorH)/2,frontZ);
+ // Thick door frame, open timber door, raised threshold and two exterior steps.
+ A(new THREE.BoxGeometry(.12,doorH+.14,.22),trim,-doorW/2-.08,doorH/2,frontZ-.02);
+ A(new THREE.BoxGeometry(.12,doorH+.14,.22),trim,doorW/2+.08,doorH/2,frontZ-.02);
+ A(new THREE.BoxGeometry(doorW+.28,.13,.22),trim,0,doorH+.06,frontZ-.02);
+ const door=new THREE.Group();door.position.set(-doorW/2,0,frontZ-.1);door.rotation.y=-.48;g.add(door);
+ add(new THREE.BoxGeometry(doorW-.08,doorH-.08,.12),wood,(doorW-.08)/2,doorH/2,0,door);
+ add(new THREE.BoxGeometry((doorW-.08)*.7,.72,.045),accent,(doorW-.08)/2,doorH*.64,.085,door);
+ add(new THREE.SphereGeometry(.055,10,8),brass,doorW-.2,1.04,.1,door);
+ A(new THREE.BoxGeometry(2.45,.16,.72),M(0xa7a49c),0,.02,frontZ+.52);
+ A(new THREE.BoxGeometry(2.05,.14,.58),M(0xc0bdb3),0,.12,frontZ+.91);
+ A(new THREE.BoxGeometry(doorW,.08,.32),brass,0,.07,frontZ+.08);
+ // Interior wall skirting, painted pilasters and warm ceiling light.
+ [-1,1].forEach(side=>A(new THREE.BoxGeometry(.22,.18,depth-.3),trim,side*(w/2-.06),.14,0));
+ A(new THREE.BoxGeometry(w-.3,.16,.2),trim,0,.14,-depth/2+.08);
+ A(new THREE.BoxGeometry(w-doorW-.3,.16,.2),trim,0,.14,frontZ-.08);
+ const lampY=height-.18;
+ A(new THREE.CylinderGeometry(.23,.28,.12,16),brass,0,lampY,0);
+ A(new THREE.SphereGeometry(.18,12,8),new THREE.MeshBasicMaterial({color:0xffe8a8}),0,lampY-.15,0);
+ // Every home has a woven centre rug; its finish reflects the rented class.
+ A(new THREE.BoxGeometry(w*.48,.025,depth*.28),rug,w*.08,.075,depth*.11);
+ A(new THREE.BoxGeometry(w*.48-.12,.027,depth*.28-.12),accent,w*.08,.093,depth*.11);
+ // Bed and wardrobe anchor the sleeping area on the left so the door and walkway stay clear.
+ const bedW=cls==='hut'?1.25:cls==='faceme'?1.5:cls==='flat'?1.8:cls==='estate'?2.0:2.15:2.35,bedD=cls==='hut'?2.0:2.45;
+ const bedX=-w*.28,bedZ=-depth*.24;
+ A(new THREE.BoxGeometry(bedW+.16,.38,bedD+.18),wood,bedX,.25,bedZ);
+ A(new THREE.BoxGeometry(bedW,.18,bedD),cream,bedX,.51,bedZ+.02);
+ A(new THREE.BoxGeometry(bedW+.22,.86,.16),trim,bedX,.82,bedZ-bedD/2-.05);
+ A(new THREE.BoxGeometry(bedW*.38,.11,.38),cream,bedX-bedW*.26,.66,bedZ-bedD/2+.28);
+ A(new THREE.BoxGeometry(bedW*.38,.11,.38),cream,bedX+bedW*.26,.66,bedZ-bedD/2+.28);
+ A(new THREE.BoxGeometry(.82,1.85,.85),wood,-w*.39,.96,depth*.12);
+ A(new THREE.BoxGeometry(.88,.08,.91),trim,-w*.39,1.92,depth*.12);
+ // Small homes receive traditional seating and practical storage; larger rentals get a complete lounge.
+ if(cls==='hut'){
+  A(new THREE.CylinderGeometry(.25,.31,.48,10),M(0x925b35),w*.27,.26,depth*.23);
+  A(new THREE.CylinderGeometry(.12,.15,.23,10),M(0x6a452e),w*.27,.59,depth*.23);
+  A(new THREE.BoxGeometry(1.15,.32,.7),wood,w*.27,.38,depth*.33);
+  A(new THREE.BoxGeometry(.62,.45,.62),soft,w*.27,.3,depth*.05);
+ }else if(cls==='faceme'){
+  A(new THREE.BoxGeometry(1.05,.35,.68),soft,w*.28,.36,depth*.21);
+  A(new THREE.BoxGeometry(.78,.4,.7),soft,w*.31,.53,depth*.21);
+  A(new THREE.BoxGeometry(1.3,.13,.78),wood,w*.21,.6,depth*.02);
+  A(new THREE.BoxGeometry(.08,.48,.08),metal,w*.21-.48,.31,depth*.02);
+  A(new THREE.BoxGeometry(.08,.48,.08),metal,w*.21+.48,.31,depth*.02);
+ }else{
+  const sofaX=w*.27,sofaZ=depth*.13,sofaW=Math.min(3.4,w*.28);
+  A(new THREE.BoxGeometry(sofaW,.48,.94),soft,sofaX,.43,sofaZ);
+  A(new THREE.BoxGeometry(sofaW, .72,.22),soft,sofaX,.84,sofaZ-.37);
+  [-1,1].forEach(side=>A(new THREE.BoxGeometry(.22,.66,.98),soft,sofaX+side*(sofaW/2-.11),.68,sofaZ));
+  A(new THREE.BoxGeometry(1.55,.2,.82),wood,0,.4,depth*.16);
+  A(new THREE.BoxGeometry(1.48,.06,.74),trim,0,.53,depth*.16);
+  A(new THREE.BoxGeometry(2.35,1.32,.14),wood,w*.24,1.78,-depth/2+.18);
+  A(new THREE.BoxGeometry(2.12,1.1,.045),dark,w*.24,1.78,-depth/2+.09);
+  A(new THREE.BoxGeometry(2.45,.15,.64),wood,w*.24,.24,-depth/2+.55);
+  A(new THREE.BoxGeometry(2.05,.09,.68),trim,w*.24,.36,-depth/2+.55);
+  if(['estate','mansion','palace'].includes(cls)){
+   // Proper dining area with a table, chairs, and pendant light in larger homes.
+   const dx=w*.27,dz=-depth*.24;
+   A(new THREE.BoxGeometry(2.55,.15,1.25),wood,dx,.95,dz);
+   A(new THREE.BoxGeometry(2.42,.07,1.13),trim,dx,1.06,dz);
+   for(const ox of [-.9,.9])for(const oz of [-.75,.75]){
+    A(new THREE.BoxGeometry(.62,.14,.62),wood,dx+ox,.43,dz+oz);
+    A(new THREE.BoxGeometry(.62,.58,.12),soft,dx+ox,.72,dz+oz-Math.sign(oz)*.22);
+    A(new THREE.BoxGeometry(.12,.82,.12),wood,dx+ox,.43,dz+oz);
+   }
+  }
+  if(['mansion','palace'].includes(cls)){
+   A(new THREE.CylinderGeometry(.05,.05,.62,10),brass,sofaX,2.28,sofaZ);
+   A(new THREE.SphereGeometry(.22,14,10),new THREE.MeshBasicMaterial({color:0xffe4a1}),sofaX,2.0,sofaZ);
+   for(let i=0;i<4;i++){const blade=A(new THREE.BoxGeometry(.08,.025,.7),brass,0,height-.25,0);blade.rotation.y=i*Math.PI/2;}
+   A(new THREE.SphereGeometry(.23,12,8),brass,0,height-.29,0);
+  }
  }
- // Rugs, a potted plant and a warm ceiling light finish the space.
- add(new THREE.CylinderGeometry(.2,.28,.36,10),M(0x8b5b35),ix+4.7,.18,iz+3.8);
- add(new THREE.SphereGeometry(.48,10,8),M(0x2d813d),ix+4.7,.73,iz+3.8);
- add(new THREE.CylinderGeometry(.28,.28,.12,12),M(0xe3c078),ix,3.67,iz);
- add(new THREE.SphereGeometry(.16,10,8),M(0xffe5a6),ix,3.45,iz);
- mini('EXIT',ix,3.05,iz+5.58,2.1,'#117044');
- return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),x:ix,z:iz,cb:{x:ix-4.95,z:iz+.55,hw:.7,hd:.75},pois:[{x:ix,z:iz+4.45,k:'Exit',name:'Leave home',r:1.75}],isHome:true};
+ // Modern and luxury rooms receive a house plant near a window; smaller compounds stay uncluttered.
+ if(['flat','estate','mansion','palace'].includes(cls)){
+  A(new THREE.CylinderGeometry(.22,.28,.32,10),M(0x8b5b35),w*.4,.16,depth*.34);
+  A(new THREE.SphereGeometry(.42,12,10),M(0x2d813d),w*.4,.62,depth*.34);
+ }
+ // Collision edges match the visible room shell while leaving the door opening clear.
+ const addCollider=(x,z,hw,hd)=>boxes.push({x:ix+x,z:iz+z,hw,hd,homeInteriorId:id});
+ addCollider(-w/2,0,.12,depth/2);addCollider(w/2,0,.12,depth/2);
+ addCollider(0,-depth/2,w/2,.12);
+ addCollider(-doorW/2-frontSeg/2,frontZ,frontSeg/2,.12);
+ addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
+ mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
+ return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),x:ix,z:iz,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
 }
 const ROOMS={};
 function room(p){if(ROOMS[p.id])return ROOMS[p.id];
@@ -1323,4 +1413,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-garage-gate-validation-v1"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-garage-gate-validation-v2"></script></body></html>
