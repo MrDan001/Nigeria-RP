@@ -162,7 +162,7 @@ const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>>
   "mansion-gra-01": { x: -200, z: -228 },
   "palace-gra-02": { x: -172, z: -228 },
   "mansion-gra-02": { x: -144, z: -228 },
-  "mansion-gra-03": { x: -116.5, z: -228 },
+  "mansion-gra-03": { x: -117, z: -228 },
 };
 
 function buildHouses(): HouseDef[] {
