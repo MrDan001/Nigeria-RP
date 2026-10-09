@@ -83,7 +83,7 @@ Scope and intended behavior:
 - Walkable furnished home interiors with an EXIT interaction.
 - EXIT presents two choices:
   1. **Exit directly to street** — return on foot to the rented home's outdoor approach.
-  2. **Private car park** — enter a covered garage, choose an owned car, spawn it in a numbered bay, drive to the marked gate, stop and honk to enter the street in the car.
+  2. **Private car park** — enter a covered garage, choose an owned car, register its spawn with the server, drive through the marked gate, stop and honk to enter the street. Garage position samples are bounded and the server derives recent movement speed to reject direct or invalid exit requests; full server-owned vehicle physics remains a separate milestone.
 - Camera orientation and zoom remain stable while moving; touch-look and camera-mode changes are allowed only at rest; steering is responsive without moving the camera.
 - Eviction must not delete vehicle ownership.
 
@@ -98,7 +98,8 @@ Acceptance:
 - [ ] Server rejects renting a taken home or a second home.
 - [ ] Approach the actual home entrance, enter, walk around and reach EXIT.
 - [ ] Direct exit returns to the correct outdoor approach.
-- [ ] Car park only lists vehicles owned by the account.
+- [ ] Car park only lists vehicles owned by the account; the server rejects unowned or unregistered garage spawns.
+- [ ] Server rejects exit requests when the car has not reached the gate, is moving, has stale samples or the horn is not held.
 - [ ] Spawn car, drive down the visible exit lane, stop/honk and emerge on the street in that car.
 - [ ] While moving, touch-look cannot rotate the camera and zoom stays fixed; while stopped, camera can be adjusted.
 - [ ] Touch steering, brakes and reverse respond cleanly without screen rotation.
