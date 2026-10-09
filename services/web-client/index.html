@@ -677,7 +677,8 @@ function hudAct(){const a=$('act');
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
   standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
- else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;sitIn(driving);camPitch=.28;wheelA=0;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}};
+ else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;sitIn(driving);camPitch=.28;wheelA=0;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
+ else if(inside?.isCarpark){openGarageSpawnMenu();}};
 /* seated driver: player rides inside the car body, hands on the wheel, legs forward */
 function sitIn(c){c.body.add(player);player.position.set(.42,-.06,-.3);player.rotation.set(0,0,0);player.scale.setScalar(.85);player.visible=true;shadow.visible=false;
  model.rotation.y=0;model.position.y=0;model.scale.y=1;crouch=false;$('crch').classList.remove('on');
@@ -712,7 +713,7 @@ function panel(h){modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.s
 
 function openExitRouteMenu(){if(!inside)return;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. In the private car park, select an owned car, drive to the striped gate, stop, and hold the horn to join the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button><button data-exit-route="carpark">🚗 Go to the private car park<br><small>Spawn one of your cars and drive out.</small></button>');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:-r.ret.sx*Math.PI/2;camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';}
-function garageRoom(d){if(HOME_ROOMS.__privateGarage)return HOME_ROOMS.__privateGarage;const ix=Number(d.garageX)||455,iz=Number(d.garageZ)||455,m=M(0x969c9d),dark=M(0x343b3e),yellow=M(0xe4ba3b),white=M(0xecebe4),metal=M(0x41494d),glass=new THREE.MeshPhongMaterial({color:0x477c8b,transparent:true,opacity:.6,shininess:70,side:THREE.DoubleSide);
+function garageRoom(d){if(HOME_ROOMS.__privateGarage)return HOME_ROOMS.__privateGarage;const ix=Number(d.garageX)||455,iz=Number(d.garageZ)||455,m=M(0x969c9d),dark=M(0x343b3e),yellow=M(0xe4ba3b),white=M(0xecebe4),metal=M(0x41494d),glass=new THREE.MeshPhongMaterial({color:0x477c8b,transparent:true,opacity:.6,shininess:70,side:THREE.DoubleSide});
  flat(36,40,M(0x555c5f),ix,.02,iz);flat(29,33,M(0x6c7476),ix,.035,iz);
  [-14,14].forEach(side=>{add(new THREE.BoxGeometry(.65,6.1,33),m,ix+side,3,iz-.5);for(let z=-14;z<=13;z+=9){add(new THREE.BoxGeometry(.62,6.1,.62),metal,ix+side,3,iz+z);add(new THREE.BoxGeometry(.82,.24,.82),white,ix+side,6.12,iz+z);}});
  add(new THREE.BoxGeometry(29,.45,.75),m,ix,5.8,iz-16);add(new THREE.BoxGeometry(29,.45,.75),m,ix,5.8,iz+16);add(new THREE.BoxGeometry(28,.4,.7),dark,ix,6.03,iz);
@@ -1292,4 +1293,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v2"></script></body></html>
