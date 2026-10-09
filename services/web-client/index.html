@@ -244,7 +244,7 @@ function houseMats(cls){
   darkGlass:new THREE.MeshPhongMaterial({color:0x263841,transparent:true,opacity:.88,shininess:80,side:THREE.DoubleSide})
  };
 }
-function houseGable(w,d,rise,mat){const shape=new THREE.Shape();shape.moveTo(-w/2,0);shape.lineTo(w/2,0);shape.lineTo(0,rise);shape.closePath();const geo=new THREE.ExtrudeGeometry(shape,{depth:d,bevelEnabled:true,bevelThickness:.04,bevelSize:.035,bevelSegments:1});geo.translate(0,0,-d/2);return new THREE.Mesh(geo,mat);}
+function houseGable(w,d,rise){const shape=new THREE.Shape();shape.moveTo(-w/2,0);shape.lineTo(w/2,0);shape.lineTo(0,rise);shape.closePath();const geo=new THREE.ExtrudeGeometry(shape,{depth:d,bevelEnabled:true,bevelThickness:.04,bevelSize:.035,bevelSegments:1});geo.translate(0,0,-d/2);return geo;}
 function houseFrontWindow(A,m,x,y,z,w,h){
  A(new THREE.BoxGeometry(w+.16,h+.16,.13),m.trim,x,y,z);
  A(new THREE.BoxGeometry(w,h,.07),m.glass,x,y,z+.075);
@@ -282,9 +282,8 @@ function createHouseExterior(h){
  A(new THREE.BoxGeometry(w+.65,.22,d+.65),m.concrete,0,.11,0);
  A(new THREE.BoxGeometry(Math.max(2.4,w*.29),.08,6.0),m.concrete,0,.16,front+3.4);
  for(let k=0;k<5;k++)A(new THREE.BoxGeometry(Math.max(2.4,w*.29)+.1,.018,.06),m.trim,0,.215,front+1.1+k*1.08);
- A(new THREE.BoxGeometry(w,H,d),m.wall,0,.22+H/2,0);
- A(new THREE.BoxGeometry(w+.22,.25,d+.22),m.trim,0,.28,0);
- A(new THREE.BoxGeometry(w+.35,.15,.25),m.trim,0,.22+H-.12,front+.035);
+ if(cls==="hut"){A(new THREE.CylinderGeometry(w*.48,w*.5,.25,12),m.trim,0,.28,0);}
+ else{A(new THREE.BoxGeometry(w,H,d),m.wall,0,.22+H/2,0);A(new THREE.BoxGeometry(w+.22,.25,d+.22),m.trim,0,.28,0);A(new THREE.BoxGeometry(w+.35,.15,.25),m.trim,0,.22+H-.12,front+.035);}
  // Every class gets actual windows, a frame, drain pipes and a door, but not the same silhouette.
  if(cls==="hut"){
   // Earth-toned round mud hut with a high palm-thatched cone roof.
