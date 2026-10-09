@@ -483,6 +483,12 @@
       } else if (message.type === "homeInterior") {
         window.dispatchEvent(new CustomEvent("nrs-home-interior", { detail: message }));
         if (!message.ok && message.message) sys(message.message);
+      } else if (message.type === "homeExitResult") {
+        if (message.ok) {
+          window.dispatchEvent(new CustomEvent("nrs-home-exit", { detail: message }));
+        } else if (message.message) {
+          sys(message.message);
+        }
       } else if (message.type === "parkingResult") {
         N.life = message.life || N.life;
         if (message.message) sys(message.message);
@@ -616,6 +622,7 @@
   N.getHousing = () => send({ type: "getHousing" });
   N.rentHouse = (houseId, days = 1) => send({ type: "rentHouse", houseId, days });
   N.enterHome = () => send({ type: "enterHome" });
+  N.exitHome = () => send({ type: "exitHome" });
   N.parkCars = () => send({ type: "parkCars" });
   N.retrieveCars = () => send({ type: "retrieveCars" });
   N.respawn = () => send({ type: "respawn" });
