@@ -1343,7 +1343,10 @@ wss.on("connection", (socket) => {
         const rentedHome = session.player.life.homeId && world.houseTenants[session.player.life.homeId] === session.player.id
           ? homeStreetPosition(session.player.life.homeId)
           : null;
-        const destination = rentedHome ?? session.homeReturn ?? { x: 0, z: 24 };
+        // Preserve the exact exterior/room return route that was saved when the
+        // player entered the garage. Only fall back to their rented home's approach
+        // if the return point is missing (e.g. a legacy session).
+        const destination = session.homeReturn ?? rentedHome ?? { x: 0, z: 24 };
         session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
         session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
         session.player.yaw = 0;
