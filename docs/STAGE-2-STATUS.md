@@ -11,9 +11,10 @@
 - Street rendering has textured asphalt/sidewalk surfaces, lane markings, curbs, crosswalks and streetlights; nearby residential models are built on demand to reduce startup/mobile cost.
 - The rented-home interior is a walkable 3D room with furniture and an EXIT interaction.
 - EXIT opens a choice menu: return to the street on foot, or enter the private car park.
-- The private car park has marked bays and an exit lane. The client can display owned vehicles as spawn options; the intended flow is to spawn one, drive to the marked gate, stop and honk to exit onto the street.
-- Server messages cover car-park entry/exit and validate that the account owns the selected vehicle. Route-error events fade out a transition overlay if the server rejects a route request.
-- Driving camera work freezes camera rotation/touch-look and zoom while the vehicle moves, allows camera adjustment at rest, and uses a more responsive steering curve.
+- The private car park has marked bays and an exit lane. Car spawning is now registered by the server and remains limited to vehicles owned by the account.
+- While a car is in the private garage, the browser streams bounded position samples. The server derives speed from accepted samples and rejects exit requests unless the registered car is recently tracked at the marked gate, stopped, owned by the account and accompanied by a held-horn request. This improves route validation; it is not a substitute for full server-authoritative vehicle physics.
+- The six rental classes now have different interior dimensions and furnishing plans, including a compact hut, a shared-compound room, an apartment lounge, family-house dining space and larger luxury suites. Modern exterior details include rooftop water storage, solar panels and air-conditioning units where appropriate.
+- Route-error events fade out a transition overlay if the server rejects a route request. Driving camera work freezes camera rotation/touch-look and zoom while the vehicle moves, allows camera adjustment at rest, and uses a more responsive steering curve.
 - Vehicle ownership is separate from rent, so losing a home must not delete the player's owned cars.
 - Test file covers the rent table, 30-home catalogue, parking-state normalization and rent-day settlement. Residential road/lot placement assertions have also been added.
 
@@ -32,8 +33,8 @@ Rent can be prepaid for up to seven days.
 
 ## Known limitations — do not hide these
 
-- Residential and road models use generated Three.js geometry and procedural textures. They are more differentiated than cubes, but this is not yet photorealistic authored asset work.
-- Vehicle movement still runs mainly in the browser. Server-side ownership and garage-route checks exist, but authoritative vehicle physics, server collision/speed validation and multiplayer vehicle replication are future work.
+- Residential and road models still use generated Three.js geometry and procedural textures. The housing classes now have stronger silhouettes and tailored interiors, but the city is not yet photorealistic authored-asset work; inspect the live result before making a quality claim.
+- Vehicle movement still runs mainly in the browser. Garage position samples are bounded and the exit gate checks recent movement-derived speed, but full authoritative vehicle physics, collision validation and multiplayer vehicle replication remain future work.
 - House coordinates are duplicated between `services/game-server/src/world.ts` and client plot reservations in `services/web-client/index.html`; those definitions must remain aligned.
 - CI passing does not confirm that the player can visually enter the correct room, drive through the actual gate, or view the right camera orientation. Those need real browser/device testing.
 
