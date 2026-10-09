@@ -571,7 +571,7 @@ async function createAccount(email: string, username: string, password: string) 
     cash: 5000,
     bank: 0,
     x: 0,
-  z: 24,
+    z: 24,
     yaw: Math.PI,
     hp: 100,
     hunger: 82,
@@ -708,7 +708,7 @@ const MIME: Record<string, string> = {
 };
 
 const httpServer = http.createServer((request, response) => {
-  const url = new URL(request.url ?? "/", "http:p://" + (request.headers.host ?? "localhost"));
+  const url = new URL(request.url ?? "/", "http://" + (request.headers.host ?? "localhost"));
 
   if (url.pathname === "/health") {
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
