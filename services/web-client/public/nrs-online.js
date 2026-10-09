@@ -481,13 +481,15 @@
         if (message.type === "housingResult" && message.message) sys(message.message);
         window.dispatchEvent(new CustomEvent("nrs-housing", { detail: { ...message, houses: N.houses, life: N.life, cash, today: N.today } }));
       } else if (message.type === "homeInterior") {
+        if (!message.ok) window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
         window.dispatchEvent(new CustomEvent("nrs-home-interior", { detail: message }));
         if (!message.ok && message.message) sys(message.message);
       } else if (message.type === "homeExitResult") {
         if (message.ok) {
           window.dispatchEvent(new CustomEvent("nrs-home-exit", { detail: message }));
-        } else if (message.message) {
-          sys(message.message);
+        } else {
+          window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
+          if (message.message) sys(message.message);
         }
       } else if (message.type === "carparkEnterResult") {
         if (message.ok) {
@@ -495,8 +497,9 @@
           N.today = message.today || N.today;
           window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
           window.dispatchEvent(new CustomEvent("nrs-carpark-enter", { detail: message }));
-        } else if (message.message) {
-          sys(message.message);
+        } else {
+          window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
+          if (message.message) sys(message.message);
         }
       } else if (message.type === "carparkExitResult") {
         if (message.ok) {
@@ -504,8 +507,9 @@
           N.today = message.today || N.today;
           window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
           window.dispatchEvent(new CustomEvent("nrs-carpark-exit", { detail: message }));
-        } else if (message.message) {
-          sys(message.message);
+        } else {
+          window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
+          if (message.message) sys(message.message);
         }
       } else if (message.type === "parkingResult") {
         N.life = message.life || N.life;
