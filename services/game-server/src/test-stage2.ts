@@ -32,6 +32,24 @@ test("housing catalogue has 30 unique homes in the planned districts", () => {
   }
 });
 
+test("large residential homes sit off the Trans Amadi Road and their plots do not overlap", () => {
+  const widths: Record<string, number> = {
+    hut: 5.6, faceme: 10.5, flat: 11.5, estate: 14, mansion: 17, palace: 21,
+  };
+  const estateRow = HOUSES.filter((h) => h.zone === "Trans Amadi");
+  assert.equal(estateRow.length, 4);
+  assert.ok(estateRow.every((h) => h.z <= -220), "estate homes should sit behind Trans Amadi Road (z=-190)");
+  const oldGra = HOUSES.filter((h) => h.zone === "Old GRA").sort((a, b) => a.x - b.x);
+  assert.equal(oldGra.length, 5);
+  assert.ok(oldGra.every((h) => h.z <= -220), "Old GRA properties must not be built on the road");
+  for (let i = 1; i < oldGra.length; i++) {
+    const previous = oldGra[i - 1], current = oldGra[i];
+    const previousLotHalf = widths[previous.cls] / 2 + 4;
+    const currentLotHalf = widths[current.cls] / 2 + 4;
+    assert.ok(current.x - previous.x >= previousLotHalf + currentLotHalf, `${previous.id} and ${current.id} plots overlap`);
+  }
+});
+
 test("all six rent prices match the approved housing plan", () => {
   assert.deepEqual(HOUSE_CLASSES.map((h) => [h.name, h.rentPerDay]), [
     ["Local Hut", 1000],
