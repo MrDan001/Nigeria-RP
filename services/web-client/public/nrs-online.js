@@ -489,6 +489,24 @@
         } else if (message.message) {
           sys(message.message);
         }
+      } else if (message.type === "carparkEnterResult") {
+        if (message.ok) {
+          N.life = message.life || N.life;
+          N.today = message.today || N.today;
+          window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
+          window.dispatchEvent(new CustomEvent("nrs-carpark-enter", { detail: message }));
+        } else if (message.message) {
+          sys(message.message);
+        }
+      } else if (message.type === "carparkExitResult") {
+        if (message.ok) {
+          N.life = message.life || N.life;
+          N.today = message.today || N.today;
+          window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
+          window.dispatchEvent(new CustomEvent("nrs-carpark-exit", { detail: message }));
+        } else if (message.message) {
+          sys(message.message);
+        }
       } else if (message.type === "parkingResult") {
         N.life = message.life || N.life;
         if (message.message) sys(message.message);
@@ -623,6 +641,8 @@
   N.rentHouse = (houseId, days = 1) => send({ type: "rentHouse", houseId, days });
   N.enterHome = () => send({ type: "enterHome" });
   N.exitHome = () => send({ type: "exitHome" });
+  N.enterCarpark = () => send({ type: "enterCarpark" });
+  N.exitCarpark = (carId) => send({ type: "exitCarpark", carId });
   N.parkCars = () => send({ type: "parkCars" });
   N.retrieveCars = () => send({ type: "retrieveCars" });
   N.respawn = () => send({ type: "respawn" });
