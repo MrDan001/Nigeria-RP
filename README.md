@@ -6,10 +6,10 @@ A serious, mobile-first, multiplayer Nigerian roleplay simulator built around a 
 
 **NRS is browser-native. Unity is not part of the project.**
 
-- **PlayCanvas Engine + TypeScript** — 3D game client
+- **Three.js + browser JavaScript** — current 3D game client and rendering
 - **GitHub** — source control and engineering workflow
 - **Vercel** — web/API/admin layer where appropriate
-- **Railway** — authoritative real-time multiplayer game server
+- **TypeScript + WebSocket on Railway** — current real-time multiplayer server
 - **PostgreSQL** — persistent game data
 - **Redis/equivalent** — transient state where justified
 
