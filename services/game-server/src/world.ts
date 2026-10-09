@@ -237,10 +237,11 @@ export type Life = {
   rentDays: number; // prepaid days left on the home
   lastDay: string; // last WAT day this player's life was settled up to
   ownedCars: string[];
+  parkedCars: string[];
 };
 
 export function newLife(todayKey: string): Life {
-  return { v: 1, employment: null, homeId: null, rentDays: 0, lastDay: todayKey, ownedCars: [...CAR_IDS] };
+  return { v: 1, employment: null, homeId: null, rentDays: 0, lastDay: todayKey, ownedCars: [...CAR_IDS], parkedCars: [] };
 }
 
 // Accepts whatever came out of storage and always returns a valid Life.
@@ -270,8 +271,11 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
   const ownedCars = Array.isArray(v.ownedCars)
     ? [...new Set(v.ownedCars.map(String).filter((id) => CAR_IDS.includes(id)))]
     : base.ownedCars;
+  const parkedCars = Array.isArray(v.parkedCars)
+    ? [...new Set(v.parkedCars.map(String).filter((id) => ownedCars.includes(id)))]
+    : [];
 
-  return { v: 1, employment, homeId, rentDays, lastDay, ownedCars };
+  return { v: 1, employment, homeId, rentDays, lastDay, ownedCars, parkedCars };
 }
 
 // ---------------------------------------------------------------- rent over time
