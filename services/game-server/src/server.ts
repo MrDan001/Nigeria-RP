@@ -10,6 +10,11 @@ import {
   HOUSES,
   HOUSE_CLASSES,
   MAX_PREPAID_DAYS,
+  CARPARK_EXIT_GATE,
+  CARPARK_POSITION,
+  CARPARK_VEHICLE_SPAWN,
+  validateCarparkExit,
+  type CarparkVehicleTrack,
   findHouse,
   houseRent,
   newLife,
@@ -83,6 +88,7 @@ type Session = {
   inHome: boolean;
   inCarpark: boolean;
   homeReturn: { x: number; z: number } | null;
+  carparkVehicle: CarparkVehicleTrack | null;
 };
 
 type FileStore = {
@@ -322,7 +328,6 @@ function homeStreetPosition(homeId: string) {
   };
 }
 
-const CARPARK_POSITION = { x: 455, z: 455 };
 const CARPARK_PLAYER_POSITION = { x: CARPARK_POSITION.x, z: CARPARK_POSITION.z - 12 };
 
 function sendHousingState(session: Session) {
@@ -845,6 +850,7 @@ wss.on("connection", (socket) => {
       inHome: false,
       inCarpark: false,
       homeReturn: null,
+      carparkVehicle: null,
     };
 
     // Offline players are settled here: any midnights that passed while they were away.
@@ -1253,6 +1259,7 @@ wss.on("connection", (socket) => {
         session.homeReturn = returnPosition;
         session.inHome = true;
         session.inCarpark = false;
+        session.carparkVehicle = null;
         session.player.x = room.x;
         session.player.z = room.z + 1.4;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
@@ -1284,6 +1291,7 @@ wss.on("connection", (socket) => {
         session.inHome = false;
         session.inCarpark = false;
         session.homeReturn = null;
+        session.carparkVehicle = null;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
@@ -1308,6 +1316,7 @@ wss.on("connection", (socket) => {
         const wasHidden = session.inHome;
         session.inHome = true;
         session.inCarpark = true;
+        session.carparkVehicle = null;
         session.player.x = CARPARK_PLAYER_POSITION.x;
         session.player.z = CARPARK_PLAYER_POSITION.z;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
@@ -1330,16 +1339,81 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "carparkVehicleSpawn") {
+        if (!session.inHome || !session.inCarpark) {
+          send(socket, { type: "carparkVehicleSpawnResult", ok: false, message: "Enter your private car park first." });
+          return;
+        }
+        const carId = String(message.carId ?? "");
+        if (!session.player.life.ownedCars.includes(carId)) {
+          send(socket, { type: "carparkVehicleSpawnResult", ok: false, message: "That vehicle is not owned by this account." });
+          return;
+        }
+        session.carparkVehicle = {
+          carId,
+          x: CARPARK_VEHICLE_SPAWN.x,
+          z: CARPARK_VEHICLE_SPAWN.z,
+          yaw: 0,
+          speed: 0,
+          lastSyncAt: Date.now(),
+          reachedGate: false,
+        };
+        send(socket, {
+          type: "carparkVehicleSpawnResult", ok: true, carId,
+          x: CARPARK_VEHICLE_SPAWN.x, z: CARPARK_VEHICLE_SPAWN.z, yaw: 0,
+        });
+        return;
+      }
+
+      if (message.type === "carparkDriveSync") {
+        if (!session.inHome || !session.inCarpark) return;
+        const track = session.carparkVehicle;
+        const carId = String(message.carId ?? "");
+        if (!track || track.carId !== carId || !session.player.life.ownedCars.includes(carId)) return;
+        const x = Number(message.x);
+        const z = Number(message.z);
+        const yaw = Number(message.yaw);
+        if (
+          !Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(yaw) ||
+          x < CARPARK_POSITION.x - 21 || x > CARPARK_POSITION.x + 21 ||
+          z < CARPARK_POSITION.z - 21 || z > CARPARK_POSITION.z + 34
+        ) return;
+        const now = Date.now();
+        const elapsed = Math.max(0.05, Math.min(1.5, (now - track.lastSyncAt) / 1000));
+        const distance = Math.hypot(x - track.x, z - track.z);
+        // Reject impossible position jumps. The server derives speed from accepted
+        // samples instead of trusting a client-supplied speed value.
+        if (distance > 1.5 + 48 * elapsed) return;
+        track.x = x;
+        track.z = z;
+        track.yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+        track.speed = distance / elapsed;
+        track.lastSyncAt = now;
+        if (
+          Math.abs(x - CARPARK_EXIT_GATE.x) <= CARPARK_EXIT_GATE.halfWidth &&
+          z >= CARPARK_EXIT_GATE.minZ && z <= CARPARK_EXIT_GATE.maxZ
+        ) track.reachedGate = true;
+        return;
+      }
+
       if (message.type === "exitCarpark") {
         if (!session.inHome || !session.inCarpark) {
           send(socket, { type: "carparkExitResult", ok: false, message: "Enter your private car park first." });
           return;
         }
         const carId = String(message.carId ?? "");
-        if (!session.player.life.ownedCars.includes(carId)) {
-          send(socket, { type: "carparkExitResult", ok: false, message: "That vehicle is not in your garage." });
+        const gateCheck = validateCarparkExit(
+          session.carparkVehicle,
+          carId,
+          message.hornHeld,
+          Date.now(),
+          session.player.life.ownedCars,
+        );
+        if (!gateCheck.ok) {
+          send(socket, { type: "carparkExitResult", ok: false, message: gateCheck.reason });
           return;
         }
+        const exitYaw = session.carparkVehicle?.yaw ?? 0;
         const rentedHome = session.player.life.homeId && world.houseTenants[session.player.life.homeId] === session.player.id
           ? homeStreetPosition(session.player.life.homeId)
           : null;
@@ -1357,12 +1431,13 @@ wss.on("connection", (socket) => {
         session.inHome = false;
         session.inCarpark = false;
         session.homeReturn = null;
+        session.carparkVehicle = null;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
         await persistSession(session);
         send(socket, {
-          type: "carparkExitResult", ok: true, carId,
+          type: "carparkExitResult", ok: true, carId, yaw: exitYaw,
           x: session.player.x, z: session.player.z, yaw: 0,
           life: session.player.life, today: clock.dayKey(),
           message: "Horn heard. You are on the street—drive safely.",
