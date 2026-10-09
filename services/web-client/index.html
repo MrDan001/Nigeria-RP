@@ -216,6 +216,168 @@ function building(x,z,w,d,h,col,side,lit){const pl=M(col),fr=new THREE.MeshLambe
 [[-17,-20,12,16,8,0xcdbf9d,-1,.3],[-17,6,12,14,6,0xb08a6a,-1,.2],[-17,32,12,16,11,0xc9ccd0,-1,.4],[-17,-52,12,18,14,0xd8d2c0,-1,.35],
  [17,-24,12,14,7,0xe0b878,1,.3],[17,2,12,14,9,0x9fb4c8,1,.4],[17,28,12,14,6,0xd6d0c4,1,.2],[17,-56,12,18,16,0xb8c8d8,1,.45],
  [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],[-30,-130,16,16,28,0xa09a90,-1,.4]].forEach(a=>building(...a));
+
+/* Residential exteriors are actual multi-part buildings, sized to each rental class. */
+const HOUSE_VISUALS=Object.create(null),HOUSE_MATERIALS=Object.create(null);
+const HOUSE_LABELS={hut:"LOCAL HUT",faceme:"FACE-ME-I-FACE-YOU",flat:"RESIDENTIAL FLAT",estate:"ESTATE HOUSE",mansion:"PRIVATE MANSION",palace:"GRAND PALACE"};
+const HOUSE_PALETTE={
+ hut:{wall:0xbfa27a,trim:0x62472e,roof:0x87603a,door:0x523522,accent:0xb9874e},
+ faceme:{wall:0xd8c5a2,trim:0x684d35,roof:0x8b3c2d,door:0x4d3020,accent:0xb08b62},
+ flat:{wall:0xd6d4cc,trim:0x555e61,roof:0x353b3e,door:0x473427,accent:0x276276},
+ estate:{wall:0xe8deca,trim:0x6b5945,roof:0x494244,door:0x503322,accent:0xb89a68},
+ mansion:{wall:0xeee4d4,trim:0x8a714d,roof:0x373b40,door:0x4a3021,accent:0xc0a16a},
+ palace:{wall:0xf2e8d2,trim:0xa18345,roof:0x33393e,door:0x45291b,accent:0xd5b65e}
+};
+function houseMats(cls){
+ if(HOUSE_MATERIALS[cls])return HOUSE_MATERIALS[cls];
+ const p=HOUSE_PALETTE[cls]||HOUSE_PALETTE.flat;
+ const wallMap=tex(256,256,(g,w,h)=>{g.fillStyle="#"+p.wall.toString(16).padStart(6,"0");g.fillRect(0,0,w,h);
+  for(let i=0;i<1800;i++){const a=Math.random()*.1,v=Math.random()>.5?255:20;g.fillStyle="rgba("+v+","+v+","+v+","+a+")";g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);}
+  if(["flat","estate","mansion","palace"].includes(cls)){for(let y=0;y<h;y+=48){g.fillStyle="rgba(60,53,43,.12)";g.fillRect(0,y,w,2);}}
+ });
+ const roofMap=tex(256,256,(g,w,h)=>{g.fillStyle="#"+p.roof.toString(16).padStart(6,"0");g.fillRect(0,0,w,h);for(let y=0;y<h;y+=17){g.fillStyle="rgba(225,217,199,.13)";g.fillRect(0,y,w,1);for(let x=(y/17%2)*14;x<w;x+=28){g.strokeStyle="rgba(0,0,0,.32)";g.beginPath();g.moveTo(x,y);g.lineTo(x+13,y+17);g.stroke();}}});
+ return HOUSE_MATERIALS[cls]={
+  wall:new THREE.MeshLambertMaterial({map:wallMap}),roof:new THREE.MeshLambertMaterial({map:roofMap}),
+  trim:M(p.trim),door:M(p.door),accent:M(p.accent),wood:M(p.door),gold:M(0xc7a75f),metal:M(0x303638),
+  concrete:M(0xa9a79e),grass:M(0x4d7040),
+  glass:new THREE.MeshPhongMaterial({color:0x4c8193,transparent:true,opacity:.82,shininess:75,side:THREE.DoubleSide}),
+  darkGlass:new THREE.MeshPhongMaterial({color:0x263841,transparent:true,opacity:.88,shininess:80,side:THREE.DoubleSide})
+ };
+}
+function houseGable(w,d,rise,mat){const shape=new THREE.Shape();shape.moveTo(-w/2,0);shape.lineTo(w/2,0);shape.lineTo(0,rise);shape.closePath();const geo=new THREE.ExtrudeGeometry(shape,{depth:d,bevelEnabled:true,bevelThickness:.04,bevelSize:.035,bevelSegments:1});geo.translate(0,0,-d/2);return new THREE.Mesh(geo,mat);}
+function houseFrontWindow(A,m,x,y,z,w,h){
+ A(new THREE.BoxGeometry(w+.16,h+.16,.13),m.trim,x,y,z);
+ A(new THREE.BoxGeometry(w,h,.07),m.glass,x,y,z+.075);
+ A(new THREE.BoxGeometry(.055,h,.1),m.metal,x,y,z+.115);
+ A(new THREE.BoxGeometry(w,.055,.1),m.metal,x,y,z+.115);
+ A(new THREE.BoxGeometry(w+.3,.12,.2),m.accent,x,y+h/2+.09,z+.025);
+ A(new THREE.BoxGeometry(w+.3,.12,.2),m.trim,x,y-h/2-.09,z+.04);
+ A(new THREE.BoxGeometry(.1,h+.25,.18),m.trim,x-w/2-.1,y,z);
+ A(new THREE.BoxGeometry(.1,h+.25,.18),m.trim,x+w/2+.1,y,z);
+}
+function houseSideWindow(A,m,x,y,z,w,h,side){
+ A(new THREE.BoxGeometry(.13,h+.16,w+.16),m.trim,x,y,z);
+ A(new THREE.BoxGeometry(.06,h,w),m.glass,x+side*.08,y,z);
+ A(new THREE.BoxGeometry(.15,.05,w),m.metal,x+side*.12,y,z);
+ A(new THREE.BoxGeometry(.15,h,.05),m.metal,x+side*.12,y,z);
+}
+function houseDoor(A,m,x,y,z,w,h,doubleDoor=false){
+ A(new THREE.BoxGeometry(w+.34,h+.35,.22),m.trim,x,y,z);
+ A(new THREE.BoxGeometry(w,h,.14),m.door,x,y,z+.09);
+ const n=doubleDoor?2:1;
+ for(let k=0;k<n;k++){const dx=x+(k-(n-1)/2)*w*.48;
+  A(new THREE.BoxGeometry(w*.34,h*.48,.035),m.wood,dx,y+.28,z+.17);
+  A(new THREE.BoxGeometry(w*.34,.055,.04),m.gold,dx,y+.28+h*.24,z+.17);
+ }
+ A(new THREE.SphereGeometry(.055,10,8),m.gold,x+w*.31,y-.05,z+.18);
+}
+function createHouseExterior(h){
+ if(!h||!h.id||!Number.isFinite(Number(h.x))||!Number.isFinite(Number(h.z)))return null;
+ if(HOUSE_VISUALS[h.id]){HOUSE_VISUALS[h.id].home=h;return HOUSE_VISUALS[h.id];}
+ const cls=HOUSE_SIZES[h.cls]?h.cls:"flat",s=HOUSE_SIZES[cls],m=houseMats(cls),g=new THREE.Group(),w=s.w,d=s.d,H=s.h,front=d/2;
+ g.position.set(Number(h.x),0,Number(h.z));scene.add(g);
+ const A=(geo,mat,x,y,z)=>add(geo,mat,x,y,z,g);
+ // Plot, concrete apron, rainwater gutter and foundation.
+ A(new THREE.BoxGeometry(w+8,.12,d+11),m.grass,0,.015,2.4);
+ A(new THREE.BoxGeometry(w+.65,.22,d+.65),m.concrete,0,.11,0);
+ A(new THREE.BoxGeometry(Math.max(2.4,w*.29),.08,6.0),m.concrete,0,.16,front+3.4);
+ for(let k=0;k<5;k++)A(new THREE.BoxGeometry(Math.max(2.4,w*.29)+.1,.018,.06),m.trim,0,.215,front+1.1+k*1.08);
+ A(new THREE.BoxGeometry(w,H,d),m.wall,0,.22+H/2,0);
+ A(new THREE.BoxGeometry(w+.22,.25,d+.22),m.trim,0,.28,0);
+ A(new THREE.BoxGeometry(w+.35,.15,.25),m.trim,0,.22+H-.12,front+.035);
+ // Every class gets actual windows, a frame, drain pipes and a door, but not the same silhouette.
+ if(cls==="hut"){
+  // Earth-toned round mud hut with a high palm-thatched cone roof.
+  A(new THREE.CylinderGeometry(w*.45,w*.48,H,12),m.wall,0,.22+H/2,0);
+  A(new THREE.ConeGeometry(w*.69,1.7,12),m.roof,0,.22+H+.78,0);
+  A(new THREE.CylinderGeometry(w*.69,w*.69,.11,12),m.trim,0,.22+H,0);
+  houseDoor(A,m,0,1.25,front+.12,1.0,2.0);
+  [-1,1].forEach(q=>houseFrontWindow(A,m,q*1.45,1.55,front+.1,.55,.65));
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;A(new THREE.BoxGeometry(.025,1.15,.025),m.trim,Math.cos(a)*w*.46,1.35,Math.sin(a)*d*.46);}
+ }else if(cls==="faceme"){
+  // Three-unit shared compound, separate doorways, repeated windows and red tiled gable roof.
+  A(houseGable(w+1.1,d+1.0,1.4,m.roof),m.roof,0,.22+H,0);
+  A(new THREE.BoxGeometry(w+1.25,.15,d+1.1),m.trim,0,.22+H-.05,0);
+  [-1,0,1].forEach(unit=>{const x=unit*3.3;houseDoor(A,m,x,1.35,front+.14,.95,2.2);
+   if(unit!==0)houseFrontWindow(A,m,x-Math.sign(unit)*1.15,1.65,front+.1,.68,.82);
+   A(new THREE.BoxGeometry(2.3,.12,.65),m.concrete,x,.13,front+.42);
+  });
+ }else if(cls==="flat"){
+  // Two full floors with balcony slab, guard rails, stairwell door and repeated windows.
+  A(new THREE.BoxGeometry(w+.5,.28,d+.45),m.trim,0,.22+H-.05,0);
+  A(new THREE.BoxGeometry(w+.2,.12,d+.2),m.concrete,0,.22+H+.16,0);
+  for(let fl=0;fl<2;fl++)for(let j=-1;j<=1;j++)houseFrontWindow(A,m,j*3.4,1.65+fl*2.65,front+.1,1.25,1.12);
+  houseDoor(A,m,-4.25,1.35,front+.12,1.1,2.25);
+  A(new THREE.BoxGeometry(w*.68,.14,1.12),m.concrete,1.5,3.05,front+.55);
+  A(new THREE.BoxGeometry(w*.68,.07,.07),m.metal,1.5,3.85,front+1.08);
+  for(let j=0;j<8;j++)A(new THREE.CylinderGeometry(.025,.025,.78,6),m.metal,-2.4+j*.98,3.45,front+1.08);
+  [-1,1].forEach(side=>A(new THREE.BoxGeometry(.12,1.1,d+.15),m.trim,side*(w/2-.08),3.1,0));
+ }else if(cls==="estate"){
+  // Contemporary bungalow with two wings, front porch columns and an attached garage volume.
+  A(new THREE.BoxGeometry(8.8,H,d),m.wall,-2.4,.22+H/2,0);
+  A(new THREE.BoxGeometry(4.7,H*.8,8.0),m.wall,4.6,.22+H*.4,-.55);
+  A(houseGable(9.2,d+1.1,1.65,m.roof),m.roof,-2.4,.22+H,0);
+  A(houseGable(5.0,8.4,1.05,m.roof),m.roof,4.6,.22+H*.8,-.55);
+  houseDoor(A,m,-2.7,1.35,front+.14,1.15,2.2);
+  houseFrontWindow(A,m,-5.0,1.75,front+.12,1.3,1.05);houseFrontWindow(A,m,-.4,1.75,front+.12,1.3,1.05);
+  A(new THREE.BoxGeometry(3.0,2.25,.15),m.trim,4.6,1.25,front-.12);
+  A(new THREE.BoxGeometry(2.72,2.0,.08),m.darkGlass,4.6,1.25,front-.035);
+  for(let i=0;i<3;i++)A(new THREE.BoxGeometry(2.66,.045,.11),m.accent,4.6,.47+i*.63,front+.015);
+  [-1,1].forEach(side=>A(new THREE.CylinderGeometry(.16,.19,2.6,12),m.trim,-1.9+side*1.35,1.5,front+.95));
+  A(new THREE.BoxGeometry(6.2,.18,1.9),m.roof,-1.8,.22+H,front+.85);
+ }else if(cls==="mansion"){
+  // Symmetric luxury two-storey residence with central portico, wings and columns.
+  A(new THREE.BoxGeometry(10.8,H,d),m.wall,0,.22+H/2,0);
+  [-6.25,6.25].forEach(side=>{A(new THREE.BoxGeometry(4.15,4.2,d*.78),m.wall,side,2.32,-.6);A(new THREE.BoxGeometry(4.45,.18,d*.8),m.trim,side,4.42,-.6);});
+  A(houseGable(11.2,d+1,1.8,m.roof),m.roof,0,.22+H,0);
+  [-1,1].forEach(side=>{houseFrontWindow(A,m,side*3.35,1.9,front+.12,1.4,1.1);houseFrontWindow(A,m,side*3.35,4.65,front+.12,1.32,1.02);});
+  houseDoor(A,m,0,1.45,front+.16,1.65,2.55,true);
+  A(new THREE.BoxGeometry(6.3,.2,2.2),m.roof,0,3.3,front+.95);
+  for(let i=-2;i<=2;i++)A(new THREE.CylinderGeometry(.16,.21,2.85,14),m.trim,i*1.25,1.65,front+1.55);
+  A(new THREE.BoxGeometry(6.7,.15,.22),m.gold,0,3.02,front+1.55);
+ }else{
+  // Monumental palace: central block, twin wings, forecourt stairs, gilded columns and dome.
+  A(new THREE.BoxGeometry(10.2,H,d*.78),m.wall,0,.22+H/2,-.2);
+  [-7,7].forEach(side=>A(new THREE.BoxGeometry(4.2,5.1,d*.7),m.wall,side,2.77,-.45));
+  A(new THREE.BoxGeometry(21.4,.42,17.5),m.gold,0,.22+H+.3,-.1);
+  A(new THREE.BoxGeometry(21.2,.48,.28),m.trim,0,.22+H+.55,front*.78+.12);
+  [-1,1].forEach(side=>A(new THREE.BoxGeometry(.28,.48,13.1),m.trim,side*10.55,.22+H+.55,-.1));
+  for(let side of [-1,1])for(let j=0;j<2;j++)houseFrontWindow(A,m,side*(3.9+j*1.55),3.7,front*.78+.1,1.0,1.6);
+  houseDoor(A,m,0,1.55,front*.78+.15,2.0,3.0,true);
+  A(new THREE.BoxGeometry(7.0,.28,2.6),m.concrete,0,.34,front+1.25);
+  A(new THREE.BoxGeometry(6.2,.24,2.0),m.concrete,0,.6,front+2.2);
+  A(new THREE.BoxGeometry(5.5,.2,1.4),m.concrete,0,.82,front+2.95);
+  for(let j=-3;j<=3;j++)A(new THREE.CylinderGeometry(.18,.24,3.8,16),m.gold,j*1.18,2.1,front+1.4);
+  A(new THREE.BoxGeometry(9.1,.15,.22),m.gold,0,4.08,front+1.4);
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(2,24,14,0,Math.PI*2,0,Math.PI/2),m.roof);dome.position.set(0,.22+H+.55,-.2);dome.scale.set(1.1,1.35,1);g.add(dome);
+  A(new THREE.CylinderGeometry(.075,.075,.75,10),m.gold,0,.22+H+3,-.2);
+ }
+ // Windows on the visible side wall, roof gutters, plinth and front entrance porch.
+ [-1,1].forEach(side=>{const sx=side*(w/2+.04);houseSideWindow(A,m,sx,Math.min(H*.6,2.1),0,1.45,1.0,side);A(new THREE.CylinderGeometry(.045,.045,H,8),m.metal,side*(w/2-.2),.22+H/2,front-.2);});
+ A(new THREE.BoxGeometry(2.9,.2,.9),m.concrete,0,.1,front+.48);A(new THREE.BoxGeometry(2.4,.17,.55),m.concrete,0,.29,front+.95);
+ const plaqueTex=tex(512,128,(ctx,ww,hh)=>{ctx.fillStyle="#20282b";ctx.fillRect(0,0,ww,hh);ctx.strokeStyle="#c7a764";ctx.lineWidth=6;ctx.strokeRect(4,4,ww-8,hh-8);ctx.fillStyle="#f6e6c6";ctx.textAlign="center";ctx.font="bold 35px system-ui";ctx.fillText(HOUSE_LABELS[cls],ww/2,46);ctx.font="bold 25px system-ui";ctx.fillText(String(h.id).toUpperCase()+" · ₦"+Number(h.rentPerDay||0).toLocaleString()+"/DAY",ww/2,84);ctx.font="20px system-ui";ctx.fillStyle=h.occupiedByMe?"#8fd3ff":h.vacant?"#84efb1":"#e9b4a6";ctx.fillText(h.occupiedByMe?"YOUR HOME":h.vacant?"AVAILABLE":"OCCUPIED",ww/2,112);});
+ const plaque=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(5.4,w*.7),.9),new THREE.MeshBasicMaterial({map:plaqueTex,side:THREE.DoubleSide}));plaque.position.set(0,Math.min(H+.4,4.0),front+.13);g.add(plaque);
+ // Front plot fence, gate posts, two shrubs and a porch lamp.
+ const fence=m.trim,fx=w/2+2.2,fz=front+4.8;
+ [-1,1].forEach(side=>{A(new THREE.BoxGeometry(.12,1.0,5.1),fence,side*fx,.5,front+3.8);for(let k=0;k<6;k++)A(new THREE.CylinderGeometry(.03,.035,1,6),m.metal,side*fx,.5,front+1.5+k*.82);A(new THREE.BoxGeometry(4.6,.1,.12),fence,side*(w/4+1),.92,fz);for(let k=0;k<5;k++)A(new THREE.CylinderGeometry(.03,.035,.85,6),m.metal,side*(w/4+1)+k*.55,.43,fz);});
+ [-1,1].forEach(side=>{A(new THREE.BoxGeometry(.14,1.5,.14),m.gold,side*1.6,.75,fz);A(new THREE.SphereGeometry(.25,10,8),m.green,side*(w/2+1.25),1.12,front+2.4);});
+ A(new THREE.CylinderGeometry(.075,.1,2.8,8),m.metal,w/2+2.0,1.4,front+1.7);A(new THREE.SphereGeometry(.2,12,10),new THREE.MeshBasicMaterial({color:0xffd69a}),w/2+2.0,2.8,front+1.7);
+ A(new THREE.BoxGeometry(3.1,.07,5.4),m.concrete,0,.06,front+4.1);
+ // Collision is split around the doorway, so players can reach the actual entrance.
+ const addCollider=(x,z,hw,hd)=>{const b={x:g.position.x+x,z:g.position.z+z,hw,hd,homeId:h.id};boxes.push(b);bld.push(b);};
+ addCollider(-w/2,0,.28,d/2);addCollider(w/2,0,.28,d/2);addCollider(0,-d/2,w/2,.28);
+ addCollider(-(w/4+.55),d/2,w/4-.1,.28);addCollider(w/4+.55,d/2,w/4-.1,.28);
+ HOUSE_VISUALS[h.id]={group:g,home:h,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
+ return HOUSE_VISUALS[h.id];
+}
+function syncHouseExteriors(houses){
+ if(!Array.isArray(houses))return;
+ houses.forEach(h=>{const v=createHouseExterior(h);if(v){v.home=h;}});
+ for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
+ const mine=houses.find(h=>h.occupiedByMe);
+ if(mine){const size=HOUSE_SIZES[mine.cls]||HOUSE_SIZES.flat;POI.push({x:mine.x,z:mine.z+size.d/2+2.2,k:"Enter",name:"Enter your "+(HOUSE_LABELS[mine.cls]||"home").toLowerCase(),t:"home",housePoi:true,houseId:mine.id,r:3.5});}
+}
+
 const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(512,Math.round(512*h/w),fn),fog:true});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
 const flag=(x,z)=>{add(new THREE.CylinderGeometry(.06,.06,8,6),M(0x888888),x,4,z);
