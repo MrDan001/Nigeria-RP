@@ -1221,7 +1221,8 @@ wss.on("connection", (socket) => {
         }
         const cls = HOUSE_CLASSES.find((item) => item.id === home.cls)!;
         const room = homeInteriorPosition(home.id);
-        session.homeReturn = { x: session.player.x, z: session.player.z };
+        const returnPosition = { x: session.player.x, z: session.player.z };
+        session.homeReturn = returnPosition;
         session.inHome = true;
         session.player.x = room.x;
         session.player.z = room.z + 1.4;
@@ -1233,7 +1234,7 @@ wss.on("connection", (socket) => {
           type: "homeInterior", ok: true,
           home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
           roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
-          returnX: session.homeReturn.x, returnZ: session.homeReturn.z,
+          returnX: returnPosition.x, returnZ: returnPosition.z,
           furniture: HOME_FURNITURE[home.cls] ?? [],
         });
         broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
