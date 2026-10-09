@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
   CAR_IDS,
+  CARPARK_EXIT_GATE,
+  validateCarparkExit,
   GameClock,
   HOUSES,
   HOUSE_CLASSES,
@@ -61,6 +63,26 @@ test("all six rent prices match the approved housing plan", () => {
   ]);
   for (const house of HOUSES) assert.ok(houseRent(house.id) > 0, house.id);
   assert.equal(MAX_PREPAID_DAYS, 7);
+});
+
+test("private car-park exit requires the owned car, marked gate, a stop, a recent sync and a held horn", () => {
+  const now = 100_000;
+  const valid = {
+    carId: "c0",
+    x: CARPARK_EXIT_GATE.x,
+    z: CARPARK_EXIT_GATE.minZ + 1,
+    yaw: 0,
+    speed: 0.1,
+    lastSyncAt: now - 100,
+    reachedGate: true,
+  };
+  assert.deepEqual(validateCarparkExit(valid, "c0", true, now, ["c0"]), { ok: true });
+  assert.equal(validateCarparkExit(valid, "c1", true, now, ["c0"]).ok, false);
+  assert.equal(validateCarparkExit(valid, "c0", false, now, ["c0"]).ok, false);
+  assert.equal(validateCarparkExit({ ...valid, speed: 3 }, "c0", true, now, ["c0"]).ok, false);
+  assert.equal(validateCarparkExit({ ...valid, z: CARPARK_EXIT_GATE.minZ - 4 }, "c0", true, now, ["c0"]).ok, false);
+  assert.equal(validateCarparkExit({ ...valid, lastSyncAt: now - 1200 }, "c0", true, now, ["c0"]).ok, false);
+  assert.equal(validateCarparkExit({ ...valid, reachedGate: false }, "c0", true, now, ["c0"]).ok, false);
 });
 
 test("parking state persists and only owned car ids survive normalization", () => {
