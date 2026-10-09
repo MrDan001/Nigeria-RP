@@ -1423,7 +1423,7 @@ wss.on("connection", (socket) => {
         const destination = session.homeReturn ?? rentedHome ?? { x: 0, z: 24 };
         session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
         session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
-        session.player.yaw = 0;
+        session.player.yaw = exitYaw;
         session.player.life = {
           ...session.player.life,
           parkedCars: session.player.life.ownedCars.filter((id) => id !== carId),
@@ -1437,8 +1437,8 @@ wss.on("connection", (socket) => {
         session.lastSyncAt = Date.now();
         await persistSession(session);
         send(socket, {
-          type: "carparkExitResult", ok: true, carId, yaw: exitYaw,
-          x: session.player.x, z: session.player.z, yaw: 0,
+          type: "carparkExitResult", ok: true, carId,
+          x: session.player.x, z: session.player.z, yaw: exitYaw,
           life: session.player.life, today: clock.dayKey(),
           message: "Horn heard. You are on the street—drive safely.",
         });
