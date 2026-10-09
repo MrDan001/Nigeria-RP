@@ -89,11 +89,13 @@ The real-time simulation must run on dedicated authoritative compute. Vercel is 
 
 Responsibilities:
 
-- Unity: presentation, input, prediction/interpolation and client UX.
-- Game server: authoritative world/session simulation and replication.
-- Vercel/API layer: web services, account/profile APIs, admin, webhooks and suitable non-realtime endpoints.
-- PostgreSQL: durable state.
-- Redis/equivalent: transient presence/cache/coordination where justified.
+- Browser client: the current Three.js/HTML/CSS game in `services/web-client/index.html`; touch input, rendering, camera, HUD and presentation.
+- WebSocket browser connector: `services/web-client/public/nrs-online.js`.
+- Game server: TypeScript/Node.js authoritative session and domain logic in `services/game-server/src/server.ts`, deployed on Railway.
+- PostgreSQL: durable account/game state.
+- Vercel/API layer: suitable web/API/admin tools and previews where configured; not the only multiplayer simulation host.
+- Redis/equivalent: transient presence/cache/coordination only where justified.
+- Current caveat: vehicle movement is still largely browser-simulated; authoritative vehicle physics and replication remain future work.
 
 ## 9. Security
 
@@ -144,7 +146,13 @@ Disconnect/reconnect preserves authoritative state.
 
 Only after Gate 4 do we expand the production city and additional jobs.
 
-## 12. Definition of done
+## 12. Implementation sequence and developer handoff
+
+See [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for the complete Stage 0–15 plan, status, detailed acceptance checks, tests, and the next approved task. See [ROADMAP.md](ROADMAP.md) for the quick current-stage summary.
+
+The current active gate is **Stage 2: Homes, rent, exterior/interior architecture and car-park exits**. Do not start Stage 3 workplace/job/rank work until the housing/car-park/camera flows are tested on the deployed Android browser build and explicitly approved by the user.
+
+## 13. Definition of done
 
 A system is not done because its UI appears.
 
