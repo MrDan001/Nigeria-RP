@@ -571,7 +571,7 @@ async function createAccount(email: string, username: string, password: string) 
     cash: 5000,
     bank: 0,
     x: 0,
-    z: 24,
+  z: 24,
     yaw: Math.PI,
     hp: 100,
     hunger: 82,
