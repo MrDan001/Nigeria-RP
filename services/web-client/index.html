@@ -642,7 +642,7 @@ let camYaw=0,camPitch=.3,lid=null,lx=0,ly=0;const cv=$('c');
 cv.addEventListener('pointerdown',e=>{if(lid===null){lid=e.pointerId;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(lid);}});
 cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;
  // While the vehicle is moving, screen gestures are for pedals/steering, not camera rotation.
- if(driving&&Math.abs(driving.v)>.35){lx=e.clientX;ly=e.clientY;return;}
+ if(driving&&Math.abs(driving.v)>.05){lx=e.clientX;ly=e.clientY;return;}
  camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;});
 const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
 $('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?'none':'flex';};
@@ -713,7 +713,7 @@ function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=ba
 const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornKey=false;
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
 const TANK=40,FUEL_PER_M=.004,FUEL_IDLE=.002; /* litres: 1 L per 250 m, small idle burn */
-function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.35){drivingCameraLocked=true;cam.fov=60;}else drivingCameraLocked=false;
+function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLocked=true;cam.fov=60;}else drivingCameraLocked=false;
  if(c.on&&c.fuel<=0){c.fuel=0;c.on=false;engine(false);setIgn();sys('⛽ Out of fuel! The engine has cut out. Get fuel from a petrol station.');}
  if(keys.KeyD||keys.ArrowRight)wheelA=Math.min(WLOCK,wheelA+420*dt);else if(keys.KeyA||keys.ArrowLeft)wheelA=Math.max(-WLOCK,wheelA-420*dt);
  else if(!wheelHeld&&wheelA){const rs=(50+Math.abs(wheelA)*2.7)*(1+Math.abs(c.v)*3.6/100)*dt;wheelA=Math.abs(wheelA)<=rs?0:wheelA-Math.sign(wheelA)*rs;}
@@ -1357,7 +1357,7 @@ badge();
 
 /* driving HUD: indicators, hazards, headlights, camera, speedo */
 const CAMD=[8,5.2,12],AMO=0x8a5208,AMN=0xffd24a;let camMode=0,sig=0,hz=false,sgT=0,sgCar=null,sgLast=false,spT='';
-$('camB').onclick=()=>{if(driving&&Math.abs(driving.v)>.35){sys('📷 Stop the car before moving the camera.');return;}camMode=(camMode+1)%CAMD.length;};
+$('camB').onclick=()=>{if(driving&&Math.abs(driving.v)>.05){sys('📷 Bring the car fully to rest before moving the camera.');return;}camMode=(camMode+1)%CAMD.length;};
 $('sigL').onclick=()=>{if(!driving)return;sig=sig<0?0:-1;hz=false;sgT=0;};
 $('sigR').onclick=()=>{if(!driving)return;sig=sig>0?0:1;hz=false;sgT=0;};
 $('hzd').onclick=()=>{if(!driving)return;hz=!hz;if(hz){sig=0;sgT=0;}};
@@ -1451,4 +1451,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-stage2-facade-detail-v5"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-stage2-static-camera-v6"></script></body></html>
