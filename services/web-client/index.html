@@ -682,7 +682,7 @@ function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.35){drivingCameraLock
  c.wh.forEach(w=>{w.sp.rotation.x+=fv*dt/.38;if(w.f)w.pv.rotation.y=-c.steer;});
  if(eng){eng.o.frequency.value=38+c.rpm*95;eng.g.gain.value=.02+.03*th;}
  setCar(c);pos.set(c.x,0,c.z);face=c.ry;
- if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<6.5&&c.z>468&&Math.abs(fv)<4){carparkExitPending=true;const N=window.NRS;if(N&&N.exitCarpark)N.exitCarpark(c.id);else{carparkExitPending=false;routeTransitionOut();}}
+ if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<6.5&&c.z>468&&c.z<486&&Math.abs(fv)<4){carparkExitPending=true;const N=window.NRS;if(N&&N.exitCarpark)N.exitCarpark(c.id, hornBtn||hornKey);else{carparkExitPending=false;routeTransitionOut();}}
  cam.fov=60;cam.updateProjectionMatrix();
  /* Camera orientation stays where the driver set it; no automatic panning on turns. */}
 function hudAct(){const a=$('act');
@@ -755,10 +755,18 @@ modal.addEventListener('click',e=>{
  const route=e.target.closest('[data-exit-route]')?.dataset.exitRoute;
  if(route){if(route==='street')returnToStreetFromRoom();else{const N=window.NRS;if(N&&N.enterCarpark){routeTransitionIn();modal.style.display='none';modal.innerHTML='';N.enterCarpark();}}return;}
  const carId=e.target.closest('[data-garage-car]')?.dataset.garageCar;
- if(carId&&inside?.isCarpark){const c=cars.find(v=>v.id===carId&&v.kind!=='t');if(!c)return;
-  cars.filter(v=>v.kind!=='t'&&v.id).forEach(v=>{v.g.visible=false;v.box.hw=0;v.box.hd=0;v.v=v.vx=v.vz=0;});
-  c.x=455;c.z=449.6;c.ry=0;c.on=false;c.starting=false;c.g.visible=true;c.box.hw=1.05;c.box.hd=2.3;setCar(c);
-  pos.set(c.x,0,c.z);focus.set(pos.x,1.4,pos.z);nearCar=c;modal.style.display='none';modal.innerHTML='';$('act').onclick();sys('🚗 '+c.id.toUpperCase()+' spawned. Drive to the striped gate, stop, and honk to enter the street.');
+ if(carId&&inside?.isCarpark){
+  const c=cars.find(v=>v.id===carId&&v.kind!=='t');
+  if(!c)return;
+  const N=window.NRS;
+  if(!N||typeof N.spawnCarparkVehicle!=='function'){sys('Garage connection is not ready. Please try again.');return;}
+  N.spawnCarparkVehicle(c.id,(result)=>{
+   if(!result?.ok){sys(result?.message||'The server could not spawn this vehicle.');return;}
+   cars.filter(v=>v.kind!=='t'&&v.id).forEach(v=>{v.g.visible=false;v.box.hw=0;v.box.hd=0;v.v=v.vx=v.vz=0;});
+   c.x=Number(result.x);c.z=Number(result.z);c.ry=Number(result.yaw)||0;c.on=false;c.starting=false;c.g.visible=true;c.box.hw=1.05;c.box.hd=2.3;setCar(c);
+   pos.set(c.x,0,c.z);focus.set(pos.x,1.4,pos.z);nearCar=c;modal.style.display='none';modal.innerHTML='';$('act').onclick();
+   sys('🚗 '+c.id.toUpperCase()+' spawned. Drive through the marked lane, stop at the gate, then hold the horn to enter the street.');
+  });
  }
 });
 $('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Bank balance: ₦0</p><p>Job Center: coming soon</p><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
@@ -1315,4 +1323,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-fixed-driving-camera-sensitive-steering-v2"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-garage-gate-validation-v1"></script></body></html>
