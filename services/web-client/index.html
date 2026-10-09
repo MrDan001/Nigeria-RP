@@ -275,9 +275,10 @@ function houseDoor(A,m,x,y,z,w,h,doubleDoor=false){
  }
  A(new THREE.SphereGeometry(.055,10,8),m.gold,x+w*.31,y-.05,z+.18);
 }
+function refreshHousePlaque(v,h){const image=v?.plaque?.material?.map?.image,ctx=image?.getContext?.("2d");if(!ctx)return;const cls=h.cls||"flat",w=image.width,hh=image.height;ctx.clearRect(0,0,w,hh);ctx.fillStyle="#20282b";ctx.fillRect(0,0,w,hh);ctx.strokeStyle="#c7a764";ctx.lineWidth=6;ctx.strokeRect(4,4,w-8,hh-8);ctx.fillStyle="#f6e6c6";ctx.textAlign="center";ctx.font="bold 35px system-ui";ctx.fillText(HOUSE_LABELS[cls]||"HOME",w/2,46);ctx.font="bold 25px system-ui";ctx.fillText(String(h.id||"").toUpperCase()+" · ₦"+Number(h.rentPerDay||0).toLocaleString()+"/DAY",w/2,84);ctx.font="20px system-ui";ctx.fillStyle=h.occupiedByMe?"#8fd3ff":h.vacant?"#84efb1":"#e9b4a6";ctx.fillText(h.occupiedByMe?"YOUR HOME":h.vacant?"AVAILABLE":"OCCUPIED",w/2,112);v.plaque.material.map.needsUpdate=true;}
 function createHouseExterior(h){
  if(!h||!h.id||!Number.isFinite(Number(h.x))||!Number.isFinite(Number(h.z)))return null;
- if(HOUSE_VISUALS[h.id]){HOUSE_VISUALS[h.id].home=h;return HOUSE_VISUALS[h.id];}
+ if(HOUSE_VISUALS[h.id]){const v=HOUSE_VISUALS[h.id];v.home=h;refreshHousePlaque(v,h);return v;}
  const cls=HOUSE_SIZES[h.cls]?h.cls:"flat",s=HOUSE_SIZES[cls],m=houseMats(cls),g=new THREE.Group(),w=s.w,d=s.d,H=s.h,front=d/2;
  g.position.set(Number(h.x),0,Number(h.z));scene.add(g);
  const A=(geo,mat,x,y,z)=>add(geo,mat,x,y,z,g);
@@ -309,8 +310,8 @@ function createHouseExterior(h){
   // Two full floors with balcony slab, guard rails, stairwell door and repeated windows.
   A(new THREE.BoxGeometry(w+.5,.28,d+.45),m.trim,0,.22+H-.05,0);
   A(new THREE.BoxGeometry(w+.2,.12,d+.2),m.concrete,0,.22+H+.16,0);
-  for(let fl=0;fl<2;fl++)for(let j=-1;j<=1;j++)houseFrontWindow(A,m,j*3.4,1.65+fl*2.65,front+.1,1.25,1.12);
-  houseDoor(A,m,-4.25,1.35,front+.12,1.1,2.25);
+  for(let fl=0;fl<2;fl++)for(let j=-1;j<=1;j++)if(fl!==0||j!==0)houseFrontWindow(A,m,j*3.4,1.65+fl*2.65,front+.1,1.25,1.12);
+  houseDoor(A,m,0,1.35,front+.12,1.1,2.25);
   A(new THREE.BoxGeometry(w*.68,.14,1.12),m.concrete,1.5,3.05,front+.55);
   A(new THREE.BoxGeometry(w*.68,.07,.07),m.metal,1.5,3.85,front+1.08);
   for(let j=0;j<8;j++)A(new THREE.CylinderGeometry(.025,.025,.78,6),m.metal,-2.4+j*.98,3.45,front+1.08);
@@ -321,8 +322,8 @@ function createHouseExterior(h){
   A(new THREE.BoxGeometry(4.7,H*.8,8.0),m.wall,4.6,.22+H*.4,-.55);
   A(houseGable(9.2,d+1.1,1.65,m.roof),m.roof,-2.4,.22+H,0);
   A(houseGable(5.0,8.4,1.05,m.roof),m.roof,4.6,.22+H*.8,-.55);
-  houseDoor(A,m,-2.7,1.35,front+.14,1.15,2.2);
-  houseFrontWindow(A,m,-5.0,1.75,front+.12,1.3,1.05);houseFrontWindow(A,m,-.4,1.75,front+.12,1.3,1.05);
+  houseDoor(A,m,0,1.35,front+.14,1.15,2.2);
+  houseFrontWindow(A,m,-5.0,1.75,front+.12,1.3,1.05);houseFrontWindow(A,m,-2.35,1.75,front+.12,1.25,1.05);
   A(new THREE.BoxGeometry(3.0,2.25,.15),m.trim,4.6,1.25,front-.12);
   A(new THREE.BoxGeometry(2.72,2.0,.08),m.darkGlass,4.6,1.25,front-.035);
   for(let i=0;i<3;i++)A(new THREE.BoxGeometry(2.66,.045,.11),m.accent,4.6,.47+i*.63,front+.015);
@@ -370,7 +371,7 @@ function createHouseExterior(h){
  const addCollider=(x,z,hw,hd)=>{const b={x:g.position.x+x,z:g.position.z+z,hw,hd,homeId:h.id};boxes.push(b);bld.push(b);};
  addCollider(-w/2,0,.28,d/2);addCollider(w/2,0,.28,d/2);addCollider(0,-d/2,w/2,.28);
  addCollider(-(w/4+.55),d/2,w/4-.1,.28);addCollider(w/4+.55,d/2,w/4-.1,.28);
- HOUSE_VISUALS[h.id]={group:g,home:h,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
+ HOUSE_VISUALS[h.id]={group:g,home:h,plaque,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
  return HOUSE_VISUALS[h.id];
 }
 function syncHouseExteriors(houses){
@@ -1185,7 +1186,7 @@ window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N
 window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
 window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
 window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;sys(d.message||'Private car park entered.');openGarageSpawnMenu();});
-window.addEventListener('nrs-carpark-exit',e=>{const d=e.detail||{},c=cars.find(v=>v.id===d.carId&&v.kind!=='t');carparkExitPending=false;if(!c)return;inside=null;c.x=Number(d.x)||0;c.z=Number(d.z)||0;c.ry=Number(d.yaw)||0;c.v=c.vx=c.vz=0;c.on=false;c.starting=false;c.box.hw=1.05;c.box.hd=2.3;c.g.visible=true;setCar(c);pos.set(c.x,0,c.z);face=c.ry;camYaw=0;camPitch=.28;vel.set(0,0,0);focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.visible=false;driving=c;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();setHl(c);modal.style.display='none';modal.innerHTML='';sys(d.message||'Horn heard. You are on the street—drive safely.');});
+window.addEventListener('nrs-carpark-exit',e=>{const d=e.detail||{},c=cars.find(v=>v.id===d.carId&&v.kind!=='t');carparkExitPending=false;if(!c)return;inside=null;c.x=Number(d.x)||0;c.z=Number(d.z)||0;c.ry=Number(d.yaw)||0;c.v=c.vx=c.vz=0;c.on=false;c.hlOn=false;c.starting=false;c.box.hw=1.05;c.box.hd=2.3;c.g.visible=true;setCar(c);pos.set(c.x,0,c.z);face=c.ry;camYaw=0;camPitch=.28;vel.set(0,0,0);focus.set(pos.x,1.4,pos.z);model.rotation.y=0;shadow.visible=false;driving=c;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();setHl(c);modal.style.display='none';modal.innerHTML='';sys(d.message||'Horn heard. You are on the street—drive safely.');});
 window.addEventListener('nrs-home-exit',e=>{const d=e.detail||{};if(!inside?.isHome)return;const r=inside;inside=null;pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);curPoi=null;act2.style.display='none';sys(d.message||'You are back outside.');});
 
 window.addEventListener('nrs-respawn',e=>{const d=e.detail||{};if(d.ok){pos.set(Number(d.x)||0,0,Number(d.z)||0);vel.set(0,0,0);}});
@@ -1296,4 +1297,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v4"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v5"></script></body></html>
