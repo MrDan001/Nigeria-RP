@@ -204,7 +204,7 @@ function building(x,z,w,d,h,col,side,lit){const pl=M(col),fr=new THREE.MeshLambe
 [[-17,-20,12,16,8,0xcdbf9d,-1,.3],[-17,6,12,14,6,0xb08a6a,-1,.2],[-17,32,12,16,11,0xc9ccd0,-1,.4],[-17,-52,12,18,14,0xd8d2c0,-1,.35],
  [17,-24,12,14,7,0xe0b878,1,.3],[17,2,12,14,9,0x9fb4c8,1,.4],[17,28,12,14,6,0xd6d0c4,1,.2],[17,-56,12,18,16,0xb8c8d8,1,.45],
  [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],[-30,-130,16,16,28,0xa09a90,-1,.4]].forEach(a=>building(...a));
-const sign=(w,h,fn,x,y,z,ry)=>{const o=add(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex(512,Math.round(512*h/w),fn),fog:true}),x,y,z);o.rotation.y=ry;return o;};
+const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(512,Math.round(512*h/w),fn),fog:true});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
 const flag=(x,z)=>{add(new THREE.CylinderGeometry(.06,.06,8,6),M(0x888888),x,4,z);
  add(new THREE.PlaneGeometry(2.4,1.4),new THREE.MeshBasicMaterial({map:tex(30,14,(g,w,h)=>{g.fillStyle='#0a8f4a';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.fillRect(10,0,10,h);}),side:THREE.DoubleSide}),x+1.2,7,z).rotation.y=Math.PI/2;};
@@ -257,7 +257,7 @@ for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx
 for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4)&&!boxes.some(b=>Math.abs(x-b.x)<b.hw+2&&Math.abs(z-b.z)<b.hd+2))palm(x,z);}
 /* signs: district boards and street names */
 function label(t,x,z,bg){add(new THREE.CylinderGeometry(.1,.1,6,6),M(0x666666),x,3,z);
- add(new THREE.PlaneGeometry(7,1.75),new THREE.MeshBasicMaterial({side:THREE.DoubleSide,map:tex(512,128,(g,w,h)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#fff';g.lineWidth=6;g.strokeRect(5,5,w-10,h-10);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px system-ui';g.fillText(t,w/2,h*.64);})}),x,6.8,z);}
+ const board=new THREE.Group();board.position.set(x,6.8,z);scene.add(board);const geo=new THREE.PlaneGeometry(7,1.75),mat=new THREE.MeshBasicMaterial({map:tex(512,128,(g,w,h)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#fff';g.lineWidth=6;g.strokeRect(5,5,w-10,h-10);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px system-ui';g.fillText(t,w/2,h*.64);})});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);}
 ZN.forEach(a=>label(a.n,a.lx,a.lz,'#0f5b3a'));HR.forEach(r=>label(r[1],-14,r[0]+8,'#1d4a8a'));VR.slice(1).forEach(r=>label(r[1],r[0]+8,(r[2]+r[3])/2+30,'#1d4a8a'));
 const RD=HR.map(r=>[r[2],r[0]-5,r[3]-r[2],10]).concat(VR.map(r=>[r[0]-5,r[2],10,r[3]-r[2]]));
 for(let i=-12;i<=8;i++)[[-8.8,i*14+3],[8.8,i*14+10]].forEach(p=>{if(!HR.some(r=>Math.abs(p[1]-r[0])<10))palm(p[0],p[1]);});
@@ -557,7 +557,7 @@ modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.i;
 let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
-const mini=(t,x,y,z,w,bg)=>add(new THREE.PlaneGeometry(w,w/4),new THREE.MeshBasicMaterial({side:THREE.DoubleSide,map:tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);})}),x,y,z);
+const mini=(t,x,y,z,w,bg)=>{const board=new THREE.Group();board.position.set(x,y,z);scene.add(board);const geo=new THREE.PlaneGeometry(w,w/4),map=tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);}),mat=new THREE.MeshBasicMaterial({map});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]]],
  [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000]]],
@@ -709,7 +709,88 @@ POI.push({x:-6.9,z:-36,k:'Use',name:'ATM',t:'atm'});
 /* mission beacon */
 const beacon=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,40,16,1,true),new THREE.MeshBasicMaterial({color:0xffc928,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false,fog:false}));
 beacon.visible=false;scene.add(beacon);
-/* interiors: built on first visit, far from the street */
+/* Interiors are real walkable 3D rooms; coordinates are kept inside server world limits. */
+const HOME_ROOMS=Object.create(null);
+function homeRoom(d){
+ const h=d.home||{},id=String(h.id||'my-home');
+ if(HOME_ROOMS[id])return HOME_ROOMS[id];
+ const ix=Number(d.roomX)||280,iz=Number(d.roomZ)||280,cls=h.cls||'flat';
+ const colors=cls==='hut'?{wall:0xbba07c,floor:0x8b7150,wood:0x65462e,soft:0xd2b48c,trim:0x5f412c}
+  :cls==='faceme'?{wall:0xd6c9b0,floor:0x9c8b70,wood:0x694c35,soft:0x91a3ad,trim:0x5f4635}
+  :cls==='flat'?{wall:0xe7e2d7,floor:0x9c927e,wood:0x65462e,soft:0x476a80,trim:0x5b4433}
+  :cls==='estate'?{wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d}
+  :cls==='mansion'?{wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645}
+  :{wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55};
+ const wall=new THREE.MeshLambertMaterial({color:colors.wall,side:THREE.DoubleSide});
+ const trim=M(colors.trim),wood=M(colors.wood),soft=M(colors.soft),mattress=M(0xf0eee6),dark=M(0x26313a);
+ flat(11.7,11.7,M(colors.floor),ix,.025,iz);
+ flat(4.8,2.7,new THREE.MeshLambertMaterial({color:cls==='hut'?0x594638:0x5b4b3d,side:THREE.DoubleSide}),ix+.4,.035,iz+.6);
+ add(new THREE.BoxGeometry(.18,4,12),wall,ix-5.91,2,iz);
+ add(new THREE.BoxGeometry(.18,4,12),wall,ix+5.91,2,iz);
+ add(new THREE.BoxGeometry(12,4,.18),wall,ix,2,iz-5.91);
+ add(new THREE.BoxGeometry(4.8,4,.18),wall,ix-3.6,2,iz+5.91);
+ add(new THREE.BoxGeometry(4.8,4,.18),wall,ix+3.6,2,iz+5.91);
+ add(new THREE.BoxGeometry(2.4,1.35,.18),wall,ix,3.325,iz+5.91);
+ const ceiling=add(new THREE.PlaneGeometry(12,12),new THREE.MeshLambertMaterial({color:0xcfc9bc,side:THREE.DoubleSide}),ix,4.03,iz);ceiling.rotation.x=-Math.PI/2;
+ // Door frame and a visibly open wooden door, leaving a clear way in and out.
+ add(new THREE.BoxGeometry(.12,2.55,.22),trim,ix-1.28,1.28,iz+5.82);
+ add(new THREE.BoxGeometry(.12,2.55,.22),trim,ix+1.28,1.28,iz+5.82);
+ add(new THREE.BoxGeometry(2.68,.14,.22),trim,ix,2.58,iz+5.82);
+ const door=new THREE.Group();door.position.set(ix-1.2,0,iz+5.72);door.rotation.y=-.72;scene.add(door);
+ add(new THREE.BoxGeometry(2.05,2.28,.12),wood,1.02,1.14,0,door);
+ add(new THREE.SphereGeometry(.07,8,8),M(0xd4b36a),1.78,1.08,.075,door);
+ // Side windows and inner window frames give the room daylight and real depth.
+ [-1,1].forEach(side=>{const wx=ix+side*5.79,wz=iz-.35;
+  add(new THREE.BoxGeometry(.05,1.35,1.95),new THREE.MeshLambertMaterial({color:0x79b7d0,side:THREE.DoubleSide,transparent:true,opacity:.8}),wx,2.45,wz);
+  add(new THREE.BoxGeometry(.09,.09,2.12),trim,wx,3.13,wz);
+  add(new THREE.BoxGeometry(.09,.09,2.12),trim,wx,1.77,wz);
+  add(new THREE.BoxGeometry(.09,1.42,.09),trim,wx,2.45,wz-.98);
+  add(new THREE.BoxGeometry(.09,1.42,.09),trim,wx,2.45,wz+.98);
+ });
+ // Bed, mattress, pillows, and wardrobe.
+ const bedX=ix-3.25,bedZ=iz-2.65,bw=cls==='hut'||cls==='faceme'?1.55:2.05;
+ add(new THREE.BoxGeometry(bw+.16,.42,2.65),wood,bedX,.34,bedZ);
+ add(new THREE.BoxGeometry(bw,.22,2.46),mattress,bedX,.66,bedZ+.02);
+ add(new THREE.BoxGeometry(bw+.2,1.35,.18),trim,bedX,1.0,bedZ-1.29);
+ add(new THREE.BoxGeometry(.58,.13,.43),M(0xfaf8f0),bedX-bw*.23,.83,bedZ-.78);
+ add(new THREE.BoxGeometry(.58,.13,.43),M(0xfaf8f0),bedX+bw*.23,.83,bedZ-.78);
+ add(new THREE.BoxGeometry(1.0,2.25,1.45),wood,ix-4.95,1.13,iz+.55);
+ add(new THREE.BoxGeometry(1.03,.06,1.48),trim,ix-4.95,2.28,iz+.55);
+ // A sofa lounge and coffee table for anything above the basic room classes.
+ if(!['hut','faceme'].includes(cls)){
+  add(new THREE.BoxGeometry(3.25,.48,1.05),soft,ix+2.05,.48,iz+1.15);
+  add(new THREE.BoxGeometry(3.25,1.0,.28),soft,ix+2.05,1.0,iz+.68);
+  [-1,1].forEach(side=>add(new THREE.BoxGeometry(.28,.76,1.05),soft,ix+2.05+side*1.49,.72,iz+1.15));
+  add(new THREE.BoxGeometry(1.9,.22,1.05),wood,ix+.6,.48,iz+2.75);
+  add(new THREE.BoxGeometry(1.8,.08,.95),trim,ix+.6,.63,iz+2.75);
+  add(new THREE.BoxGeometry(2.0,1.14,.12),dark,ix+3.4,1.85,iz-5.53);
+  add(new THREE.BoxGeometry(1.78,.91,.04),M(0x131b23),ix+3.4,1.85,iz-5.45);
+  add(new THREE.BoxGeometry(2.35,.38,.65),wood,ix+3.4,.33,iz-5.05);
+  add(new THREE.BoxGeometry(2.0,.12,.68),trim,ix+3.4,.56,iz-5.05);
+ }
+ // Small table, fan, kitchen counter, dining set and tier-specific decoration.
+ add(new THREE.CylinderGeometry(.06,.06,.62,8),wood,ix+.2,.34,iz-.45);
+ add(new THREE.CylinderGeometry(.63,.63,.12,12),trim,ix+.2,.68,iz-.45);
+ add(new THREE.CylinderGeometry(.035,.035,.55,8),dark,ix+.2,1.02,iz-.45);
+ add(new THREE.BoxGeometry(1.15,.08,.08),M(0x30363b),ix+.2,1.28,iz-.45);
+ add(new THREE.BoxGeometry(2.25,.75,.72),wood,ix+4.75,.42,iz-2.4);
+ add(new THREE.BoxGeometry(2.3,.12,.78),trim,ix+4.75,.84,iz-2.4);
+ if(['estate','mansion','palace'].includes(cls)){
+  add(new THREE.BoxGeometry(2.8,.95,.72),wood,ix+3.65,.5,iz-3.85);
+  add(new THREE.BoxGeometry(2.85,.12,.77),trim,ix+3.65,1.03,iz-3.85);
+  add(new THREE.BoxGeometry(.12,1.35,.85),wood,ix+2.55,1.02,iz-3.85);
+  add(new THREE.BoxGeometry(.12,1.35,.85),wood,ix+4.75,1.02,iz-3.85);
+  for(let k=0;k<3;k++)add(new THREE.BoxGeometry(.36,.2,.25),M(0x8f8f86),ix+2.85+k*.8,.64,iz-3.85);
+  if(cls==='palace')for(let k=0;k<3;k++)add(new THREE.CylinderGeometry(.06,.06,2.4,8),trim,ix-1.5+k*1.5,2.7,iz-5.5);
+ }
+ // Rugs, a potted plant and a warm ceiling light finish the space.
+ add(new THREE.CylinderGeometry(.2,.28,.36,10),M(0x8b5b35),ix+4.7,.18,iz+3.8);
+ add(new THREE.SphereGeometry(.48,10,8),M(0x2d813d),ix+4.7,.73,iz+3.8);
+ add(new THREE.CylinderGeometry(.28,.28,.12,12),M(0xe3c078),ix,3.67,iz);
+ add(new THREE.SphereGeometry(.16,10,8),M(0xffe5a6),ix,3.45,iz);
+ mini('EXIT',ix,3.05,iz+5.58,2.1,'#117044');
+ return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),x:ix,z:iz,cb:{x:ix-4.95,z:iz+.55,hw:.7,hd:.75},pois:[{x:ix,z:iz+4.45,k:'Exit',name:'Leave home',r:1.75}],isHome:true};
+}
 const ROOMS={};
 function room(p){if(ROOMS[p.id])return ROOMS[p.id];
  const ix=700+p.id*40,iz=700,col=parseInt(p.col.slice(1),16),wm=new THREE.MeshLambertMaterial({color:0xe9e2d0,side:THREE.BackSide}),no=new THREE.MeshBasicMaterial({visible:false});
@@ -725,7 +806,7 @@ function room(p){if(ROOMS[p.id])return ROOMS[p.id];
  if(p.t==='job')add(new THREE.BoxGeometry(.1,1.6,3),M(0xb08a5a),ix-5.9,2,iz);
  return ROOMS[p.id]={name:p.name,x:ix,z:iz,cb:{x:ix,z:iz-2,hw:2.6,hd:.6},pois};}
 function enterRoom(p){const r=room(p);r.ret={x:p.x,z:p.z,sx:p.sx};inside=r;pos.set(r.x,0,r.z+3.2);vel.set(0,0,0);face=Math.PI;camYaw=0;camPitch=.3;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
-function leaveRoom(){const r=inside;inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=-r.ret.sx*Math.PI/2;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
+function leaveRoom(){const r=inside;if(r?.isHome){const N=window.NRS;if(N&&N.exitHome){act2.style.display='none';sys('🚪 Leaving your home...');N.exitHome();}return;}inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=-r.ret.sx*Math.PI/2;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
  if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
 act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
@@ -879,7 +960,9 @@ document.querySelectorAll('#plt button').forEach(b=>b.onclick=()=>{plTab=b.datas
 function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.forEach(c=>{if(!c.id||!c.g||!c.box)return;if(!c._parkingBox)c._parkingBox={hw:c.box.hw,hd:c.box.hd};const stored=parked.has(c.id);c.g.visible=!stored;c.box.hw=stored?0:c._parkingBox.hw;c.box.hd=stored?0:c._parkingBox.hd;});}
 window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
 window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
-window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;const h=d.home||{},items=(d.furniture||[]).map(x=>'<li>'+esc(x)+'</li>').join('');panel('<b>🏠 '+esc(h.name||'Your home')+'</b><p>'+esc(h.zone||'Port Harcourt')+' · '+Number(h.rentDays||0)+' prepaid rent day(s)</p><p><b>Furnished interior</b></p><ul>'+items+'</ul><p>Your home is saved to your account.</p>');});
+window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Walk to the EXIT sign and press Exit to leave.');});
+window.addEventListener('nrs-home-exit',e=>{const d=e.detail||{};if(!inside?.isHome)return;const r=inside;inside=null;pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);curPoi=null;act2.style.display='none';sys(d.message||'You are back outside.');});
+
 window.addEventListener('nrs-respawn',e=>{const d=e.detail||{};if(d.ok){pos.set(Number(d.x)||0,0,Number(d.z)||0);vel.set(0,0,0);}});
 $('bmpl').onclick=()=>plShow(plc.style.display==='none');
 $('navx').onclick=()=>navStop('Navigation cancelled.');
@@ -936,7 +1019,7 @@ function fsBuild(brand,axis,road,side,cx,cz){
  const W=(lx,lz)=>[cx+lx*cs+lz*sn,cz-lx*sn+lz*cs];
  const wb=(lx,lz,hx,hz)=>{const p=W(lx,lz),sw=Math.abs(sn)>.5;boxes.push({x:p[0],z:p[1],hw:sw?hz:hx,hd:sw?hx:hz});};
  const pl=(w,d,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,d),m,x,y,z,g);o.rotation.x=-Math.PI/2;return o;};
- const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const o=add(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex(tw,th2,fn),side:THREE.DoubleSide}),x,y,z,g);o.rotation.y=ry;return o;};
+ const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;g.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(tw,th2,fn)});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
  pl(18,14,M(0x9a9a96),0,.03,1);pl(14,3,M(0x8d8d88),0,.035,-7.5);
  pl(.25,12,M(0xf2c230),-8.6,.04,1);pl(.25,12,M(0xf2c230),8.6,.04,1);
  /* canopy */
