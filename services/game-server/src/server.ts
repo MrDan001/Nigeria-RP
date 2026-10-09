@@ -808,7 +808,10 @@ wss.on("connection", (socket) => {
 
     // Offline players are settled here: any midnights that passed while they were away.
     const settled = settleSession(session);
-    if (settled) await persistSession(session);
+    if (settled) {
+      await persistSession(session);
+      if (settled.homeLost) await saveWorld();
+    }
 
     players.set(account.id, session);
     activeAccounts.set(account.id, socket);
@@ -822,6 +825,12 @@ wss.on("connection", (socket) => {
       onlineCount: players.size,
       houses: housingSnapshot(session),
     });
+    if (settled?.homeLost) {
+      send(socket, {
+        type: "lifeUpdate", life: session.player.life, today: clock.dayKey(),
+        rentUsed: settled.rentUsed, homeLost: settled.homeLost,
+      });
+    }
 
     broadcast({
       type: "playerJoined",
