@@ -218,7 +218,7 @@ const winTex=(base,lit,rx,ry)=>tex(256,512,(g,w,h)=>{
  // One complete storey per texture tile: repeat count follows the actual building height,
  // so high-rises get plausible floor counts instead of a wall covered in tiny random squares.
  g.fillStyle=base;g.fillRect(0,0,w,h);
- const shade=(g.fillStyle||base);
+
  for(let i=0;i<900;i++){const a=Math.random()*.055,v=Math.random()>.55?255:0;g.fillStyle='rgba('+v+','+v+','+v+','+a+')';g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*4,2+Math.random()*7);}
  g.fillStyle='rgba(20,24,26,.14)';g.fillRect(0,0,w,34);g.fillRect(0,h-31,w,31);
  g.fillStyle='rgba(245,239,221,.46)';g.fillRect(0,28,w,7);g.fillRect(0,h-31,w,7);
@@ -234,15 +234,16 @@ const winTex=(base,lit,rx,ry)=>tex(256,512,(g,w,h)=>{
   g.fillStyle='rgba(20,27,31,.75)';g.fillRect(x+ww*.49,y,2,wh);
   g.fillRect(x,y+wh*.58,ww,3);
   g.fillStyle='rgba(238,231,213,.95)';g.fillRect(x-7,y+wh+3,ww+14,7);g.fillRect(x-5,y-8,ww+10,5);
-  // A percentage of windows have projecting sills / balustrades, breaking up flat office walls.
-  if(Math.random()<.23){
+  // Balconies and AC units share a facade bay without overlapping each other.
+  const balcony=Math.random()<.23;
+  if(balcony){
    const by=y+wh+14;g.fillStyle='#777d7c';g.fillRect(x-7,by,ww+14,4);
    g.fillStyle='#d4d1c7';g.fillRect(x-7,by+4,ww+14,3);
    for(let bx=x-4;bx<x+ww+7;bx+=7)g.fillRect(bx,by+3,2,16);
    g.fillRect(x-7,by+17,ww+14,4);
   }
   // Exterior AC condenser below selected windows, common on Nigerian apartment blocks.
-  if(Math.random()<.18){
+  if(!balcony&&Math.random()<.18){
    const ay=y+wh+30;g.fillStyle='#777d7d';g.fillRect(x+ww*.25,ay,ww*.5,18);
    g.fillStyle='#252c30';g.fillRect(x+ww*.31,ay+4,ww*.38,9);
    g.fillStyle='#b4b6b0';g.fillRect(x+ww*.22,ay-3,ww*.56,3);
@@ -1450,4 +1451,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-stage2-facade-detail-v4"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-stage2-facade-detail-v5"></script></body></html>
