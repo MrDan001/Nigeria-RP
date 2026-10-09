@@ -571,7 +571,7 @@ async function createAccount(email: string, username: string, password: string) 
     cash: 5000,
     bank: 0,
     x: 0,
-  z: 24,
+    z: 24,
     yaw: Math.PI,
     hp: 100,
     hunger: 82,
@@ -708,7 +708,7 @@ const MIME: Record<string, string> = {
 };
 
 const httpServer = http.createServer((request, response) => {
-  const url = new URL(request.url ?? "/", "http://" + (request.headers.host ?? "localhost"));
+  const url = new URL(request.url ?? "/", "http:p://" + (request.headers.host ?? "localhost"));
 
   if (url.pathname === "/health") {
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
@@ -830,7 +830,6 @@ wss.on("connection", (socket: WebSocket) => {
     if (settled) await persistSession(session);
 
     players.set(account.id, session);
-
     activeAccounts.set(account.id, socket);
 
     send(socket, {
@@ -895,8 +894,7 @@ wss.on("connection", (socket: WebSocket) => {
 
             if (!account) throw new Error("INVALID_SESSION");
 
-            const tokenAgain = token;
-            await finishAuthentication(account, tokenAgain);
+            await finishAuthentication(account, token);
             return;
           }
 
@@ -968,4 +966,342 @@ wss.on("connection", (socket: WebSocket) => {
         if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return;
 
         const now = Date.now();
-        const elapsed = Math.min
+        const elapsed = Math.min(SYNC_MAX_ELAPSED, Math.max(0, (now - session.lastSyncAt) / 1000));
+        const allowed = SYNC_SLACK + SYNC_MAX_SPEED * elapsed;
+        const moved = Math.hypot(x - session.player.x, z - session.player.z);
+
+        if (moved <= allowed) {
+          session.player.x = x;
+          session.player.z = z;
+          if (Number.isFinite(yaw)) session.player.yaw = yaw;
+          session.lastSyncAt = now;
+          session.rejectedSyncs = 0;
+        } else {
+          session.rejectedSyncs += 1;
+          session.lastSyncAt = now;
+
+          // Client keeps disagreeing: snap it back to the server's position.
+          if (session.rejectedSyncs >= 3) {
+            session.rejectedSyncs = 0;
+            send(socket, { type: "posCorrect", x: session.player.x, z: session.player.z });
+          }
+        }
+        return;
+      }
+
+      if (message.type === "buyFuel") {
+        const carId = String(message.carId ?? "");
+        const price = FUEL_PRICES[String(message.brand ?? "")];
+        const litres = Math.floor(Number(message.litres));
+        const fail = (text: string) => send(socket, { type: "fuelResult", ok: false, message: text });
+
+        if (!price || !/^c\d{1,3}$/.test(carId) || !Number.isFinite(litres) || litres < 1 || litres > FUEL_TANK) {
+          fail("Invalid fuel request.");
+          return;
+        }
+
+        const current = session.player.fuel[carId] ?? FUEL_START;
+
+        if (litres > Math.floor(FUEL_TANK - current + 1e-6)) {
+          fail("The tank can't hold that much.");
+          return;
+        }
+
+        const cost = litres * price;
+
+        if (session.player.cash < cost) {
+          fail("Not enough cash.");
+          return;
+        }
+
+        session.player.cash -= cost;
+        session.player.fuel[carId] = Math.round((current + litres) * 100) / 100;
+        await persistSession(session);
+
+        send(socket, {
+          type: "fuelResult",
+          ok: true,
+          carId,
+          fuel: session.player.fuel[carId],
+          cash: session.player.cash,
+        });
+        return;
+      }
+
+      if (message.type === "acceptJob") {
+        const jobName = String(message.name ?? "");
+        const known = JOBS.find((job) => job.n === jobName);
+
+        if (!known) {
+          send(socket, { type: "jobResult", ok: false, message: "Unknown job." });
+          return;
+        }
+
+        if (session.player.job) {
+          send(socket, { type: "jobResult", ok: false, message: "You already have an active job." });
+          return;
+        }
+
+        session.player.job = { ...known };
+        await persistSession(session);
+        send(socket, { type: "jobResult", ok: true, job: session.player.job });
+        return;
+      }
+
+      if (message.type === "walletChange") {
+        const requestId = String(message.requestId ?? "");
+        const cashDelta = Number(message.cashDelta ?? 0);
+        const bankDelta = Number(message.bankDelta ?? 0);
+        const reason = String(message.reason ?? "");
+
+        if (
+          !requestId ||
+          !Number.isSafeInteger(cashDelta) ||
+          !Number.isSafeInteger(bankDelta) ||
+          Math.abs(cashDelta) > 50_000_000 ||
+          Math.abs(bankDelta) > 50_000_000
+        ) {
+          send(socket, { type: "walletResult", requestId, ok: false, message: "Invalid wallet request." });
+          return;
+        }
+
+        const deltas = validateWalletDeltas(cashDelta, bankDelta, reason);
+        if (!deltas.ok) {
+          send(socket, { type: "walletResult", requestId, ok: false, message: deltas.reason });
+          return;
+        }
+
+        if (reason === "job") {
+          const activeJob = session.player.job;
+
+          if (
+            !activeJob ||
+            !isValidKnownJob(activeJob) ||
+            Math.hypot(session.player.x - activeJob.x, session.player.z - activeJob.z) > 7 ||
+            cashDelta !== Math.trunc(activeJob.pay)
+          ) {
+            send(socket, {
+              type: "walletResult",
+              requestId,
+              ok: false,
+              message: "Job reward is not valid here.",
+            });
+            return;
+          }
+
+          session.player.job = null;
+        }
+
+        const nextCash = session.player.cash + cashDelta;
+        const nextBank = session.player.bank + bankDelta;
+
+        if (nextCash < 0 || nextBank < 0) {
+          send(socket, {
+            type: "walletResult",
+            requestId,
+            ok: false,
+            message: "Insufficient funds.",
+          });
+          return;
+        }
+
+        session.player.cash = nextCash;
+        session.player.bank = nextBank;
+        await persistSession(session);
+
+        send(socket, {
+          type: "walletResult",
+          requestId,
+          ok: true,
+          cash: nextCash,
+          bank: nextBank,
+        });
+        return;
+      }
+
+      if (message.type === "saveProgress") {
+        if (message.hp !== undefined) {
+          session.player.hp = Math.max(1, Math.min(100, Number(message.hp) || 1));
+        }
+
+        if (message.hunger !== undefined) {
+          session.player.hunger = Math.max(0, Math.min(100, Number(message.hunger) || 0));
+        }
+
+        // Jobs are server-authoritative (acceptJob / walletChange). A client save must never
+        // set or clear them, or a stale save could restore an already-paid job.
+
+        if (message.fuel !== undefined) {
+          // Fuel can only go DOWN through a client save (driving burns it). Refuelling must
+          // go through a server-checked purchase, so a client can't just report a full tank.
+          const reported = normalizeFuel(message.fuel);
+          for (const [key, litres] of Object.entries(reported)) {
+            const ceiling = session.player.fuel[key] ?? FUEL_START;
+            session.player.fuel[key] = Math.min(ceiling, litres);
+          }
+        }
+
+        if (message.inventory !== undefined) {
+          session.player.inventory = normalizeInventory(message.inventory);
+        }
+
+        await persistSession(session);
+        return;
+      }
+
+      if (message.type === "getLife") {
+        send(socket, { type: "lifeState", life: session.player.life, today: clock.dayKey() });
+        return;
+      }
+
+      // Test-only tools, refused unless the server was started with NRS_DEBUG_CLOCK=1.
+      if (message.type === "debugSkipDays" || message.type === "debugGiveHome") {
+        if (!DEBUG_CLOCK) {
+          send(socket, { type: "error", code: "DEBUG_DISABLED" });
+          return;
+        }
+
+        if (message.type === "debugSkipDays") {
+          const days = Math.floor(Number(message.days));
+          if (!Number.isFinite(days) || days < 1 || days > 60) {
+            send(socket, { type: "error", code: "INVALID_DAYS" });
+            return;
+          }
+          clock.skipDays(days);
+          await runMidnight();
+        } else {
+          const houseId = String(message.houseId ?? "");
+          const rentDays = Math.max(0, Math.min(7, Math.floor(Number(message.rentDays) || 0)));
+          if (!HOUSES.some((house) => house.id === houseId)) {
+            send(socket, { type: "error", code: "UNKNOWN_HOUSE" });
+            return;
+          }
+          const tenant = world.houseTenants[houseId];
+          if (tenant && tenant !== session.player.id) {
+            send(socket, { type: "error", code: "HOUSE_OCCUPIED" });
+            return;
+          }
+          const previousHomeId = session.player.life.homeId;
+          if (previousHomeId && previousHomeId !== houseId && world.houseTenants[previousHomeId] === session.player.id) {
+            world.houseTenants[previousHomeId] = null;
+          }
+          session.player.life = { ...session.player.life, homeId: houseId, rentDays };
+          world.houseTenants[houseId] = session.player.id;
+          await saveWorld();
+          await persistSession(session);
+        }
+
+        send(socket, { type: "lifeState", life: session.player.life, today: clock.dayKey() });
+        return;
+      }
+
+      if (message.type === "interact") {
+        send(socket, {
+          type: "interactionResult",
+          accepted: true,
+          targetId: String(message.targetId ?? ""),
+        });
+      }
+    })().catch((error) => {
+      console.error("message-handler", error);
+      send(socket, { type: "error", code: "SERVER_ERROR" });
+    });
+  });
+
+  const cleanup = () => {
+    clearTimeout(authTimer);
+
+    if (!accountId) return;
+
+    const session = players.get(accountId);
+    if (!session || session.socket !== socket) return;
+
+    void persistSession(session).catch((error) => console.error("save-on-close", error));
+
+    players.delete(accountId);
+
+    if (activeAccounts.get(accountId) === socket) {
+      activeAccounts.delete(accountId);
+    }
+
+    broadcast({
+      type: "playerLeft",
+      playerId: accountId,
+      onlineCount: players.size,
+    });
+  };
+
+  socket.on("close", cleanup);
+  socket.on("error", cleanup);
+});
+
+setInterval(() => {
+  const dt = 1 / TICK_RATE;
+  const now = Date.now();
+
+  for (const session of players.values()) {
+    const input = now - session.lastInputAt > INPUT_TIMEOUT_MS
+      ? { forward: 0, strafe: 0 }
+      : session.input;
+
+    const length = Math.hypot(input.forward, input.strafe);
+
+    if (length > 0.01) {
+      const f = input.forward / Math.max(1, length);
+      const s = input.strafe / Math.max(1, length);
+
+      const velocityX = s * MOVE_SPEED;
+      const velocityZ = -f * MOVE_SPEED;
+
+      session.player.x = Math.max(
+        -WORLD_LIMIT,
+        Math.min(WORLD_LIMIT, session.player.x + velocityX * dt),
+      );
+
+      session.player.z = Math.max(
+        -WORLD_LIMIT,
+        Math.min(WORLD_LIMIT, session.player.z + velocityZ * dt),
+      );
+
+      const targetYaw = Math.atan2(velocityX, velocityZ);
+      let delta = targetYaw - session.player.yaw;
+
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+
+      session.player.yaw += delta * Math.min(1, 12 * dt);
+    }
+  }
+}, 1000 / TICK_RATE);
+
+setInterval(() => {
+  broadcast({
+    type: "snapshot",
+    serverTime: Date.now(),
+    players: snapshot(),
+    onlineCount: players.size,
+  });
+}, 1000 / SNAPSHOT_RATE);
+
+setInterval(() => {
+  for (const session of players.values()) {
+    void persistSession(session).catch((error) => console.error("periodic-save", error));
+  }
+}, 5000);
+
+// Checks twice a minute whether Nigeria time has crossed midnight.
+setInterval(() => {
+  void runMidnight().catch((error) => console.error("midnight", error));
+}, 30000);
+
+async function main() {
+  await initStore();
+  httpServer.listen(PORT, () => {
+    console.log("NRS web + multiplayer server listening on :" + PORT);
+  });
+}
+
+void main().catch((error) => {
+  console.error("NRS startup failed", error);
+  process.exit(1);
+});
