@@ -151,6 +151,20 @@ const HOUSE_PLAN: ReadonlyArray<{ cls: HouseClassId; zone: string; count: number
   { cls: "palace", zone: "Old GRA", count: 2, tag: "gra" },
 ];
 
+const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>> = {
+  // Trans Amadi's road runs east-west at z=-190. Keep the estate row well behind it.
+  "estate-ta-01": { x: 128, z: -228 },
+  "estate-ta-02": { x: 156, z: -228 },
+  "estate-ta-03": { x: 184, z: -228 },
+  "estate-ta-04": { x: 212, z: -228 },
+  // Old GRA homes share one deliberate low-density lane rather than sitting on the road.
+  "palace-gra-01": { x: -228, z: -228 },
+  "mansion-gra-01": { x: -200, z: -228 },
+  "palace-gra-02": { x: -172, z: -228 },
+  "mansion-gra-02": { x: -144, z: -228 },
+  "mansion-gra-03": { x: -116.5, z: -228 },
+};
+
 function buildHouses(): HouseDef[] {
   const out: HouseDef[] = [];
   const seen: Record<string, number> = {};
@@ -161,12 +175,14 @@ function buildHouses(): HouseDef[] {
       const n = (seen[key] = (seen[key] ?? 0) + 1);
       // Spread along a diagonal inside the district, deterministic so ids and spots never change.
       const t = (i + 1) / (plan.count + 1);
+      const id = key + "-" + String(n).padStart(2, "0");
+      const override = HOUSE_LAYOUT_OVERRIDES[id];
       out.push({
-        id: key + "-" + String(n).padStart(2, "0"),
+        id,
         cls: plan.cls,
         zone: plan.zone,
-        x: Math.round(x1 + (x2 - x1) * t),
-        z: Math.round(z1 + (z2 - z1) * (0.3 + 0.4 * t)),
+        x: override?.x ?? Math.round(x1 + (x2 - x1) * t),
+        z: override?.z ?? Math.round(z1 + (z2 - z1) * (0.3 + 0.4 * t)),
         placed: false,
       });
     }
