@@ -23,6 +23,8 @@
     pending: [],
     jobCb: null,
     fuelCb: null,
+    garageSpawnCb: null,
+    carparkSyncAt: 0,
     posAt: 0,
     posX: 1e9,
     posZ: 1e9,
@@ -501,6 +503,11 @@
           window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
           if (message.message) sys(message.message);
         }
+      } else if (message.type === "carparkVehicleSpawnResult") {
+        const cb = S.garageSpawnCb;
+        S.garageSpawnCb = null;
+        cb?.(message);
+        if (!message.ok && message.message) sys(message.message);
       } else if (message.type === "carparkExitResult") {
         if (message.ok) {
           N.life = message.life || N.life;
@@ -646,7 +653,15 @@
   N.enterHome = () => send({ type: "enterHome" });
   N.exitHome = () => send({ type: "exitHome" });
   N.enterCarpark = () => send({ type: "enterCarpark" });
-  N.exitCarpark = (carId) => send({ type: "exitCarpark", carId });
+  N.spawnCarparkVehicle = (carId, callback) => {
+    if (!S.authed || !S.open) {
+      callback?.({ ok: false, message: "You are not connected to the game server." });
+      return;
+    }
+    S.garageSpawnCb = callback;
+    send({ type: "carparkVehicleSpawn", carId });
+  };
+  N.exitCarpark = (carId, hornHeld = false) => send({ type: "exitCarpark", carId, hornHeld: hornHeld === true });
   N.parkCars = () => send({ type: "parkCars" });
   N.retrieveCars = () => send({ type: "retrieveCars" });
   N.respawn = () => send({ type: "respawn" });
@@ -732,6 +747,23 @@
       }
 
       S.last = now;
+    }
+
+    // Stream short, bounded vehicle-position samples while driving inside the
+    // private garage. The server derives movement speed from consecutive samples
+    // and requires a recent stopped sample at the actual gate before allowing exit.
+    if (S.authed && S.open && inside?.isCarpark && driving && driving.id) {
+      const garageNow = performance.now();
+      if (garageNow - S.carparkSyncAt >= 180) {
+        S.carparkSyncAt = garageNow;
+        send({
+          type: "carparkDriveSync",
+          carId: driving.id,
+          x: driving.x,
+          z: driving.z,
+          yaw: driving.ry
+        });
+      }
     }
 
     // Report our real position (on foot or driving) so the server can validate
