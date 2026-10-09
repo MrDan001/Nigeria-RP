@@ -37,6 +37,12 @@ jobs:
       - name: Typecheck game server
         run: npm run typecheck --workspace nigeria-rp-game-server
 
+      - name: Test Stage 1 rules
+        run: npm run test:stage1 --workspace nigeria-rp-game-server
+
+      - name: Test Stage 2 housing rules
+        run: npm run test:stage2 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
