@@ -1066,7 +1066,7 @@ function homeRoom(d){
  A(new THREE.BoxGeometry(w*.48,.025,depth*.28),rug,w*.08,.075,depth*.11);
  A(new THREE.BoxGeometry(w*.48-.12,.027,depth*.28-.12),accent,w*.08,.093,depth*.11);
  // Bed and wardrobe anchor the sleeping area on the left so the door and walkway stay clear.
- const bedW=cls==='hut'?1.25:cls==='faceme'?1.5:cls==='flat'?1.8:cls==='estate'?2.0:2.15:2.35,bedD=cls==='hut'?2.0:2.45;
+ const bedW=cls==='hut'?1.25:cls==='faceme'?1.5:cls==='flat'?1.8:cls==='estate'?2.0:cls==='mansion'?2.15:2.35,bedD=cls==='hut'?2.0:2.45;
  const bedX=-w*.28,bedZ=-depth*.24;
  A(new THREE.BoxGeometry(bedW+.16,.38,bedD+.18),wood,bedX,.25,bedZ);
  A(new THREE.BoxGeometry(bedW,.18,bedD),cream,bedX,.51,bedZ+.02);
