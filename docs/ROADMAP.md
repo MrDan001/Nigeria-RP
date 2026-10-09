@@ -1,65 +1,39 @@
-# NRS Roadmap
+# NRS Roadmap — Stage Status and Next Approved Work
 
-## Stage 0 — Foundation
-- repository structure
-- master specification
-- architecture contracts
-- networking benchmark
-- Unity Android project
-- backend skeleton
-- CI checks
-- local development instructions
+The complete scope, sequence, implementation notes, acceptance checks and developer commands are in **[IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md)**. Read that handoff before starting work.
 
-## Stage 1 — Multiplayer laboratory
-- authentication/session
-- player identity
-- spawn
-- mobile joystick/camera
-- movement
-- player replication
-- interaction prompts
-- disconnect/reconnect
+## Current status — October 2026
 
-## Stage 2 — Vehicle laboratory
-- one vehicle
-- enter/exit
-- driving controls
-- authoritative vehicle state
-- ownership
-- persistence
+| Stage | Scope | Status |
+|---|---|---|
+| 0 | Repository, server, persistence, CI and deployment foundation | Foundation exists; maintain it |
+| 1 | Accounts, saved life, reconnect and multiplayer visibility | Core code exists; real-player testing remains |
+| 2 | Homes/rent, realistic exterior/interior, private car park, driving exit | **In progress — current focus** |
+| 3 | Workplace/job engine, staff ranks, boss permissions and payouts | **Next only after Stage 2 is tested and approved** |
+| 4 | Markets, shops, food and everyday economy | Planned |
+| 5 | Banking, treasury and auditable financial records | Planned |
+| 6 | Health, hospital, pharmacy and recreation | Planned |
+| 7 | Police, FRSC, fire and military services | Planned |
+| 8 | Taxi, keke, danfo, bus routes and passenger workflows | Planned |
+| 9 | Communications, phone, news and social systems | Planned |
+| 10 | Government and civic institutions | Planned |
+| 11 | Utilities and education | Planned |
+| 12 | Offices, oil/gas and industry | Planned |
+| 13 | Port Harcourt content, streets/buildings, traffic and optimization | Planned |
+| 14 | Onboarding, economy balance, anti-cheat and moderation | Planned |
+| 15 | Release/load/recovery testing and additional cities | Planned |
 
-## Stage 3 — Communication
-- proximity text
-- phone prototype
-- basic voice architecture decision
+## Current gate
 
-## Stage 4 — First role
-- taxi role
-- work menu
-- player passenger request
-- pickup/drop-off
-- server validation
-- Naira reward
-- transaction history
+Do **not** start Stage 3 yet. Finish Stage 2, run server tests plus **Browser Client Build** and **Game Server CI**, verify the live flow on Android, document failures, and get explicit user approval. Green CI is necessary, but it does not prove the game looks or behaves correctly in a browser.
 
-## Stage 5 — Port Harcourt vertical slice
-- small optimized district
-- roads
-- shops
-- police station
-- hospital
-- mechanic
-- residential area
-- traffic foundations
+## Project boundaries
 
-## Stage 6 — Production expansion
-- additional roles
-- economy
-- property
-- businesses
-- crime/justice
-- emergency services
-- full Port Harcourt
-- additional cities
-- inter-city travel
-- live operations
+The browser game currently uses Three.js from `services/web-client/index.html`; the game server is TypeScript/WebSocket in `services/game-server/src/server.ts`. The server/database must own valuable state. Vehicle movement still needs server-authoritative simulation before the car system can be called production-ready.
+
+See:
+- [Full implementation roadmap and developer handoff](IMPLEMENTATION-ROADMAP.md)
+- [Master product specification](MASTER-DOCUMENT.md)
+- [Technical architecture](ARCHITECTURE.md)
+- [Browser client architecture](BROWSER-CLIENT-ARCHITECTURE.md)
+- [Stage 2 status and test notes](STAGE-2-STATUS.md)
