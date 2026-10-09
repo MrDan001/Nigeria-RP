@@ -363,4 +363,91 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query(
-      "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB
+      "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
+    );
+    const worldRow = await pool.query("SELECT value FROM nrs_world WHERE key='world' LIMIT 1");
+    world = normalizeWorld(worldRow.rows[0]?.value, clock.dayKey());
+    await saveWorld();
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
+    await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
+    await pool.query("UPDATE nrs_accounts SET email_lower=LOWER(email) WHERE email_lower IS NULL OR email_lower=''");
+    await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email SET NOT NULL");
+    await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email_lower SET NOT NULL");
+    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
+    console.log("NRS durable storage: PostgreSQL");
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+    const root = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+    const rawAccounts = root.accounts && typeof root.accounts === "object" && !Array.isArray(root.accounts)
+      ? root.accounts as Record<string, unknown>
+      : {};
+    const rawSessions = root.sessions && typeof root.sessions === "object" && !Array.isArray(root.sessions)
+      ? root.sessions as Record<string, unknown>
+      : {};
+    const accounts: Record<string, Account> = {};
+    for (const [key, value] of Object.entries(rawAccounts)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+      const candidate = value as Record<string, unknown>;
+      // Ignore unusable/corrupt entries without discarding other accounts in the save.
+      if (
+        typeof candidate.id === "string" &&
+        typeof candidate.username === "string" &&
+        typeof candidate.passwordSalt === "string" &&
+        typeof candidate.passwordHash === "string"
+      ) accounts[key] = candidate as unknown as Account;
+    }
+    const sessions: FileStore["sessions"] = {};
+    for (const [key, value] of Object.entries(rawSessions)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+      const candidate = value as Record<string, unknown>;
+      if (typeof candidate.accountId === "string" && Number.isFinite(Number(candidate.expiresAt))) {
+        sessions[key] = { accountId: candidate.accountId, expiresAt: Number(candidate.expiresAt) };
+      }
+    }
+    fileStore = { accounts, sessions, world: root.world as WorldState | undefined };
+  } catch {
+    fileStore = { accounts: {}, sessions: {} };
+    writeFileStore();
+  }
+  world = normalizeWorld(fileStore.world, clock.dayKey());
+  await saveWorld();
+  console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
+}
+
+function accountFromRow(row: any): Account {
+  return normalizeAccount({
+    id: String(row.id),
+    username: String(row.username),
+    usernameLower: String(row.username_lower),
+    email: String(row.email ?? ""),
+    emailLower: String(row.email_lower ?? ""),
+    passwordSalt: String(row.password_salt),
+    passwordHash: String(row.password_hash),
+    cash: Number(row.cash),
+    bank: Number(row.bank),
+    x: Number(row.x),
+    z: Number(row.z),
+    yaw: Number(row.yaw),
+    hp: Number(row.hp),
+    hunger: Number(row.hunger),
+    level: Number(row.level),
+    xp: Number(row.xp),
+    job: row.job ?? null,
+    inventory: row.inventory ?? {},
+    fuel: row.fuel ?? {},
+    life: row.life ?? {},
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
+  });
+}
+
+async function findAccountByEmail(emailLower: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * 
