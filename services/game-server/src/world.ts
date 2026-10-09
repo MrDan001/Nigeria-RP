@@ -207,6 +207,58 @@ export function houseRent(houseId: string): number {
 // The parked cars in the client map, by their fixed ids.
 export const CAR_IDS: readonly string[] = ["c0", "c1", "c2", "c3", "c4"];
 
+/* Private car-park vehicle route contract. The browser reports sampled vehicle
+   positions; the server bounds their travel, tracks the last movement-derived
+   speed, and validates the gate/horn request. Full server-owned vehicle physics
+   remains a separate milestone. */
+export const CARPARK_POSITION = { x: 455, z: 455 } as const;
+export const CARPARK_VEHICLE_SPAWN = { x: 455, z: 449.6 } as const;
+export const CARPARK_EXIT_GATE = { x: 455, halfWidth: 6.5, minZ: 468, maxZ: 486 } as const;
+
+export type CarparkVehicleTrack = {
+  carId: string;
+  x: number;
+  z: number;
+  yaw: number;
+  /** Derived from accepted consecutive position samples, not a client speed claim. */
+  speed: number;
+  lastSyncAt: number;
+  reachedGate: boolean;
+};
+
+export function validateCarparkExit(
+  track: CarparkVehicleTrack | null,
+  requestedCarId: string,
+  hornHeld: unknown,
+  now: number,
+  ownedCars: readonly string[],
+): { ok: true } | { ok: false; reason: string } {
+  if (!ownedCars.includes(requestedCarId)) {
+    return { ok: false, reason: "That vehicle is not owned by this account." };
+  }
+  if (!track || track.carId !== requestedCarId) {
+    return { ok: false, reason: "Spawn an owned vehicle in the car park before driving to the exit." };
+  }
+  if (!Number.isFinite(now) || now < track.lastSyncAt || now - track.lastSyncAt > 800) {
+    return { ok: false, reason: "Reconnect the vehicle controls, stop at the gate, and honk again." };
+  }
+  if (
+    !track.reachedGate ||
+    Math.abs(track.x - CARPARK_EXIT_GATE.x) > CARPARK_EXIT_GATE.halfWidth ||
+    track.z < CARPARK_EXIT_GATE.minZ ||
+    track.z > CARPARK_EXIT_GATE.maxZ
+  ) {
+    return { ok: false, reason: "Drive through the marked gate before honking to leave the car park." };
+  }
+  if (!Number.isFinite(track.speed) || Math.abs(track.speed) > 1.8) {
+    return { ok: false, reason: "Bring the car to a complete stop at the gate before honking." };
+  }
+  if (hornHeld !== true) {
+    return { ok: false, reason: "Hold the horn while stopped at the gate to enter the street." };
+  }
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------- Nigeria-time day clock
 
 const WAT_OFFSET_MS = 60 * 60 * 1000; // UTC+1 all year, Nigeria has no daylight saving
