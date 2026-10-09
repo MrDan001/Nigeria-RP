@@ -289,7 +289,13 @@ function createHouseExterior(h){
  A(new THREE.BoxGeometry(Math.max(2.4,w*.29),.08,6.0),m.concrete,0,.16,front+3.4);
  for(let k=0;k<5;k++)A(new THREE.BoxGeometry(Math.max(2.4,w*.29)+.1,.018,.06),m.trim,0,.215,front+1.1+k*1.08);
  if(cls==="hut"){A(new THREE.CylinderGeometry(w*.48,w*.5,.25,12),m.trim,0,.28,0);}
- else{A(new THREE.BoxGeometry(w,H,d),m.wall,0,.22+H/2,0);A(new THREE.BoxGeometry(w+.22,.25,d+.22),m.trim,0,.28,0);A(new THREE.BoxGeometry(w+.35,.15,.25),m.trim,0,.22+H-.12,front+.035);}
+ else{
+  // Avoid a single full-width wall behind the split wings of larger houses: those
+  // types are built from their separate volumes below to keep their rooflines distinct.
+  if(!["estate","mansion","palace"].includes(cls))A(new THREE.BoxGeometry(w,H,d),m.wall,0,.22+H/2,0);
+  A(new THREE.BoxGeometry(w+.22,.25,d+.22),m.trim,0,.28,0);
+  if(!["estate","mansion","palace"].includes(cls))A(new THREE.BoxGeometry(w+.35,.15,.25),m.trim,0,.22+H-.12,front+.035);
+ }
  // Every class gets actual windows, a frame, drain pipes and a door, but not the same silhouette.
  if(cls==="hut"){
   // Earth-toned round mud hut with a high palm-thatched cone roof.
@@ -1300,4 +1306,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v6"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v7"></script></body></html>
