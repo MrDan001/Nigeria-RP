@@ -26,7 +26,7 @@ The browser client uses WebGL 2 as the broad compatibility path and can use WebG
 - Every major stage has an approval gate.
 - The client is a presentation/input layer; the game server owns simulation and validation.
 
-See docs/MASTER-DOCUMENT.md for the complete product and technical specification.
+Read [docs/IMPLEMENTATION-ROADMAP.md](docs/IMPLEMENTATION-ROADMAP.md) first for every planned stage, current progress, developer commands, acceptance criteria and the next approved task. Also see [docs/MASTER-DOCUMENT.md](docs/MASTER-DOCUMENT.md) for the product specification, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for runtime boundaries and [docs/STAGE-2-STATUS.md](docs/STAGE-2-STATUS.md) for the current housing/car-park gate.
 
 ## First browser-playable milestone
 
