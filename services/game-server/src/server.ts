@@ -81,6 +81,7 @@ type Session = {
   lastSyncAt: number;
   rejectedSyncs: number;
   inHome: boolean;
+  inCarpark: boolean;
   homeReturn: { x: number; z: number } | null;
 };
 
@@ -297,6 +298,32 @@ function homeInteriorPosition(homeId: string) {
   // Six columns by five rows, each room separated and kept inside WORLD_LIMIT.
   return { x: 280 + (index % 6) * 28, z: 280 + Math.floor(index / 6) * 27 };
 }
+
+function houseExteriorDepth(cls: string): number {
+  switch (cls) {
+    case "hut": return 6;
+    case "faceme": return 8;
+    case "flat": return 10;
+    case "estate": return 11;
+    case "mansion": return 13;
+    case "palace": return 16;
+    default: return 10;
+  }
+}
+
+// All exits use the front approach, so players emerge beside the home they rent
+// instead of reappearing at whatever point on the map they entered from.
+function homeStreetPosition(homeId: string) {
+  const home = findHouse(homeId);
+  if (!home) return null;
+  return {
+    x: Math.max(-WORLD_LIMIT + 8, Math.min(WORLD_LIMIT - 8, home.x)),
+    z: Math.max(-WORLD_LIMIT + 8, Math.min(WORLD_LIMIT - 8, home.z + houseExteriorDepth(home.cls) / 2 + 8)),
+  };
+}
+
+const CARPARK_POSITION = { x: 455, z: 455 };
+const CARPARK_PLAYER_POSITION = { x: CARPARK_POSITION.x, z: CARPARK_POSITION.z - 12 };
 
 function sendHousingState(session: Session) {
   send(session.socket, {
@@ -816,6 +843,7 @@ wss.on("connection", (socket) => {
       lastSyncAt: Date.now(),
       rejectedSyncs: 0,
       inHome: false,
+      inCarpark: false,
       homeReturn: null,
     };
 
@@ -1221,9 +1249,10 @@ wss.on("connection", (socket) => {
         }
         const cls = HOUSE_CLASSES.find((item) => item.id === home.cls)!;
         const room = homeInteriorPosition(home.id);
-        const returnPosition = { x: session.player.x, z: session.player.z };
+        const returnPosition = homeStreetPosition(home.id) ?? { x: session.player.x, z: session.player.z };
         session.homeReturn = returnPosition;
         session.inHome = true;
+        session.inCarpark = false;
         session.player.x = room.x;
         session.player.z = room.z + 1.4;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
@@ -1242,14 +1271,18 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "exitHome") {
-        if (!session.inHome) {
-          send(socket, { type: "homeExitResult", ok: false, message: "You are not inside a home." });
+        if (!session.inHome || session.inCarpark) {
+          send(socket, { type: "homeExitResult", ok: false, message: session.inCarpark ? "Drive to the car-park exit and honk to reach the street." : "You are not inside a home." });
           return;
         }
-        const destination = session.homeReturn ?? { x: 0, z: 24 };
+        const rentedHome = session.player.life.homeId && world.houseTenants[session.player.life.homeId] === session.player.id
+          ? homeStreetPosition(session.player.life.homeId)
+          : null;
+        const destination = rentedHome ?? session.homeReturn ?? { x: 0, z: 24 };
         session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
         session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
         session.inHome = false;
+        session.inCarpark = false;
         session.homeReturn = null;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
@@ -1259,6 +1292,77 @@ wss.on("connection", (socket) => {
           type: "homeExitResult", ok: true,
           x: session.player.x, z: session.player.z,
           message: "You are back outside your home.",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "enterCarpark") {
+        if (session.inCarpark) {
+          send(socket, { type: "carparkEnterResult", ok: false, message: "You are already in the car park." });
+          return;
+        }
+        // If entering from an interior, keep the original outdoor return point.
+        // If entering from a normal room, the server's position is already the street return point.
+        if (!session.inHome) session.homeReturn = { x: session.player.x, z: session.player.z };
+        const wasHidden = session.inHome;
+        session.inHome = true;
+        session.inCarpark = true;
+        session.player.x = CARPARK_PLAYER_POSITION.x;
+        session.player.z = CARPARK_PLAYER_POSITION.z;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        session.player.life = {
+          ...session.player.life,
+          parkedCars: [...session.player.life.ownedCars],
+        };
+        await persistSession(session);
+        send(socket, {
+          type: "carparkEnterResult", ok: true,
+          x: CARPARK_PLAYER_POSITION.x, z: CARPARK_PLAYER_POSITION.z,
+          garageX: CARPARK_POSITION.x, garageZ: CARPARK_POSITION.z,
+          cars: [...session.player.life.ownedCars],
+          life: session.player.life, today: clock.dayKey(),
+          message: "Private car park entered. Choose a car to spawn; drive to the marked gate, stop, then honk to enter the street.",
+        });
+        if (!wasHidden) broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "exitCarpark") {
+        if (!session.inHome || !session.inCarpark) {
+          send(socket, { type: "carparkExitResult", ok: false, message: "Enter your private car park first." });
+          return;
+        }
+        const carId = String(message.carId ?? "");
+        if (!session.player.life.ownedCars.includes(carId)) {
+          send(socket, { type: "carparkExitResult", ok: false, message: "That vehicle is not in your garage." });
+          return;
+        }
+        const rentedHome = session.player.life.homeId && world.houseTenants[session.player.life.homeId] === session.player.id
+          ? homeStreetPosition(session.player.life.homeId)
+          : null;
+        const destination = rentedHome ?? session.homeReturn ?? { x: 0, z: 24 };
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        session.player.yaw = 0;
+        session.player.life = {
+          ...session.player.life,
+          parkedCars: session.player.life.ownedCars.filter((id) => id !== carId),
+        };
+        session.inHome = false;
+        session.inCarpark = false;
+        session.homeReturn = null;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        send(socket, {
+          type: "carparkExitResult", ok: true, carId,
+          x: session.player.x, z: session.player.z, yaw: 0,
+          life: session.player.life, today: clock.dayKey(),
+          message: "Horn heard. You are on the street—drive safely.",
         });
         broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
         return;
