@@ -250,4 +250,117 @@ async function hashPassword(password: string, saltHex?: string) {
 async function verifyPassword(password: string, saltHex: string, expectedHash: string) {
   const result = await scrypt(password, Buffer.from(saltHex, "hex"), 64) as Buffer;
   const expected = Buffer.from(expectedHash, "hex");
-  return expected.
+  return expected.length === result.length && timingSafeEqual(expected, result);
+}
+
+function writeFileStore() {
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  const tempPath = DATA_FILE + ".tmp";
+  fs.writeFileSync(tempPath, JSON.stringify(fileStore), "utf8");
+  fs.renameSync(tempPath, DATA_FILE);
+}
+
+async function saveWorld() {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('world',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(world), Date.now()],
+    );
+    return;
+  }
+  fileStore.world = world;
+  writeFileStore();
+}
+
+// Settle one online player's life up to today's Nigeria-time day (rent days used, home lost).
+// Returns null when no midnight has passed since the last settle. A lost home is freed in
+// shared state before the player record is saved, including when this runs during login.
+async function settleSession(session: Session) {
+  const result = settleLife(session.player.life, clock.dayKey());
+  if (result.midnights === 0) return null;
+  if (result.homeLost && world.houseTenants[result.homeLost] === session.player.id) {
+    world.houseTenants[result.homeLost] = null;
+    try {
+      await saveWorld();
+    } catch (error) {
+      world.houseTenants[result.homeLost] = session.player.id;
+      throw error;
+    }
+  }
+  session.player.life = result.life;
+  return result;
+}
+
+async function runMidnight() {
+  const today = clock.dayKey();
+  for (const session of players.values()) {
+    const previousLife = session.player.life;
+    const result = await settleSession(session);
+    if (!result) continue;
+    try {
+      await persistSession(session);
+    } catch (error) {
+      // Keep a failed account save retryable on the next midnight check.
+      session.player.life = previousLife;
+      throw error;
+    }
+    send(session.socket, {
+      type: "lifeUpdate",
+      life: session.player.life,
+      today,
+      rentUsed: result.rentUsed,
+      homeLost: result.homeLost,
+    });
+  }
+
+  if (today !== world.lastDay) {
+    const previousDay = world.lastDay;
+    world.lastDay = today;
+    try {
+      await saveWorld();
+    } catch (error) {
+      world.lastDay = previousDay;
+      throw error;
+    }
+  }
+}
+
+async function initStore() {
+  if (DATABASE_URL) {
+    pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_accounts (" +
+      "id TEXT PRIMARY KEY," +
+      "username TEXT NOT NULL," +
+      "username_lower TEXT NOT NULL UNIQUE," +
+      "email TEXT," +
+      "email_lower TEXT," +
+      "password_salt TEXT NOT NULL," +
+      "password_hash TEXT NOT NULL," +
+      "cash BIGINT NOT NULL DEFAULT 5000," +
+      "bank BIGINT NOT NULL DEFAULT 0," +
+      "x DOUBLE PRECISION NOT NULL DEFAULT 0," +
+      "z DOUBLE PRECISION NOT NULL DEFAULT 24," +
+      "yaw DOUBLE PRECISION NOT NULL DEFAULT 3.14159265359," +
+      "hp DOUBLE PRECISION NOT NULL DEFAULT 100," +
+      "hunger DOUBLE PRECISION NOT NULL DEFAULT 82," +
+      "level INTEGER NOT NULL DEFAULT 1," +
+      "xp INTEGER NOT NULL DEFAULT 0," +
+      "job JSONB," +
+      "inventory JSONB NOT NULL DEFAULT '{}'::jsonb," +
+      "created_at BIGINT NOT NULL," +
+      "updated_at BIGINT NOT NULL" +
+      ");" +
+      "CREATE TABLE IF NOT EXISTS nrs_sessions (" +
+      "token_hash TEXT PRIMARY KEY," +
+      "account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE," +
+      "expires_at BIGINT NOT NULL," +
+      "created_at BIGINT NOT NULL" +
+      ");" +
+      "CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);",
+    );
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB
