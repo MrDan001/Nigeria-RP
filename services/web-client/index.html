@@ -582,7 +582,10 @@ const jend=e=>{if(e.pointerId===jid){jid=null;inp.x=0;inp.y=0;knob.style.transfo
 joy.addEventListener('pointerup',jend);joy.addEventListener('pointercancel',jend);
 let camYaw=0,camPitch=.3,lid=null,lx=0,ly=0;const cv=$('c');
 cv.addEventListener('pointerdown',e=>{if(lid===null){lid=e.pointerId;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(lid);}});
-cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;});
+cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;
+ // While the vehicle is moving, screen gestures are for pedals/steering, not camera rotation.
+ if(driving&&Math.abs(driving.v)>.35){lx=e.clientX;ly=e.clientY;return;}
+ camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;});
 const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
 $('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?'none':'flex';};
 $('bo').onclick=()=>{look.o=(look.o+1)%OUTFITS.length;dress();};
@@ -642,7 +645,7 @@ function mapDraw(m,S,sc,rot,clip){const R=S/2;m.clearRect(0,0,S,S);m.save();if(c
 function drawMap(){mapDraw(mc,240,driving?1.15:1.6,true,true);const f=$('fm');if(f)mapDraw(f.getContext('2d'),400,.8,false,false);}
 
 /* ---------- Vehicles, traffic, buttons ---------- */
-let driving=null,punchT=0,crouch=false,nearCar=null,locT='',ac,carparkExitPending=false;
+let driving=null,punchT=0,crouch=false,nearCar=null,locT='',ac,carparkExitPending=false,drivingCameraLocked=false;
 const tr=cars.filter(c=>c.kind==='t');
 function setCar(c){c.g.position.set(c.x,0,c.z);c.g.rotation.y=c.ry;c.body.rotation.x=c.pitch;c.body.rotation.z=c.roll;c.box.x=c.x;c.box.z=c.z;}
 function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=bagA;const obs=tr.slice().concat(pedObs);if(!driving)obs.push(pos);cars.forEach(c=>{if(c.kind!=='t')obs.push(c);});
@@ -652,10 +655,10 @@ function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=ba
 const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornKey=false;
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
 const TANK=40,FUEL_PER_M=.004,FUEL_IDLE=.002; /* litres: 1 L per 250 m, small idle burn */
-function driveUpdate(dt){const c=driving;
+function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.35){drivingCameraLocked=true;cam.fov=60;}else drivingCameraLocked=false;
  if(c.on&&c.fuel<=0){c.fuel=0;c.on=false;engine(false);setIgn();sys('⛽ Out of fuel! The engine has cut out. Get fuel from a petrol station.');}
  if(keys.KeyD||keys.ArrowRight)wheelA=Math.min(WLOCK,wheelA+420*dt);else if(keys.KeyA||keys.ArrowLeft)wheelA=Math.max(-WLOCK,wheelA-420*dt);
- else if(!wheelHeld&&wheelA){const rs=(70+Math.abs(wheelA)*4.2)*(1+Math.abs(c.v)*3.6/70)*dt;wheelA=Math.abs(wheelA)<=rs?0:wheelA-Math.sign(wheelA)*rs;}
+ else if(!wheelHeld&&wheelA){const rs=(50+Math.abs(wheelA)*2.7)*(1+Math.abs(c.v)*3.6/100)*dt;wheelA=Math.abs(wheelA)<=rs?0:wheelA-Math.sign(wheelA)*rs;}
  if(!!keys.KeyH!==hornKey){hornKey=!!keys.KeyH;hornSync();}
  gasP+=((keys.KeyW||keys.ArrowUp?1:gasT)-gasP)*Math.min(1,dt*6);brkP+=((keys.KeyS||keys.ArrowDown?1:brkT)-brkP)*Math.min(1,dt*8);
  const th=c.on?gasP:0,br=brkP,hb=hbP||keys.Space,st=clamp(wheelA/WLOCK,-1,1),sn=Math.sin(c.ry),cs=Math.cos(c.ry);
@@ -667,7 +670,8 @@ function driveUpdate(dt){const c=driving;
  fv+=a*dt;fv-=Math.sign(fv)*Math.min(Math.abs(fv),(.35+.0006*fv*fv+(hb?6:0)+(c.fuel<=0?3:0))*dt);
  if(c.on&&c.fuel>0)c.fuel=Math.max(0,c.fuel-(Math.abs(fv)*dt*FUEL_PER_M*(.7+.6*th)+FUEL_IDLE*dt));
  lv*=Math.exp(-(hb?1.2:(kmh>90&&Math.abs(st)>.7?4:7))*dt);
- c.steer+=(st*.6/(1+kmh/45)-c.steer)*(1-Math.exp(-dt*8));
+ const steeringInput=Math.sign(st)*Math.pow(Math.abs(st),.72);
+ c.steer+=(steeringInput*.68/(1+kmh/48)-c.steer)*(1-Math.exp(-dt*17));
  const yaw=fv/2.8*Math.tan(c.steer)*(hb?1.4:1);c.ry-=yaw*dt;
  c.vx=sn*fv+cs*lv;c.vz=cs*fv-sn*lv;c.x+=c.vx*dt;c.z+=c.vz*dt;
  for(const b of boxes){if(b===c.box)continue;const ox=c.x-b.x,oz=c.z-b.z,px=b.hw+1.4-Math.abs(ox),pz=b.hd+1.4-Math.abs(oz);
@@ -680,7 +684,7 @@ function driveUpdate(dt){const c=driving;
  setCar(c);pos.set(c.x,0,c.z);face=c.ry;
  if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<6.5&&c.z>468&&Math.abs(fv)<4){carparkExitPending=true;const N=window.NRS;if(N&&N.exitCarpark)N.exitCarpark(c.id);else{carparkExitPending=false;routeTransitionOut();}}
  cam.fov+=(60+Math.min(kmh,140)*.1-cam.fov)*(1-Math.exp(-dt*4));cam.updateProjectionMatrix();
- if(lid===null){let d=c.ry+Math.PI-camYaw;d=Math.atan2(Math.sin(d),Math.cos(d));camYaw+=d*(1-Math.exp(-dt*(kmh>4?3:.8)));}}
+ /* Camera orientation stays where the driver set it; no automatic panning on turns. */}
 function hudAct(){const a=$('act');
  if(driving){$('wsv').style.transform='rotate('+wheelA+'deg)';a.style.display='block';a.textContent='Exit car';const on=driving.on,t=Math.round(Math.abs(driving.v)*3.6)+' km/h '+(driving.starting?'STARTING':on?'G'+(driving.v<-.5?'R':(driving.gear||1)):'ENGINE OFF');const t2=t+zn();if(locT!==t2){locT=t2;$('loc').innerHTML='🚗 '+t+'<br><small>'+(on?zn():driving.starting?'Starting...':'Press 🔘 to start')+'</small>';}drvHud();return;}
  {const z=zn();if(locT!==z){locT=z;$('loc').innerHTML='📍 '+z+'<br><small>Port Harcourt, Rivers State</small>';}}
@@ -690,7 +694,7 @@ function hudAct(){const a=$('act');
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
   standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
- else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;sitIn(driving);camPitch=.28;wheelA=0;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
+ else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
  else if(inside?.isCarpark){openGarageSpawnMenu();}};
 /* seated driver: player rides inside the car body, hands on the wheel, legs forward */
 function sitIn(c){c.body.add(player);player.position.set(.42,-.06,-.3);player.rotation.set(0,0,0);player.scale.setScalar(.85);player.visible=true;shadow.visible=false;
@@ -1217,7 +1221,7 @@ badge();
 
 /* driving HUD: indicators, hazards, headlights, camera, speedo */
 const CAMD=[8,5.2,12],AMO=0x8a5208,AMN=0xffd24a;let camMode=0,sig=0,hz=false,sgT=0,sgCar=null,sgLast=false,spT='';
-$('camB').onclick=()=>{camMode=(camMode+1)%CAMD.length;};
+$('camB').onclick=()=>{if(driving&&Math.abs(driving.v)>.35){sys('📷 Stop the car before moving the camera.');return;}camMode=(camMode+1)%CAMD.length;};
 $('sigL').onclick=()=>{if(!driving)return;sig=sig<0?0:-1;hz=false;sgT=0;};
 $('sigR').onclick=()=>{if(!driving)return;sig=sig>0?0:1;hz=false;sgT=0;};
 $('hzd').onclick=()=>{if(!driving)return;hz=!hz;if(hz){sig=0;sgT=0;}};
@@ -1311,4 +1315,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v9"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-fixed-driving-camera-sensitive-steering"></script></body></html>
