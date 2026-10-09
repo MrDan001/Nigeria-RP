@@ -418,7 +418,7 @@ function animate(dt,t){if(driving)return;
  dm(upper,.04+.14*run*amp);model.position.y=Math.abs(Math.sin(phase))*.04*amp;upper.scale.y=1+Math.sin(t*2)*.006;if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[pHand].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[pHand].rotation.x=-.3;}model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);}
 function updateCam(dt){
  const f=1-Math.exp(-dt*14);focus.x+=(pos.x-focus.x)*f;focus.z+=(pos.z-focus.z)*f;focus.y=1.4;
- const d=driving?CAMD[camMode]:4.6,cp=Math.cos(camPitch);
+ const d=driving?CAMD[camMode]:(inside&&inside.isHome?3.1:4.6),cp=Math.cos(camPitch);
  cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);cam.lookAt(focus);}
 
 /* ---------- HUD: compass and minimap ---------- */
