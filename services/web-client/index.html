@@ -198,8 +198,12 @@ addEventListener('resize',resize);resize();
 /* ---------- Port Harcourt street ---------- */
 function add(g,m,x,y,z,p){const o=new THREE.Mesh(g,m);o.position.set(x,y,z);(p||scene).add(o);return o;}
 const flat=(w,h,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,h),m,x,y,z);o.rotation.x=-Math.PI/2;return o;};
-flat(500,500,M(0x5d7a45),0,0,0);flat(10,500,M(0x3a3d40),0,.01,0);
-[-6.5,6.5].forEach(x=>flat(3,500,M(0xa9a59a),x,.02,0));[-5.2,5.2].forEach(x=>flat(.4,500,M(0xd8d4c8),x,.03,0));
+const arterialTexture=tex(256,256,(g,w,h)=>{g.fillStyle="#373b3e";g.fillRect(0,0,w,h);for(let i=0;i<2300;i++){const v=28+Math.floor(Math.random()*55);g.fillStyle="rgba("+v+","+v+","+v+",.42)";g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}},70,70);
+const arterial=new THREE.MeshLambertMaterial({map:arterialTexture,color:0xb0b0b0});
+const pavementTexture=tex(256,256,(g,w,h)=>{g.fillStyle="#aaa69d";g.fillRect(0,0,w,h);for(let y=0;y<h;y+=64)for(let x=0;x<w;x+=64){g.strokeStyle="rgba(55,55,50,.25)";g.lineWidth=2;g.strokeRect(x+1,y+1,62,62);}for(let i=0;i<600;i++){const v=80+Math.floor(Math.random()*120);g.fillStyle="rgba("+v+","+v+","+v+",.12)";g.fillRect(Math.random()*w,Math.random()*h,2,2);}},4,80);
+const pavement=new THREE.MeshLambertMaterial({map:pavementTexture});
+flat(500,500,M(0x5d7a45),0,0,0);flat(10,500,arterial,0,.01,0);
+[-6.5,6.5].forEach(x=>flat(3,500,pavement,x,.02,0));[-5.2,5.2].forEach(x=>flat(.4,500,M(0xd8d4c8),x,.03,0));
 for(let z=-200;z<=200;z+=6)flat(.3,2.5,M(0xeeeeee),0,.02,z);
 const boxes=[],bld=[];
 
@@ -1292,4 +1296,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v3"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-private-carpark-realistic-homes-v4"></script></body></html>
