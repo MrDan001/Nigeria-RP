@@ -628,7 +628,7 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  for(const b of boxes){const ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);
   if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  if(inside?.isCarpark){pos.x=clamp(pos.x,inside.x-14,inside.x+14);pos.z=clamp(pos.z,inside.z-14,inside.z+17);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
- else if(inside){pos.x=clamp(pos.x,inside.x-5.2,inside.x+5.2);pos.z=clamp(pos.z,inside.z-4.6,inside.z+5.4);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
+ else if(inside){const halfW=inside.isHome?Math.max(4.8,(inside.roomW||10.4)/2-.45):5.2,back=inside.isHome?Math.max(4.3,(inside.roomD||10)/2-.45):4.6,front=inside.isHome?Math.max(5.0,(inside.roomD||10)/2-.45):5.4;pos.x=clamp(pos.x,inside.x-halfW,inside.x+halfW);pos.z=clamp(pos.z,inside.z-back,inside.z+front);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  else{pos.x=clamp(pos.x,-240,240);pos.z=clamp(pos.z,-240,240);}
  speed=Math.hypot(vel.x,vel.z);
  if(speed>.3){let d=Math.atan2(vel.x,vel.z)-face;d=Math.atan2(Math.sin(d),Math.cos(d));face+=d*(1-Math.exp(-dt*12));}
@@ -1128,7 +1128,7 @@ function homeRoom(d){
  addCollider(-doorW/2-frontSeg/2,frontZ,frontSeg/2,.12);
  addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
  mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
- return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),x:ix,z:iz,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
+ return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
 }
 const ROOMS={};
 function room(p){if(ROOMS[p.id])return ROOMS[p.id];
@@ -1413,4 +1413,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-garage-gate-validation-v2"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-stage2-room-bounds-v3"></script></body></html>
