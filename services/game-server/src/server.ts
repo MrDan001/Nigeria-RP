@@ -708,4 +708,264 @@ const MIME: Record<string, string> = {
 };
 
 const httpServer = http.createServer((request, response) => {
-  const url = new URL(request.url ?? "/", "htt
+  const url = new URL(request.url ?? "/", "http://" + (request.headers.host ?? "localhost"));
+
+  if (url.pathname === "/health") {
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({
+      ok: true,
+      service: "nigeria-rp-game-server",
+      players: players.size,
+      storage: pool ? "postgres" : "file-fallback",
+      day: clock.dayKey(),
+      debugClock: DEBUG_CLOCK,
+    }));
+    return;
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.writeHead(405, { allow: "GET, HEAD" });
+    response.end();
+    return;
+  }
+
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    response.writeHead(400);
+    response.end("Bad request");
+    return;
+  }
+
+  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const requested = path.resolve(WEB_DIR, relative);
+
+  if (requested !== WEB_DIR && !requested.startsWith(WEB_DIR + path.sep)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  let finalPath = requested;
+
+  if (!fs.existsSync(finalPath) || !fs.statSync(finalPath).isFile()) {
+    if (!path.extname(relative)) {
+      finalPath = path.join(WEB_DIR, "index.html");
+    } else {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+  }
+
+  try {
+    const stat = fs.statSync(finalPath);
+    response.writeHead(200, {
+      "content-type": MIME[path.extname(finalPath).toLowerCase()] ?? "application/octet-stream",
+      "content-length": stat.size,
+      "cache-control": path.basename(finalPath) === "index.html" || path.basename(finalPath) === "nrs-online.js"
+        ? "no-cache"
+        : "public, max-age=31536000, immutable",
+    });
+
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+
+    fs.createReadStream(finalPath).pipe(response);
+  } catch {
+    response.writeHead(500);
+    response.end("Static file error");
+  }
+});
+
+const wss = new WebSocketServer({ server: httpServer, maxPayload: 16 * 1024 });
+
+wss.on("connection", (socket: WebSocket) => {
+  let authenticated = false;
+  let accountId: string | null = null;
+
+  const authTimer = setTimeout(() => {
+    if (!authenticated) {
+      send(socket, {
+        type: "authError",
+        code: "AUTH_REQUIRED",
+        message: "Please log in or create an account.",
+      });
+      socket.close(4002, "Authentication required");
+    }
+  }, 12000);
+
+  const finishAuthentication = async (account: Account, token: string) => {
+    const previousSocket = activeAccounts.get(account.id);
+
+    if (previousSocket && previousSocket !== socket) {
+      send(previousSocket, {
+        type: "authError",
+        code: "ACCOUNT_OPENED_ELSEWHERE",
+        message: "This account was opened on another device.",
+      });
+      previousSocket.close(4001, "Account opened elsewhere");
+    }
+
+    authenticated = true;
+    accountId = account.id;
+    clearTimeout(authTimer);
+
+    const session: Session = {
+      socket,
+      account,
+      player: makePlayer(account),
+      input: { sequence: -1, forward: 0, strafe: 0 },
+      lastMessageAt: Date.now(),
+      lastInputAt: 0,
+      lastSyncAt: Date.now(),
+      rejectedSyncs: 0,
+    };
+
+    // Offline players are settled here: any midnights that passed while they were away.
+    const settled = await settleSession(session);
+    if (settled) await persistSession(session);
+
+    players.set(account.id, session);
+
+    activeAccounts.set(account.id, socket);
+
+    send(socket, {
+      type: "authOk",
+      protocolVersion: PROTOCOL_VERSION,
+      token,
+      player: accountPayload(session.player),
+      players: snapshot(),
+      onlineCount: players.size,
+    });
+
+    broadcast({
+      type: "playerJoined",
+      player: publicPlayer(session.player),
+      onlineCount: players.size,
+    });
+  };
+
+  socket.on("message", (raw: WebSocket.RawData) => {
+    void (async () => {
+      let message: any;
+
+      try {
+        message = JSON.parse(raw.toString());
+      } catch {
+        send(socket, { type: "error", code: "INVALID_JSON" });
+        return;
+      }
+
+      if (!authenticated) {
+        try {
+          if (message.type === "authRegister") {
+            const email = sanitizeEmail(message.email);
+            const username = sanitizeUsername(message.username);
+            const password = String(message.password ?? "");
+            const account = await createAccount(email, username, password);
+            const token = await createSession(account.id);
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          if (message.type === "authLogin") {
+            const email = sanitizeEmail(message.email);
+            const account = await findAccountByEmail(email.toLowerCase());
+
+            if (!account || !(await verifyPassword(
+              String(message.password ?? ""),
+              account.passwordSalt,
+              account.passwordHash,
+            ))) {
+              throw new Error("INVALID_CREDENTIALS");
+            }
+
+            const token = await createSession(account.id);
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          if (message.type === "authResume") {
+            const token = String(message.token ?? "").trim();
+            const account = token ? await resolveSession(token) : null;
+
+            if (!account) throw new Error("INVALID_SESSION");
+
+            const tokenAgain = token;
+            await finishAuthentication(account, tokenAgain);
+            return;
+          }
+
+          send(socket, {
+            type: "authError",
+            code: "AUTH_REQUIRED",
+            message: "Please log in or create an account.",
+          });
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "AUTH_FAILED";
+          const messages: Record<string, string> = {
+            EMAIL_INVALID: "Enter a valid email address.",
+            EMAIL_TAKEN: "An account already exists with that email.",
+            PASSWORD_TOO_SHORT: "Password must be at least 6 characters.",
+            USERNAME_TOO_SHORT: "Username must be at least 3 characters.",
+            USERNAME_INVALID: "Username must be exactly Firstname_lastname, using letters only.",
+            USERNAME_TAKEN: "That username is already taken.",
+            INVALID_CREDENTIALS: "Incorrect email or password.",
+            INVALID_SESSION: "Your session has expired. Please log in again.",
+            AUTH_REQUIRED: "Please log in or create an account.",
+          };
+
+          send(socket, {
+            type: "authError",
+            code,
+            message: messages[code] ?? "Could not complete the account request.",
+          });
+        }
+
+        return;
+      }
+
+      const session = accountId ? players.get(accountId) : null;
+      if (!session) return;
+
+      session.lastMessageAt = Date.now();
+
+      if (message.type === "input") {
+        const input = message.input;
+
+        if (
+          !input ||
+          !Number.isInteger(input.sequence) ||
+          input.sequence <= session.player.lastSequence ||
+          !Number.isFinite(input.forward) ||
+          !Number.isFinite(input.strafe) ||
+          Math.abs(input.forward) > 2 ||
+          Math.abs(input.strafe) > 2
+        ) {
+          send(socket, { type: "error", code: "INVALID_INPUT" });
+          return;
+        }
+
+        session.player.lastSequence = input.sequence;
+        session.lastInputAt = Date.now();
+        session.input = {
+          sequence: input.sequence,
+          forward: Math.max(-1, Math.min(1, Number(input.forward))),
+          strafe: Math.max(-1, Math.min(1, Number(input.strafe))),
+        };
+        return;
+      }
+
+      if (message.type === "posSync") {
+        const x = Number(message.x);
+        const z = Number(message.z);
+        const yaw = Number(message.yaw);
+
+        if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return;
+
+        const now = Date.now();
+        const elapsed = Math.min
