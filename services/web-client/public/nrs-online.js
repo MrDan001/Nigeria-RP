@@ -518,6 +518,16 @@
           window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
           if (message.message) sys(message.message);
         }
+      } else if (message.type === "carparkFootExitResult") {
+        if (message.ok) {
+          N.life = message.life || N.life;
+          N.today = message.today || N.today;
+          window.dispatchEvent(new CustomEvent("nrs-life", { detail: { life: N.life, today: N.today, message } }));
+          window.dispatchEvent(new CustomEvent("nrs-carpark-foot-exit", { detail: message }));
+        } else {
+          window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
+          if (message.message) sys(message.message);
+        }
       } else if (message.type === "parkingResult") {
         N.life = message.life || N.life;
         if (message.message) sys(message.message);
@@ -662,6 +672,7 @@
     send({ type: "carparkVehicleSpawn", carId });
   };
   N.exitCarpark = (carId, hornHeld = false) => send({ type: "exitCarpark", carId, hornHeld: hornHeld === true });
+  N.exitCarparkOnFoot = (route) => send({ type: "carparkFootExit", route: route === "home" ? "home" : "street" });
   N.parkCars = () => send({ type: "parkCars" });
   N.retrieveCars = () => send({ type: "retrieveCars" });
   N.respawn = () => send({ type: "respawn" });

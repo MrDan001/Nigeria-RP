@@ -213,7 +213,7 @@ export const CAR_IDS: readonly string[] = ["c0", "c1", "c2", "c3", "c4"];
    remains a separate milestone. */
 export const CARPARK_POSITION = { x: 455, z: 455 } as const;
 export const CARPARK_VEHICLE_SPAWN = { x: 455, z: 449.6 } as const;
-export const CARPARK_EXIT_GATE = { x: 455, halfWidth: 6.5, minZ: 468, maxZ: 486 } as const;
+export const CARPARK_EXIT_GATE = { x: 455, halfWidth: 5.8, minZ: 468, maxZ: 469.2 } as const;
 
 export type CarparkVehicleTrack = {
   carId: string;

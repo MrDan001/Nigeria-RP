@@ -1306,14 +1306,17 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "enterCarpark") {
-        if (session.inCarpark) {
-          send(socket, { type: "carparkEnterResult", ok: false, message: "You are already in the car park." });
+        const garageHome = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
+        if (!session.inHome || session.inCarpark) {
+          send(socket, { type: "carparkEnterResult", ok: false, message: "Enter the interior of your rented home before using its private garage." });
           return;
         }
-        // If entering from an interior, keep the original outdoor return point.
-        // If entering from a normal room, the server's position is already the street return point.
-        if (!session.inHome) session.homeReturn = { x: session.player.x, z: session.player.z };
-        const wasHidden = session.inHome;
+        if (!garageHome || world.houseTenants[garageHome.id] !== session.player.id) {
+          send(socket, { type: "carparkEnterResult", ok: false, message: "A rented home is required to use this private garage." });
+          return;
+        }
+        const garageClass = HOUSE_CLASSES.find((item) => item.id === garageHome.cls)!;
+        const wasHidden = true;
         session.inHome = true;
         session.inCarpark = true;
         session.carparkVehicle = null;
@@ -1331,6 +1334,7 @@ wss.on("connection", (socket) => {
           type: "carparkEnterResult", ok: true,
           x: CARPARK_PLAYER_POSITION.x, z: CARPARK_PLAYER_POSITION.z,
           garageX: CARPARK_POSITION.x, garageZ: CARPARK_POSITION.z,
+          home: { id: garageHome.id, cls: garageHome.cls, name: garageClass.name, zone: garageHome.zone, rentDays: session.player.life.rentDays },
           cars: [...session.player.life.ownedCars],
           life: session.player.life, today: clock.dayKey(),
           message: "Private car park entered. Choose a car to spawn; drive to the marked gate, stop, then honk to enter the street.",
@@ -1446,6 +1450,61 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "carparkFootExit") {
+        if (!session.inHome || !session.inCarpark) {
+          send(socket, { type: "carparkFootExitResult", ok: false, message: "Walk to the private garage door first." });
+          return;
+        }
+        const home = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
+        if (!home || world.houseTenants[home.id] !== session.player.id) {
+          send(socket, { type: "carparkFootExitResult", ok: false, message: "You no longer rent the home connected to this garage." });
+          return;
+        }
+        const cls = HOUSE_CLASSES.find((item) => item.id === home.cls)!;
+        const route = String(message.route ?? "street") === "home" ? "home" : "street";
+        session.carparkVehicle = null;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        if (route === "home") {
+          const room = homeInteriorPosition(home.id);
+          const returnPosition = homeStreetPosition(home.id) ?? session.homeReturn ?? { x: 0, z: 24 };
+          session.inCarpark = false;
+          session.inHome = true;
+          session.homeReturn = returnPosition;
+          session.player.x = room.x;
+          session.player.z = room.z + 1.4;
+          session.player.yaw = 0;
+          await persistSession(session);
+          send(socket, {
+            type: "carparkFootExitResult", ok: true, route: "home",
+            home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
+            roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
+            returnX: returnPosition.x, returnZ: returnPosition.z,
+            furniture: HOME_FURNITURE[home.cls] ?? [],
+            life: session.player.life, today: clock.dayKey(),
+            message: "You returned through the garage door to your " + (home.cls === "hut" ? "hut" : home.cls === "faceme" ? "room" : home.cls === "flat" ? "apartment" : "house") + ".",
+          });
+          return;
+        }
+        const destination = homeStreetPosition(home.id) ?? session.homeReturn ?? { x: 0, z: 24 };
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        session.inHome = false;
+        session.inCarpark = false;
+        session.homeReturn = null;
+        session.player.yaw = 0;
+        await persistSession(session);
+        send(socket, {
+          type: "carparkFootExitResult", ok: true, route: "street",
+          x: session.player.x, z: session.player.z,
+          life: session.player.life, today: clock.dayKey(),
+          message: "You walked out of your private garage onto the street.",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
       if (message.type === "parkCars" || message.type === "retrieveCars") {
         const parked = message.type === "parkCars";
         session.player.life = {
@@ -1461,21 +1520,44 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "respawn") {
+        const wasHidden = session.inHome;
         const home = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
-        const atHome = Boolean(home && world.houseTenants[home!.id] === session.player.id);
-        const x = atHome && home ? home.x + 5 : 0;
-        const z = atHome && home ? home.z + 5 : 0;
+        const atHome = Boolean(home && world.houseTenants[home.id] === session.player.id);
+        const cls = atHome && home ? HOUSE_CLASSES.find((item) => item.id === home.cls)! : undefined;
+        const room = atHome && home ? homeInteriorPosition(home.id) : null;
+        const returnPosition = atHome && home ? homeStreetPosition(home.id) : null;
+        const x = room ? room.x : 0;
+        const z = room ? room.z + 1.4 : 0;
+        session.inHome = atHome;
+        session.inCarpark = false;
+        session.homeReturn = atHome ? (returnPosition ?? { x: home!.x, z: home!.z + 12 }) : null;
+        session.carparkVehicle = null;
         session.player.x = x;
         session.player.z = z;
+        session.player.yaw = 0;
         session.player.hp = 100;
         session.player.hunger = Math.max(session.player.hunger, 70);
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
         await persistSession(session);
         send(socket, { type: "posCorrect", x, z });
         send(socket, {
           type: "respawnResult", ok: true, atHome,
-          message: atHome ? "You respawned at home." : "You have no home, so you respawned at the public parking lot.",
+          ...(atHome && home && cls && room ? {
+            home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
+            roomX: room.x, roomZ: room.z,
+            returnX: returnPosition?.x ?? home.x, returnZ: returnPosition?.z ?? home.z + 12,
+            furniture: HOME_FURNITURE[home.cls] ?? [],
+          } : {}),
+          message: atHome ? "You respawned inside your home." : "You have no home, so you respawned at the public parking lot.",
           x, z, life: session.player.life, today: clock.dayKey(),
         });
+        if (atHome && !wasHidden) {
+          broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        } else if (!atHome && wasHidden) {
+          broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        }
         return;
       }
 

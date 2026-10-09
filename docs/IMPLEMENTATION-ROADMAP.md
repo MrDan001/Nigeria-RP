@@ -42,6 +42,17 @@ A green build is not the same as tested gameplay. After CI, check deployment sta
 
 Checkboxes are evidence still required—not merely a list of UI elements.
 
+### Rules that apply across all workplaces and the economy
+
+- A workplace has exactly six ranks. Ranks 1–5 are staff; rank 6 is the boss. Rank 1 is the normal starting rank.
+- Only the assigned boss may promote or demote staff, and staff can never be promoted beyond rank 5. No self-promotion. The boss may promote, demote or fire staff.
+- Boss identities are assigned manually in server data for now. A protected admin/boss-management tool is a later task; never trust a client-supplied boss identity.
+- Task pay is multiplied by rank: rank 1 = 1.0×, rank 2 = 1.25×, rank 3 = 1.6×, rank 4 = 2.0×, rank 5 = 2.6×, rank 6 = 3.5×. Keep the table easy to tune centrally.
+- A game day ends at midnight Nigeria time (WAT, UTC+1), using the server clock. Do not use a device's local clock for rent or payroll.
+- Money, bank balances, rent, home ownership, ranks, task completion and valuable inventory changes must be verified and committed by the server/database. UI state is only a request/display, never the authority.
+- Default decisions: open hiring at a workplace starting at rank 1; one main job at a time; basic delivery gigs may be open to all; staff cannot quit a boss-level role until admin handling exists; houses are rented with money and have no minimum job rank.
+- Each stage must include repeatable tests for valid actions, forged requests, duplicate/replayed requests, disconnects and reconnects. A green build does not replace live phone testing.
+
 ### Stage 0 — Repository, server and delivery foundation
 **Status: Foundation exists; maintain it.**
 
@@ -110,120 +121,103 @@ Acceptance:
 
 **Gate:** Do not begin Stage 3 workplace/rank implementation before Stage 2 is approved.
 
-### Stage 3 — Workplaces, staff ranks and job engine
-**Next major stage only after Stage 2 approval.**
+### Stage 3 — Workplace locations and reusable jobs/ranks engine
+**Begin only after Stage 2 passes live testing and the user explicitly approves it.**
 
-Build one reusable, server-authoritative Work framework:
-- Work tab, workplace interaction, hiring at the workplace, rank 1 onboarding.
-- Ranks 1–5 staff and rank 6 boss.
-- Only a workplace's assigned boss may promote/demote staff within ranks 1–5; nobody changes their own rank; only the boss can fire staff. Boss assignment remains admin-controlled until a protected admin tool exists.
-- One main job per player at a time; simple delivery gigs may be open to all.
-- Server owns clock-in/out, shifts, task assignment/progress/completion, rewards and transaction history.
-- Rank pay multipliers: 1.0×, 1.25×, 1.6×, 2.0×, 2.6× and 3.5× for ranks 1–6.
-- Every request rechecks workplace, rank and task state; persist the result and recover from disconnects.
+- Place and label real workplace buildings and doors at aligned server/client coordinates.
+- Build the reusable server-authoritative job service: six titled ranks, rosters, rank-1 hiring/onboarding, clock in/out, shifts, tasks, payout and history.
+- Only the data-assigned boss may promote/demote staff from ranks 1–5 or fire staff. Clients cannot set ranks, boss ids or payroll.
+- Enforce one main job per citizen; keep simple delivery gigs open to all. Rank-based pay uses the shared multipliers above.
+- Add a Work tab and contextual workplace actions; persist work state across logout and reconnect.
 
-Acceptance: two-account hiring/working/pay flow; forged tasks, double payouts and unauthorized rank changes are rejected; rank and pay logic have repeatable tests.
+Acceptance: two-account hiring and roster test; rank/title changes and pay match the server; self-promotion, boss impersonation, unauthorized firing and double task rewards are rejected.
 
-### Stage 4 — Markets, shops, food and everyday economy
-- Common vendor/business model for market stalls, groceries, water, food sellers and consumer goods.
-- Server-managed stock, price, purchase/sale contracts, cash/inventory mutation and transaction receipt.
-- No client-only purchases or silent free-item grants.
-- Idempotent handling so retrying a request cannot duplicate a purchase.
+### Stage 4 — Market salespeople and bank tellers
+- Market ranks: Hawker, Stall Assistant, Sales Rep, Senior Sales, Market Supervisor, Market Chairman.
+- Bank ranks: Trainee, Teller, Senior Teller, Loan Officer, Operations Manager, Branch Manager.
+- At the market, customers arrive and request listed goods. Staff fulfil the correct order from valid stock and earn commission; stock and cash changes are server-authoritative.
+- At bank counters, citizens can make supported deposits and withdrawals; tellers follow the transaction flow, receipts and balance rules. A teller cannot invent funds or alter a customer's balance.
+- Add inventory/stock, prices, till balances, task attribution and transaction history.
 
-Acceptance: funds and item grants commit consistently and remain correct after refresh/reconnect.
+Acceptance: customers receive the right goods; cash, bank balances, stock and commissions reconcile; replayed sales/withdrawals do not duplicate value.
 
-### Stage 5 — Banking, treasury and financial records
-- Citizen wallet, bank deposit/withdrawal, supported transfers, statements and transaction history.
-- Business accounts and records for salary, rent, market and service charges.
-- Government treasury and approved spending/collection as protected extensions, not editable client balance fields.
-- Audit records include identifiers, Nigeria-time timestamp, actor, counterparty, amount and result.
+### Stage 5 — Hospital and parks
+- Hospital ranks: Orderly, Nurse Aide, Nurse, Senior Nurse, Doctor, Chief Medical Director.
+- Park ranks: Cleaner, Gate Attendant, Ticket Seller, Ranger, Operations Officer, Park Director.
+- Build hospital triage, treatment, ambulance dispatch, medicine/pharmacy trips and injury care. Hurt citizens must pay valid treatment costs through the server settlement flow.
+- Build park entry/ticket sales, visitor-care duties, cleaning/ranger tasks and park activity.
+- Use the same workplace roster and rank permissions; emergency or healing actions need a valid place, patient and authorized worker.
 
-Acceptance: replayed/concurrent requests cannot double-spend; history reconciles with balances; role permissions are enforced.
+Acceptance: health/treatment persists; unauthorized or remote healing is rejected; ticket sales reconcile; homeless respawn routes to a designated public park/parking point without deleting property.
 
-### Stage 6 — Health, hospital, pharmacy and recreation
-- Server-owned health, hunger and treatment outcomes.
-- Physical clinic/hospital, medical staff interactions, prescriptions/stock and payments.
-- Parks and recreation/social locations with world-based interaction.
-- Injury and respawn rules must not incorrectly delete cash or property.
+### Stage 6 — Rivers State government and civic finance
+- Rank 6: Governor (boss). Rank 5: Deputy Governor. Rank 4: Secretary to the State Government, Chief of Staff and Speaker. Rank 3: Commissioners, Senators and LGA Chairmen. Rank 2: Vice Chairmen, Special Advisers and PRO. Rank 1: Councillors, Assistants and Clerks.
+- Government staff use the shared work system. The Governor is the only in-game official allowed to promote/demote/fire this workplace's staff, with rank rules enforced server-side.
+- State treasury tracks authorized income and spending. Rent from vacant government-owned houses is collected into the treasury; approved government staff payroll is paid from it.
+- PRO tools publish rate-limited official announcements; the other roles receive simple, auditable duties appropriate to their authority.
+- Citizen funds and the government treasury must remain separate and auditable.
 
-Acceptance: treatment requires valid context and staff authority; health changes persist and cannot be client-forged.
+Acceptance: only authorized ranks can issue notices or civic actions; rent and payroll transactions reconcile to treasury records; no client can mint or redirect public funds.
 
-### Stage 7 — Public safety and emergency services
-- Police: incidents, officers, evidence, arrest and justice workflow.
-- FRSC: traffic incidents, road checks and vehicle-related actions.
-- Fire service: dispatch, fire incidents and physical response.
-- Army/military: restricted access, rank and misuse safeguards.
-- Dispatch creates real world tasks; NPCs must not secretly replace a player role intended by design.
+### Stage 7 — Police, Army, FRSC and Fire Service
+- Police ladder: Police Constable through Commissioner of Police. Army ladder: Private through Brigadier General. FRSC ladder: Cadet through Sector Commander. Fire Service ladder: Fire Trainee through Chief Fire Officer.
+- Build a shared incident system for reported crimes, traffic accidents, fires and large public-safety events; dispatch should create actionable world tasks.
+- Police patrol/respond, investigate, arrest and apply valid fines. Fines flow to the state treasury under logged rules.
+- Fire officers respond to fires and record extinguishing outcomes. FRSC handles traffic checks/accidents; the Army handles restricted checkpoints and major incidents.
+- Add strict abuse controls: server-side proximity/context checks, evidence/reason capture, logs, permissions, cooldowns, escape/appeal handling and reviewable arrest/fine history.
 
-Acceptance: access follows role/rank; actions are logged; permissions and abuse scenarios are tested.
+Acceptance: unauthorized arrests, arbitrary fines and restricted-area misuse are rejected; every consequential action is logged and testable.
 
-### Stage 8 — Transport and passenger services
-- Taxi as the first flagship physical player-to-player job.
-- Passenger requests, proximity pickup/drop-off, fares, receipts, cancellation/dispute rules.
-- Expand to keke, danfo, bus routes, terminals, shifts and fares.
-- Validate real proximity, vehicle state, task state and fare calculation server-side; keep outcomes consistent across clients.
+### Stage 8 — Rivers News Network
+- Create a walkable newsroom/studio, newsroom tools and six-rank ladder: Intern, Production Assistant, Reporter, Anchor, Editor, Editor-in-Chief (boss).
+- Reporters file stories tied to in-world events; anchors broadcast approved reports; the editor approves/moderates publication.
+- Publish a small in-game news ticker and phone feed; the feed must be readable on Android and update without blocking gameplay.
+- Add rate limits, a word/profanity filter, report button, moderation logs and protected Editor-in-Chief permissions.
 
-Acceptance: a driver cannot claim a pickup/drop-off without a valid nearby passenger and matching task; both sides see the same settlement.
+Acceptance: unapproved stories do not publish; publication permissions and rate limits hold under retries; reported content can be reviewed and removed.
 
-### Stage 9 — Communication, news and social systems
-- Proximity/local/global text chat, rate limits and moderation.
-- Phone interactions, contacts, notifications and call-state architecture.
-- News stations/reporters and in-world bulletin publishing with permissions.
-- Choose any voice technology only after evaluating device/network constraints; a button is not proof that voice works.
-- Reporting, mute/block, retention and moderation controls.
+### Stage 9 — Transport, passengers and haulage
+- Add player-operated danfo/bus routes and stops, keke/okada passenger trips, taxis, terminals and truck-haul depots.
+- Each transport workplace uses the shared six-rank system and company-owned vehicles with safe checkout/return and fuel rules.
+- Passenger pickup/drop-off, fares, route checkpoints and haulage deliveries must validate proximity, correct vehicle, passenger/task state and route progress on the server.
+- Keep steering, camera stability, braking, touch controls and mobile performance as acceptance criteria for vehicle work.
 
-Acceptance: permissions and proximity are enforced; disconnects do not leave stuck call/chat state.
+Acceptance: a driver cannot claim a pickup/drop-off or delivery from an invalid location; fare settlements are consistent for both sides; vehicle ownership and fuel persist.
 
-### Stage 10 — Government and civic institutions
-- Government offices, official roles, appointments and public services.
-- Public treasury/budgets with approval controls and audit records.
-- Civic workflows performed by authorized staff.
-- Protected news and public notices.
+### Stage 10 — Food businesses and everyday shops
+- Mama Put, restaurants (cook/waiter), bakery and suya spots; supermarkets (cashier), pharmacy attendant, phone repair and tailor.
+- Reuse product stock, orders, service appointments, tills, inventory and server settlement rather than creating separate client-only economy code for every shop.
+- Show clear prices, orders and receipts, with stock/ingredient needs where relevant.
 
-Acceptance: users cannot impersonate officials, rewrite treasury totals or approve restricted actions for themselves.
+Acceptance: a sale, meal or repair requires valid stock/service and a successful server transaction; no duplicate item grants or free client-authored sales.
 
-### Stage 11 — Utilities and education
-- Electricity, water, waste/utilities, bills and outages where required by design.
-- Schools, training and qualifications that affect relevant job eligibility.
-- Providers/educators use the common employment, economy and permission models.
-- Persist bills and qualifications; handle restart and appealable failures.
+### Stage 11 — Personal services, property services and utilities
+- Mechanic, car wash, filling-station attendant, barber/salon and courier jobs.
+- Add electrician/NEPA lineman and plumber roles; household repair calls are linked to the correct property and issue.
+- Repair/maintenance orders, fuel purchases, courier deliveries and utility payments use the shared job and transaction framework.
+- Avoid turning utilities into cosmetic buttons: each supported bill, repair and payment must persist and produce a result.
 
-Acceptance: bills, grades and qualifications require server validation and survive restart.
+Acceptance: only the assigned/authorized worker can complete the right nearby service order; fuel, repairs and utility charges reconcile and survive relogin.
 
-### Stage 12 — Offices, oil, gas and industry
-- Office buildings, company ownership and role-specific in-world workflows.
-- Oil/gas sites, industrial businesses, shifts, production tasks and supply chain.
-- Restricted facilities, safety/environment events and qualifications.
-- Production, stock and revenue are auditable and server-owned.
+### Stage 12 — Education, offices, oil and industry
+- School teachers, school-bus drivers, receptionists, call-centre staff and other office roles.
+- Oil-rig workers, refinery technicians, site security, lawyers, journalists and event DJs.
+- Restricted facilities need role/qualification checks; industrial production must use validated inputs, shifts, maintenance and output records.
+- Keep school/office/industrial duties appropriate to their workplaces and the six-rank rule.
 
-Acceptance: output requires eligible staff, resources and task state; client requests cannot create duplicate output/revenue.
+Acceptance: qualifications and facility access are enforced; production cannot create output or revenue without valid resources and work; office and industrial progress persists.
 
-### Stage 13 — Port Harcourt world completion and content density
-- Extend neighborhoods with reviewed streets, lots, buildings, entrances, sidewalks, signs and landmarks.
-- Keep house placements, collision footprints, road geometry and navigation destinations aligned.
-- Replace geometry placeholders with optimized art-directed assets as the budget allows; use LODs, instancing and distance-based creation.
-- Add traffic, pedestrians, sound, day/night/weather and world events within Android budgets.
-- Interest management and streaming must avoid loading the whole city at full fidelity.
+### Stage 13 — Economy balance, safety and polish
+- Balance income and sinks so rank 1 can afford a local hut; high-rent houses should require progression through better-paying work and produce meaningful social/economic advancement.
+- Test task/reward/rent balance through real play sessions and tune the shared pay multipliers centrally.
+- Add anti-cheat checks for position, speed, car ownership, inventory, job completion, task replay, ranks, money and private-route access.
+- Polish mobile performance, touch controls, camera stability, onboarding tutorials, error messages and reconnect recovery.
+- Audit persistent-data migrations, logs, moderation/reporting and support recovery flows.
 
-Acceptance: district-by-district visual/route tests; no essential entrance blocked; mobile frame time and memory stay within budget.
+Acceptance: new players can understand their first session and earn starter rent; high-value actions resist forgery/replay; Android frame time, memory and interaction targets stay within the agreed budget.
 
-### Stage 14 — Gameplay balance, onboarding, anti-cheat and moderation
-- Guided first session, clear controls, starter funds/items and safe first-job path.
-- Balance income/sinks, rent pressure, pacing and progression through playtests.
-- Server validation for position, speed, vehicles, money, inventory, job completion, ranks and item use.
-- Reports, bans, audit trail, support/recovery tools and data migration plans.
-- Failure/reconnect and abuse cases are required for each feature, not deferred to launch.
-
-Acceptance: new players understand the core loop; high-value actions resist forgery/replay; support can use audit history to investigate problems.
-
-### Stage 15 — Release readiness and additional cities
-- Multiplayer soak/load testing: start at 5 concurrent players, then 20 and 50+ where infrastructure permits.
-- Latency, reconnect, database restart, deploy rollback, recovery and mobile performance tests.
-- Backup/restore drill, schema migrations, secrets audit, monitoring and incident runbooks.
-- Expand to Lagos, Abuja, Calabar, Aba, Umuahia, Uyo and inter-city routes only after Port Harcourt is stable.
-- Inter-city transfer must preserve identity, inventory, vehicles, money and job state atomically.
-
-Acceptance: release checklist is signed off; recovery/rollback has been tested; additional cities are not used to hide unfinished core multiplayer systems.
+### Later task — Protected admin and boss assignment
+After the core job system is stable, add a protected admin tool to assign workplace bosses and manage exceptional account actions. It must require server-authorized admin identity, log each action, prevent self-granting admin permissions and avoid hard-coding a client-side secret. Manual boss data remains the source until that tool is reviewed and approved.
 
 ---
 
@@ -255,6 +249,6 @@ Use `npm run web:dev` to start the browser workspace directly. Check the package
 
 ## 5. Next action today
 
-**Continue Stage 2 only:** finish and test home exit choice and private car-park route, keep the camera stable during motion while improving steering response, verify exterior building/door placement and road clearance, run both CI workflows, then test the live game. Do not start Stage 3 until the user tests and approves Stage 2.
+**Continue Stage 2 only:** rebuild the private garage as a fully enclosed room, make the vehicle stop/honk action reliably open the street route, add the on-foot garage-door menu (street or return to the rented home), and respawn inside the rented home's furnished interior. Run both CI workflows and test on the live Android game. Do not start Stage 3 until the user tests and approves Stage 2.
 
 The client currently uses generated Three.js geometry for residential and street visuals. Keep the Android performance budget in view and be honest about whether changes have been visually tested on the live deployment.

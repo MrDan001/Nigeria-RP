@@ -1,6 +1,6 @@
 # Stage 2 — Homes, Rent, Realistic Exteriors, Interiors and Car-Park Routes
 
-**Status: In progress. Source implementation has been expanded, but it is not approved as complete until the live game is tested on a phone.** Do not start Stage 3 until the user confirms the Stage 2 experience is correct.
+**Status: In progress. The user reported that the car horn does not consistently leave the garage, the garage feels too open, there is no on-foot door choice, and respawn lands outside the home. The source rebuild is in progress and requires CI plus live phone verification.** Do not start Stage 3 until the user confirms the Stage 2 experience is correct.
 
 ## Implemented in the current source
 
@@ -37,6 +37,23 @@ Rent can be prepaid for up to seven days.
 - Vehicle movement still runs mainly in the browser. Garage position samples are bounded and the exit gate checks recent movement-derived speed, but full authoritative vehicle physics, collision validation and multiplayer vehicle replication remain future work.
 - House coordinates are duplicated between `services/game-server/src/world.ts` and client plot reservations in `services/web-client/index.html`; those definitions must remain aligned.
 - CI passing does not confirm that the player can visually enter the correct room, drive through the actual gate, or view the right camera orientation. Those need real browser/device testing.
+
+## Current rebuild: garage doorway and home respawn
+
+- Replace the open-looking bay with a sealed garage structure: continuous roof, side/rear walls, front doorway/roller-door frame, concrete floor, lights, bay markings, safety details and private-garage signage.
+- Constrain foot and vehicle movement to the garage interior. A vehicle may leave only via the narrow validated doorway after a full stop and a held horn; the gate contract matches the physical doorway bounds.
+- Retry the horn request safely only while the owned car is stationary at the door. Do not repeatedly submit failed requests while it is moving.
+- When on foot near the door, show a menu with **Exit to street** and a home-specific return choice: **hut**, **room**, **apartment** or **house**, based on the rented property. The server validates the tenant and completes the route.
+- Respawning with a valid tenancy must place the player in the same furnished, walkable home interior and preserve the exterior return point. Homeless respawn remains at the public respawn location.
+
+## Additional acceptance checks for the rebuild
+
+- [ ] Garage has a visible roof and walls on all sides except its framed doorway; neither foot player nor car can drive through side/rear walls or leave by another route.
+- [ ] Stop the owned car at the doorway, hold the horn, and transition to the street in that car without needing repeated honks or receiving a false rejection.
+- [ ] Pressing the horn away from the doorway or while moving does not leave the garage.
+- [ ] Walk to the garage door; verify the menu has **Exit to street** plus the correct home-specific return label.
+- [ ] Exit on foot to the street; return to the home interior via the door; verify both routes preserve account and vehicle ownership.
+- [ ] Trigger respawn while holding a valid rental; verify the player loads inside the correct home room and can walk to EXIT. Verify the homeless case still spawns at the public location.
 
 ## Required commands
 

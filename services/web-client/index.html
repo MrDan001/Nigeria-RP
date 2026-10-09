@@ -138,7 +138,7 @@ body.drv #camB{display:grid}
 #act.dr{right:12rem;bottom:1rem;top:auto;font-size:.8rem;padding:.55rem .9rem;background:rgba(150,35,35,.88)}
 
 /* Residential architecture + private garage interaction */
-#modal button[data-exit-route],#modal button[data-garage-car]{display:block;width:100%;max-width:34rem;text-align:left;margin:.45rem 0;padding:.7rem .85rem;border:1px solid rgba(255,255,255,.14);border-radius:.65rem;background:linear-gradient(135deg,rgba(38,57,75,.97),rgba(17,30,43,.97));color:#fff;font-size:.88rem}
+#modal button[data-exit-route],#modal button[data-garage-car],#modal button[data-garage-route]{display:block;width:100%;max-width:34rem;text-align:left;margin:.45rem 0;padding:.7rem .85rem;border:1px solid rgba(255,255,255,.14);border-radius:.65rem;background:linear-gradient(135deg,rgba(38,57,75,.97),rgba(17,30,43,.97));color:#fff;font-size:.88rem}
 #modal button[data-exit-route]:first-of-type{background:linear-gradient(135deg,#087f5b,#075844)}
 #modal .route-copy{max-width:34rem;line-height:1.45;opacity:.8;font-size:.76rem}
 </style></head><body>
@@ -665,7 +665,7 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  pos.x+=vel.x*dt;pos.z+=vel.z*dt;
  for(const b of boxes){const ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);
   if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
- if(inside?.isCarpark){pos.x=clamp(pos.x,inside.x-14,inside.x+14);pos.z=clamp(pos.z,inside.z-14,inside.z+17);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
+ if(inside?.isCarpark){pos.x=clamp(pos.x,inside.x-13.2,inside.x+13.2);pos.z=clamp(pos.z,inside.z-14.2,inside.z+14.2);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  else if(inside){const halfW=inside.isHome?Math.max(4.8,(inside.roomW||10.4)/2-.45):5.2,back=inside.isHome?Math.max(4.3,(inside.roomD||10)/2-.45):4.6,front=inside.isHome?Math.max(5.0,(inside.roomD||10)/2-.45):5.4;pos.x=clamp(pos.x,inside.x-halfW,inside.x+halfW);pos.z=clamp(pos.z,inside.z-back,inside.z+front);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  else{pos.x=clamp(pos.x,-240,240);pos.z=clamp(pos.z,-240,240);}
  speed=Math.hypot(vel.x,vel.z);
@@ -710,7 +710,7 @@ function traffic(dt){bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=ba
  for(const c of tr){const dz=c.ry>2?-1:1;let gap=99;
   for(const o of obs){if(o===c)continue;const d=(o.z-c.z)*dz;if(d>0&&d<gap&&Math.abs(o.x-c.x)<2.2)gap=d;}
   c.v+=clamp((gap<8?0:gap<18?3:(c.vm||9))-c.v,-14*dt,5*dt);c.z+=dz*c.v*dt;if(Math.abs(c.z)>190)c.z=-dz*190;c.wh.forEach(w=>w.sp.rotation.x+=c.v*dt/.38);setCar(c);}}
-const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornKey=false;
+const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornKey=false,carparkExitAttemptAt=0;
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
 const TANK=40,FUEL_PER_M=.004,FUEL_IDLE=.002; /* litres: 1 L per 250 m, small idle burn */
 function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLocked=true;cam.fov=60;}else drivingCameraLocked=false;
@@ -734,26 +734,34 @@ function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLock
  c.vx=sn*fv+cs*lv;c.vz=cs*fv-sn*lv;c.x+=c.vx*dt;c.z+=c.vz*dt;
  for(const b of boxes){if(b===c.box)continue;const ox=c.x-b.x,oz=c.z-b.z,px=b.hw+1.4-Math.abs(ox),pz=b.hd+1.4-Math.abs(oz);
   if(px>0&&pz>0){if(px<pz)c.x+=Math.sign(ox||1)*px;else c.z+=Math.sign(oz||1)*pz;c.vx*=.5;c.vz*=.5;}}
- const driveLimit=inside?.isCarpark?490:240;c.x=clamp(c.x,-driveLimit,driveLimit);c.z=clamp(c.z,-driveLimit,driveLimit);c.v=fv;
+ if(inside?.isCarpark){
+  c.x=clamp(c.x,inside.x-11.2,inside.x+11.2);
+  c.z=clamp(c.z,inside.z-13.5,inside.z+14.1);
+ }else{c.x=clamp(c.x,-240,240);c.z=clamp(c.z,-240,240);}c.v=fv;
  const k=1-Math.exp(-dt*6);c.pitch+=(clamp(-a*.004,-.06,.06)-c.pitch)*k;c.roll+=(clamp(yaw*fv*.003,-.07,.07)-c.roll)*k;
  c.tail.color.setHex(br>.05||hb?0xff2020:0x701010);c.rev.color.setHex(fv<-.5?0xffffff:0x555555);c.sw.rotation.z=wheelA*.0174533;
  c.wh.forEach(w=>{w.sp.rotation.x+=fv*dt/.38;if(w.f)w.pv.rotation.y=-c.steer;});
  if(eng){eng.o.frequency.value=38+c.rpm*95;eng.g.gain.value=.02+.03*th;}
  setCar(c);pos.set(c.x,0,c.z);face=c.ry;
- if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<6.5&&c.z>468&&c.z<486&&Math.abs(fv)<4){carparkExitPending=true;const N=window.NRS;if(N&&N.exitCarpark)N.exitCarpark(c.id, hornBtn||hornKey);else{carparkExitPending=false;routeTransitionOut();}}
+ if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<=5.8&&c.z>=468&&c.z<=469.2&&Math.hypot(c.vx,c.vz)<.22&&performance.now()-carparkExitAttemptAt>650){
+  carparkExitPending=true;carparkExitAttemptAt=performance.now();
+  const N=window.NRS;
+  if(N&&N.exitCarpark)N.exitCarpark(c.id,true);
+  else{carparkExitPending=false;sys('Garage connection is not ready. Please try the horn again.');}
+ }
  cam.fov=60;cam.updateProjectionMatrix();
  /* Camera orientation stays where the driver set it; no automatic panning on turns. */}
 function hudAct(){const a=$('act');
  if(driving){$('wsv').style.transform='rotate('+wheelA+'deg)';a.style.display='block';a.textContent='Exit car';const on=driving.on,t=Math.round(Math.abs(driving.v)*3.6)+' km/h '+(driving.starting?'STARTING':on?'G'+(driving.v<-.5?'R':(driving.gear||1)):'ENGINE OFF');const t2=t+zn();if(locT!==t2){locT=t2;$('loc').innerHTML='🚗 '+t+'<br><small>'+(on?zn():driving.starting?'Starting...':'Press 🔘 to start')+'</small>';}drvHud();return;}
  {const z=zn();if(locT!==z){locT=z;$('loc').innerHTML='📍 '+z+'<br><small>Port Harcourt, Rivers State</small>';}}
- if(inside?.isCarpark){nearCar=null;a.style.display='block';a.textContent='Spawn car';return;}
+ if(inside?.isCarpark){nearCar=null;a.style.display='block';const door=Math.hypot(pos.x-inside.x,pos.z-(inside.z+13.4));a.textContent=door<3.2?'Use garage door':'Spawn car';return;}
  nearCar=null;let bd=3.4;for(const c of cars){if(c.kind==='t')continue;const d=Math.hypot(c.x-pos.x,c.z-pos.z);if(d<bd){bd=d;nearCar=c;}}
  a.style.display=nearCar?'block':'none';a.textContent='Enter car';}
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
   standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
  else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
- else if(inside?.isCarpark){openGarageSpawnMenu();}};
+ else if(inside?.isCarpark){const door=Math.hypot(pos.x-inside.x,pos.z-(inside.z+13.4));if(door<3.2)openGarageFootExitMenu();else openGarageSpawnMenu();}};
 /* seated driver: player rides inside the car body, hands on the wheel, legs forward */
 function sitIn(c){c.body.add(player);player.position.set(.42,-.06,-.3);player.rotation.set(0,0,0);player.scale.setScalar(.85);player.visible=true;shadow.visible=false;
  model.rotation.y=0;model.position.y=0;model.scale.y=1;crouch=false;$('crch').classList.remove('on');
@@ -792,24 +800,104 @@ function panel(h){modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.s
 
 function openExitRouteMenu(){if(!inside)return;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. In the private car park, select an owned car, drive to the striped gate, stop, and hold the horn to join the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button><button data-exit-route="carpark">🚗 Go to the private car park<br><small>Spawn one of your cars and drive out.</small></button>');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
-function garageRoom(d){if(HOME_ROOMS.__privateGarage)return HOME_ROOMS.__privateGarage;const ix=Number(d.garageX)||455,iz=Number(d.garageZ)||455,m=M(0x969c9d),dark=M(0x343b3e),yellow=M(0xe4ba3b),white=M(0xecebe4),metal=M(0x41494d),glass=new THREE.MeshPhongMaterial({color:0x477c8b,transparent:true,opacity:.6,shininess:70,side:THREE.DoubleSide});
- flat(36,40,M(0x555c5f),ix,.02,iz);flat(29,33,M(0x6c7476),ix,.035,iz);
- [-14,14].forEach(side=>{add(new THREE.BoxGeometry(.65,6.1,33),m,ix+side,3,iz-.5);for(let z=-14;z<=13;z+=9){add(new THREE.BoxGeometry(.62,6.1,.62),metal,ix+side,3,iz+z);add(new THREE.BoxGeometry(.82,.24,.82),white,ix+side,6.12,iz+z);}});
- add(new THREE.BoxGeometry(29,.45,.75),m,ix,5.8,iz-16);add(new THREE.BoxGeometry(29,.45,.75),m,ix,5.8,iz+16);add(new THREE.BoxGeometry(28,.4,.7),dark,ix,6.03,iz);
- for(let x=-12;x<=12;x+=4){add(new THREE.BoxGeometry(.14,.16,32),metal,ix+x,5.82,iz);add(new THREE.BoxGeometry(2.8,.08,.22),white,ix+x,5.55,iz);}
- for(let y=3.05;y<5.5;y+=.34)add(new THREE.BoxGeometry(8,.05,.13),metal,ix,y,iz-16.02);
- add(new THREE.BoxGeometry(2.1,2.1,.22),metal,ix-10,1.25,iz-15.6);add(new THREE.BoxGeometry(1.65,1.45,.07),glass,ix-10,1.3,iz-15.45);
- for(let i=0;i<5;i++){const x=ix-9+i*4.5;flat(3.8,9.8,M(0x4e5558),x,.055,iz-5);for(const side of [-1,1])add(new THREE.BoxGeometry(.055,.04,9.45),white,x+side*1.86,.075,iz-5);add(new THREE.BoxGeometry(3.7,.045,.07),yellow,x,.075,iz-9.7);add(new THREE.BoxGeometry(3.7,.045,.07),yellow,x,.075,iz-.25);add(new THREE.BoxGeometry(1.0,.11,.18),dark,x,.13,iz-1.05);}
- flat(8,.17,yellow,ix,.08,iz+12.45);flat(8,.17,white,ix,.085,iz+13.15);
- const label=tex(512,128,(g,w,h)=>{g.fillStyle="#142126";g.fillRect(0,0,w,h);g.fillStyle="#e7bd48";for(let x=-40;x<w;x+=90){g.beginPath();g.moveTo(x,0);g.lineTo(x+45,0);g.lineTo(x-10,h);g.lineTo(x-55,h);g.closePath();g.fill();}g.fillStyle="#fff";g.textAlign="center";g.font="bold 39px system-ui";g.fillText("STOP  •  HONK TO ENTER STREET",w/2,80);});
- const sign=add(new THREE.PlaneGeometry(11,2.7),new THREE.MeshBasicMaterial({map:label,side:THREE.DoubleSide}),ix,4.1,iz+15.85);sign.rotation.y=Math.PI;
- [-4.7,4.7].forEach(x=>{add(new THREE.BoxGeometry(.24,3.5,.24),yellow,ix+x,1.75,iz+14.8);add(new THREE.BoxGeometry(.4,.4,.4),white,ix+x,3.6,iz+14.8);});
- const topLabel=tex(256,64,(g,w,h)=>{g.fillStyle="#202b2f";g.fillRect(0,0,w,h);g.fillStyle="#e4bf59";g.textAlign="center";g.font="bold 30px system-ui";g.fillText("NIGERIA RP · PRIVATE GARAGE",w/2,42);});
- add(new THREE.PlaneGeometry(10,.8),new THREE.MeshBasicMaterial({map:topLabel,side:THREE.DoubleSide}),ix,5.15,iz-15.35);
- return HOME_ROOMS.__privateGarage={id:"__privateGarage",name:"Private car park",x:ix,z:iz,cb:{x:ix-12.8,z:iz-1,hw:.4,hd:.4},pois:[],isCarpark:true};}
-function openGarageSpawnMenu(){const N=window.NRS||{},life=N.life||{},owned=new Set(life.ownedCars||[]),list=cars.filter(c=>c.kind!=="t"&&c.id&&owned.has(c.id));const names={c0:"Black executive saloon",c1:"Red city saloon",c2:"Blue family saloon",c3:"Silver luxury saloon",c4:"Black premium saloon"};panel('<b>🚘 Private car park</b><p class="route-copy">Select one of your cars. It spawns in a numbered bay with its remaining fuel. Drive toward the yellow gate, stop, then hold the horn (H on keyboard or the horn button).</p>'+list.map(c=>'<button data-garage-car="'+c.id+'">🚗 '+(names[c.id]||("Vehicle "+c.id))+'<br><small>'+c.id.toUpperCase()+' · Fuel '+Math.round(c.fuel||0)+' L</small></button>').join('')+(list.length?'':'<p>No owned vehicles are available.</p>'));}
+function garageRoom(d){
+ const existing=HOME_ROOMS.__privateGarage;
+ if(existing){existing.home=d.home||existing.home||null;return existing;}
+ const ix=Number(d.garageX)||455,iz=Number(d.garageZ)||455;
+ const concrete=M(0x62696c),concreteDark=M(0x42494d),wall=M(0x879092),wallDark=M(0x3b4549),metal=M(0x252f34),steel=M(0x69767b),yellow=M(0xf3c33d),white=M(0xf4f2e9),blue=M(0x267c9a),glass=new THREE.MeshPhongMaterial({color:0x5e9eb0,transparent:true,opacity:.45,shininess:75,side:THREE.DoubleSide});
+ // Sealed 36 x 40 metre bay: continuous floor, concrete side/rear walls and roof.
+ flat(36,40,concrete,ix,.015,iz);
+ flat(12.5,37,concreteDark,ix,.028,iz-1);
+ for(let stripe=-15;stripe<=14;stripe+=3)flat(.035,38,M(0x747a79),ix+stripe,.035,iz);
+ add(new THREE.BoxGeometry(36,.22,40),wallDark,ix,-.12,iz);
+ // The roof is a real slab rather than exposed decorative beams.
+ add(new THREE.BoxGeometry(36,.48,40),wallDark,ix,6.25,iz);
+ add(new THREE.BoxGeometry(35.5,.09,39.5),steel,ix,5.98,iz);
+ [-14,14].forEach(side=>{
+   add(new THREE.BoxGeometry(.7,6.1,33.8),wall,ix+side,3,iz-.4);
+   add(new THREE.BoxGeometry(.12,5.8,33.1),wallDark,ix+side+(side<0?.38:-.38),3,iz-.4);
+   for(let z=-15;z<=14;z+=9){
+     add(new THREE.BoxGeometry(.9,6.15,.9),steel,ix+side,3,iz+z);
+     add(new THREE.BoxGeometry(.94,.2,.94),yellow,ix+side,5.95,iz+z);
+     add(new THREE.BoxGeometry(.98,.22,.98),metal,ix+side,0.22,iz+z);
+   }
+ });
+ // Rear wall and front wall split around the vehicle doorway.
+ add(new THREE.BoxGeometry(28.2,6.1,.7),wall,ix,3,iz-19.45);
+ add(new THREE.BoxGeometry(28.4,.18,.74),blue,ix,5.9,iz-19.45);
+ add(new THREE.BoxGeometry(8.4,6.1,.75),wall,ix-10.1,3,iz+16);
+ add(new THREE.BoxGeometry(8.4,6.1,.75),wall,ix+10.1,3,iz+16);
+ add(new THREE.BoxGeometry(12.1,.75,1.0),steel,ix,5.72,iz+16);
+ // Industrial roller-door rails, slatted door parked overhead, and yellow safety jambs.
+ [-6.05,6.05].forEach(x=>{
+   add(new THREE.BoxGeometry(.22,5.05,.34),metal,ix+x,2.52,iz+15.55);
+   add(new THREE.BoxGeometry(.32,5.05,.12),yellow,ix+x,2.52,iz+15.33);
+   for(let y=.25;y<=4.55;y+=.48)add(new THREE.BoxGeometry(.3,.07,.14),steel,ix+x,y,iz+15.19);
+ });
+ add(new THREE.BoxGeometry(11.8,.46,.55),metal,ix,5.18,iz+15.48);
+ for(let y=4.48;y<=4.98;y+=.17)add(new THREE.BoxGeometry(11.2,.07,.14),steel,ix,y,iz+15.23);
+ add(new THREE.BoxGeometry(11.9,.12,.18),yellow,ix,4.38,iz+15.27);
+ // Ceiling LED strips, emergency lamps and ventilation units.
+ for(let x=-10;x<=10;x+=10){
+   add(new THREE.BoxGeometry(.16,.1,30),metal,ix+x,5.94,iz-.5);
+   for(let z=-12;z<=11;z+=11){
+     add(new THREE.BoxGeometry(1.45,.09,4.3),white,ix+x,5.89,iz+z);
+     add(new THREE.BoxGeometry(1.05,.04,3.7),new THREE.MeshBasicMaterial({color:0xffefbf}),ix+x,5.82,iz+z);
+   }
+ }
+ for(const x of [-8,8]){
+   add(new THREE.BoxGeometry(1.5,.3,1.5),steel,ix+x,5.7,iz-17.3);
+   add(new THREE.CylinderGeometry(.47,.47,.16,20),metal,ix+x,5.46,iz-17.3);
+   add(new THREE.CylinderGeometry(.31,.31,.17,16),blue,ix+x,5.34,iz-17.3);
+ }
+ // Marked resident bays, wheel-stops, bay numbers and a clear central exit lane.
+ for(let i=0;i<5;i++){
+   const x=ix-9+i*4.5,bayZ=iz-5;
+   flat(3.8,9.8,M(0x50595b),x,.045,bayZ);
+   for(const side of [-1,1])add(new THREE.BoxGeometry(.055,.035,9.5),white,x+side*1.85,.07,bayZ);
+   add(new THREE.BoxGeometry(3.7,.045,.07),yellow,x,.075,bayZ-4.8);
+   add(new THREE.BoxGeometry(3.7,.045,.07),yellow,x,.075,bayZ+4.75);
+   add(new THREE.BoxGeometry(1.0,.12,.22),metal,x,.13,bayZ+3.95);
+   const number=tex(128,96,(g,w,h)=>{g.fillStyle="#192529";g.fillRect(0,0,w,h);g.fillStyle="#f2c846";g.textAlign="center";g.font="bold 58px system-ui";g.fillText(String(i+1).padStart(2,"0"),w/2,67);});
+   add(new THREE.PlaneGeometry(1.05,.8),new THREE.MeshBasicMaterial({map:number,side:THREE.DoubleSide}),x,1.15,bayZ-3.8);
+ }
+ // Workshop cabinet and wall-mounted extinguishers give the private garage scale.
+ add(new THREE.BoxGeometry(2.6,1.45,.7),metal,ix-12,0.82,iz-8.8);
+ add(new THREE.BoxGeometry(2.35,.12,.12),yellow,ix-12,1.55,iz-8.42);
+ for(const x of [-12.9,12.9]){
+   add(new THREE.CylinderGeometry(.16,.16,.75,12),M(0xb92e28),ix+x,1.0,iz+5);
+   add(new THREE.BoxGeometry(.42,.15,.15),white,ix+x,1.4,iz+5);
+ }
+ flat(8,.16,yellow,ix,.07,iz+11.9);
+ flat(8,.16,white,ix,.075,iz+12.55);
+ const gateSign=tex(512,128,(g,w,h)=>{
+   g.fillStyle="#17252a";g.fillRect(0,0,w,h);
+   g.fillStyle="#f3c33d";for(let x=-40;x<w;x+=90){g.beginPath();g.moveTo(x,0);g.lineTo(x+45,0);g.lineTo(x-10,h);g.lineTo(x-55,h);g.closePath();g.fill();}
+   g.fillStyle="#ffffff";g.textAlign="center";g.font="bold 36px system-ui";g.fillText("STOP  •  HONK AT THE GARAGE DOOR",w/2,79);
+ });
+ const sign=add(new THREE.PlaneGeometry(11.2,2.35),new THREE.MeshBasicMaterial({map:gateSign,side:THREE.DoubleSide}),ix,3.75,iz+15.58);sign.rotation.y=Math.PI;
+ const topLabel=tex(512,80,(g,w,h)=>{
+   g.fillStyle="#152329";g.fillRect(0,0,w,h);g.fillStyle="#f3c33d";g.fillRect(0,0,w,6);
+   g.fillStyle="#ffffff";g.textAlign="center";g.font="bold 27px system-ui";g.fillText("NRS  •  PRIVATE RESIDENTIAL GARAGE",w/2,51);
+ });
+ add(new THREE.PlaneGeometry(13,.9),new THREE.MeshBasicMaterial({map:topLabel,side:THREE.DoubleSide}),ix,5.48,iz-18.98);
+ return HOME_ROOMS.__privateGarage={id:"__privateGarage",name:"Private car park",x:ix,z:iz,cb:{x:ix-12.8,z:iz-1,hw:.4,hd:.4},pois:[],isCarpark:true,home:d.home||null};
+}
+function openGarageFootExitMenu(){
+ const home=inside?.home||{},cls=home.cls||'flat';
+ const returnWord=cls==='hut'?'hut':cls==='faceme'?'room':cls==='flat'?'apartment':'house';
+ panel('<b>🚪 Garage door</b><p class="route-copy">You are on foot at the private garage door. Choose where to go.</p><button data-garage-route="street">🚶 Exit to street<br><small>Leave the garage on foot.</small></button><button data-garage-route="home">🏠 Exit to your '+returnWord+'<br><small>Return to your rented '+returnWord+'.</small></button>');
+}
+function openGarageSpawnMenu(){const N=window.NRS||{},life=N.life||{},owned=new Set(life.ownedCars||[]),list=cars.filter(c=>c.kind!=="t"&&c.id&&owned.has(c.id));const names={c0:"Black executive saloon",c1:"Red city saloon",c2:"Blue family saloon",c3:"Silver luxury saloon",c4:"Black premium saloon"};panel('<b>🚘 Private car park</b><p class="route-copy">Select one of your cars. It spawns in a numbered bay. Drive slowly to the enclosed garage door, stop completely and hold the horn to open the gate and enter the street.</p>'+list.map(c=>'<button data-garage-car="'+c.id+'">🚗 '+(names[c.id]||("Vehicle "+c.id))+'<br><small>'+c.id.toUpperCase()+' · Fuel '+Math.round(c.fuel||0)+' L</small></button>').join('')+(list.length?'':'<p>No owned vehicles are available.</p>'));}
 
 modal.addEventListener('click',e=>{
+ const garageRoute=e.target.closest('[data-garage-route]')?.dataset.garageRoute;
+ if(garageRoute&&inside?.isCarpark&&!driving){
+  const N=window.NRS;
+  if(!N||typeof N.exitCarparkOnFoot!=='function'){sys('Garage connection is not ready.');return;}
+  routeTransitionIn();modal.style.display='none';modal.innerHTML='';
+  N.exitCarparkOnFoot(garageRoute);return;
+ }
  const route=e.target.closest('[data-exit-route]')?.dataset.exitRoute;
  if(route){if(route==='street')returnToStreetFromRoom();else{const N=window.NRS;if(N&&N.enterCarpark){routeTransitionIn();modal.style.display='none';modal.innerHTML='';N.enterCarpark();}}return;}
  const carId=e.target.closest('[data-garage-car]')?.dataset.garageCar;
@@ -1338,12 +1426,47 @@ function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.f
 window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;syncHouseExteriors(N.houses);}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
 window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
 window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
-window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;sys(d.message||'Private car park entered.');openGarageSpawnMenu();routeTransitionOut();});
+window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;carparkExitAttemptAt=0;sys(d.message||'Private car park entered.');openGarageSpawnMenu();routeTransitionOut();});
+window.addEventListener('nrs-carpark-foot-exit',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';curPoi=null;vel.set(0,0,0);jv=0;
+ if(d.route==='home'&&d.home){
+  const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:Math.PI,face:Math.PI,camYaw:0,camPitch:.08};
+  inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);face=Math.PI;camYaw=0;camPitch=.08;
+  player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  if(MP.open)closeMap();plShow(false);sys(d.message||'You are back inside your home.');
+ }else{
+  inside=null;pos.set(Number(d.x)||0,0,Number(d.z)||0);face=0;player.position.copy(pos);model.rotation.y=face;
+  shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;camYaw=Math.PI;camPitch=.28;
+  sys(d.message||'You are on the street.');
+ }
+ focus.set(pos.x,1.4,pos.z);routeTransitionOut();
+});
 window.addEventListener('nrs-carpark-exit',e=>{const d=e.detail||{},c=cars.find(v=>v.id===d.carId&&v.kind!=='t');carparkExitPending=false;if(!c)return;inside=null;c.x=Number(d.x)||0;c.z=Number(d.z)||0;c.ry=Number(d.yaw)||0;c.v=c.vx=c.vz=0;c.starting=false;c.box.hw=1.05;c.box.hd=2.3;c.g.visible=true;setCar(c);pos.set(c.x,0,c.z);face=c.ry;camYaw=c.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();vel.set(0,0,0);focus.set(pos.x,1.4,pos.z);model.rotation.y=0;shadow.visible=false;driving=c;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();setHl(c);modal.style.display='none';modal.innerHTML='';sys(d.message||'Horn heard. You are on the street—drive safely.');routeTransitionOut();});
 window.addEventListener('nrs-route-error',()=>{carparkExitPending=false;routeTransitionOut();});
 window.addEventListener('nrs-home-exit',e=>{const d=e.detail||{};if(!inside?.isHome)return;const r=inside;inside=null;pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);curPoi=null;act2.style.display='none';sys(d.message||'You are back outside.');routeTransitionOut();});
 
-window.addEventListener('nrs-respawn',e=>{const d=e.detail||{};if(d.ok){pos.set(Number(d.x)||0,0,Number(d.z)||0);vel.set(0,0,0);}});
+window.addEventListener('nrs-respawn',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ routeTransitionIn();vel.set(0,0,0);jv=0;carparkExitPending=false;
+ if(driving){
+  const c=driving;c.v=c.vx=c.vz=0;c.starting=false;c.on=false;c.box.hw=1.05;c.box.hd=2.3;
+  driving=null;engine(false);document.body.classList.remove('drv');$('act').classList.remove('dr');hornBtn=false;hornKey=false;
+  standUp();setIgn();setHl(c);
+ }
+ if(d.atHome&&d.home){
+  const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:Math.PI,face:Math.PI,camYaw:0,camPitch:.08};
+  inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);face=Math.PI;camYaw=0;camPitch=.08;
+  standUp();player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+  if(MP.open)closeMap();plShow(false);sys('🏠 You respawned inside your home. Walk to EXIT whenever you are ready.');
+ }else{
+  inside=null;pos.set(Number(d.x)||0,0,Number(d.z)||0);face=0;camYaw=Math.PI;camPitch=.28;
+  standUp();player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  modal.style.display='none';modal.innerHTML='';
+ }
+ focus.set(pos.x,1.4,pos.z);routeTransitionOut();
+});
 $('bmpl').onclick=()=>plShow(plc.style.display==='none');
 $('navx').onclick=()=>navStop('Navigation cancelled.');
 
@@ -1451,4 +1574,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261009-stage2-static-camera-v6"></script></body></html>
+</script><script src="/nrs-online.js?v=20261009-stage2-garage-rebuild-v7"></script></body></html>
