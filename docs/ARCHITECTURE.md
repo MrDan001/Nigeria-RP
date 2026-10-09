@@ -1,72 +1,86 @@
 # NRS Technical Architecture
 
-## Repository
+## Current stack
+
+- **Browser client:** Three.js scene with JavaScript, HTML and CSS HUD in `services/web-client/index.html`; Vite builds the workspace.
+- **Network client:** `services/web-client/public/nrs-online.js` communicates by WebSocket.
+- **Authoritative game server:** TypeScript/Node.js in `services/game-server/src/server.ts`, hosted on Railway.
+- **Durable persistence:** PostgreSQL through the server's storage layer.
+- **Web/API and deployment tools:** Vercel and GitHub workflows where configured; not a substitute for the Railway simulation server.
+
+Do not introduce an engine/framework migration without explicit approval and a migration/test plan. The current playable build is not a Unity project or a PlayCanvas client.
+
+## Repository map
 
 ```
 /
-├── game/                 # Unity project
-├── services/             # Backend/API services
-├── admin/                # Admin and moderation web application
-├── infrastructure/      # Deployment/configuration
-├── docs/                 # Product and technical documentation
-├── tests/                # Cross-system/integration tests
-└── tools/                # Developer/content tooling
+├── services/
+│   ├── game-server/       # TypeScript WebSocket server, world rules and tests
+│   └── web-client/        # Three.js browser game and WebSocket client
+├── docs/                  # product, architecture, stage status and roadmap
+├── infrastructure/        # deployment/configuration
+└── package.json           # root workspace commands
 ```
 
 ## Runtime boundaries
 
-### Unity client
-Responsible for rendering, input, local UX, animation, audio, camera, local prediction/interpolation and sending requests.
+### Browser client
 
-### Authoritative game server
-Responsible for sessions, player state, movement authority, vehicles, proximity interactions, role state, world state, replication and anti-cheat validation.
+Responsible for drawing the world, touch/mouse/keyboard controls, camera, local audio/animation, HUD, contextual interactions and rendering state received from the server. It may ask for an action but must not be the source of truth for a valuable state change.
 
-### API/web layer
-Responsible for authentication flows, account/profile services, admin tools, dashboards, webhooks and non-realtime operations.
+### Game server
+
+Responsible for authenticated sessions, player identity, persisted life state, authorization, domain rules, rent/house ownership, workplace/rank rules as built, server responses and authoritative mutations. Add validation on the server for every valuable action instead of relying on a hidden/disabled browser button.
 
 ### PostgreSQL
-Source of truth for durable player/account/game data.
 
-### Redis/equivalent
-Only for state that genuinely benefits from fast transient storage, presence, coordination or caching.
+Source of truth for durable account and game data. Database mutations that couple money with inventory, property or rewards should be atomic or idempotent so retries and reconnects cannot duplicate value.
 
-## Data ownership
+### Vercel / Railway
 
-Client:
-- input;
-- presentation;
-- temporary prediction.
+Vercel can serve suitable web/API/admin experiences and previews. Railway hosts the current real-time WebSocket game server. Do not place the sole persistent multiplayer simulation in a request-only front end.
 
-Server:
-- money;
-- inventory;
-- ownership;
-- permissions;
-- job completion;
-- authoritative world state;
-- persistent character state.
+## Data ownership rules
 
-Database:
-- durable records.
+Client-owned transient presentation:
+- camera angle, touch state, animation timing and UI panel state;
+- local rendering and short-lived input.
 
-## Networking decision
+Server-owned valuable/game state:
+- account/session identity;
+- money, bank and transactions;
+- inventory and item grants;
+- owned cars and properties;
+- rent settlement/eviction;
+- work eligibility, rank, task completion and rewards;
+- permissions, health consequences and other persistent progression.
 
-Do not lock the project to a networking framework until the Stage 0 benchmark compares viable approaches against:
+### Vehicles caveat
 
-- 5/20/50+ concurrent players;
-- vehicle synchronization;
-- mobile bandwidth;
-- latency;
-- reconnect behavior;
-- interest management;
-- server authority;
-- hosting cost;
-- development complexity.
+Driving currently has browser-side simulation. Server-side garage ownership and enter/exit routing are not enough to call vehicle physics authoritative. A future vehicle stage must define and implement server-owned speed/position/collision checks, replication, reconnect handling and exploit tests.
 
-## Vercel boundary
+## Networking and performance
 
-Vercel is part of the platform, not the entire multiplayer simulation. It can host the web/admin/API layer and suitable realtime/API workloads, while the dedicated game server owns the persistent simulation.
+Use the existing WebSocket contract and inspect message handlers before adding new messages. Keep message schemas explicit, validate finite/range-limited inputs, and ensure route failures restore the client to a usable state.
 
-## Development rule
+Android is a first-class target:
+- distance-based world content creation and visibility;
+- controlled mesh/material counts, geometry complexity and textures;
+- stable frame pacing rather than detail that overloads low-memory devices;
+- tested touch targets and landscape camera behavior;
+- build and inspect on a real phone after CI.
 
-If a system crosses runtime boundaries, define the contract before implementation. Avoid hidden coupling between Unity, APIs and database internals.
+## Developer workflow and stage gate
+
+From the root:
+```bash
+npm ci
+npm run build
+npm run typecheck
+npm run test:stage1 --workspace nigeria-rp-game-server
+npm run test:stage2 --workspace nigeria-rp-game-server
+```
+
+Run/check **Browser Client Build** and **Game Server CI** after pushing. Then verify deployment and test the live game; CI alone does not verify visuals or live interaction.
+
+Read [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for all planned stages, current status, acceptance criteria and next tasks. Stage 2 remains the active gate; Stage 3 must not begin before Stage 2 is tested and explicitly approved.
