@@ -2774,13 +2774,6 @@ function refreshApartmentPOIs(){
   if((!b.apartmentCandidate&&!b.gen)||!Number.isFinite(Number(b.h))||b.h<5||b.hw<4||b.hd<4)continue;
   const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10);
   if(activeIds.has(id))continue;
-  const nearby=POI.some(p=>{
-   if(p.apartmentBuildingPoi)return false;
-   const meaningful=p.housePoi||p.t==='workplace'||p.t==='shop'||p.t==='bank'||p.t==='job'||p.t==='atm';
-   if(!meaningful)return false;
-   return Math.abs(Number(p.x)-b.x)<b.hw+7&&Math.abs(Number(p.z)-b.z)<b.hd+7;
-  });
-  if(nearby)continue;
   activeIds.add(id);
   const building=apartmentBuildingPayload(b);
   addApartmentExteriorDetails(b,id);

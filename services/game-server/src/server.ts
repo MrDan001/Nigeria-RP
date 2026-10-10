@@ -2224,7 +2224,8 @@ wss.on("connection", (socket) => {
         session.apartmentFloor = floor;
         // Place the player on the stair landing, not in the middle of the corridor.
         session.player.x = APARTMENT_INTERIOR_POSITION.x - 1.2;
-        session.player.z = APARTMENT_INTERIOR_POSITION.z - 3.6;
+        // Stand just beyond the decorative upper landing; this game models floor changes in x/z.
+        session.player.z = APARTMENT_INTERIOR_POSITION.z - 1.8;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
