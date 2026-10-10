@@ -88,6 +88,8 @@ type Session = {
   inHome: boolean;
   inCarpark: boolean;
   homeReturn: { x: number; z: number } | null;
+  /** House currently being visited; visitors may enter unlocked or vacant homes. */
+  currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
 };
 
@@ -294,6 +296,8 @@ function housingSnapshot(session: Session) {
       id: house.id, cls: house.cls, name: cls.name, rentPerDay: cls.rentPerDay,
       zone: house.zone, x: house.x, z: house.z, placed: house.placed,
       vacant: tenant === null, occupiedByMe: tenant === session.player.id,
+      // Unrented properties are intentionally always visitable, regardless of a stale save.
+      locked: tenant !== null && world.houseLocks[house.id] === true,
     };
   });
 }
@@ -354,6 +358,7 @@ function settleSession(session: Session) {
   session.player.life = result.life;
   if (result.homeLost && world.houseTenants[result.homeLost] === session.player.id) {
     world.houseTenants[result.homeLost] = null;
+    world.houseLocks[result.homeLost] = false;
     void saveWorld().catch((error) => console.error("save-world", error));
   }
   return result;
@@ -1193,6 +1198,25 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "setHouseLock") {
+        const houseId = String(message.houseId ?? "");
+        const tenant = world.houseTenants[houseId] ?? null;
+        const requested = message.locked;
+        if (!findHouse(houseId) || tenant !== session.player.id || session.player.life.homeId !== houseId) {
+          send(socket, { type: "housingResult", ok: false, action: "lock", message: "Only this house’s current owner can change its lock.", houses: housingSnapshot(session), life: session.player.life, cash: session.player.cash, today: clock.dayKey() });
+          return;
+        }
+        if (typeof requested !== "boolean") {
+          send(socket, { type: "housingResult", ok: false, action: "lock", message: "Choose whether to lock or unlock the house.", houses: housingSnapshot(session), life: session.player.life, cash: session.player.cash, today: clock.dayKey() });
+          return;
+        }
+        world.houseLocks[houseId] = requested;
+        await saveWorld();
+        send(socket, { type: "housingResult", ok: true, action: "lock", message: requested ? "🔒 House locked. Visitors can no longer enter." : "🔓 House unlocked. Visitors may enter.", houses: housingSnapshot(session), life: session.player.life, cash: session.player.cash, today: clock.dayKey() });
+        for (const other of players.values()) if (other.player.id !== session.player.id) sendHousingState(other);
+        return;
+      }
+
       if (message.type === "rentHouse") {
         const houseId = String(message.houseId ?? "");
         const days = Math.floor(Number(message.days));
@@ -1230,6 +1254,8 @@ wss.on("connection", (socket) => {
           ...session.player.life, homeId: houseId, rentDays: totalDays, lastDay: clock.dayKey(),
         };
         world.houseTenants[houseId] = session.player.id;
+        // A property starts open when a new tenancy begins; its owner can lock it later.
+        if (!tenant) world.houseLocks[houseId] = false;
         await saveWorld();
         await persistSession(session);
         send(socket, {
@@ -1243,20 +1269,36 @@ wss.on("connection", (socket) => {
         return;
       }
 
-      if (message.type === "enterHome") {
-        const home = session.player.life.homeId ? findHouse(session.player.life.homeId) : undefined;
+      if (message.type === "enterHome" || message.type === "enterHouse") {
+        const requestedId = message.type === "enterHome"
+          ? String(session.player.life.homeId ?? "")
+          : String(message.houseId ?? "");
+        const home = findHouse(requestedId);
         if (session.inHome) {
-          send(socket, { type: "homeInterior", ok: false, message: "You are already inside your home." });
+          send(socket, { type: "homeInterior", ok: false, message: "You are already inside a house." });
           return;
         }
-        if (!home || world.houseTenants[home.id] !== session.player.id) {
-          send(socket, { type: "homeInterior", ok: false, message: "You do not currently rent a home." });
+        if (!home) {
+          send(socket, { type: "homeInterior", ok: false, message: message.type === "enterHome" ? "You do not currently rent a home." : "That property could not be found." });
+          return;
+        }
+        const tenant = world.houseTenants[home.id] ?? null;
+        const isOwner = tenant === session.player.id && session.player.life.homeId === home.id;
+        const vacant = tenant === null;
+        const locked = !vacant && world.houseLocks[home.id] === true;
+        if (message.type === "enterHome" && !isOwner) {
+          send(socket, { type: "homeInterior", ok: false, message: "You do not currently rent this home." });
+          return;
+        }
+        if (!isOwner && !vacant && locked) {
+          send(socket, { type: "homeInterior", ok: false, message: "🔒 This house is locked by its owner. Visitors cannot enter." });
           return;
         }
         const cls = HOUSE_CLASSES.find((item) => item.id === home.cls)!;
         const room = homeInteriorPosition(home.id);
         const returnPosition = homeStreetPosition(home.id) ?? { x: session.player.x, z: session.player.z };
         session.homeReturn = returnPosition;
+        session.currentHomeId = home.id;
         session.inHome = true;
         session.inCarpark = false;
         session.carparkVehicle = null;
@@ -1268,7 +1310,7 @@ wss.on("connection", (socket) => {
         await persistSession(session);
         send(socket, {
           type: "homeInterior", ok: true,
-          home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
+          home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: isOwner ? session.player.life.rentDays : 0, isOwner, vacant, locked },
           roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
           returnX: returnPosition.x, returnZ: returnPosition.z,
           furniture: HOME_FURNITURE[home.cls] ?? [],
@@ -1282,15 +1324,17 @@ wss.on("connection", (socket) => {
           send(socket, { type: "homeExitResult", ok: false, message: session.inCarpark ? "Drive to the car-park exit and honk to reach the street." : "You are not inside a home." });
           return;
         }
-        const rentedHome = session.player.life.homeId && world.houseTenants[session.player.life.homeId] === session.player.id
-          ? homeStreetPosition(session.player.life.homeId)
-          : null;
-        const destination = rentedHome ?? session.homeReturn ?? { x: 0, z: 24 };
+        const currentHome = session.currentHomeId ? findHouse(session.currentHomeId) : undefined;
+        const ownerOfCurrent = !!currentHome && world.houseTenants[currentHome.id] === session.player.id && session.player.life.homeId === currentHome.id;
+        const ownedHomeReturn = ownerOfCurrent && currentHome ? homeStreetPosition(currentHome.id) : null;
+        // Visitors must return to the house they visited, not to a different house they own.
+        const destination = ownedHomeReturn ?? session.homeReturn ?? { x: 0, z: 24 };
         session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
         session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
         session.inHome = false;
         session.inCarpark = false;
         session.homeReturn = null;
+        session.currentHomeId = null;
         session.carparkVehicle = null;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
