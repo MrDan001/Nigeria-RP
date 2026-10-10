@@ -318,6 +318,15 @@ addEventListener('resize',resize);resize();
 
 /* ---------- Port Harcourt street ---------- */
 function add(g,m,x,y,z,p){const o=new THREE.Mesh(g,m);o.position.set(x,y,z);(p||scene).add(o);return o;}
+/* Vehicles must remain readable against the road and must not disappear into world fog. */
+function keepVehicleVisible(root){
+ root.traverse(o=>{
+  if(!o.isMesh)return;
+  o.frustumCulled=false;
+  const mats=Array.isArray(o.material)?o.material:[o.material];
+  mats.forEach(mat=>{if(mat){mat.fog=false;mat.needsUpdate=true;}});
+ });
+}
 const flat=(w,h,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,h),m,x,y,z);o.rotation.x=-Math.PI/2;return o;};
 const arterialTexture=tex(256,256,(g,w,h)=>{g.fillStyle="#373b3e";g.fillRect(0,0,w,h);for(let i=0;i<2300;i++){const v=28+Math.floor(Math.random()*55);g.fillStyle="rgba("+v+","+v+","+v+",.42)";g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}},70,70);
 const arterial=new THREE.MeshLambertMaterial({map:arterialTexture,color:0xb0b0b0});
@@ -1152,6 +1161,7 @@ function car(x,z,col,ry,kind){const G=carGeo(),g=new THREE.Group();g.position.se
   add(G.tire,G.tireM,0,0,0,sp);add(G.rim,G.rimM,0,0,0,sp);
   for(let i=0;i<5;i++){const o=add(G.spoke,G.spM,0,0,0,sp);o.rotation.x=i*Math.PI/5;}
   add(G.hub,G.rimM,0,0,0,sp);add(G.hubc,G.spM,0,0,0,sp);wh.push({pv,sp,f:q[2]});});
+ keepVehicleVisible(g);
  const c={id:'c'+cars.length,fuel:20,g,body,tail,hl,rev,sw,wh,amL,amR,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,roll:0,pitch:0};boxes.push(c.box);cars.push(c);return c;}
 car(-3.9,-10,0x0d0d0f,0,'p');car(3.9,-42,0x8a1c1c,Math.PI,'p');car(-3.9,-70,0x1d4a8a,0,'p');car(3.9,-18,0xc9c9c9,Math.PI,'p');car(-3.9,16,0x0d0d0f,0,'p');
 [[1.6,10,0x9a9a9a],[1.6,-60,0xd9b13a],[1.6,-130,0x2b5b3a],[-1.6,-30,0x6a2a8a],[-1.6,-100,0xe8e8e8],[-1.6,-170,0x1c3f6e]].forEach(a=>{const c=car(a[0],a[1],a[2],a[0]>0?Math.PI:0,'t');c.v=9;});
@@ -1891,7 +1901,7 @@ function mkOkada(col,c1,c2){const g=new THREE.Group(),body=new THREE.Group();g.a
  bx(.32,.5,.22,s2,0,1.18,-.62,body);hs(.11,sk,0,1.56,-.6,body);fc(sk,.11,0,1.56,-.6,body);
  const wh=[wheelAt(g,0,.33,.78,.33,.12),wheelAt(g,0,.33,-.78,.33,.12)];
  return {g,body,wh,hw:.55,hd:1.3,type:'okada'};}
-function mkTV(b,x,z,ry,vm){b.g.position.set(x,0,z);b.g.rotation.y=ry;scene.add(b.g);
+function mkTV(b,x,z,ry,vm){b.g.position.set(x,0,z);b.g.rotation.y=ry;keepVehicleVisible(b.g);scene.add(b.g);
  const c={g:b.g,body:b.body,wh:b.wh,box:{x,z,hw:b.hw,hd:b.hd},kind:'t',type:b.type,v:vm,vm,vx:0,vz:0,steer:0,ry,x,z,lx:x,roll:0,pitch:0,ph:Math.random()*6};
  boxes.push(c.box);tr.push(c);TV.push(c);return c;}
 mkTV(mkKeke(),1.6,60,Math.PI,7);mkTV(mkDanfo(),1.6,-90,Math.PI,8);mkTV(mkOkada(0xb02a2a,0x2f6f4f,0xe8c14a),1.6,125,Math.PI,11);
