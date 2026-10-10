@@ -8,9 +8,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "node scripts/check-syntax.mjs"
+    "typecheck": "node scripts/check-syntax.mjs",
+    "android:prepare": "npm run build && cap sync android"
   },
   "devDependencies": {
-    "vite": "^7.1.0"
+    "vite": "^7.1.0",
+    "@capacitor/cli": "^7.4.3"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
   }
 }
