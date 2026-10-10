@@ -1,11 +1,24 @@
 {
-  "name": "Nigeria Roleplay",
+  "name": "Nigeria Roleplay — Port Harcourt",
   "short_name": "Nigeria RP",
-  "description": "Port Harcourt multiplayer roleplay world",
+  "description": "Explore Port Harcourt, work, drive, and roleplay with other players in Nigeria RP.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#081018",
   "theme_color": "#081018",
-  "icons": []
+  "categories": [
+    "games",
+    "entertainment"
+  ],
+  "icons": [
+    {
+      "src": "/nrs-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
