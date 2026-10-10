@@ -27,7 +27,7 @@ export function payForTask(basePay: number, rank: number): number {
 
 export type WorkplaceKind =
   | "market" | "bank" | "hospital" | "park" | "news" | "government"
-  | "police" | "frsc" | "fire" | "military" | "transport";
+  | "police" | "frsc" | "fire" | "military" | "transport" | "school";
 
 export type Workplace = {
   id: string;
@@ -65,6 +65,16 @@ export const WORKPLACES: readonly Workplace[] = [
     id: "hospital-princess", name: "Princess Hospital", kind: "hospital", zone: "Trans Amadi",
     x: 155, z: -126, factionId: "hospital-princess",
     rankTitles: ladder("Hospital Assistant", "Nursing Assistant", "Registered Nurse", "Senior Nurse", "Consultant", "Medical Director"),
+  },
+  {
+    id: "school-primary", name: "Rivers State Primary School", kind: "school", zone: "Waterlines",
+    x: 180, z: 144, factionId: "school-primary",
+    rankTitles: ladder("Classroom Assistant", "Teaching Assistant", "Teacher", "Senior Teacher", "Vice Principal", "Principal"),
+  },
+  {
+    id: "school-secondary", name: "Rivers State Secondary School", kind: "school", zone: "Waterlines",
+    x: 215, z: 144, factionId: "school-secondary",
+    rankTitles: ladder("Teacher Aide", "Assistant Teacher", "Subject Teacher", "Senior Teacher", "Vice Principal", "Principal"),
   },
   {
     id: "park-main", name: "City Park", kind: "park", zone: "Port Harcourt Centre",
@@ -119,7 +129,7 @@ export type Faction = {
   id: string;
   name: string;
   workplaceId: string;
-  category: "commerce" | "medical" | "public-service" | "law-enforcement" | "emergency" | "military" | "media" | "transport";
+  category: "commerce" | "medical" | "public-service" | "law-enforcement" | "emergency" | "military" | "media" | "transport" | "education";
   description: string;
   requiresApproval: boolean;
 };
@@ -129,6 +139,8 @@ export const FACTIONS: readonly Faction[] = [
   { id: "bank", name: "Port Harcourt Bank", workplaceId: "bank-main", category: "commerce", description: "Banking services and branch operations.", requiresApproval: false },
   { id: "hospital-mile1", name: "Mile One General Hospital", workplaceId: "hospital-main", category: "medical", description: "Public hospital care, nursing and emergency support in Mile 1.", requiresApproval: true },
   { id: "hospital-princess", name: "Princess Hospital", workplaceId: "hospital-princess", category: "medical", description: "Hospital care and clinical services along Trans Amadi Road.", requiresApproval: true },
+  { id: "school-primary", name: "Rivers State Primary School", workplaceId: "school-primary", category: "education", description: "Primary education, classroom teaching and school administration.", requiresApproval: true },
+  { id: "school-secondary", name: "Rivers State Secondary School", workplaceId: "school-secondary", category: "education", description: "Secondary education, subject teaching and school administration.", requiresApproval: true },
   { id: "park", name: "City Park Authority", workplaceId: "park-main", category: "public-service", description: "Public spaces, visitor assistance and park operations.", requiresApproval: false },
   { id: "news", name: "Rivers News Network", workplaceId: "news-main", category: "media", description: "Reporting, broadcasting and newsroom operations.", requiresApproval: true },
   { id: "government", name: "Rivers State Government", workplaceId: "gov-rivers", category: "public-service", description: "Civic administration and public service.", requiresApproval: true },
@@ -149,6 +161,7 @@ const TASKS_BY_KIND: Record<WorkplaceKind, readonly WorkplaceTask[]> = {
   market: [{ id: "stock-check", title: "Check market stock", basePay: 1000 }, { id: "customer-assist", title: "Assist customers", basePay: 1400 }],
   bank: [{ id: "account-support", title: "Assist a bank customer", basePay: 1500 }, { id: "cash-reconciliation", title: "Reconcile branch records", basePay: 1900 }],
   hospital: [{ id: "ward-rounds", title: "Complete ward support", basePay: 1800 }, { id: "patient-triage", title: "Assist patient intake", basePay: 2200 }],
+  school: [{ id: "attendance-records", title: "Complete class attendance", basePay: 1300 }, { id: "class-preparation", title: "Prepare classroom materials", basePay: 1800 }],
   park: [{ id: "groundskeeping", title: "Maintain park grounds", basePay: 1000 }, { id: "visitor-assist", title: "Assist park visitors", basePay: 1300 }],
   news: [{ id: "field-report", title: "Prepare a field report", basePay: 1500 }, { id: "news-edit", title: "Edit a news bulletin", basePay: 1900 }],
   government: [{ id: "public-desk", title: "Handle a public-service request", basePay: 1600 }, { id: "document-review", title: "Review official documents", basePay: 2100 }],
@@ -207,6 +220,7 @@ export function checkWorkTaskEligibility(args: {
   const { employment, workplaceId, taskId, distance, now, startedAt, onDuty, activeTaskId } = args;
   if (!employment || employment.workplaceId !== workplaceId) return { ok: false, reason: "You do not work here." };
   if (!onDuty || !employment.onDuty) return { ok: false, reason: "Clock in before doing workplace tasks." };
+  if (employment.uniformWorkplaceId !== workplaceId) return { ok: false, reason: "Put on your authorised work uniform in the staff changing room before serving people or completing paid duties." };
   if (!Number.isFinite(distance) || distance > WORKPLACE_RADIUS) return { ok: false, reason: "Return to your workplace to do this task." };
   if (!workplaceTasks(workplaceId).some((task) => task.id === taskId)) return { ok: false, reason: "Unknown task for this workplace." };
   if (!Number.isFinite(now) || now - (Number(employment.lastTaskAt) || 0) < WORK_TASK_COOLDOWN_MS) return { ok: false, reason: "Your next paid task is not ready yet." };
@@ -429,7 +443,14 @@ export class GameClock {
 
 // ---------------------------------------------------------------- per-player life state
 
-export type Employment = { workplaceId: string; rank: number; onDuty?: boolean; lastTaskAt?: number };
+export type Employment = {
+  workplaceId: string;
+  rank: number;
+  onDuty?: boolean;
+  lastTaskAt?: number;
+  /** Server-authorised uniform currently worn, constrained to the employee's workplace. */
+  uniformWorkplaceId?: string | null;
+};
 
 export type Life = {
   v: 1;
@@ -457,9 +478,12 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
     const workplaceId = String(e.workplaceId ?? "");
     const rank = Math.floor(Number(e.rank));
     if (findWorkplace(workplaceId) && Number.isFinite(rank) && rank >= 1 && rank <= RANK_COUNT) {
-      const onDuty = e.onDuty === true;
+      const uniformWorkplaceId = e.uniformWorkplaceId === workplaceId ? workplaceId : null;
+      // Older saves have no uniform marker. Keep them safe by requiring a fresh change
+      // in the staff room before the next shift can start.
+      const onDuty = e.onDuty === true && uniformWorkplaceId === workplaceId;
       const lastTaskAt = Math.max(0, Math.floor(Number(e.lastTaskAt) || 0));
-      employment = { workplaceId, rank, onDuty, lastTaskAt };
+      employment = { workplaceId, rank, onDuty, lastTaskAt, uniformWorkplaceId };
     }
   }
 
@@ -577,6 +601,8 @@ export type WorldState = {
   v: 1;
   // Boss of each workplace, by account id. Set by hand in the stored data for now.
   bosses: Record<string, string | null>;
+  // Last assigned display name for each boss, so building signboards remain correct while the boss is offline.
+  bossNames: Record<string, string | null>;
   // Who rents each house (account id), or null when vacant. Used from Stage 2.
   houseTenants: Record<string, string | null>;
   // Persistent owner-selected privacy for each rented home; vacant homes are always visitable.
@@ -594,13 +620,14 @@ export type WorldState = {
 
 export function newWorld(todayKey: string): WorldState {
   const bosses: Record<string, string | null> = {};
-  for (const w of WORKPLACES) bosses[w.id] = null;
+  const bossNames: Record<string, string | null> = {};
+  for (const w of WORKPLACES) { bosses[w.id] = null; bossNames[w.id] = null; }
   const houseTenants: Record<string, string | null> = {};
   const houseLocks: Record<string, boolean> = {};
   const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
+  return { v: 1, bosses, bossNames, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -611,6 +638,8 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
   for (const id of Object.keys(base.bosses)) {
     const b = v.bosses?.[id];
     if (typeof b === "string" && b) base.bosses[id] = b;
+    const displayName = v.bossNames?.[id];
+    if (typeof displayName === "string" && displayName.trim()) base.bossNames[id] = displayName.trim().slice(0, 32);
   }
   for (const workplaceId of Object.keys(base.workplaceApplications)) {
     const saved = v.workplaceApplications?.[workplaceId];

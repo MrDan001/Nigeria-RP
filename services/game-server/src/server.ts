@@ -107,7 +107,10 @@ type Session = {
   rejectedSyncs: number;
   inHome: boolean;
   inCarpark: boolean;
+  inStaffRoom: boolean;
   homeReturn: { x: number; z: number } | null;
+  staffRoomReturn: { x: number; z: number } | null;
+  currentStaffWorkplaceId: string | null;
   /** House currently being visited; visitors may enter unlocked or vacant homes. */
   currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
@@ -248,6 +251,9 @@ function publicPlayer(player: PlayerState) {
     z: Number(player.z.toFixed(3)),
     yaw: Number(player.yaw.toFixed(3)),
     level: player.level,
+    workplaceId: player.life.employment?.workplaceId ?? null,
+    onDuty: player.life.employment?.onDuty === true,
+    uniformWorkplaceId: player.life.employment?.uniformWorkplaceId ?? null,
   };
 }
 
@@ -273,8 +279,8 @@ function accountPayload(player: PlayerState) {
 }
 
 function snapshot() {
-  // Private home interiors are not visible to other players in the shared street world.
-  return [...players.values()].filter((session) => !session.inHome).map((session) => publicPlayer(session.player));
+  // Private home and staff changing interiors are not visible in the shared street world.
+  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -382,6 +388,23 @@ function appendAdminAudit(
   if (world.adminAudit.length > 200) world.adminAudit.splice(0, world.adminAudit.length - 200);
 }
 
+const bossDisplayLookupInFlight = new Set<string>();
+function ensureBossDisplayName(workplaceId: string) {
+  const bossId = world.bosses[workplaceId];
+  if (!bossId || world.bossNames[workplaceId] || bossDisplayLookupInFlight.has(workplaceId)) return;
+  bossDisplayLookupInFlight.add(workplaceId);
+  void (async () => {
+    const account = await findAccountById(bossId);
+    if (world.bosses[workplaceId] !== bossId || world.bossNames[workplaceId]) return;
+    if (account?.username) {
+      world.bossNames[workplaceId] = account.username;
+      await saveWorld();
+      broadcastWorkplaceStates();
+    }
+  })().catch((error) => console.error("Unable to resolve workplace boss display name:", error))
+    .finally(() => bossDisplayLookupInFlight.delete(workplaceId));
+}
+
 function workplaceSnapshot(session: Session) {
   const employment = session.player.life.employment ?? null;
   const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
@@ -403,6 +426,12 @@ function workplaceSnapshot(session: Session) {
       rankTitle: workplaceRankTitle(workplace.id, Number(member.rank)),
       boss: world.bosses[workplace.id] === member.id,
     }));
+    const onlineBoss = members.find((member) => member.id === world.bosses[workplace.id]);
+    if (onlineBoss?.name && world.bossNames[workplace.id] !== onlineBoss.name) {
+      world.bossNames[workplace.id] = onlineBoss.name;
+      void saveWorld().catch((error) => console.error("Unable to cache workplace boss display name:", error));
+    }
+    if (!world.bossNames[workplace.id] && world.bosses[workplace.id]) ensureBossDisplayName(workplace.id);
     const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
     const canManage = world.bosses[workplace.id] === session.player.id;
     const applicants = (canManage || admin)
@@ -419,7 +448,7 @@ function workplaceSnapshot(session: Session) {
       employed: isMember,
       onDuty: isMember && employment?.onDuty === true,
       canManage,
-      bossName: members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
+      bossName: world.bossNames[workplace.id] ?? members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
       memberCount: members.length,
       staff: members,
       applications: applicants,
@@ -477,7 +506,7 @@ async function setAccountEmployment(accountId: string, workplaceId: string | nul
   if (active) {
     active.player.life = {
       ...active.player.life,
-      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } : null,
     };
     active.workTask = null;
     await persistSession(active);
@@ -487,7 +516,7 @@ async function setAccountEmployment(accountId: string, workplaceId: string | nul
   if (!account) return null;
   account.life = {
     ...account.life,
-    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } : null,
   };
   await saveAccount(account);
   return account.username;
@@ -498,6 +527,13 @@ function homeInteriorPosition(homeId: string) {
   const index = Math.max(0, found);
   // Six columns by five rows, each room separated and kept inside WORLD_LIMIT.
   return { x: 280 + (index % 6) * 28, z: 280 + Math.floor(index / 6) * 27 };
+}
+
+function staffRoomInteriorPosition(workplaceId: string) {
+  const found = WORKPLACES.findIndex((workplace) => workplace.id === workplaceId);
+  const index = Math.max(0, found);
+  // Isolated interior grid away from both residential interiors and the car park.
+  return { x: -450 + (index % 4) * 23, z: -430 + Math.floor(index / 4) * 26 };
 }
 
 function houseExteriorDepth(cls: string): number {
@@ -896,8 +932,16 @@ async function persistSession(session: Session) {
   account.username = session.player.name;
   account.usernameLower = account.username.toLowerCase();
   // If a player disconnects or the server restarts indoors, resume outside the room.
-  account.x = session.inHome && session.homeReturn ? session.homeReturn.x : session.player.x;
-  account.z = session.inHome && session.homeReturn ? session.homeReturn.z : session.player.z;
+  account.x = session.inHome && session.homeReturn
+    ? session.homeReturn.x
+    : session.inStaffRoom && session.staffRoomReturn
+      ? session.staffRoomReturn.x
+      : session.player.x;
+  account.z = session.inHome && session.homeReturn
+    ? session.homeReturn.z
+    : session.inStaffRoom && session.staffRoomReturn
+      ? session.staffRoomReturn.z
+      : session.player.z;
   account.yaw = session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
@@ -1052,7 +1096,10 @@ wss.on("connection", (socket) => {
       rejectedSyncs: 0,
       inHome: false,
       inCarpark: false,
+      inStaffRoom: false,
       homeReturn: null,
+      staffRoomReturn: null,
+      currentStaffWorkplaceId: null,
       carparkVehicle: null,
       workTask: null,
     };
@@ -1062,7 +1109,7 @@ wss.on("connection", (socket) => {
     if (resumedOnDuty && session.player.life.employment) {
       session.player.life = {
         ...session.player.life,
-        employment: { ...session.player.life.employment, onDuty: false },
+        employment: { ...session.player.life.employment, onDuty: false, uniformWorkplaceId: null },
       };
     }
 
@@ -1212,7 +1259,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "posSync") {
-        if (session.inHome) return;
+        if (session.inHome || session.inStaffRoom) return;
         const x = Number(message.x);
         const z = Number(message.z);
         const yaw = Number(message.yaw);
@@ -1434,6 +1481,10 @@ wss.on("connection", (socket) => {
           return;
         }
         const employment = session.player.life.employment ?? null;
+        if (requested === true && employment?.workplaceId === workplaceId && employment.uniformWorkplaceId !== workplaceId) {
+          sendWorkplaceResult(session, "duty", false, "Visit your workplace staff changing room and put on your authorised uniform before clocking in.");
+          return;
+        }
         const check = checkWorkplaceDuty(
           employment,
           workplaceId,
@@ -1444,14 +1495,22 @@ wss.on("connection", (socket) => {
           sendWorkplaceResult(session, "duty", false, check.reason);
           return;
         }
+        if (session.inStaffRoom || session.inHome) {
+          sendWorkplaceResult(session, "duty", false, "Clock in or out from the workplace entrance, not from inside an interior.");
+          return;
+        }
         session.player.life = {
           ...session.player.life,
-          employment: { ...employment!, onDuty: requested as boolean },
+          employment: {
+            ...employment!,
+            onDuty: requested as boolean,
+            // Clocking out always returns the employee to civilian clothing.
+            uniformWorkplaceId: requested ? workplaceId : null,
+          },
         };
-        // Clocking out safely abandons any unfinished, unpaid task.
         if (!requested) session.workTask = null;
         await persistSession(session);
-        sendWorkplaceResult(session, "duty", true, requested ? "Clocked in. You are now on duty." : "Clocked out. You are now off duty.");
+        sendWorkplaceResult(session, "duty", true, requested ? "Clocked in wearing your authorised uniform. You are now on duty." : "Clocked out. Your uniform has been changed back to civilian clothes.");
         broadcastWorkplaceStates();
         return;
       }
@@ -1585,7 +1644,7 @@ wss.on("connection", (socket) => {
           sendWorkplaceResult(session, "hire", false, check.reason);
           return;
         }
-        target.player.life = { ...target.player.life, employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0 } };
+        target.player.life = { ...target.player.life, employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } };
         delete world.workplaceApplications[workplaceId]?.[targetId];
         await persistSession(target);
         await saveWorld();
@@ -1618,7 +1677,7 @@ wss.on("connection", (socket) => {
         if (admin) {
           appendAdminAudit(session, targetId, target?.player.name ?? account?.username ?? "Staff member", "dismiss_staff", workplaceId);
         }
-        if (world.bosses[workplaceId] === targetId) world.bosses[workplaceId] = null;
+        if (world.bosses[workplaceId] === targetId) { world.bosses[workplaceId] = null; world.bossNames[workplaceId] = null; }
         await setAccountEmployment(targetId, null);
         if (admin) await saveWorld();
         sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been removed from " + workplace.name + ".");
@@ -1670,6 +1729,7 @@ wss.on("connection", (socket) => {
           const previousWorkplaceId = targetLife.employment?.workplaceId ?? null;
           if (previousWorkplaceId && previousWorkplaceId !== workplaceId && world.bosses[previousWorkplaceId] === targetId) {
             world.bosses[previousWorkplaceId] = null;
+            world.bossNames[previousWorkplaceId] = null;
           }
           if (newRank === BOSS_RANK) {
             const formerBossId = world.bosses[workplaceId] ?? null;
@@ -1677,8 +1737,10 @@ wss.on("connection", (socket) => {
               await setAccountEmployment(formerBossId, workplaceId, MAX_STAFF_RANK);
             }
             world.bosses[workplaceId] = targetId;
+            world.bossNames[workplaceId] = target?.player.name ?? account?.username ?? null;
           } else if (world.bosses[workplaceId] === targetId) {
             world.bosses[workplaceId] = null;
+            world.bossNames[workplaceId] = null;
           }
         }
 
@@ -1688,6 +1750,7 @@ wss.on("connection", (socket) => {
           rank: newRank,
           onDuty: false,
           lastTaskAt: existingEmployment?.workplaceId === workplaceId ? Number(existingEmployment.lastTaskAt) || 0 : 0,
+          uniformWorkplaceId: null,
         };
         if (target) {
           target.player.life = { ...target.player.life, employment };
@@ -1743,6 +1806,7 @@ wss.on("connection", (socket) => {
         if (oldBossId && oldBossId !== targetId) await setAccountEmployment(oldBossId, workplaceId, MAX_STAFF_RANK);
         await setAccountEmployment(targetId, workplaceId, BOSS_RANK);
         world.bosses[workplaceId] = targetId;
+        world.bossNames[workplaceId] = targetAccount.username;
         appendAdminAudit(session, targetId, targetAccount.username, "appoint_boss", workplaceId);
         await saveWorld();
         sendWorkplaceResult(session, "appointBoss", true, targetAccount.username + " appointed as " + workplaceRankTitle(workplaceId, BOSS_RANK) + ".");
@@ -1927,13 +1991,111 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "enterStaffRoom") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        const employment = session.player.life.employment ?? null;
+        if (!workplace) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Unknown workplace." });
+          return;
+        }
+        if (!employment || employment.workplaceId !== workplaceId) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Only staff assigned to this workplace may enter its changing room." });
+          return;
+        }
+        if (employment.onDuty) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Clock out before entering the staff changing room." });
+          return;
+        }
+        if (session.inHome || session.inStaffRoom || session.inCarpark) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Exit your current interior before entering a staff room." });
+          return;
+        }
+        if (workplaceDistance(session, workplace) > 32) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Walk to the assigned workplace entrance first." });
+          return;
+        }
+        const room = staffRoomInteriorPosition(workplaceId);
+        session.staffRoomReturn = { x: session.player.x, z: session.player.z };
+        session.currentStaffWorkplaceId = workplaceId;
+        session.inStaffRoom = true;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        session.player.x = room.x;
+        session.player.z = room.z + 1.7;
+        session.player.yaw = Math.PI;
+        await persistSession(session);
+        send(socket, {
+          type: "staffRoomEnterResult", ok: true, workplaceId, workplaceName: workplace.name,
+          roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.7,
+          returnX: session.staffRoomReturn.x, returnZ: session.staffRoomReturn.z,
+          uniformWorkplaceId: session.player.life.employment?.uniformWorkplaceId ?? null,
+          message: "Staff changing room opened. Change into your authorised uniform, then exit and clock in at the workplace entrance.",
+        });
+        broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "changeWorkUniform") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        const employment = session.player.life.employment ?? null;
+        if (!workplace) {
+          sendWorkplaceResult(session, "uniform", false, "Unknown workplace.");
+          return;
+        }
+        if (!session.inStaffRoom || session.currentStaffWorkplaceId !== workplaceId) {
+          sendWorkplaceResult(session, "uniform", false, "Use the changing locker inside your assigned workplace staff room.");
+          return;
+        }
+        if (!employment || employment.workplaceId !== workplaceId) {
+          sendWorkplaceResult(session, "uniform", false, "You are no longer assigned to this workplace.");
+          return;
+        }
+        if (employment.onDuty) {
+          sendWorkplaceResult(session, "uniform", false, "Clock out before changing uniforms.");
+          return;
+        }
+        session.player.life = {
+          ...session.player.life,
+          employment: { ...employment, onDuty: false, uniformWorkplaceId: workplaceId },
+        };
+        await persistSession(session);
+        sendWorkplaceResult(session, "uniform", true, "You changed into your authorised " + workplace.name + " uniform. Exit the staff room and clock in at the entrance.");
+        return;
+      }
+
+      if (message.type === "exitStaffRoom") {
+        if (!session.inStaffRoom) {
+          send(socket, { type: "staffRoomExitResult", ok: false, message: "You are not inside a staff changing room." });
+          return;
+        }
+        const destination = session.staffRoomReturn ?? { x: 0, z: 24 };
+        session.inStaffRoom = false;
+        session.currentStaffWorkplaceId = null;
+        session.staffRoomReturn = null;
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        send(socket, {
+          type: "staffRoomExitResult", ok: true, x: session.player.x, z: session.player.z,
+          message: "You are back outside the workplace entrance.",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
       if (message.type === "enterHome" || message.type === "enterHouse") {
         const requestedId = message.type === "enterHome"
           ? String(session.player.life.homeId ?? "")
           : String(message.houseId ?? "");
         const home = findHouse(requestedId);
-        if (session.inHome) {
-          send(socket, { type: "homeInterior", ok: false, message: "You are already inside a house." });
+        if (session.inHome || session.inStaffRoom) {
+          send(socket, { type: "homeInterior", ok: false, message: "Exit your current interior before entering a house." });
           return;
         }
         if (!home) {
@@ -2305,12 +2467,63 @@ wss.on("connection", (socket) => {
         return;
       }
 
-      if (message.type === "interact") {
-        send(socket, {
-          type: "interactionResult",
-          accepted: true,
-          targetId: String(message.targetId ?? ""),
-        });
+      if (message.type === "interact" || message.type === "playerInteraction") {
+        const targetId = String(message.targetId ?? "").slice(0, 80);
+        const action = String(message.action ?? "greet");
+        const target = players.get(targetId);
+        if (!target || targetId === session.player.id) {
+          send(socket, { type: "playerInteractionResult", ok: false, message: "That player is no longer available." });
+          return;
+        }
+        if (session.inHome || session.inStaffRoom || target.inHome || target.inStaffRoom ||
+            Math.hypot(session.player.x - target.player.x, session.player.z - target.player.z) > 6) {
+          send(socket, { type: "playerInteractionResult", ok: false, message: "Move close to the player on the shared street before interacting." });
+          return;
+        }
+        const employment = session.player.life.employment ?? null;
+        const workplace = employment ? findWorkplace(employment.workplaceId) : undefined;
+        const equippedForDuty = !!employment && employment.onDuty === true &&
+          employment.uniformWorkplaceId === employment.workplaceId && !!workplace;
+        if (action === "medicalTreat") {
+          if (!equippedForDuty || workplace?.kind !== "hospital") {
+            send(socket, { type: "playerInteractionResult", ok: false, message: "Patient treatment requires an on-duty hospital employee wearing the authorised uniform." });
+            return;
+          }
+          if (target.player.hp >= 100) {
+            send(socket, { type: "playerInteractionResult", ok: false, message: target.player.name + " does not need treatment." });
+            return;
+          }
+          const fee = 500;
+          if (target.player.cash < fee) {
+            send(socket, { type: "playerInteractionResult", ok: false, message: "The patient needs at least ₦500 for treatment." });
+            return;
+          }
+          target.player.cash -= fee;
+          session.player.cash += fee;
+          target.player.hp = Math.min(100, target.player.hp + 35);
+          await persistSession(target);
+          await persistSession(session);
+          send(target.socket, { type: "playerInteractionNotice", message: "You received treatment from " + session.player.name + " for ₦500. Health restored." });
+          send(socket, { type: "playerInteractionResult", ok: true, message: "Treatment completed for " + target.player.name + ". ₦500 received.", cash: session.player.cash });
+          sendWorkplaceState(session);
+          sendWorkplaceState(target);
+          return;
+        }
+        if (action === "requestId") {
+          if (!equippedForDuty || !["police", "frsc"].includes(workplace?.kind ?? "")) {
+            send(socket, { type: "playerInteractionResult", ok: false, message: "ID checks require on-duty Police or FRSC staff wearing the authorised uniform." });
+            return;
+          }
+          send(target.socket, { type: "playerInteractionNotice", message: "Officer " + session.player.name + " requests your identification. Please cooperate." });
+          send(socket, { type: "playerInteractionResult", ok: true, message: "Identification request sent to " + target.player.name + "." });
+          return;
+        }
+        if (action === "greet") {
+          send(target.socket, { type: "playerInteractionNotice", message: session.player.name + " greets you." });
+          send(socket, { type: "playerInteractionResult", ok: true, message: "You greeted " + target.player.name + "." });
+          return;
+        }
+        send(socket, { type: "playerInteractionResult", ok: false, message: "That contextual action is not available." });
       }
     })().catch((error) => {
       console.error("message-handler", error);
@@ -2350,7 +2563,7 @@ setInterval(() => {
   const now = Date.now();
 
   for (const session of players.values()) {
-    if (session.inHome) continue;
+    if (session.inHome || session.inStaffRoom) continue;
     const input = now - session.lastInputAt > INPUT_TIMEOUT_MS
       ? { forward: 0, strafe: 0 }
       : session.input;

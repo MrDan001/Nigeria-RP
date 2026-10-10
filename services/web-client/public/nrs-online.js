@@ -405,9 +405,13 @@
       group.position.set(Number(player.x) || 0, 0, Number(player.z) || 0);
       group.rotation.y = Number(player.yaw) || 0;
       group.userData = {
+        playerId: String(player.id),
         target: { x: Number(player.x) || 0, z: Number(player.z) || 0, yaw: Number(player.yaw) || 0 },
         name: playerName,
-        level: playerLevel
+        level: playerLevel,
+        workplaceId: player.workplaceId || null,
+        onDuty: player.onDuty === true,
+        uniformWorkplaceId: player.uniformWorkplaceId || null
       };
       scene.add(group);
       S.remotes.set(player.id, group);
@@ -418,6 +422,10 @@
     const nextLevel = Math.max(1, Math.floor(Number(player.level) || 1));
     group.userData.name = nextName;
     group.userData.level = nextLevel;
+    group.userData.playerId = String(player.id);
+    group.userData.workplaceId = player.workplaceId || null;
+    group.userData.onDuty = player.onDuty === true;
+    group.userData.uniformWorkplaceId = player.uniformWorkplaceId || null;
     const labelSprite = group.children.find((child) => child.userData?.playerNameplate);
     labelSprite?.userData?.setPlayerLabel?.(nextName, nextLevel);
     group.userData.target = {
@@ -592,6 +600,17 @@
           window.dispatchEvent(new CustomEvent("nrs-route-error", { detail: message }));
           if (message.message) sys(message.message);
         }
+      } else if (message.type === "staffRoomEnterResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-staff-room-enter", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "staffRoomExitResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-staff-room-exit", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "playerInteractionResult") {
+        if (message.message) sys(message.message);
+        if (message.cash !== undefined) { cash = Number(message.cash) || 0; N.cash = cash; money(); }
+      } else if (message.type === "playerInteractionNotice") {
+        if (message.message) sys(message.message);
       } else if (message.type === "carparkEnterResult") {
         if (message.ok) {
           N.life = message.life || N.life;
@@ -764,6 +783,10 @@
   N.appointWorkplaceBoss = (workplaceId, targetId) => send({ type: "appointWorkplaceBoss", workplaceId, targetId });
   // Only the authenticated main administrator can change delegated admin roles; the server is authoritative.
   N.setAdminRole = (targetUsername, role) => send({ type: "setAdminRole", targetUsername, role });
+  N.enterStaffRoom = (workplaceId) => send({ type: "enterStaffRoom", workplaceId });
+  N.changeWorkUniform = (workplaceId) => send({ type: "changeWorkUniform", workplaceId });
+  N.exitStaffRoom = () => send({ type: "exitStaffRoom" });
+  N.interactWithPlayer = (targetId, action = "greet") => send({ type: "playerInteraction", targetId, action });
 
   N.buyFuel = (carId, litres, brand, callback) => {
     if (!S.authed || !S.open) {
