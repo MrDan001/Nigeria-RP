@@ -223,7 +223,7 @@ The current implementation branch introduces a persistent role hierarchy:
 - Delegated admins can use server-validated cross-workplace staff/rank/boss controls already in the job system; ordinary players cannot.
 - Admin-role changes, admin-driven rank/dismiss actions, and boss appointments are recorded in a bounded, persistent world audit trail.
 - `NRS_MAIN_ADMIN_EMAIL` can bind the root username to the owner's email. Configure this Railway variable to the owner's actual registered email for stronger protection. If the owner account has not yet been created, configure this variable first; public registration cannot claim `Dbase_Mccoll` without the matching email.
-- Legacy `NRS_FACTION_ADMINS` remains for controlled migration, but should be removed after access is moved to the new persistent roles.
+- Legacy `NRS_FACTION_ADMINS` usernames are imported to immutable account IDs once on startup. After this migration, the environment allowlist no longer grants live privileges, so main-admin revocations stay effective even if the old Railway variable is still present. Remove that variable after rollout.
 
 This is not a claim that the entire administration feature is complete. It still needs CI, live verification, and a reviewed account-to-account test. Do not store passwords or admin secrets in the client.
 
