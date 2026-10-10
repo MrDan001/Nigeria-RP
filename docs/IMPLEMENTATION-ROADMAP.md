@@ -257,19 +257,34 @@ Use `npm run web:dev` to start the browser workspace directly. Check the package
 
 ## 5. Current authorized focus — 10 October 2026
 
-Stage 3 is in progress. The current user-requested work includes transparent player nameplates, grounding the on-foot character correctly, workplace-scoped entrance menus and a protected admin hierarchy. The branch adds `Dbase_Mccoll` as the fixed main administrator, persistent delegated admin roles, main-admin-only role grants/revocations, workplace boss/rank management, and durable audit records. It still requires the test/build workflows and live-device verification.
+Stage 3's protected administrator hierarchy is merged to `main` and has been deployed. The newer `feat/workplace-life-systems` branch is a separate, not-yet-live follow-up and is being tested before merge. It retains the existing roads, roundabouts, housing catalogue, saved accounts, funds and driving controls.
 
+### Current feature branch — implementation being verified
 
-### Current implementation branch — scope and remaining work
+The branch now includes:
+- every house receives a door interaction marker, with the marker corrected to the rendered entrance as the exterior comes into view;
+- workplace staff-room entry/exit with a walkable changing-room interior, locker fixtures and uniform station;
+- server-enforced authorised uniform requirement before clock-in and paid workplace tasks; clocking out clears the uniform;
+- visible uniform colours for supported jobs;
+- mobile/desktop long-press player interaction menus with server-side range, employment, duty, uniform and funds checks;
+- medical treatment and Police/FRSC ID-request actions, plus basic citizen greeting;
+- dynamic leadership signboards for the two hospitals and new primary/secondary school buildings, each with a Principal/medical-lead title and occupant name sourced from the persistent workplace-boss assignment;
+- primary and secondary school career/faction entries, six ranks ending at Principal, and school duties/pay tasks;
+- persisted boss display names so signs remain correct while an appointed boss is offline;
+- unit coverage for uniform-gated tasks, legacy duty-state repair, school roles and boss-name migration.
 
-The `feat/super-admin-hierarchy` branch currently contains:
-- server-owned main/delegated admin checks and persistent role/audit state;
-- an in-game control to grant/revoke delegated administrators by username, visible only to the main admin;
-- transparent remote/local nameplate rendering;
-- a fix for the seated-to-standing transition plus a neutral shoe-ground alignment adjustment;
-- workplace entrance menus scoped to one workplace rather than showing every organisation.
+The new workplace branch still must pass server typecheck, Stage 1 and Stage 2 tests, browser-client build, and live-device verification before being called complete. A green CI run alone does not replace testing on the deployed browser game. No existing road or roundabout geometry was edited, and no additional houses are part of this scope.
 
-Still outstanding from the requested upgrade and not to be marked complete yet: live testing of every listed change; estate-door interaction verification; actual occupant data/signposts for designated occupied buildings (school buildings are not currently in the client workplace catalogue); actual interior staff rooms/changing facilities; role-specific uniform assets and server-side uniform gating for clock-in/service duties; and contextual player-to-player click-and-hold interactions with mobile touch support. Preserve the existing road network, roundabouts, building geometry, account persistence, player funds and unrelated gameplay during this work. No new houses are part of this scope.
+### Required live acceptance checks
+
+1. Load the new deployment in a mobile browser and confirm that the new client URL/cache version is actually served.
+2. Approach several vacant and occupied houses and confirm the door menu appears at the actual front door.
+3. Appoint a school Principal and hospital lead; verify the signboards update with the saved username, including when the boss is offline.
+4. Test an employee's staff-room entry, locker uniform selection, exit, clock-in, paid task eligibility and clock-out/civilian outfit restoration.
+5. With two accounts online, test long-press greeting, authorized medical treatment and Police/FRSC ID requests; confirm role, proximity and payment checks reject invalid actions.
+6. Recheck login, saved funds, house ownership/locks, vehicle controls, existing roads and roundabouts.
+
+The main admin email environment binding `NRS_MAIN_ADMIN_EMAIL` remains intentionally unset until the account owner supplies the correct email. Do not invent or put an email into production without confirmation.
 
 The nameplate acceptance test must cover:
 1. One player online: the local avatar shows its authenticated username and current level above the head.
