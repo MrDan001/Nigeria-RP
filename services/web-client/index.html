@@ -841,7 +841,7 @@ function createHouseExterior(h){
  // Collision is split around the doorway, so players can reach the actual entrance.
  const addCollider=(x,z,hw,hd)=>{const b={x:g.position.x+x,z:g.position.z+z,hw,hd,homeId:h.id};boxes.push(b);bld.push(b);};
  addCollider(-w/2,0,.28,d/2);addCollider(w/2,0,.28,d/2);addCollider(0,-d/2,w/2,.28);
- addCollider(-(w/4+.55),d/2,w/4-.1,.28);addCollider(w/4+.55,d/2,w/4-.1,.28);addCollider(0,d/2,w/4+.15,.28);
+ addCollider(-(w/4+.55),d/2,w/4-.1,.28);addCollider(w/4+.55,d/2,w/4-.1,.28);addCollider(0,d/2,.68,.28);
  houseMerge(g,recs);
  HOUSE_VISUALS[h.id]={group:g,home:h,plaque,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
  return HOUSE_VISUALS[h.id];
@@ -2617,7 +2617,8 @@ function homeRoom(d){
  addCollider(-w/2,0,.12,depth/2);addCollider(w/2,0,.12,depth/2);
  addCollider(0,-depth/2,w/2,.12);
  addCollider(-doorW/2-frontSeg/2,frontZ,frontSeg/2,.12);
- addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
+  addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
+  addCollider(0,frontZ,doorW/2,.12);
  mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
  return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),home:h,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
 }
