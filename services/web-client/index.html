@@ -1680,6 +1680,25 @@ function buildSchool(site){
 }
 HOSPITAL_SITES.forEach(buildHospital);
 SCHOOL_SITES.forEach(buildSchool);
+// Work-only interaction markers for the remaining already-catalogued careers/factions.
+// These are POIs only: they do not move any road, roundabout, existing building, or house.
+const OTHER_WORKPLACE_ENTRIES=[
+ {id:'market-mile1',name:'Mile 1 Market',x:-48,z:80},
+ {id:'bank-main',name:'Port Harcourt Bank',x:-10,z:-20},
+ {id:'park-main',name:'City Park',x:-30,z:20},
+ {id:'news-main',name:'Rivers News Network',x:20,z:-52},
+ {id:'gov-rivers',name:'Rivers State Government',x:36,z:-8},
+ {id:'police-rivers',name:'Rivers State Police Service',x:-28,z:-132},
+ {id:'frsc-rivers',name:'FRSC — Rivers Sector Command',x:28,z:48},
+ {id:'fire-rivers',name:'Rivers State Fire & Rescue',x:-45,z:-132},
+ {id:'army-rivers',name:'Nigerian Army — Port Harcourt Garrison',x:185,z:-165},
+ {id:'transport-union',name:'Port Harcourt Transport Union',x:5,z:62}
+];
+OTHER_WORKPLACE_ENTRIES.forEach(w=>{
+ if(!POI.some(p=>p.t==='workplace'&&p.workplaceId===w.id)){
+  POI.push({x:w.x,z:w.z,k:'Work',name:w.name,t:'workplace',workplaceId:w.id,r:8});
+ }
+});
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]]],
  [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000]]],
