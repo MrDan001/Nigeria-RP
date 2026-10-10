@@ -207,6 +207,7 @@ export function checkWorkTaskEligibility(args: {
   const { employment, workplaceId, taskId, distance, now, startedAt, onDuty, activeTaskId } = args;
   if (!employment || employment.workplaceId !== workplaceId) return { ok: false, reason: "You do not work here." };
   if (!onDuty || !employment.onDuty) return { ok: false, reason: "Clock in before doing workplace tasks." };
+  if (employment.uniformWorkplaceId !== workplaceId) return { ok: false, reason: "Put on your authorised work uniform in the staff changing room before serving people or completing paid duties." };
   if (!Number.isFinite(distance) || distance > WORKPLACE_RADIUS) return { ok: false, reason: "Return to your workplace to do this task." };
   if (!workplaceTasks(workplaceId).some((task) => task.id === taskId)) return { ok: false, reason: "Unknown task for this workplace." };
   if (!Number.isFinite(now) || now - (Number(employment.lastTaskAt) || 0) < WORK_TASK_COOLDOWN_MS) return { ok: false, reason: "Your next paid task is not ready yet." };
@@ -429,7 +430,14 @@ export class GameClock {
 
 // ---------------------------------------------------------------- per-player life state
 
-export type Employment = { workplaceId: string; rank: number; onDuty?: boolean; lastTaskAt?: number };
+export type Employment = {
+  workplaceId: string;
+  rank: number;
+  onDuty?: boolean;
+  lastTaskAt?: number;
+  /** Server-authorised uniform currently worn, constrained to the employee's workplace. */
+  uniformWorkplaceId?: string | null;
+};
 
 export type Life = {
   v: 1;
@@ -457,9 +465,12 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
     const workplaceId = String(e.workplaceId ?? "");
     const rank = Math.floor(Number(e.rank));
     if (findWorkplace(workplaceId) && Number.isFinite(rank) && rank >= 1 && rank <= RANK_COUNT) {
-      const onDuty = e.onDuty === true;
+      const uniformWorkplaceId = e.uniformWorkplaceId === workplaceId ? workplaceId : null;
+      // Older saves have no uniform marker. Keep them safe by requiring a fresh change
+      // in the staff room before the next shift can start.
+      const onDuty = e.onDuty === true && uniformWorkplaceId === workplaceId;
       const lastTaskAt = Math.max(0, Math.floor(Number(e.lastTaskAt) || 0));
-      employment = { workplaceId, rank, onDuty, lastTaskAt };
+      employment = { workplaceId, rank, onDuty, lastTaskAt, uniformWorkplaceId };
     }
   }
 
