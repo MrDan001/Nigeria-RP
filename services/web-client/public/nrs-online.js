@@ -517,6 +517,11 @@
       if (message.type === "authError") {
         if (message.code === "INVALID_SESSION") writeToken("");
         S.authed = false;
+        S.id = null;
+        S.name = "";
+        S.level = 1;
+        N.playerIdentity = null;
+        window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: null }));
         auth.hidden = false;
         setVisible(false);
         $("nrsSubmit").disabled = false;
@@ -656,6 +661,11 @@
       S.resume = S.authed; // was a real session live when the link dropped?
       S.open = false;
       S.authed = false;
+      S.id = null;
+      S.name = "";
+      S.level = 1;
+      N.playerIdentity = null;
+      window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: null }));
 
       for (const id of [...S.remotes.keys()]) remove(id);
 
