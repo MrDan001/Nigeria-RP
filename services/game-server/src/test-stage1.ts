@@ -2,6 +2,8 @@
 // Run with: npm run test:stage1 --workspace nigeria-rp-game-server
 import assert from "node:assert/strict";
 import {
+  APARTMENT_RENT_PER_DAY,
+  MAX_APARTMENT_PREPAID_DAYS,
   CAR_IDS,
   FACTIONS,
   WORK_TASK_COOLDOWN_MS,
@@ -331,6 +333,38 @@ test("world: bosses are set by hand in the data and survive a round trip", () =>
   // A workplace added later is filled in without breaking the old save.
   delete (loaded.bosses as Record<string, unknown>)["park-main"];
   assert.equal(normalizeWorld(loaded, today).bosses["park-main"], null);
+});
+
+test("apartments: rooms are independently rentable at ₦1,500/day with at most seven prepaid days", () => {
+  const today = "2026-10-10";
+  assert.equal(APARTMENT_RENT_PER_DAY, 1500);
+  assert.equal(MAX_APARTMENT_PREPAID_DAYS, 7);
+  const world = newWorld(today);
+  assert.deepEqual(world.apartmentRooms, {});
+  world.apartmentRooms["apt-200-300:101"] = {
+    buildingId: "apt-200-300",
+    roomNumber: 101,
+    tenantId: "account-one",
+    prepaidDays: 3,
+    lastDay: today,
+  };
+  world.apartmentRooms["apt-200-300:102"] = {
+    buildingId: "apt-200-300",
+    roomNumber: 102,
+    tenantId: "account-two",
+    prepaidDays: 1,
+    lastDay: today,
+  };
+  const loaded = normalizeWorld(JSON.parse(JSON.stringify(world)), today);
+  assert.equal(loaded.apartmentRooms["apt-200-300:101"].tenantId, "account-one");
+  assert.equal(loaded.apartmentRooms["apt-200-300:102"].tenantId, "account-two");
+  assert.equal(loaded.apartmentRooms["apt-200-300:101"].prepaidDays, 3);
+  // Corrupt room leases are discarded without affecting valid tenants.
+  loaded.apartmentRooms["apt-200-300:103"] = {
+    buildingId: "apt-200-300", roomNumber: 103, tenantId: "bad",
+    prepaidDays: 99, lastDay: today,
+  };
+  assert.equal(normalizeWorld(loaded, today).apartmentRooms["apt-200-300:103"], undefined);
 });
 
 console.log("\n" + passed + " checks passed" + (process.exitCode ? " (with failures)" : ""));
