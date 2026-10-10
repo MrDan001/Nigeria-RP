@@ -806,7 +806,7 @@ const ORGANIZATION_SITE_RESERVES=[
  {id:'frsc-rivers',x:30,z:89,w:27,d:24},
  {id:'fire-rivers',x:-45,z:-142,w:17,d:21},
  {id:'army-rivers',x:185,z:-167,w:36,d:36},
- {id:'transport-union',x:30,z:46,w:36,d:27},
+ {id:'transport-union',x:30,z:46,w:48,d:27},
  {id:'school-primary',x:180,z:162,w:33,d:62},
  {id:'school-secondary',x:215,z:162,w:33,d:62}
 ];
@@ -1895,15 +1895,15 @@ SCHOOL_SITES.forEach(buildSchool);
 // These are POIs only: they do not move any road, roundabout, existing building, or house.
 const OTHER_WORKPLACE_ENTRIES=[
  {id:'market-mile1',name:'Mile 1 Market',x:-60,z:40},
- {id:'bank-main',name:'Port Harcourt Bank',x:-10,z:-20},
+ {id:'bank-main',name:'Port Harcourt Bank',x:-10,z:-20,entryX:-12,entryZ:-20},
  {id:'park-main',name:'City Park',x:-30,z:20},
  {id:'news-main',name:'Rivers News Network',x:20,z:-52},
  {id:'gov-rivers',name:'Rivers State Government',x:36,z:-8},
  {id:'police-rivers',name:'Rivers State Police Service',x:-28,z:-132},
  {id:'frsc-rivers',name:'FRSC — Rivers Sector Command',x:30,z:100},
- {id:'fire-rivers',name:'Rivers State Fire & Rescue',x:-45,z:-132},
+ {id:'fire-rivers',name:'Rivers State Fire & Rescue',x:-45,z:-132,entryX:-50.5,entryZ:-132},
  {id:'army-rivers',name:'Nigerian Army — Port Harcourt Garrison',x:185,z:-150},
- {id:'transport-union',name:'Port Harcourt Transport Union',x:14,z:60}
+ {id:'transport-union',name:'Port Harcourt Transport Union',x:14,z:60,entryX:16,entryZ:54}
 ];
 const WORKPLACE_ENTRY_DESIGNS={
  'market-mile1':{wall:0xb8a27a,trim:0x573b29,accent:0xf0b943},
@@ -2065,7 +2065,7 @@ function buildWorkplaceEntrance(w){
 }
 OTHER_WORKPLACE_ENTRIES.forEach(w=>{
  if(!POI.some(p=>p.t==='workplace'&&p.workplaceId===w.id)){
-  POI.push({x:w.x,z:w.z,k:'Work',name:w.name,t:'workplace',workplaceId:w.id,r:8});
+  POI.push({x:w.entryX===undefined?w.x:w.entryX,z:w.entryZ===undefined?w.z:w.entryZ,k:'Work',name:w.name,t:'workplace',workplaceId:w.id,r:8});
  }
  buildWorkplaceEntrance(w);
 });
