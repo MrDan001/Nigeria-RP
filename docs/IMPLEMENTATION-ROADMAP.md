@@ -257,11 +257,11 @@ Use `npm run web:dev` to start the browser workspace directly. Check the package
 
 ## 5. Current authorized focus — 10 October 2026
 
-The administrator hierarchy and first workplace-life systems are already merged into `main`. The current feature branch is a separate follow-up for workplace interiors, the staff-room route, ground clearance and session-scoped player IDs. It does not modify administrator permissions.
+The workplace interior and per-login player identity feature is now merged into `main` and deployed to Railway production. Game Server CI passed for the feature head, including server typecheck, Stage 1 and Stage 2 tests, server build, and browser-client build; Railway's latest deployment also succeeded and its health check passed. These automated checks confirm build and service health, but they do not replace the final visual/mobile gameplay checks below. Admin permissions were not changed.
 
-### Current feature — workplace interiors and player identity
+### Deployed feature — workplace interiors and player identity
 
-The branch introduces:
+The deployed build introduces:
 - a walk-in 3D reception/lobby for every existing workplace and faction, with workplace-specific colours, a front entrance, waiting seats, an actual reception counter, office equipment and a visible secretary behind the desk;
 - a proximity interaction at the reception desk that welcomes visitors and routes them to reception guidance or the workplace's existing staff/career functions; players in the same reception can see one another and use the existing role-gated player service menu there;
 - a side doorway/staff-only entry in each workplace reception; only an employee assigned to that workplace can enter that workplace's staff changing room;
