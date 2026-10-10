@@ -47,7 +47,7 @@ const ladder = (...titles: string[]): readonly (readonly string[])[] => titles.m
 export const WORKPLACES: readonly Workplace[] = [
   {
     id: "market-mile1", name: "Mile 1 Market", kind: "market", zone: "Mile 1 Market",
-    x: -70, z: 40, factionId: "market",
+    x: -60, z: 40, factionId: "market",
     rankTitles: ladder("Hawker", "Stall Assistant", "Sales Rep", "Senior Sales", "Market Supervisor", "Market Chairman"),
   },
   {
