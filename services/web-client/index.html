@@ -141,6 +141,32 @@ body.drv #camB{display:grid}
 #modal button[data-exit-route],#modal button[data-garage-car],#modal button[data-garage-route]{display:block;width:100%;max-width:34rem;text-align:left;margin:.45rem 0;padding:.7rem .85rem;border:1px solid rgba(255,255,255,.14);border-radius:.65rem;background:linear-gradient(135deg,rgba(38,57,75,.97),rgba(17,30,43,.97));color:#fff;font-size:.88rem}
 #modal button[data-exit-route]:first-of-type{background:linear-gradient(135deg,#087f5b,#075844)}
 #modal .route-copy{max-width:34rem;line-height:1.45;opacity:.8;font-size:.76rem}
+
+/* Refined property interaction card */
+#modal.house-menu{box-sizing:border-box;width:min(27rem,calc(100vw - 2rem));max-height:82vh;padding:0;overflow:auto;border:1px solid rgba(190,218,239,.22);border-radius:1.15rem;background:linear-gradient(145deg,rgba(14,29,44,.97),rgba(6,17,29,.96));box-shadow:0 1.4rem 4rem rgba(0,0,0,.4);backdrop-filter:blur(18px);font-size:.92rem}
+#modal.house-menu .hm-head{display:flex;align-items:center;gap:.8rem;padding:1.1rem 1.1rem .85rem;border-bottom:1px solid rgba(255,255,255,.1)}
+#modal.house-menu .hm-icon{display:grid;place-items:center;flex:0 0 2.8rem;height:2.8rem;border-radius:.85rem;background:linear-gradient(145deg,#f4a42b,#d66d12);font-size:1.65rem;font-weight:900;color:#fff}
+#modal.house-menu .hm-title{min-width:0;flex:1}
+#modal.house-menu .hm-title small,#modal.house-menu .hm-price small{display:block;color:#9db2c4;font-size:.63rem;font-weight:800;letter-spacing:.13em}
+#modal.house-menu .hm-title h2{margin:.18rem 0;font-size:1.15rem;line-height:1.2}
+#modal.house-menu .hm-title p{margin:.2rem 0 0;color:#b8c7d4;font-size:.78rem;overflow-wrap:anywhere}
+#modal.house-menu .hm-closehint{align-self:flex-start;border:1px solid rgba(255,255,255,.16);border-radius:99px;padding:.25rem .5rem;color:#aabaca;font-size:.6rem;font-weight:800;letter-spacing:.08em}
+#modal.house-menu .hm-status{display:flex;align-items:center;gap:.5rem;margin:.85rem 1.1rem;padding:.65rem .75rem;border-radius:.55rem;background:rgba(255,255,255,.06);font-size:.78rem;font-weight:800}
+#modal.house-menu .hm-status i{width:.48rem;height:.48rem;flex:0 0 .48rem;border-radius:50%;background:#63d99b;box-shadow:0 0 .7rem rgba(99,217,155,.4)}
+#modal.house-menu .hm-status.is-vacant i{background:#f5bd4f;box-shadow:0 0 .7rem rgba(245,189,79,.4)}
+#modal.house-menu .hm-status.is-occupied i{background:#f07878;box-shadow:0 0 .7rem rgba(240,120,120,.4)}
+#modal.house-menu .hm-price{display:flex;align-items:center;justify-content:space-between;margin:0 1.1rem .9rem;padding:.8rem .9rem;border:1px solid rgba(255,255,255,.1);border-radius:.7rem;background:rgba(255,255,255,.035)}
+#modal.house-menu .hm-price strong{display:block;margin-top:.15rem;font-size:1.45rem;color:#7be2b0}
+#modal.house-menu .hm-price>span{color:#9db2c4;font-size:.65rem;font-weight:800;letter-spacing:.08em}
+#modal.house-menu .hm-actions{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding:0 1.1rem 1rem}
+#modal.house-menu .hm-actions button{box-sizing:border-box;width:100%;min-height:2.7rem;margin:0;padding:.65rem .7rem;border:1px solid rgba(255,255,255,.12);border-radius:.65rem;background:#187fd2;color:#fff;font-size:.82rem;font-weight:800;line-height:1.2}
+#modal.house-menu .hm-actions button[data-house-lock]{background:rgba(255,255,255,.08)}
+#modal.house-menu .hm-actions button[data-house-rent]{grid-column:1/-1;background:linear-gradient(100deg,#f1a52b,#d87913);color:#fff}
+#modal.house-menu .hm-actions button:disabled{opacity:.42}
+#modal.house-menu .hm-actions p{grid-column:1/-1;margin:.1rem 0;color:#bdcbd7;font-size:.75rem}
+#modal.house-menu #mx{display:block;width:calc(100% - 2.2rem);margin:0 1.1rem 1.1rem;padding:.6rem;border:1px solid rgba(255,255,255,.15);border-radius:.6rem;background:transparent;color:#cbd6df;font-weight:700}
+@media(max-height:500px){#modal.house-menu{max-height:90vh}#modal.house-menu .hm-head{padding:.7rem .9rem .6rem}#modal.house-menu .hm-status{margin:.55rem .9rem;padding:.45rem .6rem}#modal.house-menu .hm-price{margin:0 .9rem .6rem;padding:.55rem .7rem}#modal.house-menu .hm-actions{padding:0 .9rem .7rem;gap:.4rem}#modal.house-menu #mx{width:calc(100% - 1.8rem);margin:0 .9rem .8rem}}
+
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -1242,7 +1268,7 @@ const routeFade=document.createElement('div');routeFade.id='routeFade';routeFade
 let routeFadeTimer=0;
 function routeTransitionIn(){clearTimeout(routeFadeTimer);routeFade.style.opacity='1';}
 function routeTransitionOut(){clearTimeout(routeFadeTimer);routeFadeTimer=setTimeout(()=>{routeFade.style.opacity='0';},280);}
-function panel(h){modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';};}
+function panel(h){modal.classList.remove('house-menu');modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu');};}
 
 function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!inside.home?.isOwner;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. Use the marked front entrance to return to the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Go to your private car park<br><small>Spawn one of your cars and drive out.</small></button>':'')+'');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
@@ -1735,7 +1761,8 @@ function openHouseMenu(h){
  const gate=own?'<button data-house-lock="'+h.id+'" data-house-lock-to="'+(!locked)+'">'+(locked?'🔓 Unlock house':'🔒 Lock house')+'</button>':'';
  const visit=canVisit?'<button data-house-visit="'+h.id+'">🚪 Enter and inspect</button>':'<button disabled>🔒 House locked</button><p>Only the owner can unlock this house.</p>';
  const rent=vacant?'<p><label>Rent duration <select id="houseRentDays">'+days+'</select></label></p><button data-house-rent="'+h.id+'" '+(canRent?'':'disabled')+'>🏠 Rent this house</button>'+(canRent?'':'<p>You already rent another house or have reached the prepaid-rent limit.</p>'):'';
- panel('<b>🏠 '+(h.name||'House')+'</b><p>'+String(h.zone||'Port Harcourt')+' · '+h.id+'</p><p><b>'+state+'</b></p><p>Rent: ₦'+Number(h.rentPerDay||0).toLocaleString('en-NG')+' per day</p>'+visit+gate+rent);
+ panel('<div class="hm-head"><span class="hm-icon">⌂</span><div class="hm-title"><small>PROPERTY DETAILS</small><h2>'+(h.name||'House')+'</h2><p>'+String(h.zone||'Port Harcourt')+' · '+h.id+'</p></div><span class="hm-closehint">HOME</span></div><div class="hm-status '+(own?'is-owned':vacant?'is-vacant':'is-occupied')+'"><i></i>'+state+'</div><div class="hm-price"><div><small>DAILY RENT</small><strong>₦'+Number(h.rentPerDay||0).toLocaleString('en-NG')+'</strong></div><span>PER DAY</span></div><div class="hm-actions">'+visit+gate+rent+'</div>');
+ modal.classList.add('house-menu');
 }
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
  if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
