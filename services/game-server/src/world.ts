@@ -47,7 +47,7 @@ const ladder = (...titles: string[]): readonly (readonly string[])[] => titles.m
 export const WORKPLACES: readonly Workplace[] = [
   {
     id: "market-mile1", name: "Mile 1 Market", kind: "market", zone: "Mile 1 Market",
-    x: -48, z: 80, factionId: "market",
+    x: -70, z: 40, factionId: "market",
     rankTitles: ladder("Hawker", "Stall Assistant", "Sales Rep", "Senior Sales", "Market Supervisor", "Market Chairman"),
   },
   {
@@ -105,7 +105,7 @@ export const WORKPLACES: readonly Workplace[] = [
   },
   {
     id: "frsc-rivers", name: "FRSC — Rivers Sector Command", kind: "frsc", zone: "Port Harcourt Centre",
-    x: 28, z: 48, factionId: "frsc",
+    x: 30, z: 100, factionId: "frsc",
     rankTitles: ladder("Road Safety Marshal", "Senior Marshal", "Assistant Route Commander", "Route Commander", "Sector Operations Officer", "Sector Commander"),
   },
   {
@@ -115,12 +115,12 @@ export const WORKPLACES: readonly Workplace[] = [
   },
   {
     id: "army-rivers", name: "Nigerian Army — Port Harcourt Garrison", kind: "military", zone: "Trans Amadi",
-    x: 185, z: -165, factionId: "army",
+    x: 185, z: -150, factionId: "army",
     rankTitles: ladder("Recruit", "Private", "Lance Corporal", "Corporal", "Sergeant", "Commanding Officer"),
   },
   {
     id: "transport-union", name: "Port Harcourt Transport Union", kind: "transport", zone: "Port Harcourt Centre",
-    x: 5, z: 62, factionId: "transport",
+    x: 14, z: 60, factionId: "transport",
     rankTitles: ladder("Transport Assistant", "Route Assistant", "Driver", "Senior Driver", "Depot Supervisor", "Union Chairman"),
   },
 ];
