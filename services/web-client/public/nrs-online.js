@@ -661,6 +661,8 @@
   N.getHousing = () => send({ type: "getHousing" });
   N.rentHouse = (houseId, days = 1) => send({ type: "rentHouse", houseId, days });
   N.enterHome = () => send({ type: "enterHome" });
+  N.enterHouse = (houseId) => send({ type: "enterHouse", houseId });
+  N.setHouseLock = (houseId, locked) => send({ type: "setHouseLock", houseId, locked: locked === true });
   N.exitHome = () => send({ type: "exitHome" });
   N.enterCarpark = () => send({ type: "enterCarpark" });
   N.spawnCarparkVehicle = (carId, callback) => {
