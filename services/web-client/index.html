@@ -2002,7 +2002,7 @@ function staffRoomInterior(d){
  {x:ix-(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},{x:ix+(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},
  {x:ix-4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},
  {x:ix+1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id});
- return STAFF_ROOM_VISUALS[id]={id,name:(d.workplaceName||'Workplace')+' · Staff changing room',workplaceId,x:ix,z:iz,cb:{x:ix,z:iz,hw:w/2-.65,hd:depth/2-.65},
+ return STAFF_ROOM_VISUALS[id]={id,name:(d.workplaceName||'Workplace')+' · Staff changing room',workplaceId,x:ix,z:iz,cb:{x:ix+2.3,z:iz+.2,hw:1.55,hd:.5},
   pois:[{x:ix-3.35,z:iz+3.1,k:'Use',name:'Change into authorised uniform',t:'uniform',workplaceId,r:2.6},{x:ix,z:iz+4.8,k:'Exit',name:'Exit staff changing room',t:'staffroom-exit',r:2.4}],isStaffRoom:true};
 }
 const ROOMS={};
