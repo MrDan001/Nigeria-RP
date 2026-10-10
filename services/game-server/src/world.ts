@@ -196,6 +196,29 @@ export function workplaceInteriorPosition(id: string): { x: number; z: number } 
   return { x: -450 + (index % 4) * 24, z: -260 + Math.floor(index / 4) * 25 };
 }
 
+/** Public shop fronts in the street scene. IDs and coordinates are shared with the client. */
+export type ShopInteriorEntry = { id: string; name: string; x: number; z: number };
+export const SHOP_INTERIORS: readonly ShopInteriorEntry[] = [
+  { id: "mama-put-kitchen", name: "Mama Put Kitchen", x: -8.4, z: 6 },
+  { id: "rivers-pharmacy", name: "Rivers Pharmacy", x: -8.4, z: 32 },
+  { id: "kings-phones", name: "Kings Phones & Gadgets", x: -8.4, z: -52 },
+  { id: "sapele-fashion", name: "Sapele Fashion House", x: 8.4, z: -24 },
+  { id: "rivers-supermart", name: "Rivers Supermart", x: 8.4, z: 2 },
+  { id: "job-center", name: "Job Center", x: 8.4, z: 28 },
+  { id: "rivers-bank", name: "Rivers Bank", x: -8.4, z: -20 },
+];
+
+export function findShopInterior(id: string): ShopInteriorEntry | undefined {
+  return SHOP_INTERIORS.find((shop) => shop.id === id);
+}
+
+/** Keep shop rooms inside WORLD_LIMIT and separate from workplace and home interiors. */
+export function shopInteriorPosition(id: string): { x: number; z: number } {
+  const found = SHOP_INTERIORS.findIndex((shop) => shop.id === id);
+  const index = Math.max(0, found);
+  return { x: 280 + (index % 4) * 32, z: -420 + Math.floor(index / 4) * 24 };
+}
+
 export function findFaction(id: string): Faction | undefined {
   return FACTIONS.find((f) => f.id === id);
 }
