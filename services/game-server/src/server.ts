@@ -647,6 +647,9 @@ function sendApartmentFloorState(session: Session, type: string, message?: strin
     roomZ: APARTMENT_INTERIOR_POSITION.z,
     x: APARTMENT_INTERIOR_POSITION.x,
     z: APARTMENT_INTERIOR_POSITION.z,
+    returnX: session.apartmentReturn?.x ?? session.player.x,
+    returnZ: session.apartmentReturn?.z ?? session.player.z,
+    returnYaw: session.apartmentReturn?.yaw ?? session.player.yaw,
     rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id),
     rentPerDay: APARTMENT_RENT_PER_DAY,
     message: message ?? ("Apartment floor " + session.apartmentFloor + " of " + session.apartmentFloors + ". Rooms are numbered by floor."),
@@ -1106,9 +1109,11 @@ async function persistSession(session: Session) {
     ? Number(session.workplaceInteriorReturn.yaw)
     : session.inShopInterior && session.shopInteriorReturn && Number.isFinite(session.shopInteriorReturn.yaw)
       ? Number(session.shopInteriorReturn.yaw)
-      : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
-        ? Number(session.staffRoomReturn.yaw)
-        : session.player.yaw;
+      : session.inApartmentInterior && session.apartmentReturn && Number.isFinite(session.apartmentReturn.yaw)
+        ? Number(session.apartmentReturn.yaw)
+        : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
+          ? Number(session.staffRoomReturn.yaw)
+          : session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
   account.level = session.player.level;
