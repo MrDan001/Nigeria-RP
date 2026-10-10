@@ -30,6 +30,9 @@ import {
   findShopInterior,
   shopInteriorPosition,
   workplaceInteriorPosition,
+  APARTMENT_RENT_PER_DAY,
+  MAX_APARTMENT_PREPAID_DAYS,
+  daysBetween,
   houseRent,
   newLife,
   newWorld,
@@ -113,6 +116,14 @@ type Session = {
   inStaffRoom: boolean;
   inWorkplaceInterior: boolean;
   inShopInterior: boolean;
+  inApartmentInterior: boolean;
+  apartmentMode: "hall" | "room" | null;
+  apartmentBuildingId: string | null;
+  apartmentBuildingName: string;
+  apartmentFloors: number;
+  apartmentFloor: number;
+  apartmentRoomNumber: number | null;
+  apartmentReturn: { x: number; z: number; yaw?: number } | null;
   homeReturn: { x: number; z: number } | null;
   staffRoomReturn: { x: number; z: number; yaw?: number } | null;
   workplaceInteriorReturn: { x: number; z: number; yaw?: number } | null;
@@ -306,8 +317,8 @@ function accountPayload(player: PlayerState) {
 }
 
 function snapshot() {
-  // Homes and staff changing rooms are private; workplace reception is shared among visitors and staff.
-  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom).map((session) => publicPlayer(session.player));
+  // Apartment-room coordinates are instanced; never expose those players at the shared interior origin.
+  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom && !session.inApartmentInterior).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -597,6 +608,82 @@ function sendHousingState(session: Session) {
   });
 }
 
+const APARTMENT_INTERIOR_POSITION = { x: 450, z: -270 } as const;
+const APARTMENT_ROOMS_PER_FLOOR = 8;
+
+function apartmentRoomKey(buildingId: string, roomNumber: number) {
+  return buildingId + ":" + roomNumber;
+}
+function apartmentRoomFloor(roomNumber: number) {
+  return Math.floor(roomNumber / 100);
+}
+function apartmentFloorRooms(buildingId: string, floor: number, accountId: string) {
+  return Array.from({ length: APARTMENT_ROOMS_PER_FLOOR }, (_, index) => {
+    const roomNumber = floor * 100 + index + 1;
+    const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
+    return {
+      roomNumber,
+      vacant: !lease,
+      occupiedByMe: lease?.tenantId === accountId,
+      prepaidDays: lease?.tenantId === accountId ? lease.prepaidDays : 0,
+      rentPerDay: APARTMENT_RENT_PER_DAY,
+    };
+  });
+}
+function findApartmentLeaseForTenant(accountId: string) {
+  return Object.entries(world.apartmentRooms).find(([, lease]) => lease.tenantId === accountId) ?? null;
+}
+function sendApartmentFloorState(session: Session, type: string, message?: string) {
+  const buildingId = session.apartmentBuildingId;
+  if (!buildingId) return;
+  send(session.socket, {
+    type,
+    ok: true,
+    buildingId,
+    buildingName: session.apartmentBuildingName,
+    floor: session.apartmentFloor,
+    floors: session.apartmentFloors,
+    roomX: APARTMENT_INTERIOR_POSITION.x,
+    roomZ: APARTMENT_INTERIOR_POSITION.z,
+    x: APARTMENT_INTERIOR_POSITION.x,
+    z: APARTMENT_INTERIOR_POSITION.z,
+    rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id),
+    rentPerDay: APARTMENT_RENT_PER_DAY,
+    message: message ?? ("Apartment floor " + session.apartmentFloor + " of " + session.apartmentFloors + ". Rooms are numbered by floor."),
+  });
+}
+function validApartmentBuilding(message: any) {
+  const buildingId = String(message.buildingId ?? "").slice(0, 90);
+  const x = Number(message.x), z = Number(message.z);
+  const entryX = Number(message.entryX), entryZ = Number(message.entryZ);
+  const width = Number(message.width), depth = Number(message.depth), height = Number(message.height);
+  const floors = Math.floor(Number(message.floors));
+  const expectedId = "apt-" + Math.round(x * 10) + "-" + Math.round(z * 10);
+  if (
+    !buildingId || buildingId !== expectedId ||
+    ![x, z, entryX, entryZ, width, depth, height].every(Number.isFinite) ||
+    Math.abs(x) > 240 || Math.abs(z) > 240 ||
+    width < 8 || width > 65 || depth < 8 || depth > 65 || height < 5 || height > 60 ||
+    !Number.isInteger(floors) || floors < 2 || floors > 10 ||
+    Math.hypot(entryX - x, entryZ - z) > Math.hypot(width, depth) + 8
+  ) return null;
+  const expectedFloors = Math.max(2, Math.min(10, Math.floor(height / 4)));
+  if (floors !== expectedFloors) return null;
+  return {
+    buildingId, x, z, entryX, entryZ, width, depth, height, floors,
+    name: String(message.buildingName ?? "Apartment Building").trim().slice(0, 72) || "Apartment Building",
+  };
+}
+function enterApartmentRoom(session: Session, roomNumber: number) {
+  session.apartmentMode = "room";
+  session.apartmentRoomNumber = roomNumber;
+  session.player.x = APARTMENT_INTERIOR_POSITION.x;
+  session.player.z = APARTMENT_INTERIOR_POSITION.z;
+  session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+  session.lastInputAt = Date.now();
+  session.lastSyncAt = Date.now();
+}
+
 const HOME_FURNITURE: Record<string, string[]> = {
   hut: ["Foam mattress", "Plastic chair", "Small table", "Standing fan", "Curtains"],
   faceme: ["Bed", "Wardrobe", "Two chairs", "Shared kitchen", "Curtains"],
@@ -624,7 +711,39 @@ async function runMidnight() {
   const today = clock.dayKey();
   if (today === world.lastDay) return;
   world.lastDay = today;
+  const expiredApartmentKeys = new Set<string>();
+  for (const [key, lease] of Object.entries(world.apartmentRooms)) {
+    const elapsed = daysBetween(lease.lastDay, today);
+    if (elapsed <= 0) continue;
+    if (elapsed >= lease.prepaidDays) {
+      delete world.apartmentRooms[key];
+      expiredApartmentKeys.add(key);
+    } else {
+      lease.prepaidDays -= elapsed;
+      lease.lastDay = today;
+    }
+  }
   await saveWorld();
+
+  for (const session of players.values()) {
+    if (session.inApartmentInterior && session.apartmentMode === "room" && session.apartmentBuildingId && session.apartmentRoomNumber) {
+      const key = apartmentRoomKey(session.apartmentBuildingId, session.apartmentRoomNumber);
+      if (expiredApartmentKeys.has(key)) {
+        const expiredRoomNumber = session.apartmentRoomNumber;
+        session.apartmentMode = "hall";
+        session.apartmentRoomNumber = null;
+        session.apartmentFloor = apartmentRoomFloor(expiredRoomNumber);
+        session.player.x = APARTMENT_INTERIOR_POSITION.x;
+        session.player.z = APARTMENT_INTERIOR_POSITION.z;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        sendApartmentFloorState(session, "apartmentLeaseExpired",
+          "Your rent for Room " + expiredRoomNumber + " has expired. You have been returned to the floor corridor.");
+        await persistSession(session);
+      }
+    }
+  }
 
   for (const session of players.values()) {
     const result = settleSession(session);
@@ -967,18 +1086,22 @@ async function persistSession(session: Session) {
       ? session.workplaceInteriorReturn.x
       : session.inShopInterior && session.shopInteriorReturn
         ? session.shopInteriorReturn.x
-        : session.inStaffRoom && session.staffRoomReturn
-          ? session.staffRoomReturn.x
-          : session.player.x;
+        : session.inApartmentInterior && session.apartmentReturn
+          ? session.apartmentReturn.x
+          : session.inStaffRoom && session.staffRoomReturn
+            ? session.staffRoomReturn.x
+            : session.player.x;
   account.z = session.inHome && session.homeReturn
     ? session.homeReturn.z
     : session.inWorkplaceInterior && session.workplaceInteriorReturn
       ? session.workplaceInteriorReturn.z
       : session.inShopInterior && session.shopInteriorReturn
         ? session.shopInteriorReturn.z
-        : session.inStaffRoom && session.staffRoomReturn
-          ? session.staffRoomReturn.z
-          : session.player.z;
+        : session.inApartmentInterior && session.apartmentReturn
+          ? session.apartmentReturn.z
+          : session.inStaffRoom && session.staffRoomReturn
+            ? session.staffRoomReturn.z
+            : session.player.z;
   account.yaw = session.inWorkplaceInterior && session.workplaceInteriorReturn && Number.isFinite(session.workplaceInteriorReturn.yaw)
     ? Number(session.workplaceInteriorReturn.yaw)
     : session.inShopInterior && session.shopInteriorReturn && Number.isFinite(session.shopInteriorReturn.yaw)
@@ -1142,6 +1265,14 @@ wss.on("connection", (socket) => {
       inStaffRoom: false,
       inWorkplaceInterior: false,
       inShopInterior: false,
+      inApartmentInterior: false,
+      apartmentMode: null,
+      apartmentBuildingId: null,
+      apartmentBuildingName: "",
+      apartmentFloors: 0,
+      apartmentFloor: 1,
+      apartmentRoomNumber: null,
+      apartmentReturn: null,
       homeReturn: null,
       staffRoomReturn: null,
       workplaceInteriorReturn: null,
@@ -1309,7 +1440,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "posSync") {
-        if (session.inHome || session.inStaffRoom) return;
+        if (session.inHome || session.inStaffRoom || session.inApartmentInterior) return;
         const x = Number(message.x);
         const z = Number(message.z);
         const yaw = Number(message.yaw);
@@ -2005,6 +2136,11 @@ wss.on("connection", (socket) => {
           fail("You already have a home. Extend its rent or wait until you are evicted before renting another.");
           return;
         }
+        const apartmentLease = findApartmentLeaseForTenant(session.player.id);
+        if (apartmentLease) {
+          fail("You already rent an apartment room. Leave that tenancy before renting a separate house.");
+          return;
+        }
         const tenant = world.houseTenants[houseId] ?? null;
         if (tenant && tenant !== session.player.id) {
           fail("This home is already occupied.");
@@ -2041,6 +2177,186 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "enterApartmentBuilding") {
+        const building = validApartmentBuilding(message);
+        const fail = (text: string) => send(socket, { type: "apartmentBuildingEnterResult", ok: false, message: text });
+        if (!building) { fail("This apartment building could not be identified. Try its entrance again."); return; }
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inShopInterior || session.inApartmentInterior || session.inCarpark) {
+          fail("Exit your current interior before entering another building."); return;
+        }
+        if (Math.hypot(session.player.x - building.entryX, session.player.z - building.entryZ) > 12) {
+          fail("Walk to the apartment building's front entrance first."); return;
+        }
+        session.apartmentReturn = { x: session.player.x, z: session.player.z, yaw: session.player.yaw };
+        session.inApartmentInterior = true;
+        session.apartmentMode = "hall";
+        session.apartmentBuildingId = building.buildingId;
+        session.apartmentBuildingName = building.name;
+        session.apartmentFloors = building.floors;
+        session.apartmentFloor = 1;
+        session.apartmentRoomNumber = null;
+        session.player.x = APARTMENT_INTERIOR_POSITION.x;
+        session.player.z = APARTMENT_INTERIOR_POSITION.z;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        sendApartmentFloorState(session, "apartmentBuildingEnterResult",
+          "Welcome to " + building.name + ". Room numbers identify each apartment: 101–108 on Floor 1, 201–208 on Floor 2, and so on. Rent is ₦1,500 per day.");
+        broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "changeApartmentFloor") {
+        if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId) {
+          send(socket, { type: "apartmentFloorResult", ok: false, message: "Use a staircase from the apartment corridor first." }); return;
+        }
+        const floor = Math.floor(Number(message.floor));
+        if (!Number.isInteger(floor) || floor < 1 || floor > session.apartmentFloors) {
+          send(socket, { type: "apartmentFloorResult", ok: false, message: "That floor does not exist in this building." }); return;
+        }
+        session.apartmentFloor = floor;
+        session.player.x = APARTMENT_INTERIOR_POSITION.x;
+        session.player.z = APARTMENT_INTERIOR_POSITION.z;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        sendApartmentFloorState(session, "apartmentFloorResult", "You climbed to Floor " + floor + ". Room numbers on this floor start with " + floor + ".");
+        return;
+      }
+
+      if (message.type === "enterApartmentRoom") {
+        const buildingId = String(message.buildingId ?? "");
+        const roomNumber = Math.floor(Number(message.roomNumber));
+        if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId ||
+            buildingId !== session.apartmentBuildingId || !Number.isInteger(roomNumber) ||
+            apartmentRoomFloor(roomNumber) !== session.apartmentFloor ||
+            roomNumber % 100 < 1 || roomNumber % 100 > APARTMENT_ROOMS_PER_FLOOR) {
+          send(socket, { type: "apartmentRoomEnterResult", ok: false, message: "Approach a numbered door on your current floor." }); return;
+        }
+        const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
+        if (!lease || lease.tenantId !== session.player.id) {
+          send(socket, { type: "apartmentRoomEnterResult", ok: false, message: lease ? "That apartment is occupied by another tenant." : "This apartment is vacant. Rent it from the numbered door for ₦1,500 per day." }); return;
+        }
+        enterApartmentRoom(session, roomNumber);
+        await persistSession(session);
+        send(socket, {
+          type: "apartmentRoomEnterResult", ok: true,
+          buildingId, buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
+          floors: session.apartmentFloors, roomNumber, rentPerDay: APARTMENT_RENT_PER_DAY,
+          prepaidDays: lease.prepaidDays, roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
+          x: session.player.x, z: session.player.z,
+          message: "Welcome to Room " + roomNumber + ". Your apartment tenancy is active.",
+        });
+        return;
+      }
+
+      if (message.type === "rentApartmentRoom") {
+        const buildingId = String(message.buildingId ?? "");
+        const roomNumber = Math.floor(Number(message.roomNumber));
+        const days = Math.floor(Number(message.days));
+        const fail = (text: string) => send(socket, {
+          type: "apartmentRoomRentResult", ok: false, message: text,
+          buildingId: session.apartmentBuildingId, floor: session.apartmentFloor, floors: session.apartmentFloors,
+          rooms: session.apartmentBuildingId ? apartmentFloorRooms(session.apartmentBuildingId, session.apartmentFloor, session.player.id) : [],
+          rentPerDay: APARTMENT_RENT_PER_DAY,
+        });
+        if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId ||
+            buildingId !== session.apartmentBuildingId || !Number.isInteger(roomNumber) ||
+            apartmentRoomFloor(roomNumber) !== session.apartmentFloor ||
+            roomNumber % 100 < 1 || roomNumber % 100 > APARTMENT_ROOMS_PER_FLOOR ||
+            !Number.isInteger(days) || days < 1 || days > MAX_APARTMENT_PREPAID_DAYS) {
+          fail("Choose an available numbered room on your current floor and 1–7 prepaid days."); return;
+        }
+        const key = apartmentRoomKey(buildingId, roomNumber);
+        const current = world.apartmentRooms[key];
+        if (current && current.tenantId !== session.player.id) {
+          fail("That apartment has already been rented by another tenant."); return;
+        }
+        if (session.player.life.homeId) {
+          fail("You already rent a house. Leave that tenancy before renting an apartment room."); return;
+        }
+        const otherLease = findApartmentLeaseForTenant(session.player.id);
+        if (otherLease && otherLease[0] !== key) {
+          fail("You already rent another apartment room. Extend that room or leave its tenancy first."); return;
+        }
+        const totalDays = (current?.tenantId === session.player.id ? current.prepaidDays : 0) + days;
+        if (totalDays > MAX_APARTMENT_PREPAID_DAYS) {
+          fail("You can keep at most 7 prepaid days. Choose fewer days."); return;
+        }
+        const cost = APARTMENT_RENT_PER_DAY * days;
+        if (session.player.cash < cost) {
+          fail("Not enough cash. You need ₦" + cost.toLocaleString("en-NG") + "."); return;
+        }
+        session.player.cash -= cost;
+        world.apartmentRooms[key] = {
+          buildingId, roomNumber, tenantId: session.player.id,
+          prepaidDays: totalDays, lastDay: current?.tenantId === session.player.id ? current.lastDay : clock.dayKey(),
+        };
+        await saveWorld();
+        enterApartmentRoom(session, roomNumber);
+        await persistSession(session);
+        send(socket, {
+          type: "apartmentRoomRentResult", ok: true,
+          buildingId, buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
+          floors: session.apartmentFloors, roomNumber, rentPerDay: APARTMENT_RENT_PER_DAY,
+          prepaidDays: totalDays, cost, cash: session.player.cash,
+          roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
+          x: session.player.x, z: session.player.z,
+          message: "You rented Room " + roomNumber + " for ₦" + cost.toLocaleString("en-NG") + ". Rent costs ₦1,500 per day.",
+        });
+        for (const other of players.values()) if (other.player.id !== session.player.id && other.apartmentBuildingId === buildingId) sendApartmentFloorState(other, "apartmentFloorResult");
+        return;
+      }
+
+      if (message.type === "exitApartmentRoom") {
+        if (!session.inApartmentInterior || session.apartmentMode !== "room" || !session.apartmentBuildingId || !session.apartmentRoomNumber) {
+          send(socket, { type: "apartmentRoomExitResult", ok: false, message: "You are not inside an apartment room." }); return;
+        }
+        const previousRoom = session.apartmentRoomNumber;
+        session.apartmentFloor = apartmentRoomFloor(previousRoom);
+        session.apartmentRoomNumber = null;
+        session.apartmentMode = "hall";
+        session.player.x = APARTMENT_INTERIOR_POSITION.x;
+        session.player.z = APARTMENT_INTERIOR_POSITION.z;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        sendApartmentFloorState(session, "apartmentRoomExitResult", "You returned to the corridor outside Room " + previousRoom + ".");
+        return;
+      }
+
+      if (message.type === "exitApartmentBuilding") {
+        if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId) {
+          send(socket, { type: "apartmentBuildingExitResult", ok: false, message: "Return to the apartment corridor before exiting the building." }); return;
+        }
+        const buildingId = session.apartmentBuildingId;
+        const destination = session.apartmentReturn ?? { x: 0, z: 24, yaw: 0 };
+        session.inApartmentInterior = false;
+        session.apartmentMode = null;
+        session.apartmentBuildingId = null;
+        session.apartmentBuildingName = "";
+        session.apartmentFloors = 0;
+        session.apartmentFloor = 1;
+        session.apartmentRoomNumber = null;
+        session.apartmentReturn = null;
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        if (Number.isFinite(destination.yaw)) session.player.yaw = Number(destination.yaw);
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        send(socket, {
+          type: "apartmentBuildingExitResult", ok: true, buildingId,
+          x: session.player.x, z: session.player.z, yaw: session.player.yaw,
+          message: "You are back outside the apartment building.",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
       if (message.type === "enterShopInterior") {
         const shopId = String(message.shopId ?? "");
         const shop = findShopInterior(shopId);
@@ -2048,7 +2364,7 @@ wss.on("connection", (socket) => {
           send(socket, { type: "shopInteriorEnterResult", ok: false, message: "That storefront could not be found." });
           return;
         }
-        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior) {
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior || session.inApartmentInterior) {
           send(socket, { type: "shopInteriorEnterResult", ok: false, message: "Exit your current building before entering another one." });
           return;
         }
@@ -2111,7 +2427,7 @@ wss.on("connection", (socket) => {
           send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Unknown workplace." });
           return;
         }
-        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior) {
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior || session.inApartmentInterior) {
           send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Exit your current building before entering another workplace." });
           return;
         }
@@ -2288,7 +2604,7 @@ wss.on("connection", (socket) => {
           ? String(session.player.life.homeId ?? "")
           : String(message.houseId ?? "");
         const home = findHouse(requestedId);
-        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior) {
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior || session.inApartmentInterior) {
           send(socket, { type: "homeInterior", ok: false, message: "Exit your current interior before entering a house." });
           return;
         }
