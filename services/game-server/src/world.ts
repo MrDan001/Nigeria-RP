@@ -163,6 +163,22 @@ const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>>
   "palace-gra-02": { x: -172, z: -228 },
   "mansion-gra-02": { x: -144, z: -228 },
   "mansion-gra-03": { x: -117, z: -228 },
+  // Separate the Mile 1 hut and face-me rows so their walls/entrances do not overlap.
+  "hut-m1-01": { x: -70, z: 87 },
+  "hut-m1-02": { x: -56, z: 87 },
+  "hut-m1-03": { x: -41, z: 87 },
+  "hut-m1-04": { x: -27, z: 87 },
+  "faceme-m1-01": { x: -67, z: 104 },
+  "faceme-m1-02": { x: -48, z: 104 },
+  "faceme-m1-03": { x: -30, z: 104 },
+  // Rumuola homes use two clear rows facing connected residential streets.
+  "hut-rum-01": { x: 128, z: -60 },
+  "hut-rum-02": { x: 156, z: -60 },
+  "hut-rum-03": { x: 184, z: -60 },
+  "hut-rum-04": { x: 212, z: -60 },
+  "faceme-rum-01": { x: 135, z: -34 },
+  "faceme-rum-02": { x: 170, z: -34 },
+  "faceme-rum-03": { x: 205, z: -34 },
 };
 
 function buildHouses(): HouseDef[] {
