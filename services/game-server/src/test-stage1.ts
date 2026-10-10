@@ -28,6 +28,9 @@ import {
   watDayKey,
   workplaceRankTitle,
   workplaceTasks,
+  MAIN_ADMIN_USERNAME,
+  resolveAdminRole,
+  canManageAdminRoles,
 } from "./world";
 
 let passed = 0;
@@ -136,6 +139,43 @@ test("old saved worlds gain faction application buckets without losing bosses or
   assert.equal(migrated.bosses["bank-main"], "boss-id");
   assert.ok(migrated.workplaceApplications["police-rivers"]);
   assert.equal(migrated.houseLocks[HOUSES[0].id], false);
+});
+
+test("Dbase_Mccoll is the fixed root admin and delegated admins cannot manage the admin hierarchy", () => {
+  const today = new GameClock().dayKey();
+  const world = newWorld(today);
+  assert.equal(MAIN_ADMIN_USERNAME, "dbase_mccoll");
+  assert.equal(resolveAdminRole("Dbase_Mccoll", "root-account", world.admins), "main_admin");
+  assert.equal(canManageAdminRoles(resolveAdminRole("Dbase_Mccoll", "root-account", world.admins)), true);
+
+  world.admins["staff-account"] = true;
+  assert.equal(resolveAdminRole("Akeem_Staff", "staff-account", world.admins), "admin");
+  assert.equal(canManageAdminRoles(resolveAdminRole("Akeem_Staff", "staff-account", world.admins)), false);
+  assert.equal(resolveAdminRole("Akeem_Staff", "ordinary-account", world.admins), null);
+  assert.equal(resolveAdminRole("DBASE_MCCOLL", "other-account", world.admins), "main_admin");
+
+  const legacy = normalizeWorld({
+    v: 1, bosses: { "bank-main": "boss-id" }, houseTenants: {}, houseLocks: {}, lastDay: today,
+  }, today);
+  assert.equal(legacy.bosses["bank-main"], "boss-id");
+  assert.deepEqual(legacy.admins, {});
+  assert.deepEqual(legacy.adminAudit, []);
+
+  const migrated = normalizeWorld({
+    admins: { "staff-account": true },
+    adminAudit: [{
+      actorId: "root-account", actorUsername: "Dbase_Mccoll",
+      targetId: "staff-account", targetUsername: "Akeem_Staff",
+      action: "grant_admin", detail: "Granted delegated administrator role", at: 100,
+    }, {
+      actorId: "untrusted", actorUsername: "Rogue_Player", targetId: "staff-account",
+      targetUsername: "Akeem_Staff", action: "invalid_action", detail: "", at: 200,
+    }],
+    bosses: {}, houseTenants: {}, houseLocks: {}, lastDay: today,
+  }, today);
+  assert.deepEqual(migrated.admins, { "staff-account": true });
+  assert.equal(migrated.adminAudit.length, 1);
+  assert.equal(migrated.adminAudit[0].action, "grant_admin");
 });
 
 test("house classes and rents match the plan", () => {
