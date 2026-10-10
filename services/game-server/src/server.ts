@@ -991,11 +991,20 @@ wss.on("connection", (socket) => {
       workTask: null,
     };
 
+    // A disconnect never leaves a player clocked in or with an unfinished task.
+    const resumedOnDuty = session.player.life.employment?.onDuty === true;
+    if (resumedOnDuty && session.player.life.employment) {
+      session.player.life = {
+        ...session.player.life,
+        employment: { ...session.player.life.employment, onDuty: false },
+      };
+    }
+
     // Offline players are settled here: any midnights that passed while they were away.
     const settled = settleSession(session);
-    if (settled) {
+    if (settled || resumedOnDuty) {
       await persistSession(session);
-      if (settled.homeLost) await saveWorld();
+      if (settled?.homeLost) await saveWorld();
     }
 
     players.set(account.id, session);
