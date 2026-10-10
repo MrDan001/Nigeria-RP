@@ -1405,8 +1405,8 @@ wss.on("connection", (socket) => {
         const targetId = String(message.targetId ?? "");
         const approve = message.approve === true;
         const workplace = findWorkplace(workplaceId);
-        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
-          sendWorkplaceResult(session, "applicationReview", false, "Only the boss of this workplace can review applications.");
+        if (!workplace || (!isFactionAdmin(session) && !hasWorkplaceBossPermission(session, workplaceId))) {
+          sendWorkplaceResult(session, "applicationReview", false, "Only this workplace's boss or a faction administrator can review applications.");
           return;
         }
         const applications = world.workplaceApplications[workplaceId] ?? {};
@@ -1443,8 +1443,8 @@ wss.on("connection", (socket) => {
         const targetId = String(message.targetId ?? "");
         const workplace = findWorkplace(workplaceId);
         const target = players.get(targetId);
-        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
-          sendWorkplaceResult(session, "hire", false, "Only this workplace's boss can hire staff.");
+        if (!workplace || (!isFactionAdmin(session) && !hasWorkplaceBossPermission(session, workplaceId))) {
+          sendWorkplaceResult(session, "hire", false, "Only this workplace's boss or a faction administrator can hire staff.");
           return;
         }
         if (!target || targetId === session.player.id) {
