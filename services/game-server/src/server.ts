@@ -1596,6 +1596,41 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "setFactionAdmin") {
+        if (!isSuperAdmin(session)) {
+          sendWorkplaceResult(session, "adminRole", false, "Only the superior administrator can grant or revoke administrator access.");
+          return;
+        }
+        const targetId = String(message.targetId ?? "");
+        const enabled = message.enabled === true;
+        if (!targetId || targetId === session.player.id) {
+          sendWorkplaceResult(session, "adminRole", false, "Choose another account. Your superior-administrator role is managed by server configuration.");
+          return;
+        }
+        const target = players.get(targetId);
+        const account = target?.account ?? await findAccountById(targetId);
+        const username = target?.player.name ?? account?.username ?? "";
+        if (!account || !username) {
+          sendWorkplaceResult(session, "adminRole", false, "That player account could not be found.");
+          return;
+        }
+        if (isSuperAdminName(username)) {
+          sendWorkplaceResult(session, "adminRole", false, "A superior-administrator account cannot be changed from this screen.");
+          return;
+        }
+        world.factionAdminOverrides[targetId] = enabled;
+        await saveWorld();
+        const resultMessage = enabled
+          ? username + " is now a faction administrator and can manage ranks and bosses across workplaces."
+          : username + "'s administrator access has been revoked.";
+        sendWorkplaceResult(session, "adminRole", true, resultMessage);
+        if (target) sendWorkplaceResult(target, "adminRole", true, enabled
+          ? "You have been appointed a faction administrator."
+          : "Your faction-administrator access has been revoked.");
+        broadcastWorkplaceStates();
+        return;
+      }
+
       if (message.type === "appointWorkplaceBoss") {
         const workplaceId = String(message.workplaceId ?? "");
         const targetId = String(message.targetId ?? "");
