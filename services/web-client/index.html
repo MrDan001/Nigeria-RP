@@ -3106,6 +3106,42 @@ function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.f
 window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;syncHouseExteriors(N.houses);}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
 window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
 window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
+window.addEventListener('nrs-apartment-building-enter',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ const ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face,camYaw,camPitch};
+ routeTransitionOut();renderApartmentHall(d,ret);sys(d.message||'Apartment building entered.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-floor',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||('Floor '+d.floor));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-enter',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('Welcome to Room '+d.roomNumber+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-rent',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ if(d.cash!==undefined){cash=Number(d.cash)||0;money();}
+ const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('You rented Room '+d.roomNumber+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentRoom||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'You returned to the apartment corridor.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-building-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding)return;
+ const ret=inside.ret;clearApartmentInteriorVisual();inside=null;
+ pos.set(Number(d.x)||0,0,Number(d.z)||24);vel.set(0,0,0);jv=0;
+ face=Number.isFinite(d.yaw)?Number(d.yaw):(Number.isFinite(ret?.face)?ret.face:0);
+ camYaw=Number.isFinite(ret?.camYaw)?Number(ret.camYaw):Math.PI;camPitch=Number.isFinite(ret?.camPitch)?Number(ret.camPitch):.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+ sys(d.message||'You are back outside the apartment building.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-lease-expired',e=>{
+ const d=e.detail||{};if(!inside?.isApartmentRoom||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'Your apartment rent expired.');routeTransitionOut();
+});
 window.addEventListener('nrs-shop-interior-enter',e=>{
  const d=e.detail||{};if(!d.ok)return;const p=POI.find(q=>q.shopId===d.shopId);
  if(!p){sys('Storefront details were not found.');window.NRS?.exitShopInterior();return;}
