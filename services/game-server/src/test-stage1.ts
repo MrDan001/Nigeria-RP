@@ -138,6 +138,29 @@ test("old saved worlds gain faction application buckets without losing bosses or
   assert.equal(migrated.houseLocks[HOUSES[0].id], false);
 });
 
+test("administrator grants and explicit revocations survive world save migration", () => {
+  const today = new GameClock().dayKey();
+  const savedWorld = {
+    v: 1,
+    bosses: {},
+    houseTenants: {},
+    houseLocks: {},
+    workplaceApplications: {},
+    factionAdminOverrides: { "delegated-account": true, "revoked-env-admin": false, "invalid-value": "yes" },
+    lastDay: today,
+  };
+  const migrated = normalizeWorld(savedWorld, today);
+  assert.equal(migrated.factionAdminOverrides["delegated-account"], true);
+  assert.equal(migrated.factionAdminOverrides["revoked-env-admin"], false);
+  assert.equal(Object.hasOwn(migrated.factionAdminOverrides, "invalid-value"), false);
+});
+
+test("legacy worlds receive an empty administrator override map", () => {
+  const today = new GameClock().dayKey();
+  const legacy = normalizeWorld({ v: 1, bosses: {}, houseTenants: {}, houseLocks: {}, lastDay: today }, today);
+  assert.deepEqual(legacy.factionAdminOverrides, {});
+});
+
 test("house classes and rents match the plan", () => {
   assert.deepEqual(
     HOUSE_CLASSES.map((c) => [c.name, c.rentPerDay]),
