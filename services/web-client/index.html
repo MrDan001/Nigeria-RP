@@ -11,6 +11,17 @@
 <link rel="icon" href="/nrs-icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/nrs-icon.svg">
 <script>
+window.nrsInstallPrompt = null;
+window.nrsAppInstalled = false;
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  window.nrsInstallPrompt = event;
+  window.dispatchEvent(new Event("nrs-install-ready"));
+});
+window.addEventListener("appinstalled", () => {
+  window.nrsAppInstalled = true;
+  window.dispatchEvent(new Event("nrs-install-ready"));
+});
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -110,6 +121,7 @@ body.drv #joy,body.drv #fist,body.drv #run,body.drv #crch,body.drv #jump{display
 .pg{display:none;border:0;border-radius:.5rem;padding:.35rem .8rem;background:#e53935;color:#fff;font-weight:800;font-size:.8rem;flex:none}
 .pr.sel .pg{display:block}
 #bigmap.pl #bmh{display:none}
+#installAppBtn{position:fixed;top:3.7rem;right:.65rem;z-index:18;display:block;pointer-events:auto;max-width:13rem;border:1px solid rgba(255,255,255,.22);border-radius:.8rem;padding:.55rem .8rem;background:rgba(8,16,24,.9);color:#fff;font-size:.76rem;font-weight:850;box-shadow:0 .25rem .9rem rgba(0,0,0,.34);backdrop-filter:blur(5px)}#installAppBtn:active{transform:scale(.97)}#installAppBtn[hidden]{display:none!important}
 #navb{position:fixed;top:3.4rem;left:50%;transform:translateX(-50%);z-index:9;display:none;text-align:center;padding:.5rem 1.1rem;border-radius:.9rem;background:rgba(10,18,32,.92);border:1px solid rgba(255,255,255,.14);color:#fff;pointer-events:auto;max-width:90vw}
 #navb i{display:block;font-style:normal;font-size:.6rem;letter-spacing:.14em;color:#ff5a64;font-weight:800}
 #navb b{display:block;font-size:1rem}#navb small{display:block;font-size:.75rem;opacity:.8}
@@ -253,6 +265,7 @@ body.drv #camB{display:grid}
 <canvas id="c"></canvas>
 <div id="hud">
  <div class="p" id="brand"><div class="lg">N</div><div><b>NIGERIA ROLEPLAY</b><small>PORT HARCOURT • ONLINE WORLD</small></div></div>
+ <button id="installAppBtn" type="button" aria-label="Install Nigeria RP">⬇ Install App</button>
  <div class="p" id="compw"><canvas id="comp" width="880" height="84"></canvas></div>
  <div class="p" id="top"><span class="cash">₦ <span id="cash">0</span></span><span class="lv" id="level-badge">LEVEL 1</span><span>👤 <b id="online-count">0</b> online</span><button id="gear">⚙</button></div>
  <div class="p" id="gp"><button id="bo">Change outfit</button><button id="bs">Change skin tone</button></div>
@@ -1243,7 +1256,7 @@ let camYaw=0,camPitch=.3,lid=null,lx=0,ly=0,driveCamOffset=0;const cv=$('c');
 cv.addEventListener('pointerdown',e=>{if(lid===null){lid=e.pointerId;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(lid);}});
 cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;
  // Camera gestures rotate only the 3D view; the HUD and driving controls remain fixed.
- camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;
+ camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,-1.28,1.18);lx=e.clientX;ly=e.clientY;
  // Keep the chosen view angle relative to the vehicle so a side view stays a side view through turns.
  if(driving)driveCamOffset=Math.atan2(Math.sin(camYaw-(driving.ry+Math.PI)),Math.cos(camYaw-(driving.ry+Math.PI)));});
 const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
@@ -1295,13 +1308,26 @@ function updateCam(dt){
   const wantedYaw=c.ry+Math.PI+driveCamOffset;
   camYaw+=Math.atan2(Math.sin(wantedYaw-camYaw),Math.cos(wantedYaw-camYaw))*(1-Math.exp(-dt*(speed>1?5.5:10)));
   const d=CAMD[camMode],cp=Math.cos(camPitch);
-  camDrivePos.set(c.x+Math.sin(camYaw)*cp*d,1.15+Math.sin(camPitch)*d,c.z+Math.cos(camYaw)*cp*d);
+  if(camPitch<0){
+   // Keep the follow camera above ground and aim above the player, allowing an upward look into the sky.
+   camDrivePos.set(c.x+Math.sin(camYaw)*d,1.45,c.z+Math.cos(camYaw)*d);
+  }else{
+   camDrivePos.set(c.x+Math.sin(camYaw)*cp*d,1.15+Math.sin(camPitch)*d,c.z+Math.cos(camYaw)*cp*d);
+  }
   cam.position.lerp(camDrivePos,1-Math.exp(-dt*(speed>1?5.5:10)));
-  cam.lookAt(focus);return;
+  if(camPitch<0)cam.lookAt(focus.x,focus.y+.25+Math.tan(-camPitch)*d,focus.z);else cam.lookAt(focus);
+  return;
  }
  const f=1-Math.exp(-dt*14);focus.x+=(pos.x-focus.x)*f;focus.z+=(pos.z-focus.z)*f;focus.y=1.4;
  const d=inside&&inside.isHome?3.1:inside?.isCarpark?5.5:4.6,cp=Math.cos(camPitch);
- cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);cam.lookAt(focus);}
+ if(camPitch<0){
+  // Negative pitch tilts the view upward without putting the camera underground.
+  cam.position.set(focus.x+Math.sin(camYaw)*d,focus.y+.25,focus.z+Math.cos(camYaw)*d);
+  cam.lookAt(focus.x,focus.y+.25+Math.tan(-camPitch)*d,focus.z);
+ }else{
+  cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);
+  cam.lookAt(focus);
+ }}
 
 /* ---------- HUD: compass and minimap ---------- */
 const cc=$('comp').getContext('2d'),LAB={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
@@ -1627,6 +1653,14 @@ function buildHospital(site){
  add(new THREE.BoxGeometry(3.6,2.5,.13),trim,site.x,1.27,front+.12);
  add(new THREE.BoxGeometry(3.15,2.15,.09),glass,site.x,1.22,front+.22);
  add(new THREE.BoxGeometry(.10,2.1,.11),wall,site.x,1.2,front+.29);
+ // Visible dark double doors sit proud of the solid base facade instead of disappearing behind glass.
+ add(new THREE.BoxGeometry(1.86,2.45,.16),trim,site.x,1.23,front+.43);
+ [-1,1].forEach(side=>{
+  add(new THREE.BoxGeometry(.84,2.22,.09),M(0x18242b),site.x+side*.43,1.15,front+.54);
+  add(new THREE.BoxGeometry(.38,.7,.035),new THREE.MeshBasicMaterial({color:0x416a79}),site.x+side*.43,1.62,front+.60);
+  add(new THREE.BoxGeometry(.045,.24,.08),M(0xd8b76b),site.x+side*.15,1.06,front+.62);
+ });
+ add(new THREE.BoxGeometry(2.02,.13,.18),accent,site.x,2.52,front+.45);
  add(new THREE.BoxGeometry(5.7,.18,2.6),trim,site.x,3.15,front+1.0);
  add(new THREE.BoxGeometry(5.9,.12,2.8),accent,site.x,3.26,front+1.0);
  [-1,1].forEach(side=>{
@@ -1682,6 +1716,13 @@ function buildSchool(site){
  add(new THREE.BoxGeometry(2.5,2.8,.14),trim,site.x,1.43,front+.14);
  add(new THREE.BoxGeometry(2.0,2.4,.1),glass,site.x,1.38,front+.23);
  add(new THREE.BoxGeometry(.12,2.4,.14),wall,site.x,1.35,front+.3);
+ // Realistic door leaves and handles make the school entrance stand out against the opaque wall.
+ add(new THREE.BoxGeometry(2.22,2.58,.16),trim,site.x,1.30,front+.43);
+ [-1,1].forEach(side=>{
+  add(new THREE.BoxGeometry(.98,2.32,.08),M(0x18242b),site.x+side*.50,1.27,front+.54);
+  add(new THREE.BoxGeometry(.42,.7,.035),new THREE.MeshBasicMaterial({color:0x416a79}),site.x+side*.50,1.73,front+.60);
+  add(new THREE.BoxGeometry(.04,.23,.07),M(0xd8b76b),site.x+side*.16,1.08,front+.62);
+ });
  [-1,1].forEach(side=>{for(let i=0;i<3;i++){
   const x=site.x+side*(4.1+i*2.8),y=2.35+(i%2)*.1;
   add(new THREE.BoxGeometry(1.7,1.35,.1),trim,x,y,front+.1);
@@ -1711,10 +1752,56 @@ const OTHER_WORKPLACE_ENTRIES=[
  {id:'army-rivers',name:'Nigerian Army — Port Harcourt Garrison',x:185,z:-165},
  {id:'transport-union',name:'Port Harcourt Transport Union',x:5,z:62}
 ];
+const WORKPLACE_ENTRY_DESIGNS={
+ 'market-mile1':{wall:0xb8a27a,trim:0x573b29,accent:0xf0b943},
+ 'bank-main':{wall:0xc3d0d7,trim:0x1d3e58,accent:0x1d8cc0},
+ 'park-main':{wall:0xd5d3b6,trim:0x3d6946,accent:0x81b85a},
+ 'news-main':{wall:0x9ba8b9,trim:0x1d2d42,accent:0xd9444c},
+ 'gov-rivers':{wall:0xd7c8a6,trim:0x243e56,accent:0xd3ad4c},
+ 'police-rivers':{wall:0xbfc9d3,trim:0x243e58,accent:0x3d87d1},
+ 'frsc-rivers':{wall:0xe0d8bd,trim:0x255a4b,accent:0xe0bf36},
+ 'fire-rivers':{wall:0xc6b9ad,trim:0x6b2929,accent:0xe54837},
+ 'army-rivers':{wall:0xb3b7a4,trim:0x374734,accent:0xc39b4d},
+ 'transport-union':{wall:0xc5c6c2,trim:0x313b42,accent:0xe7a92d}
+};
+// The workplace coordinates are the navigation/interaction points. Give every POI-only site
+// a visible, branded entry facade, double doors, lights and a clear MAIN ENTRANCE sign.
+function buildWorkplaceEntrance(w){
+ const d=WORKPLACE_ENTRY_DESIGNS[w.id]||{wall:0xbcc5c9,trim:0x334452,accent:0x4f9dba};
+ const wall=M(d.wall),trim=M(d.trim),accent=M(d.accent),door=M(0x18242b),glass=new THREE.MeshBasicMaterial({color:0x70b1ca,transparent:true,opacity:.72});
+ const faceZ=w.z-2.05;
+ // Side wings and lintel form an unmistakable entrance where the original scene had no door model.
+ add(new THREE.BoxGeometry(2.6,3.25,.38),wall,w.x-2.55,1.63,faceZ);
+ add(new THREE.BoxGeometry(2.6,3.25,.38),wall,w.x+2.55,1.63,faceZ);
+ add(new THREE.BoxGeometry(8.1,.62,.46),trim,w.x,3.34,faceZ);
+ add(new THREE.BoxGeometry(8.2,.16,.5),accent,w.x,3.67,faceZ);
+ add(new THREE.BoxGeometry(8.5,.16,2.45),trim,w.x,3.17,w.z-.72);
+ add(new THREE.BoxGeometry(2.28,2.54,.18),trim,w.x,1.27,faceZ+.22);
+ [-1,1].forEach(side=>{
+  add(new THREE.BoxGeometry(1.02,2.32,.08),door,w.x+side*.51,1.17,faceZ+.34);
+  add(new THREE.BoxGeometry(.43,.69,.035),glass,w.x+side*.51,1.68,faceZ+.40);
+  add(new THREE.BoxGeometry(.045,.24,.08),M(0xe4c87e),w.x+side*.16,1.08,faceZ+.43);
+ });
+ [-1,1].forEach(side=>{
+  add(new THREE.BoxGeometry(.28,.38,.12),new THREE.MeshBasicMaterial({color:0xffe9a6}),w.x+side*1.65,2.55,faceZ+.31);
+  add(new THREE.BoxGeometry(.12,4.0,.5),trim,w.x+side*4.0,2.0,faceZ);
+ });
+ const signTex=tex(512,128,(g,width,height)=>{
+  g.fillStyle='#'+d.trim.toString(16).padStart(6,'0');g.fillRect(0,0,width,height);
+  g.fillStyle='#ffffff';g.textAlign='center';g.font='bold 30px system-ui';
+  g.fillText(w.name.toUpperCase(),width/2,50,480);
+  g.fillStyle='#b9f4dd';g.font='bold 22px system-ui';g.fillText('MAIN ENTRANCE',width/2,96,480);
+ });
+ const sign=new THREE.Mesh(new THREE.PlaneGeometry(7.85,.9),new THREE.MeshBasicMaterial({map:signTex,side:THREE.DoubleSide}));
+ sign.position.set(w.x,4.08,faceZ+.26);scene.add(sign);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.78,1.02,24),new THREE.MeshBasicMaterial({color:0x36d99a,transparent:true,opacity:.76,side:THREE.DoubleSide,depthWrite:false}));
+ ring.rotation.x=-Math.PI/2;ring.position.set(w.x,.075,w.z);scene.add(ring);
+}
 OTHER_WORKPLACE_ENTRIES.forEach(w=>{
  if(!POI.some(p=>p.t==='workplace'&&p.workplaceId===w.id)){
   POI.push({x:w.x,z:w.z,k:'Work',name:w.name,t:'workplace',workplaceId:w.id,r:8});
  }
+ buildWorkplaceEntrance(w);
 });
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]]],
@@ -2588,6 +2675,34 @@ modal.addEventListener('click',e=>{const n=e.target.dataset&&e.target.dataset.fl
  if(cash<cost){fuelMsg='Not enough cash. You need ₦'+f(cost)+'.';fuelUI(fsOpen);return;}
  fuelBusy=true;NRS.buyFuel(c.id,L,fsOpen.brand,(r)=>{fuelBusy=false;if(r.ok){c.fuel=r.fuel;fuelMsg='Bought '+L+' L for ₦'+f(cost)+'.';sys('⛽ Bought '+L+' L of petrol for ₦'+f(cost)+'.');}else fuelMsg=r.message||'Purchase failed.';money();fuelUI(fsOpen);});});
 
+// Provide an in-game installation button for Chrome, plus clear menu instructions on platforms
+// where the browser does not expose beforeinstallprompt.
+(function setupInstallButton(){
+ const btn=$('installAppBtn');
+ if(!btn)return;
+ const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true||window.nrsAppInstalled===true;
+ const sync=()=>{
+  btn.hidden=standalone();
+  btn.textContent=window.nrsInstallPrompt?'⬇ Install Nigeria RP':'⬇ Install App';
+ };
+ btn.onclick=async()=>{
+  const promptEvent=window.nrsInstallPrompt;
+  if(promptEvent){
+   window.nrsInstallPrompt=null;
+   try{
+    await promptEvent.prompt();
+    const choice=await promptEvent.userChoice;
+    if(choice?.outcome==='accepted'){btn.hidden=true;return;}
+   }catch(_){}
+   sync();
+   return;
+  }
+  panel('<b>📲 Install Nigeria RP</b><p>In Chrome, open the <b>⋮ menu</b> and choose <b>Install app</b> or <b>Add to Home screen</b>, then confirm.</p><p>The game still needs an internet connection for accounts, saved progress and multiplayer.</p>');
+ };
+ window.addEventListener('nrs-install-ready',sync);
+ window.addEventListener('appinstalled',sync);
+ sync();
+})();
 let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
