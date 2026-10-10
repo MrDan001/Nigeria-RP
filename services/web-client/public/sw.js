@@ -1,5 +1,10 @@
-const CACHE_NAME = "nigeria-rp-shell-v1";
-const APP_SHELL = ["/manifest.webmanifest", "/nrs-icon.svg"];
+const CACHE_NAME = "nigeria-rp-shell-v2";
+const APP_SHELL = [
+  "/manifest.webmanifest",
+  "/nrs-icon.svg",
+  "/nigeria-rp-192.png",
+  "/nigeria-rp-512.png"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -23,8 +28,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (APP_SHELL.includes(new URL(request.url).pathname)) {
-    event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request))
-    );
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
   }
 });

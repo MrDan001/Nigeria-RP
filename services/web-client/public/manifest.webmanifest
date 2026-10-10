@@ -9,16 +9,10 @@
   "orientation": "landscape",
   "background_color": "#081018",
   "theme_color": "#081018",
-  "categories": [
-    "games",
-    "entertainment"
-  ],
+  "categories": ["games", "entertainment"],
   "icons": [
-    {
-      "src": "/nrs-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    { "src": "/nigeria-rp-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/nigeria-rp-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/nrs-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }
