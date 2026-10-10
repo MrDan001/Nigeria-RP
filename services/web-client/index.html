@@ -384,6 +384,32 @@ flat(500,500,M(0x5d7a45),0,0,0);flatW(10,500,asphalt2,0,.03,0,8);
 [-6.5,6.5].forEach(x=>flat(3,500,pavement,x,.04,0));
 const boxes=[],bld=[];
 
+function chooseApartmentEntrance(x,z,w,d){
+ let dx=1e9,sx=1,dz=1e9,sz=1;
+ for(const v of [[0,-250,250],[-90,-240,70],[90,-110,198]]){
+  if(z<v[1]-10||z>v[2]+10)continue;
+  const delta=Math.abs(x-v[0]);if(delta<dx){dx=delta;sx=Math.sign(v[0]-x)||1;}
+ }
+ for(const q of [[-110,-240,240],[70,-240,240],[-190,-240,240]]){
+  if(x<q[1]-10||x>q[2]+10)continue;
+  const delta=Math.abs(z-q[0]);if(delta<dz){dz=delta;sz=Math.sign(q[0]-z)||1;}
+ }
+ const useX=(dx-w/2)<(dz-d/2);
+ return useX?{axis:'x',sign:sx}:{axis:'z',sign:sz};
+}
+function pushApartmentBuildingColliders(b){
+ const {x,z,hw,hd}=b,gap=3.0;
+ if(b.entryAxis==='x'){
+  const sign=b.entrySign||1,face=x+sign*hw,other=x-sign*hw,half=Math.max(.25,(hd-gap/2)/2);
+  boxes.push({x:other,z,hw:.16,hd},{x,z:z-hd,hw,hd:.16},{x,z:z+hd,hw,hd:.16},
+   {x:face,z:z-(gap/2+half),hw:.16,hd:half},{x:face,z:z+(gap/2+half),hw:.16,hd:half});
+ }else{
+  const sign=b.entrySign||1,face=z+sign*hd,other=z-sign*hd,half=Math.max(.25,(hw-gap/2)/2);
+  boxes.push({x:x-hw,z,hw:.16,hd},{x:x+hw,z,hw:.16,hd},{x,z:other,hw,hd:.16},
+   {x:x-(gap/2+half),z:face,hw:half,hd:.16},{x:x+(gap/2+half),z:face,hw:half,hd:.16});
+ }
+}
+
 const HOUSE_SIZES={hut:{w:5.6,d:6.2,h:2.65},faceme:{w:10.5,d:8.5,h:2.9},flat:{w:11.5,d:10,h:6.3},estate:{w:14,d:11.5,h:3.7},mansion:{w:17,d:14,h:6.2},palace:{w:21,d:17,h:7.2}};
 const HOUSE_ZONE_BOUNDS={"Mile 1 Market":[-85,-12,78,112],"D-Line":[24,85,-100,-14],"Old GRA":[-240,-100,-240,-120],"Trans Amadi":[100,240,-240,-120],"Rumuola":[100,240,-100,60],"Waterlines":[-240,240,115,200]};
 const HOUSE_PLANS=[{cls:"hut",zone:"Mile 1 Market",count:4,tag:"m1"},{cls:"hut",zone:"Rumuola",count:4,tag:"rum"},{cls:"faceme",zone:"Mile 1 Market",count:3,tag:"m1"},{cls:"faceme",zone:"Rumuola",count:3,tag:"rum"},{cls:"flat",zone:"D-Line",count:3,tag:"dl"},{cls:"flat",zone:"Waterlines",count:4,tag:"wl"},{cls:"estate",zone:"Trans Amadi",count:4,tag:"ta"},{cls:"mansion",zone:"Old GRA",count:3,tag:"gra"},{cls:"palace",zone:"Old GRA",count:2,tag:"gra"}];
@@ -430,9 +456,13 @@ const winTex=(base,lit,rx,ry)=>tex(256,512,(g,w,h)=>{
  g.fillStyle='rgba(42,41,35,.09)';for(let i=0;i<9;i++){const x=Math.floor(Math.random()*w),y=40+Math.floor(Math.random()*(h-80));g.fillRect(x,y,1+Math.random()*3,12+Math.random()*48);}
  g.fillStyle='rgba(245,240,225,.38)';g.fillRect(0,40,w,3);g.fillRect(0,h-40,w,3);
 },rx,ry);
-function building(x,z,w,d,h,col,side,lit,doorWidth=3.2,doorAxis='x'){const pl=M(col),fr=new THREE.MeshLambertMaterial({map:winTex('#'+col.toString(16).padStart(6,'0'),lit,Math.max(1,Math.round(d/8)),Math.max(1,Math.round(h/7)))});
+function building(x,z,w,d,h,col,side,lit,doorWidth=3.2,doorAxis='x',residentialCandidate=false){const pl=M(col),fr=new THREE.MeshLambertMaterial({map:winTex('#'+col.toString(16).padStart(6,'0'),lit,Math.max(1,Math.round(d/8)),Math.max(1,Math.round(h/7)))});
  const m=[pl,pl,pl,pl,pl,pl];m[side<0?0:1]=fr;add(new THREE.BoxGeometry(w,h,d),m,x,h/2,z);
- const b={x,z,hw:w/2,hd:d/2,h,c:col};
+ const entrySign=doorAxis==='x'?(side<0?1:-1):1;
+ const b={x,z,hw:w/2,hd:d/2,h,c:col,apartmentCandidate:residentialCandidate===true,
+  entryAxis:doorAxis,entrySign,
+  entryX:doorAxis==='x'?x+entrySign*w/2+entrySign*1.45:x,
+  entryZ:doorAxis==='z'?z+d/2+1.45:z};
  if(doorAxis==='x'&&doorWidth>0){const sign=side<0?1:-1,faceX=x+sign*w/2,opening=Math.min(d-.8,doorWidth+.9),half=(d-opening)/4;
   boxes.push({x:x-sign*w/2,z,hw:.16,hd:d/2},{x,z:z-d/2,hw:w/2,hd:.16},{x,z:z+d/2,hw:w/2,hd:.16},
    {x:faceX,z:z-(opening/2+half),hw:.16,hd:half},{x:faceX,z:z+(opening/2+half),hw:.16,hd:half});
@@ -443,7 +473,7 @@ function building(x,z,w,d,h,col,side,lit,doorWidth=3.2,doorAxis='x'){const pl=M(
  bld.push(b);}
 [[-17,6,12,14,6,0xb08a6a,-1,.2],[-17,32,12,16,11,0xc9ccd0,-1,.4],[-17,-52,12,18,14,0xd8d2c0,-1,.35],
  [17,2,12,14,9,0x9fb4c8,1,.4],[17,28,12,14,6,0xd6d0c4,1,.2],
- [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],].forEach(a=>building(...a));
+ [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],].forEach(a=>building(...a,3.2,'x',true));
 
 /* Residential exteriors are actual multi-part buildings, sized to each rental class. */
 const HOUSE_VISUALS=Object.create(null),HOUSE_MATERIALS=Object.create(null);
@@ -1066,7 +1096,12 @@ flatW(73,1.4,swm,-48.5,.066,MILE1_ALLEY_Z,4);
 for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx,gz)||DEF;if(rnd()>Z.d)continue;
  const R=a=>Math.round(a[0]+rnd()*(a[1]-a[0])),w=R(Z.w),d=R(Z.w),h=R(Z.h),x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,c=Z.cols[Math.floor(rnd()*Z.cols.length)];
  if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||SCHOOL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||ORGANIZATION_SITE_RESERVES.some(p=>Math.abs(x-p.x)<p.w/2+w/2+4&&Math.abs(z-p.z)<p.d/2+d/2+4)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
- const f=wmat(c,h),p=plain(c);add(new THREE.BoxGeometry(w,h,d),[f,f,p,p,f,f],x,h/2,z);const b={x,z,hw:w/2,hd:d/2,h,c,gen:true};boxes.push(b);bld.push(b);}
+ const f=wmat(c,h),p=plain(c);add(new THREE.BoxGeometry(w,h,d),[f,f,p,p,f,f],x,h/2,z);
+ const door=chooseApartmentEntrance(x,z,w,d);
+ const b={x,z,hw:w/2,hd:d/2,h,c,gen:true,apartmentCandidate:true,entryAxis:door.axis,entrySign:door.sign,
+  entryX:door.axis==='x'?x+door.sign*w/2+door.sign*1.45:x,
+  entryZ:door.axis==='z'?z+door.sign*d/2+door.sign*1.45:z};
+ pushApartmentBuildingColliders(b);bld.push(b);}
 for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4)&&!boxes.some(b=>Math.abs(x-b.x)<b.hw+2&&Math.abs(z-b.z)<b.hd+2))palm(x,z);}
 /* ---------- Building detailing: plinth, cornice, parapet, roof equipment, entrances ---------- */
 (function(){
@@ -1102,7 +1137,8 @@ for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4
    let dxm=1e9,sx=1,dzm=1e9,sz=1;
    for(const v of VR){const d=Math.abs(x-v[0]);if(d<dxm&&z>v[2]-10&&z<v[3]+10){dxm=d;sx=Math.sign(v[0]-x)||1;}}
    for(const q of HR){const d=Math.abs(z-q[0]);if(d<dzm&&x>q[2]-10&&x<q[3]+10){dzm=d;sz=Math.sign(q[0]-z)||1;}}
-   const useX=(dxm-hw)<(dzm-hd),nx=useX?sx:0,nz=useX?0:sz,can=bCan[Math.floor(r()*bCan.length)];
+   const useX=b.entryAxis?b.entryAxis==='x':(dxm-hw)<(dzm-hd),
+    nx=useX?(b.entrySign||sx):0,nz=useX?0:(b.entrySign||sz),can=bCan[Math.floor(r()*bCan.length)];
    const wb=(bt,n0,n1,t0,t1,y0,y1)=>{if(nx!==0){const f=x+nx*hw,a=f+nx*n0,c=f+nx*n1;bx(bt,a,y0,z+t0,c,y1,z+t1);}else{const f=z+nz*hd,a=f+nz*n0,c=f+nz*n1;bx(bt,x+t0,y0,a,x+t1,y1,c);}};
    wb(bFrame,.12,.2,-1.15,1.15,.04,2.8);wb(bDoor,.2,.26,-.95,.95,.04,2.55);
    wb(bPlinth,0,1.7,-1.5,1.5,.04,.2);
