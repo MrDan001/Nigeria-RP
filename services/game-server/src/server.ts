@@ -409,6 +409,11 @@ function workplaceSnapshot(session: Session) {
       rankTitle: workplaceRankTitle(workplace.id, Number(member.rank)),
       boss: world.bosses[workplace.id] === member.id,
     }));
+    const onlineBoss = members.find((member) => member.id === world.bosses[workplace.id]);
+    if (onlineBoss?.name && world.bossNames[workplace.id] !== onlineBoss.name) {
+      world.bossNames[workplace.id] = onlineBoss.name;
+      void saveWorld().catch((error) => console.error("Unable to cache workplace boss display name:", error));
+    }
     const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
     const canManage = world.bosses[workplace.id] === session.player.id;
     const applicants = (canManage || admin)
@@ -425,7 +430,7 @@ function workplaceSnapshot(session: Session) {
       employed: isMember,
       onDuty: isMember && employment?.onDuty === true,
       canManage,
-      bossName: members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
+      bossName: world.bossNames[workplace.id] ?? members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
       memberCount: members.length,
       staff: members,
       applications: applicants,
@@ -1621,7 +1626,7 @@ wss.on("connection", (socket) => {
           sendWorkplaceResult(session, "hire", false, check.reason);
           return;
         }
-        target.player.life = { ...target.player.life, employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0 } };
+        target.player.life = { ...target.player.life, employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } };
         delete world.workplaceApplications[workplaceId]?.[targetId];
         await persistSession(target);
         await saveWorld();
@@ -1654,7 +1659,7 @@ wss.on("connection", (socket) => {
         if (admin) {
           appendAdminAudit(session, targetId, target?.player.name ?? account?.username ?? "Staff member", "dismiss_staff", workplaceId);
         }
-        if (world.bosses[workplaceId] === targetId) world.bosses[workplaceId] = null;
+        if (world.bosses[workplaceId] === targetId) { world.bosses[workplaceId] = null; world.bossNames[workplaceId] = null; }
         await setAccountEmployment(targetId, null);
         if (admin) await saveWorld();
         sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been removed from " + workplace.name + ".");
@@ -1706,6 +1711,7 @@ wss.on("connection", (socket) => {
           const previousWorkplaceId = targetLife.employment?.workplaceId ?? null;
           if (previousWorkplaceId && previousWorkplaceId !== workplaceId && world.bosses[previousWorkplaceId] === targetId) {
             world.bosses[previousWorkplaceId] = null;
+            world.bossNames[previousWorkplaceId] = null;
           }
           if (newRank === BOSS_RANK) {
             const formerBossId = world.bosses[workplaceId] ?? null;
@@ -1713,8 +1719,10 @@ wss.on("connection", (socket) => {
               await setAccountEmployment(formerBossId, workplaceId, MAX_STAFF_RANK);
             }
             world.bosses[workplaceId] = targetId;
+            world.bossNames[workplaceId] = target?.player.name ?? account?.username ?? null;
           } else if (world.bosses[workplaceId] === targetId) {
             world.bosses[workplaceId] = null;
+            world.bossNames[workplaceId] = null;
           }
         }
 
@@ -1724,6 +1732,7 @@ wss.on("connection", (socket) => {
           rank: newRank,
           onDuty: false,
           lastTaskAt: existingEmployment?.workplaceId === workplaceId ? Number(existingEmployment.lastTaskAt) || 0 : 0,
+          uniformWorkplaceId: null,
         };
         if (target) {
           target.player.life = { ...target.player.life, employment };
@@ -1779,6 +1788,7 @@ wss.on("connection", (socket) => {
         if (oldBossId && oldBossId !== targetId) await setAccountEmployment(oldBossId, workplaceId, MAX_STAFF_RANK);
         await setAccountEmployment(targetId, workplaceId, BOSS_RANK);
         world.bosses[workplaceId] = targetId;
+        world.bossNames[workplaceId] = targetAccount.username;
         appendAdminAudit(session, targetId, targetAccount.username, "appoint_boss", workplaceId);
         await saveWorld();
         sendWorkplaceResult(session, "appointBoss", true, targetAccount.username + " appointed as " + workplaceRankTitle(workplaceId, BOSS_RANK) + ".");
