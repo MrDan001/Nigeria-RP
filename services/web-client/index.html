@@ -1923,7 +1923,7 @@ const WORKPLACE_BUILDING_PROFILES={
  'bank-main':{kind:'bank',w:22,d:24,h:16,floors:4,axis:'east',subtitle:'BANKING • CUSTOMER SERVICE',signWidth:9.2,signY:7.0},
  'park-main':{kind:'park',w:14,d:12,h:5,floors:1,axis:'z',subtitle:'PARK AUTHORITY • VISITOR SERVICES'},
  'news-main':{kind:'news',w:28,d:22,h:16,floors:4,axis:'z',subtitle:'NEWSROOM • RADIO • BROADCAST'},
- 'gov-rivers':{kind:'government',w:44,d:34,h:27,floors:6,axis:'z',subtitle:'STATE SECRETARIAT • PUBLIC ADMINISTRATION'},
+ 'gov-rivers':{kind:'government',w:18,d:34,h:27,floors:6,axis:'z',subtitle:'STATE SECRETARIAT • PUBLIC ADMINISTRATION'},
  'police-rivers':{kind:'police',w:16,d:18,h:12,floors:3,axis:'z',subtitle:'POLICE HEADQUARTERS • EMERGENCY DESK'},
  'frsc-rivers':{kind:'frsc',w:24,d:18,h:9,floors:2,axis:'z',subtitle:'ROAD SAFETY • DRIVER SUPPORT'},
  'fire-rivers':{kind:'fire',w:14,d:16,h:8,floors:2,axis:'z',subtitle:'FIRE • RESCUE • EMERGENCY RESPONSE'},
@@ -2028,7 +2028,7 @@ function buildWorkplaceEntrance(w){
    [-1,1].forEach(side=>organizationBox(.22,1.0,.22,w.x+side*3.2,.52,w.z-7,0xe0bf36));
    organizationSign('FRSC',palette,3.8,1.0,w.x+8,3.1,frontZ+.18,0,'ROAD SAFETY');
   }else if(w.id==='fire-rivers'){
-   organizationEntranceZ({...w,x:w.x-4.5},palette,{frontZ,doorWidth:2.0,doorHeight:2.55,columns:2,signWidth:10.6,signHeight:1.25,signY:6.1,subtitle:p.subtitle,doorOffset:0});
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:2.0,doorHeight:2.55,columns:2,signWidth:10.6,signHeight:1.25,signY:6.1,subtitle:p.subtitle,doorOffset:-5.5});
    for(let bay=0;bay<3;bay++){
     const bx=w.x+(bay-1)*4.1;
     organizationBox(3.55,3.55,.18,bx,1.85,frontZ+.15,palette.trim);
@@ -2047,10 +2047,9 @@ function buildWorkplaceEntrance(w){
     organizationBox(.45,2.5,.45,w.x+side*15,1.25,w.z-5,palette.trim);
    });
    organizationBlockZ(w.x+22,frontZ-3,10,14,6,1,{wall:0xb3b7a4,trim:0x374734,accent:0xc39b4d},'army');
-   flatW(12,10,swm,w.x+18,.06,w.z-7,4);
+   flatW(8,10,swm,w.x+26,.06,w.z-7,4);
    flag(w.x-8,w.z+6);flag(w.x+8,w.z+6);
   }
-  if(w.id==='transport-union'||w.id==='army-rivers'){}
  }
  if(w.id==='gov-rivers'){
   organizationBox(43,.16,30,w.x,0.08,w.z-18,0xa9a69a);
