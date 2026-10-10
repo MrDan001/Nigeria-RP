@@ -1570,7 +1570,7 @@ wss.on("connection", (socket) => {
         if (admin) await saveWorld();
         const rankTitle = workplaceRankTitle(workplaceId, newRank);
         sendWorkplaceResult(session, "rank", true, (target?.player.name ?? account?.username ?? "Staff member") + " assigned to " + rankTitle + " at " + workplace.name + ".");
-        if (target && target.id !== session.player.id) {
+        if (target && target.player.id !== session.player.id) {
           sendWorkplaceResult(target, "rank", true, "Your role is now " + rankTitle + " at " + workplace.name + ".");
         }
         broadcastWorkplaceStates();
