@@ -797,7 +797,7 @@ const SCHOOL_SITES=[
 /* Reserved plots for purpose-built public and commercial facilities. This only
    excludes procedural infill; existing roads, roundabouts and road geometry are untouched. */
 const ORGANIZATION_SITE_RESERVES=[
- {id:'market-mile1',x:-70,z:27,w:38,d:24},
+ {id:'market-mile1',x:-60,z:27,w:38,d:24},
  {id:'bank-main',x:-23,z:-20,w:28,d:28},
  {id:'park-main',x:-31,z:12,w:19,d:18},
  {id:'news-main',x:20,z:-65,w:31,d:26},
@@ -1894,7 +1894,7 @@ SCHOOL_SITES.forEach(buildSchool);
 // Work-only interaction markers for the remaining already-catalogued careers/factions.
 // These are POIs only: they do not move any road, roundabout, existing building, or house.
 const OTHER_WORKPLACE_ENTRIES=[
- {id:'market-mile1',name:'Mile 1 Market',x:-70,z:40},
+ {id:'market-mile1',name:'Mile 1 Market',x:-60,z:40},
  {id:'bank-main',name:'Port Harcourt Bank',x:-10,z:-20},
  {id:'park-main',name:'City Park',x:-30,z:20},
  {id:'news-main',name:'Rivers News Network',x:20,z:-52},
@@ -2069,6 +2069,26 @@ OTHER_WORKPLACE_ENTRIES.forEach(w=>{
  }
  buildWorkplaceEntrance(w);
 });
+/* Short, purpose-built access spurs meet existing road edges without altering any arterial or roundabout. */
+(function connectOrganizationCampuses(){
+ // Mile 1 Market: approach from the forecourt west to Old GRA Avenue.
+ flatW(34,4.5,asphalt2,-77,.057,53,6);
+ // Bank and park service frontage link directly to Aba Road's existing edge.
+ flatW(8,4.5,asphalt2,-8.5,.057,-20,4);
+ flatW(31,4.5,asphalt2,-20.5,.057,20,6);
+ // News Network and Rivers State Government have short drop-off spurs to Aba Road.
+ flatW(10,6,asphalt2,10,.057,-52,6);
+ flatW(15,6,asphalt2,12.5,.057,-5.5,6);
+ // Police HQ and Fire & Rescue drives meet the northern edge of Peter Odili Road.
+ flatW(5,17,asphalt2,-28,.057,-123.5,6);
+ flatW(5,17,asphalt2,-50.5,.057,-123.5,6);
+ // FRSC has a full-width public/service apron leading back to Aba Road.
+ flatW(38,5,asphalt2,23.5,.057,100,6);
+ // The garrison's main gate drive connects to Peter Odili Road.
+ flatW(6,35,asphalt2,185,.057,-132.5,6);
+ // Transport terminal's west-facing entrance connects to Aba Road.
+ flatW(11,5,asphalt2,10.5,.057,54,6);
+})();
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]]],
  [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000]]],
