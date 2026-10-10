@@ -587,6 +587,8 @@ export type WorldState = {
   adminAudit: AdminAuditEntry[];
   // Pending faction/workplace applications, keyed by workplace ID then account ID.
   workplaceApplications: Record<string, Record<string, number>>;
+  // One-time import marker: prevents legacy environment admins from being re-granted after revocation.
+  legacyAdminsMigrated: boolean;
   lastDay: string;
 };
 
@@ -598,7 +600,7 @@ export function newWorld(todayKey: string): WorldState {
   const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], lastDay: todayKey };
+  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -658,6 +660,7 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
         at: Math.floor(Number(entry.at)),
       }));
   }
+  base.legacyAdminsMigrated = v.legacyAdminsMigrated === true;
   if (typeof v.lastDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.lastDay)) base.lastDay = v.lastDay;
   return base;
 }
