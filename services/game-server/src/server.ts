@@ -324,8 +324,21 @@ function housingSnapshot(session: Session) {
   });
 }
 
+function isSuperAdmin(session: Session) {
+  return SUPER_ADMIN_USERNAMES.has(normaliseAdminName(session.player.name));
+}
+
+function isSuperAdminName(username: unknown) {
+  return SUPER_ADMIN_USERNAMES.has(normaliseAdminName(username));
+}
+
 function isFactionAdmin(session: Session) {
-  return FACTION_ADMIN_USERNAMES.has(session.player.name.toLowerCase());
+  if (isSuperAdmin(session)) return true;
+  const accountId = session.player.id;
+  if (Object.prototype.hasOwnProperty.call(world.factionAdminOverrides, accountId)) {
+    return world.factionAdminOverrides[accountId] === true;
+  }
+  return FACTION_ADMIN_USERNAMES.has(normaliseAdminName(session.player.name));
 }
 
 function workplaceSnapshot(session: Session) {
