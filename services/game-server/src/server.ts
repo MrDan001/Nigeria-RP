@@ -609,17 +609,18 @@ function sendHousingState(session: Session) {
 }
 
 const APARTMENT_INTERIOR_POSITION = { x: 450, z: -270 } as const;
-const APARTMENT_ROOMS_PER_FLOOR = 8;
+const APARTMENT_ROOMS_PER_FLOOR = 10;
 
 function apartmentRoomKey(buildingId: string, roomNumber: number) {
   return buildingId + ":" + roomNumber;
 }
 function apartmentRoomFloor(roomNumber: number) {
-  return Math.floor(roomNumber / 100);
+  if (!Number.isInteger(roomNumber) || roomNumber < 1) return 0;
+  return Math.floor((roomNumber - 1) / APARTMENT_ROOMS_PER_FLOOR) + 1;
 }
 function apartmentFloorRooms(buildingId: string, floor: number, accountId: string) {
   return Array.from({ length: APARTMENT_ROOMS_PER_FLOOR }, (_, index) => {
-    const roomNumber = floor * 100 + index + 1;
+    const roomNumber = (floor - 1) * APARTMENT_ROOMS_PER_FLOOR + index + 1;
     const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
     return {
       roomNumber,
@@ -645,8 +646,8 @@ function sendApartmentFloorState(session: Session, type: string, message?: strin
     floors: session.apartmentFloors,
     roomX: APARTMENT_INTERIOR_POSITION.x,
     roomZ: APARTMENT_INTERIOR_POSITION.z,
-    x: APARTMENT_INTERIOR_POSITION.x,
-    z: APARTMENT_INTERIOR_POSITION.z,
+    x: session.player.x,
+    z: session.player.z,
     returnX: session.apartmentReturn?.x ?? session.player.x,
     returnZ: session.apartmentReturn?.z ?? session.player.z,
     returnYaw: session.apartmentReturn?.yaw ?? session.player.yaw,
@@ -2207,7 +2208,7 @@ wss.on("connection", (socket) => {
         session.lastSyncAt = Date.now();
         await persistSession(session);
         sendApartmentFloorState(session, "apartmentBuildingEnterResult",
-          "Welcome to " + building.name + ". Room numbers identify each apartment: 101–108 on Floor 1, 201–208 on Floor 2, and so on. Rent is ₦1,500 per day.");
+          "Welcome to " + building.name + ". Rooms 1–10 are on Floor 1, 11–20 on Floor 2, 21–30 on Floor 3, and so on. This block has " + (building.floors * APARTMENT_ROOMS_PER_FLOOR) + " rental units across " + building.floors + " floors. Rent is ₦1,500 per day.");
         broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
         return;
       }
@@ -2221,12 +2222,15 @@ wss.on("connection", (socket) => {
           send(socket, { type: "apartmentFloorResult", ok: false, message: "That floor does not exist in this building." }); return;
         }
         session.apartmentFloor = floor;
-        session.player.x = APARTMENT_INTERIOR_POSITION.x;
-        session.player.z = APARTMENT_INTERIOR_POSITION.z;
+        // Place the player on the stair landing, not in the middle of the corridor.
+        session.player.x = APARTMENT_INTERIOR_POSITION.x - 1.2;
+        session.player.z = APARTMENT_INTERIOR_POSITION.z - 3.6;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
-        sendApartmentFloorState(session, "apartmentFloorResult", "You climbed to Floor " + floor + ". Room numbers on this floor start with " + floor + ".");
+        const firstRoom = (floor - 1) * APARTMENT_ROOMS_PER_FLOOR + 1;
+        const lastRoom = floor * APARTMENT_ROOMS_PER_FLOOR;
+        sendApartmentFloorState(session, "apartmentFloorResult", "You climbed to Floor " + floor + ". Rooms on this floor are " + firstRoom + "–" + lastRoom + ".");
         return;
       }
 
@@ -2236,7 +2240,7 @@ wss.on("connection", (socket) => {
         if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId ||
             buildingId !== session.apartmentBuildingId || !Number.isInteger(roomNumber) ||
             apartmentRoomFloor(roomNumber) !== session.apartmentFloor ||
-            roomNumber % 100 < 1 || roomNumber % 100 > APARTMENT_ROOMS_PER_FLOOR) {
+            roomNumber < 1 || roomNumber > session.apartmentFloors * APARTMENT_ROOMS_PER_FLOOR) {
           send(socket, { type: "apartmentRoomEnterResult", ok: false, message: "Approach a numbered door on your current floor." }); return;
         }
         const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
@@ -2269,7 +2273,7 @@ wss.on("connection", (socket) => {
         if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId ||
             buildingId !== session.apartmentBuildingId || !Number.isInteger(roomNumber) ||
             apartmentRoomFloor(roomNumber) !== session.apartmentFloor ||
-            roomNumber % 100 < 1 || roomNumber % 100 > APARTMENT_ROOMS_PER_FLOOR ||
+            roomNumber < 1 || roomNumber > session.apartmentFloors * APARTMENT_ROOMS_PER_FLOOR ||
             !Number.isInteger(days) || days < 1 || days > MAX_APARTMENT_PREPAID_DAYS) {
           fail("Choose an available numbered room on your current floor and 1–7 prepaid days."); return;
         }

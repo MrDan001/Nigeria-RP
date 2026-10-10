@@ -384,18 +384,51 @@ flat(500,500,M(0x5d7a45),0,0,0);flatW(10,500,asphalt2,0,.03,0,8);
 [-6.5,6.5].forEach(x=>flat(3,500,pavement,x,.04,0));
 const boxes=[],bld=[];
 
-function chooseApartmentEntrance(x,z,w,d){
- let dx=1e9,sx=1,dz=1e9,sz=1;
- for(const v of [[0,-250,250],[-90,-240,70],[90,-110,198]]){
-  if(z<v[1]-10||z>v[2]+10)continue;
-  const delta=Math.abs(x-v[0]);if(delta<dx){dx=delta;sx=Math.sign(v[0]-x)||1;}
+function apartmentRoadSegments(){
+ const roads=[];
+ HR.forEach(r=>roads.push({axis:'h',fixed:r[0],lo:r[2],hi:r[3],half:5,id:r[1],main:true}));
+ VR.forEach(r=>roads.push({axis:'v',fixed:r[0],lo:r[2],hi:r[3],half:5,id:r[1],main:true}));
+ LOCAL_ROADS.forEach(r=>roads.push({axis:r.axis,fixed:r.fixed,lo:r.lo,hi:r.hi,half:r.width/2,id:r.id,main:false}));
+ return roads;
+}
+function apartmentApproachBlocked(b,road,entry,roadEdge){
+ const halfLane=1.6;
+ const minX=road.axis==='h'?b.x-halfLane:Math.min(entry,roadEdge);
+ const maxX=road.axis==='h'?b.x+halfLane:Math.max(entry,roadEdge);
+ const minZ=road.axis==='h'?Math.min(entry,roadEdge):b.z-halfLane;
+ const maxZ=road.axis==='h'?Math.max(entry,roadEdge):b.z+halfLane;
+ for(const other of bld){
+  if(other===b||(!other.gen&&!other.apartmentCandidate)||!Number.isFinite(Number(other.hw))||!Number.isFinite(Number(other.hd)))continue;
+  if(minX<Number(other.x)+other.hw+.45&&maxX>Number(other.x)-other.hw-.45&&
+     minZ<Number(other.z)+other.hd+.45&&maxZ>Number(other.z)-other.hd-.45)return true;
  }
- for(const q of [[-110,-240,240],[70,-240,240],[-190,-240,240]]){
-  if(x<q[1]-10||x>q[2]+10)continue;
-  const delta=Math.abs(z-q[0]);if(delta<dz){dz=delta;sz=Math.sign(q[0]-z)||1;}
+ for(const home of HOUSE_PLOTS){
+  const hw=Number(home.w)/2,hd=Number(home.d)/2;
+  if(!Number.isFinite(hw)||!Number.isFinite(hd))continue;
+  if(minX<Number(home.x)+hw+1&&maxX>Number(home.x)-hw-1&&
+     minZ<Number(home.z)+hd+1&&maxZ>Number(home.z)-hd-1)return true;
  }
- const useX=(dx-w/2)<(dz-d/2);
- return useX?{axis:'x',sign:sx}:{axis:'z',sign:sz};
+ return false;
+}
+function chooseApartmentEntrance(x,z,w,d,preferredAxis=null,preferredSign=null){
+ const roads=apartmentRoadSegments(),candidates=[];
+ for(const road of roads){
+  const axis=road.axis==='h'?'z':'x';
+  if(preferredAxis&&axis!==preferredAxis)continue;
+  const center=road.axis==='h'?x:z;
+  if(center<road.lo||center>road.hi)continue;
+  const from=road.axis==='h'?z:x,extent=road.axis==='h'?d/2:w/2;
+  const sign=Math.sign(road.fixed-from)||1;
+  if(preferredSign!==null&&sign!==preferredSign)continue;
+  const entry=from+sign*(extent+1.45),roadEdge=road.fixed-sign*road.half;
+  const distance=Math.abs(roadEdge-entry);
+  candidates.push({axis,sign,accessRoad:road,distance,blocked:apartmentApproachBlocked({x,z,hw:w/2,hd:d/2},road,entry,roadEdge)});
+ }
+ candidates.sort((a,b)=>Number(a.blocked)-Number(b.blocked)||a.distance-b.distance||Number(Boolean(b.accessRoad.main))-Number(Boolean(a.accessRoad.main)));
+ if(candidates.length)return candidates[0];
+ if(preferredAxis&&preferredSign!==null)return chooseApartmentEntrance(x,z,w,d,preferredAxis,null);
+ if(preferredAxis)return chooseApartmentEntrance(x,z,w,d,null,preferredSign);
+ return {axis:'z',sign:1,accessRoad:null,distance:Infinity,blocked:true};
 }
 function pushApartmentBuildingColliders(b){
  const {x,z,hw,hd}=b,gap=3.0;
@@ -1099,10 +1132,37 @@ for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx
  if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||SCHOOL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||ORGANIZATION_SITE_RESERVES.some(p=>Math.abs(x-p.x)<p.w/2+w/2+4&&Math.abs(z-p.z)<p.d/2+d/2+4)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
  const f=wmat(c,h),p=plain(c);add(new THREE.BoxGeometry(w,h,d),[f,f,p,p,f,f],x,h/2,z);
  const door=chooseApartmentEntrance(x,z,w,d);
- const b={x,z,hw:w/2,hd:d/2,h,c,gen:true,apartmentCandidate:true,entryAxis:door.axis,entrySign:door.sign,
+ const b={x,z,hw:w/2,hd:d/2,h,c,gen:true,apartmentCandidate:true,entryAxis:door.axis,entrySign:door.sign,accessRoad:door.accessRoad,
   entryX:door.axis==='x'?x+door.sign*w/2+door.sign*1.45:x,
   entryZ:door.axis==='z'?z+door.sign*d/2+door.sign*1.45:z};
  pushApartmentBuildingColliders(b);bld.push(b);}
+
+// Add a private lane from each residential block entrance to a real street edge.
+// These are additive surfaces only; HR, VR and every roundabout remain unchanged.
+function addApartmentAccessLanes(){
+ for(const b of bld){
+  if((!b.gen&&!b.apartmentCandidate)||!Number.isFinite(Number(b.h))||b.h<5||b.hw<4||b.hd<4)continue;
+  const axis=b.entryAxis||'x',sign=b.entrySign||1;
+  const road=b.accessRoad||chooseApartmentEntrance(b.x,b.z,b.hw*2,b.hd*2,axis,sign).accessRoad;
+  if(!road||((axis==='z')!==(road.axis==='h')))continue;
+  if(axis==='z'){
+   const start=b.z+sign*(b.hd+1.45),end=road.fixed-sign*road.half,len=Math.abs(end-start);
+   if(len<.65)continue;
+   const mid=(start+end)/2;
+   flatW(3.1,len,asphalt2,b.x,.058,mid,6);
+   flatW(.10,len,curb,b.x-1.62,.09,mid,4);flatW(.10,len,curb,b.x+1.62,.09,mid,4);
+   flatW(.78,len,swm,b.x-2.12,.066,mid,4);flatW(.78,len,swm,b.x+2.12,.066,mid,4);
+  }else{
+   const start=b.x+sign*(b.hw+1.45),end=road.fixed-sign*road.half,len=Math.abs(end-start);
+   if(len<.65)continue;
+   const mid=(start+end)/2;
+   flatW(len,3.1,asphalt2,mid,.058,b.z,6);
+   flatW(len,.10,curb,mid,.09,b.z-1.62,4);flatW(len,.10,curb,mid,.09,b.z+1.62,4);
+   flatW(len,.78,swm,mid,.066,b.z-2.12,4);flatW(len,.78,swm,mid,.066,b.z+2.12,4);
+  }
+ }
+}
+addApartmentAccessLanes();
 for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4)&&!boxes.some(b=>Math.abs(x-b.x)<b.hw+2&&Math.abs(z-b.z)<b.hd+2))palm(x,z);}
 /* ---------- Building detailing: plinth, cornice, parapet, roof equipment, entrances ---------- */
 (function(){
@@ -2651,11 +2711,14 @@ function enterRoom(p){if(p.shopId){const N=window.NRS;if(N?.enterShopInterior){N
  const r=room(p);r.ret={x:p.x,z:p.z,sx:p.sx};inside=r;pos.set(r.x,0,r.z+3.2);vel.set(0,0,0);face=Math.PI;camYaw=0;camPitch=.3;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
 function leaveRoom(){if(!inside)return;if(inside.isShopInterior){window.NRS?.exitShopInterior();return;}if(inside.isApartmentRoom){window.NRS?.exitApartmentRoom();return;}if(inside.isApartmentBuilding){window.NRS?.exitApartmentBuilding();return;}openExitRouteMenu();}
 const APARTMENT_FACADE_DETAILS=Object.create(null);
+const APARTMENT_BLOCK_NUMBERS=new Map();
+const APARTMENT_ROOMS_PER_FLOOR=10;
 let APARTMENT_INTERIOR_VISUAL=null;
 
+function apartmentBlockId(b){return "apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10);}
+function apartmentBlockNumber(b){return APARTMENT_BLOCK_NUMBERS.get(apartmentBlockId(b))||1;}
 function apartmentBuildingName(b){
- const tag=String(Math.abs(Math.round(b.x*10))+Math.abs(Math.round(b.z*10))).slice(-3).padStart(3,'0');
- return "Residential Apartments "+tag;
+ return "Apartment Block #"+String(apartmentBlockNumber(b)).padStart(3,'0');
 }
 function apartmentBuildingPayload(b){
  const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10),floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
@@ -2689,8 +2752,10 @@ function addApartmentExteriorDetails(b,id){
  const boardTex=tex(512,112,(g,w,h)=>{
   g.fillStyle='#17313e';g.fillRect(0,0,w,h);
   g.fillStyle='#d8ad52';g.fillRect(0,0,w,9);g.fillRect(0,h-9,w,9);
-  g.fillStyle='#fff';g.textAlign='center';g.font='bold 42px system-ui';g.fillText('APARTMENTS',w/2,52);
-  g.fillStyle='#b8e7f4';g.font='bold 20px system-ui';g.fillText('ROOMS '+(Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)))*100+1)+'+',w/2,85);
+  const floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
+  const block=String(apartmentBlockNumber(b)).padStart(3,'0');
+  g.fillStyle='#fff';g.textAlign='center';g.font='bold 32px system-ui';g.fillText('APARTMENT BLOCK #'+block,w/2,50);
+  g.fillStyle='#b8e7f4';g.font='bold 20px system-ui';g.fillText((floors*APARTMENT_ROOMS_PER_FLOOR)+' UNITS · '+floors+' FLOORS',w/2,84);
  });
  const board=new THREE.Mesh(new THREE.PlaneGeometry(3.8,.84),new THREE.MeshBasicMaterial({map:boardTex,side:THREE.DoubleSide}));
  if(axis==='x'){board.position.set(fx+sign*.19,3.25,0);board.rotation.y=sign>0?Math.PI/2:-Math.PI/2;}
@@ -2700,6 +2765,10 @@ function addApartmentExteriorDetails(b,id){
 }
 function refreshApartmentPOIs(){
  for(let i=POI.length-1;i>=0;i--)if(POI[i].apartmentBuildingPoi)POI.splice(i,1);
+ APARTMENT_BLOCK_NUMBERS.clear();
+ const numberedBlocks=bld.filter(b=>(b.apartmentCandidate||b.gen)&&Number.isFinite(Number(b.h))&&b.h>=5&&b.hw>=4&&b.hd>=4)
+  .slice().sort((a,b)=>Number(a.x)-Number(b.x)||Number(a.z)-Number(b.z));
+ numberedBlocks.forEach((b,index)=>APARTMENT_BLOCK_NUMBERS.set(apartmentBlockId(b),index+1));
  const activeIds=new Set();
  for(const b of bld){
   if((!b.apartmentCandidate&&!b.gen)||!Number.isFinite(Number(b.h))||b.h<5||b.hw<4||b.hd<4)continue;
@@ -2761,11 +2830,13 @@ function renderApartmentHall(d,ret){
  A(new THREE.PlaneGeometry(9.2,1.55),new THREE.MeshBasicMaterial({map:titleTex,side:THREE.DoubleSide}),0,2.72,-11.72);
  const floorTex=apartmentText('FLOOR '+floor+' / '+floors,'#293d47','#f7e5bf');
  A(new THREE.PlaneGeometry(3.2,.72),new THREE.MeshBasicMaterial({map:floorTex,side:THREE.DoubleSide}),0,2.26,11.62);
- const numbers=(d.rooms||Array.from({length:8},(_,i)=>({roomNumber:floor*100+i+1,vacant:true,occupiedByMe:false})));
- const pois=[],doorZ=[-5.7,-2.1,1.5,5.1];
- for(let i=0;i<8;i++){
-  const roomInfo=numbers.find(r=>Number(r.roomNumber)===floor*100+i+1)||{roomNumber:floor*100+i+1,vacant:true,occupiedByMe:false};
-  const side=i<4?-1:1,j=i%4,x=side*8.65,z=doorZ[j],color=roomInfo.occupiedByMe?0x1e8a72:roomInfo.vacant?0x597d58:0x7e4a45;
+ const firstRoom=(floor-1)*APARTMENT_ROOMS_PER_FLOOR+1;
+ const numbers=(d.rooms||Array.from({length:APARTMENT_ROOMS_PER_FLOOR},(_,i)=>({roomNumber:firstRoom+i,vacant:true,occupiedByMe:false})));
+ const pois=[],doorZ=[-7.2,-4.0,-.8,2.4,5.6];
+ for(let i=0;i<APARTMENT_ROOMS_PER_FLOOR;i++){
+  const roomNumber=firstRoom+i;
+  const roomInfo=numbers.find(r=>Number(r.roomNumber)===roomNumber)||{roomNumber,vacant:true,occupiedByMe:false};
+  const side=i<5?-1:1,j=i%5,x=side*8.65,z=doorZ[j],color=roomInfo.occupiedByMe?0x1e8a72:roomInfo.vacant?0x597d58:0x7e4a45;
   A(new THREE.BoxGeometry(.14,2.38,1.82),trim,x,1.2,z);
   A(new THREE.BoxGeometry(.10,2.15,1.55),door,x-side*.10,1.10,z);
   A(new THREE.BoxGeometry(.045,2.02,.055),brass,x-side*.16,1.10,z);
@@ -2776,11 +2847,14 @@ function renderApartmentHall(d,ret){
   board.rotation.y=side<0?Math.PI/2:-Math.PI/2;
   pois.push({x:ix+side*7.4,z:iz+z,k:'Room',name:'Room '+roomInfo.roomNumber,t:'apartment-room',roomNumber:roomInfo.roomNumber,buildingId,r:2.9});
  }
- for(let i=0;i<8;i++)A(new THREE.BoxGeometry(2.5,.18,.72),M(0xaaa79e),-2.4+i*.34,.12+i*.20,-9.0+i*.72);
+ const stairMat=M(0xbeb8ac);
+ for(let i=0;i<10;i++)A(new THREE.BoxGeometry(2.55,.18,.70),stairMat,-1.2,.13+i*.26,-9.5+i*.63);
+ A(new THREE.BoxGeometry(3.0,.18,1.55),M(0x999991),-1.2,2.62,-3.05);
+ const railL=A(new THREE.BoxGeometry(.12,.12,7.0),metal,-2.58,1.53,-6.5);railL.rotation.x=-.37;
+ const railR=A(new THREE.BoxGeometry(.12,.12,7.0),metal,.18,1.53,-6.5);railR.rotation.x=-.37;
  A(new THREE.BoxGeometry(2.8,.10,6.0),trim,-1.2,.12,-6.1);
- A(new THREE.BoxGeometry(.12,2.1,6.6),metal,-2.75,.95,-6.4);A(new THREE.BoxGeometry(.12,2.1,6.6),metal,.10,.95,-6.4);
- const stairTex=apartmentText('STAIRCASE  ↑','#274b50');
- A(new THREE.PlaneGeometry(2.5,.55),new THREE.MeshBasicMaterial({map:stairTex,side:THREE.DoubleSide}),-1.2,2.25,-8.8);
+ const stairTex=apartmentText('STAIRS ↑ · TAP TO CLIMB','#274b50');
+ A(new THREE.PlaneGeometry(3.15,.62),new THREE.MeshBasicMaterial({map:stairTex,side:THREE.DoubleSide}),-1.2,2.25,-8.85);
  if(floor<floors)pois.push({x:ix-1.2,z:iz-8.4,k:'Climb',name:'Climb stairs to Floor '+(floor+1),t:'apartment-stair',floor:floor+1,r:3.0});
  if(floor>1)pois.push({x:ix-1.2,z:iz-8.4,k:'Descend',name:'Stairs down to Floor '+(floor-1),t:'apartment-stair',floor:floor-1,r:3.0});
  if(floor===1)pois.push({x:ix,z:iz+9.9,k:'Exit',name:'Exit to street',t:'apartment-building-exit',r:2.8});
@@ -2790,8 +2864,8 @@ function renderApartmentHall(d,ret){
 }
 function renderApartmentRoom(d,ret){
  clearApartmentInteriorVisual();
- const ix=Number(d.roomX)||450,iz=Number(d.roomZ)||-270,number=Number(d.roomNumber)||101;
- const floor=Number(d.floor)||Math.floor(number/100),floors=Number(d.floors)||Math.max(2,floor);
+ const ix=Number(d.roomX)||450,iz=Number(d.roomZ)||-270,number=Number(d.roomNumber)||1;
+ const floor=Number(d.floor)||Math.floor((number-1)/APARTMENT_ROOMS_PER_FLOOR)+1,floors=Number(d.floors)||Math.max(2,floor);
  const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
  const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
  const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
@@ -2829,8 +2903,8 @@ function openApartmentRoomMenu(p){
  if(!inside?.isApartmentBuilding||!state){sys("Apartment room information is still loading. Try the door again.");return;}
  const occupied=!state.vacant,own=state.occupiedByMe===true,life=window.NRS?.life||{},canRent=own||!life.homeId;
  const days=Array.from({length:7},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+' · ₦'+((i+1)*1500).toLocaleString('en-NG')+'</option>').join('');
- panel('<div class="wm-head"><span>🏠</span><div><small>RESIDENTIAL APARTMENT · FLOOR '+inside.apartmentFloor+'</small><h2>Room '+p.roomNumber+'</h2><p>'+safeText(inside.apartmentBuildingName)+'</p></div></div>'+
-  '<p class="wm-note">'+(own?'This is your private apartment. Other users may rent different numbered rooms in the same building.':occupied?'This numbered room already has a tenant. Choose another vacant room.':'Private one-bedroom apartment. Each room has its own tenant and separate interior.')+'</p>'+
+ panel('<div class="wm-head"><span>🏠</span><div><small>BLOCK '+safeText(inside.apartmentBuildingName.replace('Apartment Block #',''))+' · FLOOR '+inside.apartmentFloor+'</small><h2>Apartment Room #'+p.roomNumber+'</h2><p>'+safeText(inside.apartmentBuildingName)+' · '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' total units</p></div></div>'+
+  '<p class="wm-note">'+(own?'This is your private apartment. Other users may rent different numbered rooms in the same block.':occupied?'This numbered room already has a tenant. Choose another vacant room.':'Private one-bedroom apartment. Each room has its own tenant and separate interior.')+' Rooms on this floor are '+((inside.apartmentFloor-1)*APARTMENT_ROOMS_PER_FLOOR+1)+'–'+(inside.apartmentFloor*APARTMENT_ROOMS_PER_FLOOR)+'. This block has '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' units in total.</p>'+
   '<div class="hm-price"><div><small>DAILY RENT</small><strong>₦1,500</strong></div><span>PER DAY</span></div>'+
   (occupied&&!own?'':'<p><label>'+(own?'Extend tenancy':'Rent duration')+' <select id="apartmentRentDays">'+days+'</select></label></p>')+
   (own?'<button data-apartment-enter="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">🚪 Enter my room</button><button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">Extend rent & enter</button>':
@@ -3350,7 +3424,7 @@ modal.addEventListener('click',e=>{const n=e.target.dataset&&e.target.dataset.fl
    sync();
    return;
   }
-  panel('<b>📲 Install Nigeria RP</b><p>In Chrome, open the <b>⋮ menu</b> and choose <b>Install app</b> or <b>Add to Home screen</b>, then confirm.</p><p>The game still needs an internet connection for accounts, saved progress and multiplayer.</p>');
+  panel('<b>📲 Install Nigeria RP</b><p>In Chrome, open the <b>⋮ menu</b> and choose <b>Install app</b>, then confirm. Launch Nigeria RP from its new app icon, not from the Chrome tab.</p><p><b>Important:</b> a normal “Add to Home screen” shortcut can still open inside Chrome and show the Chrome icon in Recent apps. Remove the old shortcut and install the app instead.</p><p>The game needs an internet connection for accounts, saved progress and multiplayer.</p>');
  };
  window.addEventListener('nrs-install-ready',sync);
  window.addEventListener('appinstalled',sync);
@@ -3360,4 +3434,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261010-workplace-interiors-player-session-ids"></script></body></html>
+</script><script src="/nrs-online.js?v=20261010-apartment-lanes-room-numbers-stairs-pwa"></script></body></html>

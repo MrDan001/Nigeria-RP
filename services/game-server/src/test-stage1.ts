@@ -335,36 +335,45 @@ test("world: bosses are set by hand in the data and survive a round trip", () =>
   assert.equal(normalizeWorld(loaded, today).bosses["park-main"], null);
 });
 
-test("apartments: rooms are independently rentable at ₦1,500/day with at most seven prepaid days", () => {
+test("apartments: continuous room numbering, independent tenants and legacy lease migration", () => {
   const today = "2026-10-10";
   assert.equal(APARTMENT_RENT_PER_DAY, 1500);
   assert.equal(MAX_APARTMENT_PREPAID_DAYS, 7);
   const world = newWorld(today);
   assert.deepEqual(world.apartmentRooms, {});
-  world.apartmentRooms["apt-200-300:101"] = {
+  world.apartmentRooms["apt-200-300:1"] = {
     buildingId: "apt-200-300",
-    roomNumber: 101,
+    roomNumber: 1,
     tenantId: "account-one",
     prepaidDays: 3,
     lastDay: today,
   };
-  world.apartmentRooms["apt-200-300:102"] = {
+  world.apartmentRooms["apt-200-300:2"] = {
     buildingId: "apt-200-300",
-    roomNumber: 102,
+    roomNumber: 2,
     tenantId: "account-two",
     prepaidDays: 1,
     lastDay: today,
   };
+  // A saved old-style lease for room 201 becomes room 11 (Floor 2, first unit).
+  world.apartmentRooms["apt-200-300:201"] = {
+    buildingId: "apt-200-300",
+    roomNumber: 201,
+    tenantId: "legacy-tenant",
+    prepaidDays: 2,
+    lastDay: today,
+  };
   const loaded = normalizeWorld(JSON.parse(JSON.stringify(world)), today);
-  assert.equal(loaded.apartmentRooms["apt-200-300:101"].tenantId, "account-one");
-  assert.equal(loaded.apartmentRooms["apt-200-300:102"].tenantId, "account-two");
-  assert.equal(loaded.apartmentRooms["apt-200-300:101"].prepaidDays, 3);
-  // Corrupt room leases are discarded without affecting valid tenants.
-  loaded.apartmentRooms["apt-200-300:103"] = {
-    buildingId: "apt-200-300", roomNumber: 103, tenantId: "bad",
+  assert.equal(loaded.apartmentRooms["apt-200-300:1"].tenantId, "account-one");
+  assert.equal(loaded.apartmentRooms["apt-200-300:2"].tenantId, "account-two");
+  assert.equal(loaded.apartmentRooms["apt-200-300:1"].prepaidDays, 3);
+  assert.equal(loaded.apartmentRooms["apt-200-300:11"].tenantId, "legacy-tenant");
+  assert.equal(loaded.apartmentRooms["apt-200-300:11"].roomNumber, 11);
+  loaded.apartmentRooms["apt-200-300:3"] = {
+    buildingId: "apt-200-300", roomNumber: 3, tenantId: "bad",
     prepaidDays: 99, lastDay: today,
   };
-  assert.equal(normalizeWorld(loaded, today).apartmentRooms["apt-200-300:103"], undefined);
+  assert.equal(normalizeWorld(loaded, today).apartmentRooms["apt-200-300:3"], undefined);
 });
 
 console.log("\n" + passed + " checks passed" + (process.exitCode ? " (with failures)" : ""));

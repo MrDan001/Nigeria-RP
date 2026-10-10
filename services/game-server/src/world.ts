@@ -706,18 +706,27 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
       if (!key || key.length > 120 || !raw || typeof raw !== "object" || Array.isArray(raw)) continue;
       const lease = raw as Record<string, unknown>;
       const buildingId = String(lease.buildingId ?? "");
-      const roomNumber = Math.floor(Number(lease.roomNumber));
+      const storedRoomNumber = Math.floor(Number(lease.roomNumber));
+      let roomNumber = storedRoomNumber;
+      // Migrate the previous floor*100 + room numbering (101–1008) to continuous numbers.
+      if (storedRoomNumber > 100 && storedRoomNumber <= 1008) {
+        const legacyFloor = Math.floor(storedRoomNumber / 100);
+        const legacySlot = storedRoomNumber % 100;
+        if (legacyFloor < 1 || legacyFloor > 10 || legacySlot < 1 || legacySlot > 8) continue;
+        roomNumber = (legacyFloor - 1) * 10 + legacySlot;
+      }
       const tenantId = String(lease.tenantId ?? "");
       const prepaidDays = Math.floor(Number(lease.prepaidDays));
       const lastDay = String(lease.lastDay ?? "");
       if (
         buildingId.length > 0 && buildingId.length <= 90 &&
-        Number.isInteger(roomNumber) && roomNumber >= 101 && roomNumber <= 1008 &&
+        Number.isInteger(roomNumber) && roomNumber >= 1 && roomNumber <= 100 &&
         tenantId.length > 0 && tenantId.length <= 160 &&
         Number.isInteger(prepaidDays) && prepaidDays >= 1 && prepaidDays <= MAX_APARTMENT_PREPAID_DAYS &&
         /^\d{4}-\d{2}-\d{2}$/.test(lastDay)
       ) {
-        base.apartmentRooms[key] = { buildingId, roomNumber, tenantId, prepaidDays, lastDay };
+        const normalizedKey = buildingId + ":" + roomNumber;
+        base.apartmentRooms[normalizedKey] = { buildingId, roomNumber, tenantId, prepaidDays, lastDay };
       }
     }
   }
