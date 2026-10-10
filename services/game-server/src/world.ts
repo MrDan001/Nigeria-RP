@@ -52,7 +52,7 @@ export const WORKPLACES: readonly Workplace[] = [
   },
   {
     id: "bank-main", name: "Port Harcourt Bank", kind: "bank", zone: "Port Harcourt Centre",
-    x: -10, z: -20, factionId: "bank",
+    x: -12, z: -20, factionId: "bank",
     rankTitles: ladder("Trainee", "Teller", "Senior Teller", "Loan Officer", "Operations Manager", "Branch Manager"),
   },
   {
@@ -110,7 +110,7 @@ export const WORKPLACES: readonly Workplace[] = [
   },
   {
     id: "fire-rivers", name: "Rivers State Fire & Rescue", kind: "fire", zone: "Port Harcourt Centre",
-    x: -45, z: -132, factionId: "fire",
+    x: -50.5, z: -132, factionId: "fire",
     rankTitles: ladder("Firefighter Trainee", "Firefighter", "Crew Leader", "Station Officer", "Divisional Officer", "Chief Fire Officer"),
   },
   {
@@ -120,7 +120,7 @@ export const WORKPLACES: readonly Workplace[] = [
   },
   {
     id: "transport-union", name: "Port Harcourt Transport Union", kind: "transport", zone: "Port Harcourt Centre",
-    x: 14, z: 60, factionId: "transport",
+    x: 16, z: 54, factionId: "transport",
     rankTitles: ladder("Transport Assistant", "Route Assistant", "Driver", "Senior Driver", "Depot Supervisor", "Union Chairman"),
   },
 ];
