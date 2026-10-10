@@ -722,7 +722,8 @@ function syncHouseExteriors(houses){
  // rented home for this player, leaving vacant and unlocked estate doors inert for visitors.
  houses.forEach(h=>{
   const size=HOUSE_SIZES[h.cls]||HOUSE_SIZES.flat;
-  const door=HOUSE_VISUALS[h.id]?.entrance||{x:Number(h.x),z:Number(h.z)+size.d/2+2.15};
+  const frontDepth=h.cls==='hut'?size.w*.48:size.d/2;
+  const door=HOUSE_VISUALS[h.id]?.entrance||{x:Number(h.x),z:Number(h.z)+frontDepth+2.15};
   const label=(HOUSE_LABELS[h.cls]||"home").toLowerCase();
   POI.push({x:door.x,z:door.z,k:"Enter",
    name:h.occupiedByMe?"Enter your "+label:"Inspect "+(h.name||label),
@@ -730,7 +731,7 @@ function syncHouseExteriors(houses){
  });
 }
 let houseVisualCheckT=0;
-function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});}
+function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
 
 const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(512,Math.round(512*h/w),fn),fog:true});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
