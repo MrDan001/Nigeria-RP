@@ -633,11 +633,11 @@
         if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-floor", { detail: message }));
         else if (message.message) sys(message.message);
       } else if (message.type === "apartmentRoomEnterResult") {
-        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-enter", { detail: message }));
-        else if (message.message) sys(message.message);
+        window.dispatchEvent(new CustomEvent("nrs-apartment-room-enter", { detail: message }));
+        if (!message.ok && message.message) sys(message.message);
       } else if (message.type === "apartmentRoomRentResult") {
-        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-rent", { detail: message }));
-        else if (message.message) sys(message.message);
+        window.dispatchEvent(new CustomEvent("nrs-apartment-room-rent", { detail: message }));
+        if (!message.ok && message.message) sys(message.message);
       } else if (message.type === "apartmentRoomExitResult") {
         if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-exit", { detail: message }));
         else if (message.message) sys(message.message);
