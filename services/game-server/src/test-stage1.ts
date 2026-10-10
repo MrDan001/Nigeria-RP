@@ -117,7 +117,7 @@ test("workplace clock-in/out requires the assigned site and correct duty state",
 });
 
 test("paid workplace tasks require duty, correct task, workplace proximity, duration and cooldown", () => {
-  const employment = { workplaceId: "hospital-main", rank: 2, onDuty: true, lastTaskAt: 0 };
+  const employment = { workplaceId: "hospital-main", rank: 2, onDuty: true, lastTaskAt: 0, uniformWorkplaceId: "hospital-main" };
   const base = {
     employment, workplaceId: "hospital-main", taskId: "ward-rounds", distance: 3,
     now: 100_000, startedAt: 0, onDuty: true,
@@ -277,7 +277,7 @@ test("save/load: life survives a JSON round trip; bad data is repaired", () => {
   const today = clock.dayKey();
   const life = {
     ...newLife(today),
-    employment: { workplaceId: "market-mile1", rank: 3, onDuty: false, lastTaskAt: 0 },
+    employment: { workplaceId: "market-mile1", rank: 3, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null },
     homeId: HOUSES[2].id,
     rentDays: 4,
   };
