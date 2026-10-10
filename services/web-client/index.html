@@ -441,6 +441,42 @@ hut(K){const {A,m,S,B,C,w,front,Y,H}=K,r=w*.45,zD=r+.1,T=S.thatch;
  B(5.2,.12,3.2,m.concrete,0,.13,front+3.2);
  return {x:-3.4,y:Y+3.25,z:front+.62,w:3.9};
 },
+/* 2. COMPOUND ROOMS (face-me-I-face-you): two rows of rooms facing a shared passage, zinc roofs, veranda */
+faceme(K){const {A,m,S,B,C,w,d,H,front,Y}=K,zr=front-1.7,rr=-2.55;
+ const row=[-4.2,-2.1,2.1,4.2];
+ B(4.2,H,3.4,m.wall,-3.15,Y+H/2,zr);B(4.2,H,3.4,m.wall,3.15,Y+H/2,zr);B(w,H,3.4,m.wall,0,Y+H/2,rr);
+ B(2.3,.75,3.4,m.wall,0,Y+H-.38,zr);B(2.5,.18,3.55,m.trim,0,Y+H-.76,zr);
+ B(w+.2,.45,d+.1,S.stoneDk,0,Y+.22,0);
+ const r1=B(w+.6,.1,4.3,S.zinc,0,Y+H+.22,zr+.42);r1.rotation.x=.15;
+ const r2=B(w+.6,.1,4.3,S.zinc,0,Y+H+.22,rr-.42);r2.rotation.x=-.15;
+ B(w+.7,.22,.1,m.trim,0,Y+H-.1,front+.55+.4);B(w+.7,.22,.1,m.trim,0,Y+H-.1,rr-2.35);
+ // veranda along the front row
+ const vr=B(w+.5,.1,1.7,S.zinc,0,Y+2.62,front+.85);vr.rotation.x=.08;
+ [-5.1,-3.15,-1.2,1.2,3.15,5.1].forEach(x=>C(.07,.08,2.6,m.trim,x,Y+1.3,front+1.55,8));
+ B(w+.3,.12,1.7,m.concrete,0,Y+.08,front+.85);B(w+.3,.04,.12,m.accent,0,Y+.15,front+1.7);
+ // front-row rooms: door, louvre window, number plate
+ row.forEach((xc,i)=>{houseDoor(A,m,xc-.45,Y+1.03,front+.1,.8,2.05);houseFrontWindow(A,m,xc+.58,Y+1.55,front+.08,.6,.72);
+  B(.3,.2,.04,m.accent,xc-.45,Y+2.45,front+.1);B(.05,.05,.03,S.white,xc-.45,Y+2.45,front+.13);});
+ [-5.25,-3.15,-1.05,1.05,3.15,5.25].forEach(x=>B(.12,H,.14,m.accent,x,Y+H/2,front+.03));
+ // rear row faces the passage
+ [-3.9,-1.3,1.3,3.9].forEach(xc=>{houseDoor(A,m,xc-.4,Y+1.03,rr+1.78,.8,2.05);houseFrontWindow(A,m,xc+.62,Y+1.55,rr+1.76,.6,.72);});
+ B(w,.12,1.7,m.concrete,0,Y+.02,.0);
+ // clothes line, buckets, chairs, drum, tank, antenna
+ [-1,1].forEach(s=>C(.04,.05,2.2,m.metal,s*1.7,Y+1.1,-.2,6));B(3.4,.03,.03,S.white,0,Y+2.1,-.2);
+ for(let i=0;i<4;i++)B(.4,.6,.02,S.cloth[i%4],-1.2+i*.8,Y+1.8,-.2);
+ C(.2,.16,.3,S.red,-5.0,Y+.3,front+1.2,10);C(.2,.16,.3,S.yellow,-4.65,Y+.3,front+1.3,10);
+ [[-2.6,front+1.3],[2.8,front+1.2]].forEach(p=>{B(.45,.05,.45,S.white,p[0],Y+.5,p[1]);B(.45,.5,.05,S.white,p[0],Y+.78,p[1]-.2);C(.025,.025,.5,S.white,p[0]-.18,Y+.25,p[1]+.17,5);C(.025,.025,.5,S.white,p[0]+.18,Y+.25,p[1]+.17,5);C(.025,.025,.5,S.white,p[0]-.18,Y+.25,p[1]-.17,5);C(.025,.025,.5,S.white,p[0]+.18,Y+.25,p[1]-.17,5);});
+ C(.34,.34,.9,S.blue,5.0,Y+.45,front+1.35,12);
+ [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(p=>C(.05,.05,1.0,S.steel,2.6+p[0]*.6,Y+H+.75,rr-1.0+p[1]*.6,6));
+ B(1.6,.08,1.6,S.steel,2.6,Y+H+1.28,rr-1.0);C(.62,.62,1.2,S.black,2.6,Y+H+1.95,rr-1.0,12);
+ C(.025,.025,2.2,m.metal,-3.5,Y+H+1.3,zr,5);B(1.1,.03,.03,m.metal,-3.5,Y+H+2.0,zr);B(.8,.03,.03,m.metal,-3.5,Y+H+1.65,zr);
+ const dish=K.S_(.4,S.white,-1.7,Y+H+.95,zr+.8,1,.35,1);dish.rotation.x=-.9;
+ // shared plot gate
+ [-1,1].forEach(s=>{B(.4,1.5,.4,S.stoneDk,s*1.5,.75,front+4.8);});B(2.6,.08,.06,m.trim,0,1.3,front+4.8);B(2.6,.08,.06,m.trim,0,.55,front+4.8);
+ for(let i=0;i<9;i++)C(.025,.025,.8,m.trim,-1.12+i*.28,.95,front+4.8,5);
+ B(5.2,.12,3.2,m.concrete,0,.13,front+3.2);
+ return {x:-3.4,y:Y+3.25,z:front+.62,w:3.9};
+},
 /* 3. URBAN FLAT: two-storey concrete block with garage bay, teal fin wall, glass balcony and glass-block stair */
 flat(K){const {A,m,S,B,C,w,d,H,front,Y}=K;
  B(w,H,d,m.wall,0,Y+H/2,0);
