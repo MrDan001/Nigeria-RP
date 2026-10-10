@@ -74,12 +74,12 @@ test("house classes and rents match the plan", () => {
   assert.deepEqual(
     HOUSE_CLASSES.map((c) => [c.name, c.rentPerDay]),
     [
-      ["Local Hut", 1000],
-      ["Face-Me-I-Face-You", 2500],
-      ["Flat", 4000],
-      ["Estate House", 7500],
-      ["Mansion", 10000],
-      ["Palace", 20000],
+      ["Village Hut", 1000],
+      ["Compound Rooms", 2500],
+      ["Urban Flat", 4000],
+      ["Estate Duplex", 7500],
+      ["Grand Villa", 10000],
+      ["Royal Palace", 20000],
     ],
   );
   assert.equal(houseRent(HOUSES[0].id), 1000);
