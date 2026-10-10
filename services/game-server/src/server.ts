@@ -1470,12 +1470,13 @@ wss.on("connection", (socket) => {
         const workplaceId = String(message.workplaceId ?? "");
         const targetId = String(message.targetId ?? "");
         const workplace = findWorkplace(workplaceId);
-        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
-          sendWorkplaceResult(session, "dismiss", false, "Only this workplace's boss can dismiss staff.");
+        const admin = isFactionAdmin(session);
+        if (!workplace || (!admin && !hasWorkplaceBossPermission(session, workplaceId))) {
+          sendWorkplaceResult(session, "dismiss", false, "Only this workplace's boss or a faction administrator can dismiss staff.");
           return;
         }
-        if (!targetId || targetId === session.player.id || world.bosses[workplaceId] === targetId) {
-          sendWorkplaceResult(session, "dismiss", false, "You cannot dismiss yourself or the current workplace boss.");
+        if (!targetId || targetId === session.player.id || (!admin && world.bosses[workplaceId] === targetId)) {
+          sendWorkplaceResult(session, "dismiss", false, "Choose a staff member; only a faction administrator can remove the workplace boss.");
           return;
         }
         const target = players.get(targetId);
@@ -1485,9 +1486,13 @@ wss.on("connection", (socket) => {
           sendWorkplaceResult(session, "dismiss", false, "That player is not a member of this workplace.");
           return;
         }
+        if (world.bosses[workplaceId] === targetId) {
+          world.bosses[workplaceId] = null;
+          await saveWorld();
+        }
         await setAccountEmployment(targetId, null);
-        sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been dismissed.");
-        if (target) sendWorkplaceResult(target, "dismissed", true, "You have been dismissed from " + workplace.name + ".");
+        sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been removed from " + workplace.name + ".");
+        if (target) sendWorkplaceResult(target, "dismissed", true, "You have been removed from " + workplace.name + ".");
         broadcastWorkplaceStates();
         return;
       }
@@ -1495,37 +1500,79 @@ wss.on("connection", (socket) => {
       if (message.type === "setStaffRank") {
         const workplaceId = String(message.workplaceId ?? "");
         const targetId = String(message.targetId ?? "");
-        const newRank = Math.floor(Number(message.newRank));
+        const requestedRank = Number(message.newRank);
+        const newRank = Math.floor(requestedRank);
         const workplace = findWorkplace(workplaceId);
-        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
-          sendWorkplaceResult(session, "rank", false, "Only this workplace's boss can change staff ranks.");
+        const admin = isFactionAdmin(session);
+        if (!workplace || (!admin && !hasWorkplaceBossPermission(session, workplaceId))) {
+          sendWorkplaceResult(session, "rank", false, "Only this workplace's boss or a faction administrator can change ranks.");
+          return;
+        }
+        if (!Number.isInteger(requestedRank) || newRank < 1 || newRank > (admin ? BOSS_RANK : MAX_STAFF_RANK)) {
+          sendWorkplaceResult(session, "rank", false, admin
+            ? "Administrator ranks must be between 1 and " + BOSS_RANK + "."
+            : "Workplace bosses can assign staff ranks 1 through " + MAX_STAFF_RANK + ".");
           return;
         }
         const target = players.get(targetId);
         const account = target?.account ?? await findAccountById(targetId);
         const targetLife = target?.player.life ?? account?.life;
-        const check = checkRankChange({
-          workplaceId,
-          actorId: session.player.id,
-          actorBossOf: bossWorkplaceOf(world, session.player.id),
-          targetId,
-          targetEmployment: targetLife?.employment ?? null,
-          newRank,
-        });
-        if (!check.ok) {
-          sendWorkplaceResult(session, "rank", false, check.reason);
+        if (!targetLife) {
+          sendWorkplaceResult(session, "rank", false, "That player account could not be found.");
           return;
         }
+
+        if (!admin) {
+          const check = checkRankChange({
+            workplaceId,
+            actorId: session.player.id,
+            actorBossOf: bossWorkplaceOf(world, session.player.id),
+            targetId,
+            targetEmployment: targetLife.employment ?? null,
+            newRank,
+          });
+          if (!check.ok) {
+            sendWorkplaceResult(session, "rank", false, check.reason);
+            return;
+          }
+        } else {
+          // An administrator can assign any player to any listed workplace at any rank.
+          const previousWorkplaceId = targetLife.employment?.workplaceId ?? null;
+          if (previousWorkplaceId && previousWorkplaceId !== workplaceId && world.bosses[previousWorkplaceId] === targetId) {
+            world.bosses[previousWorkplaceId] = null;
+          }
+          if (newRank === BOSS_RANK) {
+            const formerBossId = world.bosses[workplaceId] ?? null;
+            if (formerBossId && formerBossId !== targetId) {
+              await setAccountEmployment(formerBossId, workplaceId, MAX_STAFF_RANK);
+            }
+            world.bosses[workplaceId] = targetId;
+          } else if (world.bosses[workplaceId] === targetId) {
+            world.bosses[workplaceId] = null;
+          }
+        }
+
+        const existingEmployment = targetLife.employment;
+        const employment = {
+          workplaceId,
+          rank: newRank,
+          onDuty: false,
+          lastTaskAt: existingEmployment?.workplaceId === workplaceId ? Number(existingEmployment.lastTaskAt) || 0 : 0,
+        };
         if (target) {
-          target.player.life = { ...target.player.life, employment: { ...target.player.life.employment!, rank: newRank, onDuty: false } };
+          target.player.life = { ...target.player.life, employment };
           target.workTask = null;
           await persistSession(target);
         } else if (account) {
-          account.life = { ...account.life, employment: { ...account.life.employment!, rank: newRank, onDuty: false } };
+          account.life = { ...account.life, employment };
           await saveAccount(account);
         }
-        sendWorkplaceResult(session, "rank", true, "Staff rank updated to " + workplaceRankTitle(workplaceId, newRank) + ".");
-        if (target) sendWorkplaceResult(target, "rank", true, "Your rank is now " + workplaceRankTitle(workplaceId, newRank) + ".");
+        if (admin) await saveWorld();
+        const rankTitle = workplaceRankTitle(workplaceId, newRank);
+        sendWorkplaceResult(session, "rank", true, (target?.player.name ?? account?.username ?? "Staff member") + " assigned to " + rankTitle + " at " + workplace.name + ".");
+        if (target && target.id !== session.player.id) {
+          sendWorkplaceResult(target, "rank", true, "Your role is now " + rankTitle + " at " + workplace.name + ".");
+        }
         broadcastWorkplaceStates();
         return;
       }
