@@ -2783,7 +2783,7 @@ function renderApartmentHall(d,ret){
  A(new THREE.PlaneGeometry(2.5,.55),new THREE.MeshBasicMaterial({map:stairTex,side:THREE.DoubleSide}),-1.2,2.25,-8.8);
  if(floor<floors)pois.push({x:ix-1.2,z:iz-8.4,k:'Climb',name:'Climb stairs to Floor '+(floor+1),t:'apartment-stair',floor:floor+1,r:3.0});
  if(floor>1)pois.push({x:ix-1.2,z:iz-8.4,k:'Descend',name:'Stairs down to Floor '+(floor-1),t:'apartment-stair',floor:floor-1,r:3.0});
- pois.push({x:ix,z:iz+9.9,k:'Exit',name:'Exit to street',t:'apartment-building-exit',r:2.8});
+ if(floor===1)pois.push({x:ix,z:iz+9.9,k:'Exit',name:'Exit to street',t:'apartment-building-exit',r:2.8});
  const prevRet=ret||{x:Number(d.returnX)||0,z:Number(d.returnZ)||24,face:face,camYaw:Math.PI,camPitch:.28};
  inside={name:buildingName,x:ix,z:iz,roomW:18,roomD:22,isApartmentBuilding:true,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentFloor:floor,apartmentFloors:floors,apartmentRooms:numbers,ret:prevRet,pois};
  apartmentPose(d.x??ix,d.z??iz,Math.PI,.08);
