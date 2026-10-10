@@ -8,8 +8,8 @@ The complete scope, sequence, implementation notes, acceptance checks and develo
 |---|---|---|
 | 0 | Repository, server, persistence, CI and deployment foundation | Foundation exists; maintain it |
 | 1 | Accounts, saved life, reconnect and multiplayer visibility | Core code exists; real-player testing remains |
-| 2 | Homes/rent, realistic exterior/interior, private car park, driving exit | **In progress — current focus** |
-| 3 | Workplace/job engine, staff ranks, boss permissions and payouts | **Next only after Stage 2 is tested and approved** |
+| 2 | Homes/rent, realistic exterior/interior, private car park, driving exit | In progress — visual checks and later house additions remain |
+| 3 | Workplace/job engine, staff ranks, boss permissions, factions and payroll | **In progress — user approved; first implementation pass** |
 | 4 | Markets, shops, food and everyday economy | Planned |
 | 5 | Banking, treasury and auditable financial records | Planned |
 | 6 | Health, hospital, pharmacy and recreation | Planned |
