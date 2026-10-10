@@ -27,7 +27,7 @@ export function payForTask(basePay: number, rank: number): number {
 
 export type WorkplaceKind =
   | "market" | "bank" | "hospital" | "park" | "news" | "government"
-  | "police" | "frsc" | "fire" | "military" | "transport";
+  | "police" | "frsc" | "fire" | "military" | "transport" | "school";
 
 export type Workplace = {
   id: string;
@@ -65,6 +65,16 @@ export const WORKPLACES: readonly Workplace[] = [
     id: "hospital-princess", name: "Princess Hospital", kind: "hospital", zone: "Trans Amadi",
     x: 155, z: -126, factionId: "hospital-princess",
     rankTitles: ladder("Hospital Assistant", "Nursing Assistant", "Registered Nurse", "Senior Nurse", "Consultant", "Medical Director"),
+  },
+  {
+    id: "school-primary", name: "Rivers State Primary School", kind: "school", zone: "Waterlines",
+    x: 180, z: 144, factionId: "school-primary",
+    rankTitles: ladder("Classroom Assistant", "Teaching Assistant", "Teacher", "Senior Teacher", "Vice Principal", "Principal"),
+  },
+  {
+    id: "school-secondary", name: "Rivers State Secondary School", kind: "school", zone: "Waterlines",
+    x: 215, z: 144, factionId: "school-secondary",
+    rankTitles: ladder("Teacher Aide", "Assistant Teacher", "Subject Teacher", "Senior Teacher", "Vice Principal", "Principal"),
   },
   {
     id: "park-main", name: "City Park", kind: "park", zone: "Port Harcourt Centre",
@@ -119,7 +129,7 @@ export type Faction = {
   id: string;
   name: string;
   workplaceId: string;
-  category: "commerce" | "medical" | "public-service" | "law-enforcement" | "emergency" | "military" | "media" | "transport";
+  category: "commerce" | "medical" | "public-service" | "law-enforcement" | "emergency" | "military" | "media" | "transport" | "education";
   description: string;
   requiresApproval: boolean;
 };
@@ -129,6 +139,8 @@ export const FACTIONS: readonly Faction[] = [
   { id: "bank", name: "Port Harcourt Bank", workplaceId: "bank-main", category: "commerce", description: "Banking services and branch operations.", requiresApproval: false },
   { id: "hospital-mile1", name: "Mile One General Hospital", workplaceId: "hospital-main", category: "medical", description: "Public hospital care, nursing and emergency support in Mile 1.", requiresApproval: true },
   { id: "hospital-princess", name: "Princess Hospital", workplaceId: "hospital-princess", category: "medical", description: "Hospital care and clinical services along Trans Amadi Road.", requiresApproval: true },
+  { id: "school-primary", name: "Rivers State Primary School", workplaceId: "school-primary", category: "education", description: "Primary education, classroom teaching and school administration.", requiresApproval: true },
+  { id: "school-secondary", name: "Rivers State Secondary School", workplaceId: "school-secondary", category: "education", description: "Secondary education, subject teaching and school administration.", requiresApproval: true },
   { id: "park", name: "City Park Authority", workplaceId: "park-main", category: "public-service", description: "Public spaces, visitor assistance and park operations.", requiresApproval: false },
   { id: "news", name: "Rivers News Network", workplaceId: "news-main", category: "media", description: "Reporting, broadcasting and newsroom operations.", requiresApproval: true },
   { id: "government", name: "Rivers State Government", workplaceId: "gov-rivers", category: "public-service", description: "Civic administration and public service.", requiresApproval: true },
@@ -149,6 +161,7 @@ const TASKS_BY_KIND: Record<WorkplaceKind, readonly WorkplaceTask[]> = {
   market: [{ id: "stock-check", title: "Check market stock", basePay: 1000 }, { id: "customer-assist", title: "Assist customers", basePay: 1400 }],
   bank: [{ id: "account-support", title: "Assist a bank customer", basePay: 1500 }, { id: "cash-reconciliation", title: "Reconcile branch records", basePay: 1900 }],
   hospital: [{ id: "ward-rounds", title: "Complete ward support", basePay: 1800 }, { id: "patient-triage", title: "Assist patient intake", basePay: 2200 }],
+  school: [{ id: "attendance-records", title: "Complete class attendance", basePay: 1300 }, { id: "class-preparation", title: "Prepare classroom materials", basePay: 1800 }],
   park: [{ id: "groundskeeping", title: "Maintain park grounds", basePay: 1000 }, { id: "visitor-assist", title: "Assist park visitors", basePay: 1300 }],
   news: [{ id: "field-report", title: "Prepare a field report", basePay: 1500 }, { id: "news-edit", title: "Edit a news bulletin", basePay: 1900 }],
   government: [{ id: "public-desk", title: "Handle a public-service request", basePay: 1600 }, { id: "document-review", title: "Review official documents", basePay: 2100 }],
