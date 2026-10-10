@@ -2,7 +2,7 @@
 
 ## Golden rule
 
-Do not patch around architectural mistakes.
+**Patches are prohibited as a substitute for root-cause fixes.** Do not stack overrides or workarounds to hide a defect.
 
 If the current approach cannot support the required behavior reliably, stop and redesign the responsible layer before adding more features.
 

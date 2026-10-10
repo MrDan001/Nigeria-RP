@@ -31,6 +31,12 @@ Stage 2 visual acceptance is still pending, and additional houses are intentiona
 
 Faction leadership is server-controlled. Boss appointment uses the optional NRS_FACTION_ADMINS comma-separated username allow-list; a normal client must never be able to claim a faction boss seat.
 
+## Required engineering standard
+
+Patches are prohibited as a substitute for a root-cause fix. Diagnose the authoritative data flow and the component responsible for a defect; repair or rebuild that component, remove stale workaround code, and test the exact failure scenario. Do not modify unrelated roads, roundabouts, saved accounts, controls, economy, or other systems without explicit authorization.
+
+For multiplayer identity labels, test both the local avatar with only one player online and remote avatars with two or more players online. Identity must come from the authenticated session/server snapshot, not from optional or nonexistent DOM nodes. Validate that the renderer attaches the label to the avatar and that the deployed browser is loading the latest client script.
+
 ## Project boundaries
 
 The browser game currently uses Three.js from `services/web-client/index.html`; the game server is TypeScript/WebSocket in `services/game-server/src/server.ts`. The server/database must own valuable state. Vehicle movement still needs server-authoritative simulation before the car system can be called production-ready.

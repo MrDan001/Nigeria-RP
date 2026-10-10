@@ -37,6 +37,14 @@ Browser client → WebSocket → Railway game server → server responses/snapsh
 
 The client may provide presentation and short-term responsiveness, but server state remains authoritative. A rejected route/action must recover its transition overlay and leave the user in a usable state.
 
+## Player identity label contract
+
+The account sync path sets one canonical session identity (id, name, level) from the authenticated server response and publishes it to the local avatar renderer. The local avatar must have a world-space nameplate above its head even when it is the only player online. Remote avatars render the same username/level format from authoritative player snapshots. A visual fix is not accepted until both single-player and two-player cases are verified on a deployed Android browser with fresh client assets.
+
+## No-patches rule
+
+Patches are prohibited as substitutes for root-cause correction. Do not add duplicate render loops, optional-DOM fallbacks, CSS overrides, or alternate identity sources to hide a defect. Trace the identity through authentication, session state, the render object and the actual deployed asset, then correct the canonical component. Preserve unrelated world geometry and gameplay.
+
 ## Source map
 
 - `services/web-client/index.html` — 3D scene, HUD/input, houses/rooms, cars, camera and rendering.
@@ -48,4 +56,4 @@ The client may provide presentation and short-term responsiveness, but server st
 
 ## Current approval gate
 
-Stage 2 (housing, home exits and car-park route) is still active. It must be tested in the deployed game on Android and explicitly approved before Stage 3 work/jobs/ranks begins.
+Stage 3 careers/factions is approved and in progress. Stage 2 visual acceptance remains pending, and more houses are deferred. Fix the current player-nameplate defect at the root before declaring it done; the local-only and remote-player cases must both be tested.

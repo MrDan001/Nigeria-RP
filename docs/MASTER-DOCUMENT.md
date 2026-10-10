@@ -16,7 +16,7 @@ The target is Android first, including affordable devices with approximately 3 G
 6. Persistence must survive disconnects and reconnects.
 7. Security and anti-cheat are architectural requirements.
 8. Performance is designed for low-end Android from the beginning.
-9. No patching broken architecture. Rebuild the correct layer.
+9. **Patches are prohibited as substitutes for root-cause fixes.** Correct or rebuild the canonical state, protocol, or rendering layer; do not stack workarounds.
 10. Major stages require explicit approval before the next stage.
 
 ## 3. First playable slice
@@ -150,7 +150,7 @@ Only after Gate 4 do we expand the production city and additional jobs.
 
 See [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for the complete Stage 0–15 plan, status, detailed acceptance checks, tests, and the next approved task. See [ROADMAP.md](ROADMAP.md) for the quick current-stage summary.
 
-The current active gate is **Stage 2: Homes, rent, exterior/interior architecture and car-park exits**. Do not start Stage 3 workplace/job/rank work until the housing/car-park/camera flows are tested on the deployed Android browser build and explicitly approved by the user.
+The user approved Stage 3 on 10 October 2026. Stage 3 careers/factions and the two requested hospitals are in progress; Stage 2 visual acceptance and later house additions remain outstanding. Patches are prohibited as a way to conceal failures. Trace each defect to its source of truth, fix the responsible component, protect unrelated features, and retest the exact failure on the deployed Android browser build.
 
 ## 13. Definition of done
 

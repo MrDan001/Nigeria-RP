@@ -247,8 +247,17 @@ npm run dev
 
 Use `npm run web:dev` to start the browser workspace directly. Check the package scripts before changing commands.
 
-## 5. Next action today
+## 5. Current authorized focus — 10 October 2026
 
-**Continue Stage 2 only:** rebuild the private garage as a fully enclosed room, make the vehicle stop/honk action reliably open the street route, add the on-foot garage-door menu (street or return to the rented home), and respawn inside the rented home's furnished interior. Run both CI workflows and test on the live Android game. Do not start Stage 3 until the user tests and approves Stage 2.
+Stage 3 has been approved and is in progress. The current user-requested work is to correct the player overhead-nameplate feature at its root, configure the named owner account as a faction administrator, and allow that administrator to assign online players to any workplace/faction rank (1 through 6) across departments. The user should be able to appoint bosses, assign staff ranks, and remove staff through server-validated controls.
 
-The client currently uses generated Three.js geometry for residential and street visuals. Keep the Android performance budget in view and be honest about whether changes have been visually tested on the live deployment.
+The nameplate acceptance test must cover:
+1. One player online: the local avatar shows its authenticated username and current level above the head.
+2. Two or more players online: every player sees the other players' usernames and levels above their avatars.
+3. Reconnect: labels reappear from the newly authenticated server identity.
+4. Deployed Android browser: the cache-busted client assets load the same build that passed CI.
+
+Patches are prohibited as a substitute for root-cause correction. Trace the canonical identity from the server's authenticated player payload into session state and the avatar render object. Do not layer on duplicate loops or optional-DOM guesses to conceal a missing identity. Likewise, diagnose failures in the responsible layer and remove obsolete workarounds rather than stacking fixes.
+
+Preserve the main roads, roundabouts, residential access paths, homes, account progress, money, driving controls and all other unrelated features. Adding more houses is explicitly deferred. Do not claim the result is complete until the build/tests pass and the named visual scenario is checked in the live game.
+

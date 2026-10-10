@@ -14,6 +14,8 @@
     open: false,
     authed: false,
     id: null,
+    name: "",
+    level: 1,
     token: readToken(),
     initialConnection: true,
     resume: false,
@@ -261,8 +263,12 @@
 
   function syncAccount(player) {
     S.id = player.id;
+    S.name = String(player.name || "Player");
+    S.level = Math.max(1, Math.floor(Number(player.level) || 1));
+    N.playerIdentity = { id: S.id, name: S.name, level: S.level };
     S.authed = true;
     writeToken(S.token);
+    window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: N.playerIdentity }));
 
     cash = Number(player.cash) || 0;
     N.cash = cash;
@@ -289,7 +295,7 @@
     face = Number(player.yaw) || Math.PI;
 
     const level = $("top")?.querySelector(".lv");
-    if (level) level.textContent = "LEVEL " + (player.level || 1);
+    if (level) level.textContent = "LEVEL " + S.level;
 
     if ($("cash")) $("cash").textContent = Math.round(cash).toLocaleString();
     if ($("hpv")) $("hpv").textContent = String(Math.round(hp));
@@ -511,6 +517,11 @@
       if (message.type === "authError") {
         if (message.code === "INVALID_SESSION") writeToken("");
         S.authed = false;
+        S.id = null;
+        S.name = "";
+        S.level = 1;
+        N.playerIdentity = null;
+        window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: null }));
         auth.hidden = false;
         setVisible(false);
         $("nrsSubmit").disabled = false;
@@ -650,6 +661,11 @@
       S.resume = S.authed; // was a real session live when the link dropped?
       S.open = false;
       S.authed = false;
+      S.id = null;
+      S.name = "";
+      S.level = 1;
+      N.playerIdentity = null;
+      window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: null }));
 
       for (const id of [...S.remotes.keys()]) remove(id);
 
