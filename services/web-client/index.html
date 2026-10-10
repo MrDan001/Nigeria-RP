@@ -749,8 +749,8 @@ const HR=[[-110,'Trans Amadi Road',-240,240],[70,'Ikwerre Road',-240,240],[-190,
  VR=[[0,'Aba Road',-250,250],[-90,'Old GRA Avenue',-240,70],[90,'Waterlines Road',-110,198]],RB=[[-90,-110],[90,70]];
 /* Hospital building plots are additive and excluded from procedural infill. Main roads/roundabouts remain unchanged. */
 const HOSPITAL_SITES=[
- {id:'hospital-main',name:'Mile One General Hospital',x:-79,z:98,w:12,d:12,h:7,wall:0xd8ccb4,accent:0xb43f3b,trim:0x2e6674,entryX:-79,entryZ:106},
- {id:'hospital-princess',name:'Princess Hospital',x:155,z:-139,w:25,d:20,h:8,wall:0xe1e5e2,accent:0x0f8b91,trim:0x2c5969,entryX:155,entryZ:-126}
+ {id:'hospital-main',name:'Mile One General Hospital',x:-79,z:98,w:12,d:12,h:7,wall:0xd8ccb4,accent:0xb43f3b,trim:0x2e6674,entryX:-79,entryZ:106,leaderTitle:'CHIEF MEDICAL DIRECTOR'},
+ {id:'hospital-princess',name:'Princess Hospital',x:155,z:-139,w:25,d:20,h:8,wall:0xe1e5e2,accent:0x0f8b91,trim:0x2c5969,entryX:155,entryZ:-126,leaderTitle:'MEDICAL DIRECTOR'}
 ];
 /* Added residential access roads. Existing main roads and roundabouts above remain untouched. */
 const LOCAL_ROADS=[
@@ -1131,8 +1131,22 @@ const OUTFITS=[
  {top:0xc94a3a,bottom:0x2b2b2b,shoe:0x222222,short:true,long:false,cap:false},
  {top:0x3a5fa0,bottom:0x1d2a44,shoe:0xcccccc,short:false,long:true,cap:false}];
 const look={o:0,s:0},mat={skin:M(0),top:M(0),bottom:M(0),shoe:M(0),hair:M(0),fore:M(0),shin:M(0),eye:M(0x111111),cap:M(0x101010)};
-let capParts=[],printMesh;
-function dress(){const o=OUTFITS[look.o],sk=SKIN[look.s];
+let capParts=[],printMesh,activeUniformWorkplaceId=null;
+const UNIFORM_LOOKS={
+ 'market-mile1':{top:0x7b2929,bottom:0x282b30,shoe:0x1c1c1c,long:true,cap:false,print:false},
+ 'bank-main':{top:0x172b49,bottom:0x182031,shoe:0x202020,long:true,cap:false,print:false},
+ 'hospital-main':{top:0xf1f2ec,bottom:0x2d5369,shoe:0xe5e9ed,long:true,cap:false,print:false},
+ 'hospital-princess':{top:0xe9f6f6,bottom:0x167f8b,shoe:0xe5e9ed,long:true,cap:false,print:false},
+ 'park-main':{top:0x2e7945,bottom:0x29362b,shoe:0x282828,long:true,cap:true,print:false},
+ 'news-main':{top:0x34354d,bottom:0x202232,shoe:0x242424,long:true,cap:false,print:false},
+ 'gov-rivers':{top:0x8a8f98,bottom:0x29303a,shoe:0x1c1c1c,long:true,cap:false,print:false},
+ 'police-rivers':{top:0x1b345f,bottom:0x14213a,shoe:0x111827,long:true,cap:true,print:false},
+ 'frsc-rivers':{top:0x17744b,bottom:0x243c30,shoe:0x1b231c,long:true,cap:true,print:false},
+ 'fire-rivers':{top:0xc94a21,bottom:0x292c32,shoe:0x202020,long:true,cap:true,print:false},
+ 'army-rivers':{top:0x4e5b2e,bottom:0x3d4827,shoe:0x292719,long:true,cap:true,print:false},
+ 'transport-union':{top:0x286ab1,bottom:0x24272b,shoe:0x252525,long:true,cap:false,print:false}
+};
+function dress(){const uniform=UNIFORM_LOOKS[activeUniformWorkplaceId],o=uniform?{...OUTFITS[look.o],...uniform}:OUTFITS[look.o],sk=SKIN[look.s];
  mat.skin.color.setHex(sk);mat.hair.color.setHex(HAIR[look.s]);mat.top.color.setHex(o.top);mat.bottom.color.setHex(o.bottom);mat.shoe.color.setHex(o.shoe);
  mat.fore.color.setHex(o.long?o.top:sk);mat.shin.color.setHex(o.short?sk:o.bottom);
  capParts.forEach(c=>c.visible=!!o.cap);if(printMesh)printMesh.visible=!!o.print;}
@@ -1549,6 +1563,27 @@ let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
 const mini=(t,x,y,z,w,bg)=>{const board=new THREE.Group();board.position.set(x,y,z);scene.add(board);const geo=new THREE.PlaneGeometry(w,w/4),map=tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);}),mat=new THREE.MeshBasicMaterial({map});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
+const WORKPLACE_SIGNBOARDS={};
+function updateWorkplaceOccupantSigns(workplaces){
+ if(!Array.isArray(workplaces))return;
+ Object.values(WORKPLACE_SIGNBOARDS).forEach(sign=>{
+  const workplace=workplaces.find(w=>w.id===sign.site.id),boss=(workplace?.staff||[]).find(p=>p.boss);
+  const occupant=workplace?.bossName||boss?.name||null,title=boss?.rankTitle||sign.site.leaderTitle||'WORKPLACE HEAD';
+  const ctx=sign.ctx,canvas=sign.canvas;ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#'+Number(sign.site.trim).toString(16).padStart(6,'0');ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='800 27px system-ui';ctx.fillText(sign.site.name.toUpperCase(),canvas.width/2,37,canvas.width-18);
+  const line=occupant?(title.toUpperCase()+': '+occupant):'LEADERSHIP POSITION OPEN';let size=20;ctx.font='800 '+size+'px system-ui';
+  while(size>12&&ctx.measureText(line).width>canvas.width-18){size--;ctx.font='800 '+size+'px system-ui';}
+  ctx.fillStyle=occupant?'#dbf7e7':'#ffe3a3';ctx.fillText(line,canvas.width/2,80,canvas.width-18);
+  ctx.font='600 13px system-ui';ctx.fillStyle='#e4ecf1';ctx.fillText('OFFICIAL FACILITY SIGN',canvas.width/2,108,canvas.width-18);sign.texture.needsUpdate=true;
+ });
+}
+function addWorkplaceOccupantSign(site){
+ const canvas=document.createElement('canvas');canvas.width=640;canvas.height=128;const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+ const sx=site.x+site.w/2+1.25,sz=site.z+site.d/2+2.8;add(new THREE.CylinderGeometry(.065,.09,1.6,8),M(0x68737b),sx,.8,sz);
+ const board=new THREE.Mesh(new THREE.PlaneGeometry(4.8,.96),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide}));board.position.set(sx,2.0,sz);scene.add(board);
+ WORKPLACE_SIGNBOARDS[site.id]={site,canvas,ctx,texture,board};updateWorkplaceOccupantSigns(window.NRS?.workplaces||[]);
+}
 function buildHospital(site){
  building(site.x,site.z,site.w,site.d,site.h,site.wall,-1,.35);
  const front=site.z+site.d/2;
@@ -1607,6 +1642,7 @@ function buildHospital(site){
   add(new THREE.SphereGeometry(.45,10,8),M(0x2f824d),site.x+side*(site.w/2+1.2),.62,front-.5);
  });
  POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
+ addWorkplaceOccupantSign(site);
 }
 HOSPITAL_SITES.forEach(buildHospital);
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
