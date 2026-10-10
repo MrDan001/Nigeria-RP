@@ -168,9 +168,9 @@ const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>>
   "hut-m1-02": { x: -56, z: 87 },
   "hut-m1-03": { x: -41, z: 87 },
   "hut-m1-04": { x: -27, z: 87 },
-  "faceme-m1-01": { x: -67, z: 104 },
-  "faceme-m1-02": { x: -48, z: 104 },
-  "faceme-m1-03": { x: -30, z: 104 },
+  "faceme-m1-01": { x: -67, z: 101 },
+  "faceme-m1-02": { x: -48, z: 101 },
+  "faceme-m1-03": { x: -30, z: 101 },
   // Rumuola homes use two clear rows facing connected residential streets.
   "hut-rum-01": { x: 128, z: -60 },
   "hut-rum-02": { x: 156, z: -60 },
