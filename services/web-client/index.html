@@ -1121,6 +1121,30 @@ function dress(){const o=OUTFITS[look.o],sk=SKIN[look.s];
  capParts.forEach(c=>c.visible=!!o.cap);if(printMesh)printMesh.visible=!!o.print;}
 const player=new THREE.Group();scene.add(player);
 const model=new THREE.Group();player.add(model);
+
+// Local player's overhead identity tag. Remote players use the matching tag in nrs-online.js.
+const ownTagCanvas=document.createElement('canvas');ownTagCanvas.width=512;ownTagCanvas.height=112;
+const ownTagCtx=ownTagCanvas.getContext('2d');
+const ownTagTexture=new THREE.CanvasTexture(ownTagCanvas);ownTagTexture.colorSpace=THREE.SRGBColorSpace;
+const ownTagMaterial=new THREE.SpriteMaterial({map:ownTagTexture,transparent:true,depthTest:false,depthWrite:false});
+const ownTag=new THREE.Sprite(ownTagMaterial);ownTag.scale.set(2.6,.57,1);ownTag.position.set(0,2.18,0);ownTag.renderOrder=51;ownTag.visible=false;player.add(ownTag);
+let ownTagLast='';
+function syncOwnPlayerTag(){
+ const username=($('identity-name')?.textContent||$('player-name')?.value||'').trim();
+ const levelText=$('level-badge')?.textContent||$('top')?.querySelector('.lv')?.textContent||'LEVEL 1';
+ const level=Math.max(1,Math.floor(Number((levelText.match(/\d+/)||[])[0])||1));
+ if(!username){ownTag.visible=false;return;}
+ const key=username+'|'+level;if(key===ownTagLast){ownTag.visible=true;return;}ownTagLast=key;
+ ownTagCtx.clearRect(0,0,512,112);
+ ownTagCtx.fillStyle='rgba(5,14,24,0.88)';ownTagCtx.strokeStyle='rgba(112,219,245,0.9)';ownTagCtx.lineWidth=3;
+ ownTagCtx.beginPath();ownTagCtx.roundRect(8,5,496,102,18);ownTagCtx.fill();ownTagCtx.stroke();
+ ownTagCtx.textAlign='center';ownTagCtx.textBaseline='middle';let fs=36;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
+ while(fs>20&&ownTagCtx.measureText(username).width>462){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
+ ownTagCtx.fillStyle='#fff';ownTagCtx.fillText(username,256,38,464);
+ ownTagCtx.font='800 20px system-ui,sans-serif';ownTagCtx.fillStyle='#92ebff';ownTagCtx.fillText('LEVEL '+level,256,79,460);
+ ownTagTexture.needsUpdate=true;ownTag.visible=true;
+}
+window.setInterval(syncOwnPlayerTag,500);
 const upper=new THREE.Group();upper.position.y=.92;model.add(upper);
 const limb=(len,r,m)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.88,len,8),m);o.position.y=-len/2;return o;};
 add(new THREE.BoxGeometry(.4,.18,.23),mat.bottom,0,.92,0,model);
