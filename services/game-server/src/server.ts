@@ -139,7 +139,9 @@ const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
 const DEBUG_CLOCK = process.env.NRS_DEBUG_CLOCK === "1";
 // Comma-separated account usernames authorised to appoint faction/workplace bosses.
 // Empty by default: leadership can never be claimed by an ordinary client.
-const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
+const normaliseAdminName = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").split(",").map(normaliseAdminName).filter(Boolean));
+const SUPER_ADMIN_USERNAMES = new Set((process.env.NRS_SUPER_ADMINS ?? "").split(",").map(normaliseAdminName).filter(Boolean));
 const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
 
