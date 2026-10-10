@@ -3251,7 +3251,8 @@ window.addEventListener('nrs-apartment-room-rent',e=>{
  const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('You rented Room '+d.roomNumber+'.'));routeTransitionOut();
 });
 window.addEventListener('nrs-apartment-room-lock',e=>{
- const d=e.detail||{};if(!d.ok)return;
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-lock]').forEach(button=>button.disabled=false);return;}
  if(inside?.isApartmentBuilding&&inside.apartmentBuildingId===d.buildingId){
   const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'Apartment room access updated.');routeTransitionOut();return;
  }

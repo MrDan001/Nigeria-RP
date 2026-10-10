@@ -2223,7 +2223,7 @@ wss.on("connection", (socket) => {
           send(socket, { type: "apartmentFloorResult", ok: false, message: "That floor does not exist in this building." }); return;
         }
         session.apartmentFloor = floor;
-        // Place the player on the stair landing, not in the middle of the corridor.
+        // Place the player at the elevator lobby, not in the middle of the corridor.
         session.player.x = APARTMENT_INTERIOR_POSITION.x - 1.2;
         // The elevator lobby interaction is positioned here on every floor.
         session.player.z = APARTMENT_INTERIOR_POSITION.z - 8.4;
