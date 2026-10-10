@@ -556,6 +556,9 @@ export type WorldState = {
   houseLocks: Record<string, boolean>;
   // Pending faction/workplace applications, keyed by workplace ID then account ID.
   workplaceApplications: Record<string, Record<string, number>>;
+  // Explicit administrator role overrides by account ID. true grants a role; false revokes
+  // an environment-listed ordinary admin. Super-admin status is configured separately.
+  factionAdminOverrides: Record<string, boolean>;
   lastDay: string;
 };
 
@@ -565,9 +568,10 @@ export function newWorld(todayKey: string): WorldState {
   const houseTenants: Record<string, string | null> = {};
   const houseLocks: Record<string, boolean> = {};
   const workplaceApplications: Record<string, Record<string, number>> = {};
+  const factionAdminOverrides: Record<string, boolean> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, lastDay: todayKey };
+  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, factionAdminOverrides, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -588,6 +592,11 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
           base.workplaceApplications[workplaceId][accountId] = Math.floor(timestamp);
         }
       }
+    }
+  }
+  if (v.factionAdminOverrides && typeof v.factionAdminOverrides === "object" && !Array.isArray(v.factionAdminOverrides)) {
+    for (const [accountId, enabled] of Object.entries(v.factionAdminOverrides as Record<string, unknown>)) {
+      if (accountId && typeof enabled === "boolean") base.factionAdminOverrides[accountId] = enabled;
     }
   }
   for (const id of Object.keys(base.houseTenants)) {
