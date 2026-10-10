@@ -247,6 +247,15 @@ npm run dev
 
 Use `npm run web:dev` to start the browser workspace directly. Check the package scripts before changing commands.
 
+
+## Administrator role acceptance
+
+- `Dbase_Mccoll` is configured as the superior administrator using server-side `NRS_SUPER_ADMINS`; match usernames case-insensitively.
+- The superior admin can delegate or revoke admin roles for account IDs; role changes survive restart/reconnect.
+- The superior admin and delegated admins can assign workplace ranks 1–6 and appoint bosses; only the superior admin manages the administrator list.
+- Delegated admins cannot change their own workplace rank or manage the superior admin's account.
+- Client-submitted role claims never determine permission. Server role state and the server-only allow-list are authoritative.
+
 ## 5. Current authorized focus — 10 October 2026
 
 Stage 3 has been approved and is in progress. The current user-requested work is to correct the player overhead-nameplate feature at its root, configure the named owner account as a faction administrator, and allow that administrator to assign online players to any workplace/faction rank (1 through 6) across departments. The user should be able to appoint bosses, assign staff ranks, and remove staff through server-validated controls.
