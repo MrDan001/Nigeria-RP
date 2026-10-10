@@ -22,7 +22,8 @@ The browser client uses WebGL 2 as the broad compatibility path and can use WebG
 - Valuable game state is server-authoritative.
 - Android performance is a first-class requirement, including 3 GB RAM devices.
 - Port Harcourt is the first production city.
-- No architectural patching: broken foundations are rebuilt correctly.
+- **Patches are prohibited as substitutes for root-cause fixes.** Rebuild the responsible component when its design is wrong; do not stack overrides or workarounds.
+- Preserve unrelated systems and world geometry unless the user explicitly authorizes changes.
 - Every major stage has an approval gate.
 - The client is a presentation/input layer; the game server owns simulation and validation.
 
