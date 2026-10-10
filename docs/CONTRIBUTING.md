@@ -26,3 +26,8 @@ A button that opens a panel is not a finished feature. A job that only changes a
 ## Approval gates
 
 Do not start the next major roadmap stage until the current gate has been explicitly approved.
+
+
+## Administrator hierarchy
+
+The server-configured superior administrator is controlled by `NRS_SUPER_ADMINS`. Superior administrators can grant/revoke delegated administrator roles, assign players to any workplace at ranks 1–6, and appoint workplace bosses. Delegated administrators can manage workplaces and bosses but cannot grant administrator status, modify their own rank, or override a superior administrator. Persist delegated-role overrides in canonical world state; never trust client claims of administrator status.
