@@ -718,8 +718,16 @@ function syncHouseExteriors(houses){
  if(!Array.isArray(houses))return;
  houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else if(Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});
  for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
- const mine=houses.find(h=>h.occupiedByMe);
- if(mine){const size=HOUSE_SIZES[mine.cls]||HOUSE_SIZES.flat;POI.push({x:mine.x,z:mine.z+size.d/2+2.2,k:"Enter",name:"Enter your "+(HOUSE_LABELS[mine.cls]||"home").toLowerCase(),t:"home",housePoi:true,houseId:mine.id,r:3.5});}
+ // Every property has an entrance interaction. The old code only registered the
+ // rented home for this player, leaving vacant and unlocked estate doors inert for visitors.
+ houses.forEach(h=>{
+  const size=HOUSE_SIZES[h.cls]||HOUSE_SIZES.flat;
+  const door=HOUSE_VISUALS[h.id]?.entrance||{x:Number(h.x),z:Number(h.z)+size.d/2+2.15};
+  const label=(HOUSE_LABELS[h.cls]||"home").toLowerCase();
+  POI.push({x:door.x,z:door.z,k:"Enter",
+   name:h.occupiedByMe?"Enter your "+label:"Inspect "+(h.name||label),
+   t:"home",housePoi:true,houseId:h.id,house:h,r:3.2});
+ });
 }
 let houseVisualCheckT=0;
 function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});}
