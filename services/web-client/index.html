@@ -3124,11 +3124,15 @@ window.addEventListener('nrs-apartment-floor',e=>{
  const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||('Floor '+d.floor));routeTransitionOut();
 });
 window.addEventListener('nrs-apartment-room-enter',e=>{
- const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-enter]').forEach(button=>button.disabled=false);return;}
+ if(!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
  const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('Welcome to Room '+d.roomNumber+'.'));routeTransitionOut();
 });
 window.addEventListener('nrs-apartment-room-rent',e=>{
- const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-rent]').forEach(button=>button.disabled=false);return;}
+ if(!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
  if(d.cash!==undefined){cash=Number(d.cash)||0;money();}
  const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('You rented Room '+d.roomNumber+'.'));routeTransitionOut();
 });
