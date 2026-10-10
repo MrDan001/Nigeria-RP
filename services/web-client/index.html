@@ -564,7 +564,7 @@ const wmat=(c,h)=>wm[c+'|'+h]||(wm[c+'|'+h]=new THREE.MeshLambertMaterial({map:w
 const plain=c=>pm[c]||(pm[c]=M(c));
 function houseAccessCorridorNear(x,z,m){
  return HOUSE_PLOTS.some(h=>{
-  const front=h.cls==='hut'?h.w*.48:h.d/2,start=h.z+front+5.5;
+  const front=h.cls==='hut'?h.w*.48:h.d/2,start=h.z+front+4.1;
   if(h.id.startsWith('hut-m1-'))return Math.abs(x-h.x)<.8+m&&z>=Math.min(start,95.5)-m&&z<=Math.max(start,95.5)+m;
   const street=LOCAL_ROADS.find(r=>r.axis==='h'&&r.zone===h.zone&&r.fixed>h.z);
   if(!street)return false;
@@ -735,7 +735,7 @@ LOCAL_ROADS.forEach(r=>{
 const MILE1_ALLEY_Z=95.5,MILE1_ACCESS_END=116-5.5/2-1.105;
 HOUSE_PLOTS.forEach(h=>{
  const front=h.cls==='hut'?h.w*.48:h.d/2;
- const start=h.z+front+5.5;
+ const start=h.z+front+4.1;
  // The Mile 1 huts sit behind the face-me row. Give them a rear-side shared footpath
  // instead of an asphalt driveway that would cut through the houses in front.
  if(h.id.startsWith('hut-m1-')){
