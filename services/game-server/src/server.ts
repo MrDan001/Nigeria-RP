@@ -1283,6 +1283,14 @@ wss.on("connection", (socket) => {
           return;
         }
         const tenant = world.houseTenants[home.id] ?? null;
+        // Public/visitor entry must be requested from near the physical house. Keep the owner's existing remote home shortcut.
+        if (message.type === "enterHouse") {
+          const dx = session.player.x - home.x, dz = session.player.z - home.z;
+          if (Math.hypot(dx, dz) > 28) {
+            send(socket, { type: "homeInterior", ok: false, message: "Walk to the house entrance before entering." });
+            return;
+          }
+        }
         const isOwner = tenant === session.player.id && session.player.life.homeId === home.id;
         const vacant = tenant === null;
         const locked = !vacant && world.houseLocks[home.id] === true;
@@ -1479,6 +1487,7 @@ wss.on("connection", (socket) => {
         session.inHome = false;
         session.inCarpark = false;
         session.homeReturn = null;
+        session.currentHomeId = null;
         session.carparkVehicle = null;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
@@ -1537,6 +1546,7 @@ wss.on("connection", (socket) => {
         session.inHome = false;
         session.inCarpark = false;
         session.homeReturn = null;
+        session.currentHomeId = null;
         session.player.yaw = 0;
         await persistSession(session);
         send(socket, {
