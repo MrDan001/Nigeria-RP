@@ -628,6 +628,17 @@ export function canManageAdminRoles(role: AdminRole): boolean {
   return role === "main_admin";
 }
 
+export const APARTMENT_RENT_PER_DAY = 1500;
+export const MAX_APARTMENT_PREPAID_DAYS = 7;
+
+export type ApartmentRoomLease = {
+  buildingId: string;
+  roomNumber: number;
+  tenantId: string;
+  prepaidDays: number;
+  lastDay: string;
+};
+
 export type WorldState = {
   v: 1;
   // Boss of each workplace, by account id. Set by hand in the stored data for now.
@@ -638,6 +649,8 @@ export type WorldState = {
   houseTenants: Record<string, string | null>;
   // Persistent owner-selected privacy for each rented home; vacant homes are always visitable.
   houseLocks: Record<string, boolean>;
+  // Multi-tenant apartment-room leases keyed by "<buildingId>:<roomNumber>".
+  apartmentRooms: Record<string, ApartmentRoomLease>;
   // Persistent delegated admins are keyed by immutable account ID; the main admin is derived from identity.
   admins: Record<string, true>;
   // Bounded, durable audit trail for privileged account/workplace changes.
@@ -658,7 +671,7 @@ export function newWorld(todayKey: string): WorldState {
   const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, bossNames, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
+  return { v: 1, bosses, bossNames, houseTenants, houseLocks, apartmentRooms: {}, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -687,6 +700,26 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
     const t = v.houseTenants?.[id];
     if (typeof t === "string" && t) base.houseTenants[id] = t;
     base.houseLocks[id] = v.houseLocks?.[id] === true;
+  }
+  if (v.apartmentRooms && typeof v.apartmentRooms === "object" && !Array.isArray(v.apartmentRooms)) {
+    for (const [key, raw] of Object.entries(v.apartmentRooms as Record<string, unknown>).slice(0, 5000)) {
+      if (!key || key.length > 120 || !raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const lease = raw as Record<string, unknown>;
+      const buildingId = String(lease.buildingId ?? "");
+      const roomNumber = Math.floor(Number(lease.roomNumber));
+      const tenantId = String(lease.tenantId ?? "");
+      const prepaidDays = Math.floor(Number(lease.prepaidDays));
+      const lastDay = String(lease.lastDay ?? "");
+      if (
+        buildingId.length > 0 && buildingId.length <= 90 &&
+        Number.isInteger(roomNumber) && roomNumber >= 101 && roomNumber <= 1008 &&
+        tenantId.length > 0 && tenantId.length <= 160 &&
+        Number.isInteger(prepaidDays) && prepaidDays >= 1 && prepaidDays <= MAX_APARTMENT_PREPAID_DAYS &&
+        /^\d{4}-\d{2}-\d{2}$/.test(lastDay)
+      ) {
+        base.apartmentRooms[key] = { buildingId, roomNumber, tenantId, prepaidDays, lastDay };
+      }
+    }
   }
   if (v.admins && typeof v.admins === "object" && !Array.isArray(v.admins)) {
     for (const [accountId, granted] of Object.entries(v.admins as Record<string, unknown>)) {
