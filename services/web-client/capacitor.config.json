@@ -5,6 +5,9 @@
   "server": {
     "url": "https://nigeria-rp-production.up.railway.app",
     "cleartext": false,
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "allowNavigation": [
+      "nigeria-rp-production.up.railway.app"
+    ]
   }
 }
