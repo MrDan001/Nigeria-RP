@@ -27,6 +27,8 @@ import {
   bossWorkplaceOf,
   findHouse,
   findWorkplace,
+  findShopInterior,
+  shopInteriorPosition,
   workplaceInteriorPosition,
   houseRent,
   newLife,
@@ -110,11 +112,14 @@ type Session = {
   inCarpark: boolean;
   inStaffRoom: boolean;
   inWorkplaceInterior: boolean;
+  inShopInterior: boolean;
   homeReturn: { x: number; z: number } | null;
   staffRoomReturn: { x: number; z: number; yaw?: number } | null;
   workplaceInteriorReturn: { x: number; z: number; yaw?: number } | null;
+  shopInteriorReturn: { x: number; z: number; yaw?: number } | null;
   currentStaffWorkplaceId: string | null;
   currentWorkplaceId: string | null;
+  currentShopId: string | null;
   displayId: string;
   /** House currently being visited; visitors may enter unlocked or vacant homes. */
   currentHomeId?: string | null;
@@ -960,21 +965,27 @@ async function persistSession(session: Session) {
     ? session.homeReturn.x
     : session.inWorkplaceInterior && session.workplaceInteriorReturn
       ? session.workplaceInteriorReturn.x
-      : session.inStaffRoom && session.staffRoomReturn
-        ? session.staffRoomReturn.x
-        : session.player.x;
+      : session.inShopInterior && session.shopInteriorReturn
+        ? session.shopInteriorReturn.x
+        : session.inStaffRoom && session.staffRoomReturn
+          ? session.staffRoomReturn.x
+          : session.player.x;
   account.z = session.inHome && session.homeReturn
     ? session.homeReturn.z
     : session.inWorkplaceInterior && session.workplaceInteriorReturn
       ? session.workplaceInteriorReturn.z
-      : session.inStaffRoom && session.staffRoomReturn
-        ? session.staffRoomReturn.z
-        : session.player.z;
+      : session.inShopInterior && session.shopInteriorReturn
+        ? session.shopInteriorReturn.z
+        : session.inStaffRoom && session.staffRoomReturn
+          ? session.staffRoomReturn.z
+          : session.player.z;
   account.yaw = session.inWorkplaceInterior && session.workplaceInteriorReturn && Number.isFinite(session.workplaceInteriorReturn.yaw)
     ? Number(session.workplaceInteriorReturn.yaw)
-    : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
-      ? Number(session.staffRoomReturn.yaw)
-      : session.player.yaw;
+    : session.inShopInterior && session.shopInteriorReturn && Number.isFinite(session.shopInteriorReturn.yaw)
+      ? Number(session.shopInteriorReturn.yaw)
+      : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
+        ? Number(session.staffRoomReturn.yaw)
+        : session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
   account.level = session.player.level;
@@ -1130,11 +1141,14 @@ wss.on("connection", (socket) => {
       inCarpark: false,
       inStaffRoom: false,
       inWorkplaceInterior: false,
+      inShopInterior: false,
       homeReturn: null,
       staffRoomReturn: null,
       workplaceInteriorReturn: null,
+      shopInteriorReturn: null,
       currentStaffWorkplaceId: null,
       currentWorkplaceId: null,
+      currentShopId: null,
       displayId: allocateDisplayPlayerId(),
       carparkVehicle: null,
       workTask: null,
@@ -2027,6 +2041,69 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "enterShopInterior") {
+        const shopId = String(message.shopId ?? "");
+        const shop = findShopInterior(shopId);
+        if (!shop) {
+          send(socket, { type: "shopInteriorEnterResult", ok: false, message: "That storefront could not be found." });
+          return;
+        }
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior) {
+          send(socket, { type: "shopInteriorEnterResult", ok: false, message: "Exit your current building before entering another one." });
+          return;
+        }
+        if (Math.hypot(session.player.x - shop.x, session.player.z - shop.z) > 18) {
+          send(socket, { type: "shopInteriorEnterResult", ok: false, message: "Walk to " + shop.name + "'s entrance first." });
+          return;
+        }
+        const room = shopInteriorPosition(shopId);
+        session.shopInteriorReturn = { x: session.player.x, z: session.player.z, yaw: session.player.yaw };
+        session.currentShopId = shopId;
+        session.inShopInterior = true;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        session.player.x = room.x;
+        session.player.z = room.z + 3.2;
+        session.player.yaw = Math.PI;
+        await persistSession(session);
+        send(socket, {
+          type: "shopInteriorEnterResult", ok: true, shopId, shopName: shop.name,
+          roomX: room.x, roomZ: room.z, x: session.player.x, z: session.player.z,
+          returnX: session.shopInteriorReturn.x, returnZ: session.shopInteriorReturn.z,
+          returnYaw: session.shopInteriorReturn.yaw,
+          message: "You entered " + shop.name + ". Explore the room and use the marked exit to return outside.",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "exitShopInterior") {
+        if (!session.inShopInterior) {
+          send(socket, { type: "shopInteriorExitResult", ok: false, message: "You are not inside a shop." });
+          return;
+        }
+        const shop = session.currentShopId ? findShopInterior(session.currentShopId) : undefined;
+        const destination = session.shopInteriorReturn ?? { x: shop?.x ?? 0, z: shop?.z ?? 24, yaw: 0 };
+        session.inShopInterior = false;
+        session.currentShopId = null;
+        session.shopInteriorReturn = null;
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        if (Number.isFinite(destination.yaw)) session.player.yaw = Number(destination.yaw);
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        send(socket, {
+          type: "shopInteriorExitResult", ok: true, shopId: shop?.id ?? null,
+          x: session.player.x, z: session.player.z, yaw: session.player.yaw,
+          message: "You are back outside " + (shop?.name ?? "the shop") + ".",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
       if (message.type === "enterWorkplaceInterior") {
         const workplaceId = String(message.workplaceId ?? "");
         const workplace = findWorkplace(workplaceId);
@@ -2034,7 +2111,7 @@ wss.on("connection", (socket) => {
           send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Unknown workplace." });
           return;
         }
-        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark) {
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior) {
           send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Exit your current building before entering another workplace." });
           return;
         }
@@ -2211,7 +2288,7 @@ wss.on("connection", (socket) => {
           ? String(session.player.life.homeId ?? "")
           : String(message.houseId ?? "");
         const home = findHouse(requestedId);
-        if (session.inHome || session.inStaffRoom) {
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark || session.inShopInterior) {
           send(socket, { type: "homeInterior", ok: false, message: "Exit your current interior before entering a house." });
           return;
         }
