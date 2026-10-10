@@ -626,6 +626,7 @@ function apartmentFloorRooms(buildingId: string, floor: number, accountId: strin
       roomNumber,
       vacant: !lease,
       occupiedByMe: lease?.tenantId === accountId,
+      locked: lease?.locked === true,
       prepaidDays: lease?.tenantId === accountId ? lease.prepaidDays : 0,
       rentPerDay: APARTMENT_RENT_PER_DAY,
     };
@@ -2215,7 +2216,7 @@ wss.on("connection", (socket) => {
 
       if (message.type === "changeApartmentFloor") {
         if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId) {
-          send(socket, { type: "apartmentFloorResult", ok: false, message: "Use a staircase from the apartment corridor first." }); return;
+          send(socket, { type: "apartmentFloorResult", ok: false, message: "Use the elevator from the apartment corridor to choose a floor." }); return;
         }
         const floor = Math.floor(Number(message.floor));
         if (!Number.isInteger(floor) || floor < 1 || floor > session.apartmentFloors) {
@@ -2224,8 +2225,8 @@ wss.on("connection", (socket) => {
         session.apartmentFloor = floor;
         // Place the player on the stair landing, not in the middle of the corridor.
         session.player.x = APARTMENT_INTERIOR_POSITION.x - 1.2;
-        // Stand just beyond the decorative upper landing; this game models floor changes in x/z.
-        session.player.z = APARTMENT_INTERIOR_POSITION.z - 1.8;
+        // The elevator lobby interaction is positioned here on every floor.
+        session.player.z = APARTMENT_INTERIOR_POSITION.z - 8.4;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
@@ -2245,18 +2246,24 @@ wss.on("connection", (socket) => {
           send(socket, { type: "apartmentRoomEnterResult", ok: false, message: "Approach a numbered door on your current floor." }); return;
         }
         const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
-        if (!lease || lease.tenantId !== session.player.id) {
-          send(socket, { type: "apartmentRoomEnterResult", ok: false, message: lease ? "That apartment is occupied by another tenant." : "This apartment is vacant. Rent it from the numbered door for ₦1,500 per day." }); return;
+        const isTenant = lease?.tenantId === session.player.id;
+        if (lease?.locked && !isTenant) {
+          send(socket, { type: "apartmentRoomEnterResult", ok: false, message: "Room " + roomNumber + " is locked by its tenant. You cannot enter until it is unlocked." }); return;
         }
+        // Vacant rooms and rented-but-unlocked rooms are open for viewing. Only rent grants tenancy.
         enterApartmentRoom(session, roomNumber);
         await persistSession(session);
         send(socket, {
           type: "apartmentRoomEnterResult", ok: true,
           buildingId, buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
           floors: session.apartmentFloors, roomNumber, rentPerDay: APARTMENT_RENT_PER_DAY,
-          prepaidDays: lease.prepaidDays, roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
+          prepaidDays: isTenant && lease ? lease.prepaidDays : 0,
+          isTenant, preview: !isTenant, locked: lease?.locked === true,
+          roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
           x: session.player.x, z: session.player.z,
-          message: "Welcome to Room " + roomNumber + ". Your apartment tenancy is active.",
+          message: isTenant
+            ? "Welcome to your Apartment Room " + roomNumber + "."
+            : "You are viewing Apartment Room " + roomNumber + ". You are a visitor, not the tenant.",
         });
         return;
       }
@@ -2301,7 +2308,9 @@ wss.on("connection", (socket) => {
         session.player.cash -= cost;
         world.apartmentRooms[key] = {
           buildingId, roomNumber, tenantId: session.player.id,
-          prepaidDays: totalDays, lastDay: current?.tenantId === session.player.id ? current.lastDay : clock.dayKey(),
+          prepaidDays: totalDays,
+          lastDay: current?.tenantId === session.player.id ? current.lastDay : clock.dayKey(),
+          locked: current?.tenantId === session.player.id ? current.locked === true : false,
         };
         await saveWorld();
         enterApartmentRoom(session, roomNumber);
@@ -2311,11 +2320,59 @@ wss.on("connection", (socket) => {
           buildingId, buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
           floors: session.apartmentFloors, roomNumber, rentPerDay: APARTMENT_RENT_PER_DAY,
           prepaidDays: totalDays, cost, cash: session.player.cash,
+          isTenant: true, preview: false, locked: world.apartmentRooms[key].locked,
           roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
           x: session.player.x, z: session.player.z,
           message: "You rented Room " + roomNumber + " for ₦" + cost.toLocaleString("en-NG") + ". Rent costs ₦1,500 per day.",
         });
         for (const other of players.values()) if (other.player.id !== session.player.id && other.apartmentBuildingId === buildingId) sendApartmentFloorState(other, "apartmentFloorResult");
+        return;
+      }
+
+      if (message.type === "setApartmentRoomLock") {
+        const buildingId = String(message.buildingId ?? "");
+        const roomNumber = Math.floor(Number(message.roomNumber));
+        const wantsLock = message.locked === true;
+        const fail = (text: string) => send(socket, {
+          type: "apartmentRoomLockResult", ok: false, buildingId, roomNumber,
+          locked: false, message: text,
+        });
+        if (!session.inApartmentInterior || !session.apartmentBuildingId ||
+            buildingId !== session.apartmentBuildingId || !Number.isInteger(roomNumber) ||
+            roomNumber < 1 || roomNumber > session.apartmentFloors * APARTMENT_ROOMS_PER_FLOOR) {
+          fail("Return to your apartment building and choose one of its numbered rooms."); return;
+        }
+        const inHall = session.apartmentMode === "hall" &&
+          apartmentRoomFloor(roomNumber) === session.apartmentFloor;
+        const inThisRoom = session.apartmentMode === "room" &&
+          session.apartmentRoomNumber === roomNumber;
+        if (!inHall && !inThisRoom) {
+          fail("You can change a room lock from its door or from inside that same apartment."); return;
+        }
+        const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
+        if (!lease || lease.tenantId !== session.player.id) {
+          fail("Only the tenant who rents this room can lock or unlock it."); return;
+        }
+        lease.locked = wantsLock;
+        await saveWorld();
+        const result = {
+          type: "apartmentRoomLockResult", ok: true, buildingId,
+          buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
+          floors: session.apartmentFloors, roomNumber, locked: lease.locked,
+          isTenant: true, rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id),
+          roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
+          x: session.player.x, z: session.player.z, rentPerDay: APARTMENT_RENT_PER_DAY,
+          message: lease.locked
+            ? "Apartment Room " + roomNumber + " is now locked. Visitors cannot enter."
+            : "Apartment Room " + roomNumber + " is now unlocked. Visitors may enter and view it.",
+        };
+        send(socket, result);
+        for (const other of players.values()) {
+          if (other.player.id !== session.player.id && other.apartmentBuildingId === buildingId &&
+              other.apartmentMode === "hall" && other.apartmentFloor === session.apartmentFloor) {
+            sendApartmentFloorState(other, "apartmentFloorResult", result.message);
+          }
+        }
         return;
       }
 
@@ -2340,6 +2397,9 @@ wss.on("connection", (socket) => {
       if (message.type === "exitApartmentBuilding") {
         if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId) {
           send(socket, { type: "apartmentBuildingExitResult", ok: false, message: "Return to the apartment corridor before exiting the building." }); return;
+        }
+        if (session.apartmentFloor !== 1) {
+          send(socket, { type: "apartmentBuildingExitResult", ok: false, message: "Take the elevator to the Ground Floor (Floor 1) before exiting to the street." }); return;
         }
         const buildingId = session.apartmentBuildingId;
         const destination = session.apartmentReturn ?? { x: 0, z: 24, yaw: 0 };

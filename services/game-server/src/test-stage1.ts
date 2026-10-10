@@ -347,6 +347,7 @@ test("apartments: continuous room numbering, independent tenants and legacy leas
     tenantId: "account-one",
     prepaidDays: 3,
     lastDay: today,
+    locked: false,
   };
   world.apartmentRooms["apt-200-300:2"] = {
     buildingId: "apt-200-300",
@@ -354,6 +355,7 @@ test("apartments: continuous room numbering, independent tenants and legacy leas
     tenantId: "account-two",
     prepaidDays: 1,
     lastDay: today,
+    locked: false,
   };
   // A saved old-style lease for room 201 becomes room 11 (Floor 2, first unit).
   world.apartmentRooms["apt-200-300:201"] = {
@@ -362,6 +364,7 @@ test("apartments: continuous room numbering, independent tenants and legacy leas
     tenantId: "legacy-tenant",
     prepaidDays: 2,
     lastDay: today,
+    locked: true,
   };
   const loaded = normalizeWorld(JSON.parse(JSON.stringify(world)), today);
   assert.equal(loaded.apartmentRooms["apt-200-300:1"].tenantId, "account-one");
@@ -369,9 +372,10 @@ test("apartments: continuous room numbering, independent tenants and legacy leas
   assert.equal(loaded.apartmentRooms["apt-200-300:1"].prepaidDays, 3);
   assert.equal(loaded.apartmentRooms["apt-200-300:11"].tenantId, "legacy-tenant");
   assert.equal(loaded.apartmentRooms["apt-200-300:11"].roomNumber, 11);
+  assert.equal(loaded.apartmentRooms["apt-200-300:11"].locked, true);
   loaded.apartmentRooms["apt-200-300:3"] = {
     buildingId: "apt-200-300", roomNumber: 3, tenantId: "bad",
-    prepaidDays: 99, lastDay: today,
+    prepaidDays: 99, lastDay: today, locked: false,
   };
   assert.equal(normalizeWorld(loaded, today).apartmentRooms["apt-200-300:3"], undefined);
 });

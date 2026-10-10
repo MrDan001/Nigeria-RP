@@ -637,6 +637,7 @@ export type ApartmentRoomLease = {
   tenantId: string;
   prepaidDays: number;
   lastDay: string;
+  locked: boolean;
 };
 
 export type WorldState = {
@@ -726,7 +727,7 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
         /^\d{4}-\d{2}-\d{2}$/.test(lastDay)
       ) {
         const normalizedKey = buildingId + ":" + roomNumber;
-        base.apartmentRooms[normalizedKey] = { buildingId, roomNumber, tenantId, prepaidDays, lastDay };
+        base.apartmentRooms[normalizedKey] = { buildingId, roomNumber, tenantId, prepaidDays, lastDay, locked: lease.locked === true };
       }
     }
   }

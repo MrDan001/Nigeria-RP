@@ -638,6 +638,9 @@
       } else if (message.type === "apartmentRoomRentResult") {
         window.dispatchEvent(new CustomEvent("nrs-apartment-room-rent", { detail: message }));
         if (!message.ok && message.message) sys(message.message);
+      } else if (message.type === "apartmentRoomLockResult") {
+        window.dispatchEvent(new CustomEvent("nrs-apartment-room-lock", { detail: message }));
+        if (!message.ok && message.message) sys(message.message);
       } else if (message.type === "apartmentRoomExitResult") {
         if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-exit", { detail: message }));
         else if (message.message) sys(message.message);
@@ -831,6 +834,7 @@
   N.changeApartmentFloor = (floor) => send({ type: "changeApartmentFloor", floor });
   N.enterApartmentRoom = (buildingId, roomNumber) => send({ type: "enterApartmentRoom", buildingId, roomNumber });
   N.rentApartmentRoom = (buildingId, roomNumber, days) => send({ type: "rentApartmentRoom", buildingId, roomNumber, days });
+  N.setApartmentRoomLock = (buildingId, roomNumber, locked) => send({ type: "setApartmentRoomLock", buildingId, roomNumber, locked });
   N.exitApartmentRoom = () => send({ type: "exitApartmentRoom" });
   N.exitApartmentBuilding = () => send({ type: "exitApartmentBuilding" });
   N.enterStaffRoom = (workplaceId) => send({ type: "enterStaffRoom", workplaceId });
