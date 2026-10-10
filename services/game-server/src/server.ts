@@ -2115,6 +2115,10 @@ wss.on("connection", (socket) => {
         }
         const room = staffRoomInteriorPosition(workplaceId);
         const lobby = workplaceInteriorPosition(workplaceId);
+        if (Math.hypot(session.player.x - (lobby.x + 5), session.player.z - (lobby.z + 1.4)) > 3.8) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Approach the staff-only doorway beside reception first." });
+          return;
+        }
         session.staffRoomReturn = { x: session.player.x, z: session.player.z, yaw: session.player.yaw };
         session.currentStaffWorkplaceId = workplaceId;
         session.inStaffRoom = true;
@@ -2122,12 +2126,12 @@ wss.on("connection", (socket) => {
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
         session.player.x = room.x;
-        session.player.z = room.z + 1.7;
+        session.player.z = room.z + 4.0;
         session.player.yaw = Math.PI;
         await persistSession(session);
         send(socket, {
           type: "staffRoomEnterResult", ok: true, workplaceId, workplaceName: workplace.name, workplaceKind: workplace.kind,
-          roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.7,
+          roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 4.0,
           workplaceRoomX: lobby.x, workplaceRoomZ: lobby.z,
           returnX: session.staffRoomReturn.x, returnZ: session.staffRoomReturn.z,
           uniformWorkplaceId: session.player.life.employment?.uniformWorkplaceId ?? null,
@@ -2147,6 +2151,11 @@ wss.on("connection", (socket) => {
         }
         if (!session.inStaffRoom || session.currentStaffWorkplaceId !== workplaceId) {
           sendWorkplaceResult(session, "uniform", false, "Use the changing locker inside your assigned workplace staff room.");
+          return;
+        }
+        const locker = staffRoomInteriorPosition(workplaceId);
+        if (Math.hypot(session.player.x - (locker.x + 2.3), session.player.z - (locker.z + 2.05)) > 3.0) {
+          sendWorkplaceResult(session, "uniform", false, "Approach the uniform counter before changing.");
           return;
         }
         if (!employment || employment.workplaceId !== workplaceId) {
