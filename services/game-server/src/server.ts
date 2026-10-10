@@ -301,8 +301,8 @@ function accountPayload(player: PlayerState) {
 }
 
 function snapshot() {
-  // Private homes, workplace reception areas and changing rooms are hidden from the street.
-  return [...players.values()].filter((session) => !session.inHome && !session.inWorkplaceInterior && !session.inStaffRoom).map((session) => publicPlayer(session.player));
+  // Homes and staff changing rooms are private; workplace reception is shared among visitors and staff.
+  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -2061,7 +2061,8 @@ wss.on("connection", (socket) => {
           uniformWorkplaceId: session.player.life.employment?.uniformWorkplaceId ?? null,
           message: "You entered " + workplace.name + ". Approach reception to speak to the secretary.",
         });
-        broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        // Other people in this reception can now see and interact with this player.
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
         return;
       }
 
@@ -2192,6 +2193,7 @@ wss.on("connection", (socket) => {
           x: session.player.x, z: session.player.z, yaw: session.player.yaw,
           message: "You returned to the workplace reception. You are still inside the building.",
         });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
         return;
       }
 
@@ -2581,9 +2583,12 @@ wss.on("connection", (socket) => {
           send(socket, { type: "playerInteractionResult", ok: false, message: "That player is no longer available." });
           return;
         }
-        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || target.inHome || target.inStaffRoom || target.inWorkplaceInterior ||
+        const sharingReception = session.inWorkplaceInterior && target.inWorkplaceInterior &&
+          !!session.currentWorkplaceId && session.currentWorkplaceId === target.currentWorkplaceId;
+        if (session.inHome || session.inStaffRoom || target.inHome || target.inStaffRoom ||
+            ((session.inWorkplaceInterior || target.inWorkplaceInterior) && !sharingReception) ||
             Math.hypot(session.player.x - target.player.x, session.player.z - target.player.z) > 6) {
-          send(socket, { type: "playerInteractionResult", ok: false, message: "Move close to the player on the shared street before interacting." });
+          send(socket, { type: "playerInteractionResult", ok: false, message: "Move close to the player in the same public area before interacting." });
           return;
         }
         const employment = session.player.life.employment ?? null;
