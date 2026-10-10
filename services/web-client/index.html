@@ -257,8 +257,8 @@ const boxes=[],bld=[];
 const HOUSE_SIZES={hut:{w:5.6,d:6.2,h:2.65},faceme:{w:10.5,d:8.5,h:2.9},flat:{w:11.5,d:10,h:6.3},estate:{w:14,d:11.5,h:3.7},mansion:{w:17,d:14,h:6.2},palace:{w:21,d:17,h:7.2}};
 const HOUSE_ZONE_BOUNDS={"Mile 1 Market":[-85,-12,78,112],"D-Line":[24,85,-100,-14],"Old GRA":[-240,-100,-240,-120],"Trans Amadi":[100,240,-240,-120],"Rumuola":[100,240,-100,60],"Waterlines":[-240,240,115,200]};
 const HOUSE_PLANS=[{cls:"hut",zone:"Mile 1 Market",count:4,tag:"m1"},{cls:"hut",zone:"Rumuola",count:4,tag:"rum"},{cls:"faceme",zone:"Mile 1 Market",count:3,tag:"m1"},{cls:"faceme",zone:"Rumuola",count:3,tag:"rum"},{cls:"flat",zone:"D-Line",count:3,tag:"dl"},{cls:"flat",zone:"Waterlines",count:4,tag:"wl"},{cls:"estate",zone:"Trans Amadi",count:4,tag:"ta"},{cls:"mansion",zone:"Old GRA",count:3,tag:"gra"},{cls:"palace",zone:"Old GRA",count:2,tag:"gra"}];
-const HOUSE_LAYOUT_OVERRIDES={"estate-ta-01":{x:128,z:-228},"estate-ta-02":{x:156,z:-228},"estate-ta-03":{x:184,z:-228},"estate-ta-04":{x:212,z:-228},"palace-gra-01":{x:-228,z:-228},"mansion-gra-01":{x:-200,z:-228},"palace-gra-02":{x:-172,z:-228},"mansion-gra-02":{x:-144,z:-228},"mansion-gra-03":{x:-117,z:-228}};
-function buildHousePlots(){const out=[],seen={};HOUSE_PLANS.forEach(p=>{const b=HOUSE_ZONE_BOUNDS[p.zone],sz=HOUSE_SIZES[p.cls];for(let i=0;i<p.count;i++){const key=p.cls+"-"+p.tag,n=(seen[key]=(seen[key]||0)+1),id=key+"-"+String(n).padStart(2,"0"),t=(i+1)/(p.count+1),override=HOUSE_LAYOUT_OVERRIDES[id];out.push({id,cls:p.cls,x:override?.x??Math.round(b[0]+(b[1]-b[0])*t),z:override?.z??Math.round(b[2]+(b[3]-b[2])*(.3+.4*t)),w:sz.w,d:sz.d});}});return out;}
+const HOUSE_LAYOUT_OVERRIDES={"estate-ta-01":{x:128,z:-228},"estate-ta-02":{x:156,z:-228},"estate-ta-03":{x:184,z:-228},"estate-ta-04":{x:212,z:-228},"palace-gra-01":{x:-228,z:-228},"mansion-gra-01":{x:-200,z:-228},"palace-gra-02":{x:-172,z:-228},"mansion-gra-02":{x:-144,z:-228},"mansion-gra-03":{x:-117,z:-228},"hut-m1-01":{x:-70,z:87},"hut-m1-02":{x:-56,z:87},"hut-m1-03":{x:-41,z:87},"hut-m1-04":{x:-27,z:87},"faceme-m1-01":{x:-67,z:101},"faceme-m1-02":{x:-48,z:101},"faceme-m1-03":{x:-30,z:101},"hut-rum-01":{x:128,z:-60},"hut-rum-02":{x:156,z:-60},"hut-rum-03":{x:184,z:-60},"hut-rum-04":{x:212,z:-60},"faceme-rum-01":{x:135,z:-34},"faceme-rum-02":{x:170,z:-34},"faceme-rum-03":{x:205,z:-34}};
+function buildHousePlots(){const out=[],seen={};HOUSE_PLANS.forEach(p=>{const b=HOUSE_ZONE_BOUNDS[p.zone],sz=HOUSE_SIZES[p.cls];for(let i=0;i<p.count;i++){const key=p.cls+"-"+p.tag,n=(seen[key]=(seen[key]||0)+1),id=key+"-"+String(n).padStart(2,"0"),t=(i+1)/(p.count+1),override=HOUSE_LAYOUT_OVERRIDES[id];out.push({id,cls:p.cls,zone:p.zone,x:override?.x??Math.round(b[0]+(b[1]-b[0])*t),z:override?.z??Math.round(b[2]+(b[3]-b[2])*(.3+.4*t)),w:sz.w,d:sz.d});}});return out;}
 const HOUSE_PLOTS=buildHousePlots();
 
 const winTex=(base,lit,rx,ry)=>tex(256,512,(g,w,h)=>{
@@ -474,8 +474,13 @@ function createHouseExterior(h){
  const plaqueTex=tex(512,128,(ctx,ww,hh)=>{ctx.fillStyle="#20282b";ctx.fillRect(0,0,ww,hh);ctx.strokeStyle="#c7a764";ctx.lineWidth=6;ctx.strokeRect(4,4,ww-8,hh-8);ctx.fillStyle="#f6e6c6";ctx.textAlign="center";ctx.font="bold 35px system-ui";ctx.fillText(HOUSE_LABELS[cls],ww/2,46);ctx.font="bold 25px system-ui";ctx.fillText(String(h.id).toUpperCase()+" · ₦"+Number(h.rentPerDay||0).toLocaleString()+"/DAY",ww/2,84);ctx.font="20px system-ui";ctx.fillStyle=h.occupiedByMe?"#8fd3ff":h.vacant?"#84efb1":"#e9b4a6";ctx.fillText(h.occupiedByMe?"YOUR HOME":h.vacant?"AVAILABLE":"OCCUPIED",ww/2,112);});
  const plaque=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(5.4,w*.7),.9),new THREE.MeshBasicMaterial({map:plaqueTex,side:THREE.DoubleSide}));plaque.position.set(0,Math.min(H+.4,4.0),front+.13);g.add(plaque);
  // Front plot fence, gate posts, two shrubs and a porch lamp.
- const fence=m.trim,fx=w/2+2.2,fz=front+4.8;
- [-1,1].forEach(side=>{A(new THREE.BoxGeometry(.12,1.0,5.1),fence,side*fx,.5,front+3.8);for(let k=0;k<6;k++)A(new THREE.CylinderGeometry(.03,.035,1,6),m.metal,side*fx,.5,front+1.5+k*.82);A(new THREE.BoxGeometry(4.6,.1,.12),fence,side*(w/4+1),.92,fz);for(let k=0;k<5;k++)A(new THREE.CylinderGeometry(.03,.035,.85,6),m.metal,side*(w/4+1)+k*.55,.43,fz);});
+ const fence=m.trim,fx=w/2+2.2,fz=front+4.8,gateGap=Math.max(2.2,Math.min(3.4,w*.25)),fenceSpan=Math.max(.5,(fx*2-gateGap)/2);
+ [-1,1].forEach(side=>{
+  A(new THREE.BoxGeometry(.12,1.0,5.1),fence,side*fx,.5,front+3.8);
+  for(let k=0;k<6;k++)A(new THREE.CylinderGeometry(.03,.035,1,6),m.metal,side*fx,.5,front+1.5+k*.82);
+  const cx=side*(gateGap/2+fenceSpan/2);A(new THREE.BoxGeometry(fenceSpan,.1,.12),fence,cx,.92,fz);
+  for(let x=side<0?-fx+0.45:-gateGap/2+0.45;x<(side<0?-gateGap/2:fx);x+=.62)A(new THREE.CylinderGeometry(.03,.035,.85,6),m.metal,x,.43,fz);
+ });
  [-1,1].forEach(side=>{A(new THREE.BoxGeometry(.14,1.5,.14),m.gold,side*1.6,.75,fz);A(new THREE.SphereGeometry(.25,10,8),m.green,side*(w/2+1.25),1.12,front+2.4);});
  A(new THREE.CylinderGeometry(.075,.1,2.8,8),m.metal,w/2+2.0,1.4,front+1.7);A(new THREE.SphereGeometry(.2,12,10),new THREE.MeshBasicMaterial({color:0xffd69a}),w/2+2.0,2.8,front+1.7);
  A(new THREE.BoxGeometry(3.1,.07,5.4),m.concrete,0,.06,front+4.1);
@@ -483,15 +488,16 @@ function createHouseExterior(h){
  const addCollider=(x,z,hw,hd)=>{const b={x:g.position.x+x,z:g.position.z+z,hw,hd,homeId:h.id};boxes.push(b);bld.push(b);};
  addCollider(-w/2,0,.28,d/2);addCollider(w/2,0,.28,d/2);addCollider(0,-d/2,w/2,.28);
  addCollider(-(w/4+.55),d/2,w/4-.1,.28);addCollider(w/4+.55,d/2,w/4-.1,.28);
- HOUSE_VISUALS[h.id]={group:g,home:h,plaque,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
+ // Keep the front door solid; players enter through the house interaction menu.
+ const doorBlock={x:g.position.x,z:g.position.z+front,hw:.72,hd:.28,homeDoorId:h.id};boxes.push(doorBlock);
+ HOUSE_VISUALS[h.id]={group:g,home:h,plaque,doorBlock,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
  return HOUSE_VISUALS[h.id];
 }
 function syncHouseExteriors(houses){
  if(!Array.isArray(houses))return;
  houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else if(Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});
  for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
- const mine=houses.find(h=>h.occupiedByMe);
- if(mine){const size=HOUSE_SIZES[mine.cls]||HOUSE_SIZES.flat;POI.push({x:mine.x,z:mine.z+size.d/2+2.2,k:"Enter",name:"Enter your "+(HOUSE_LABELS[mine.cls]||"home").toLowerCase(),t:"home",housePoi:true,houseId:mine.id,r:3.5});}
+ houses.forEach(h=>{const size=HOUSE_SIZES[h.cls]||HOUSE_SIZES.flat,front=h.cls==="hut"?size.w*.48:size.d/2;POI.push({x:Number(h.x),z:Number(h.z)+front+2.15,k:"Enter",name:(h.vacant?"View "+(HOUSE_LABELS[h.cls]||"home").toLowerCase():h.occupiedByMe?"Your "+(HOUSE_LABELS[h.cls]||"home").toLowerCase():"Visit "+(HOUSE_LABELS[h.cls]||"home").toLowerCase()),t:"home",housePoi:true,houseId:h.id,r:3.7,house:h});});
 }
 let houseVisualCheckT=0;
 function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});}
@@ -511,6 +517,21 @@ function palm(x,z){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
 /* ---------- Stage 3: Port Harcourt map ---------- */
 const HR=[[-110,'Trans Amadi Road',-240,240],[70,'Ikwerre Road',-240,240],[-190,'Peter Odili Road',-240,240]],
  VR=[[0,'Aba Road',-250,250],[-90,'Old GRA Avenue',-240,70],[90,'Waterlines Road',-110,198]],RB=[[-90,-110],[90,70]];
+/* Added residential access roads. Existing main roads and roundabouts above remain untouched. */
+const LOCAL_ROADS=[
+ {id:'mile1-front',axis:'h',fixed:116,lo:-85,hi:-10,width:5.5,zone:'Mile 1 Market'},
+ {id:'mile1-link',axis:'v',fixed:-7,lo:70,hi:116,width:4},
+ {id:'rumuola-hut-row',axis:'h',fixed:-45,lo:100,hi:240,width:5.5,zone:'Rumuola'},
+ {id:'rumuola-face-row',axis:'h',fixed:-15,lo:100,hi:240,width:5.5,zone:'Rumuola'},
+ {id:'rumuola-link',axis:'v',fixed:235,lo:-45,hi:70,width:5.5},
+ {id:'dline-front',axis:'h',fixed:-32,lo:20,hi:85,width:5.5,zone:'D-Line'},
+ {id:'dline-waterlines-link',axis:'v',fixed:20,lo:-32,hi:192,width:5.5},
+ {id:'waterlines-front',axis:'h',fixed:192,lo:-240,hi:240,width:5.5,zone:'Waterlines'},
+ {id:'oldgra-front',axis:'h',fixed:-208,lo:-240,hi:-97,width:5.5,zone:'Old GRA'},
+ {id:'oldgra-link',axis:'v',fixed:-140,lo:-208,hi:-190,width:5.5},
+ {id:'transamadi-front',axis:'h',fixed:-208,lo:100,hi:240,width:5.5,zone:'Trans Amadi'},
+ {id:'transamadi-link',axis:'v',fixed:160,lo:-208,hi:-190,width:5.5}
+];
 const roadTexture=tex(256,256,(g,w,h)=>{g.fillStyle='#34383b';g.fillRect(0,0,w,h);for(let i=0;i<2200;i++){const v=35+Math.floor(Math.random()*40);g.fillStyle='rgba('+v+','+v+','+v+',0.38)';g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}for(let i=0;i<18;i++){g.strokeStyle='rgba(15,17,19,.18)';g.lineWidth=1;g.beginPath();let x=Math.random()*w,y=Math.random()*h;g.moveTo(x,y);g.lineTo(x+(Math.random()-.5)*50,y+Math.random()*20);g.stroke();}},80,80);
 const sidewalkTexture=tex(256,256,(g,w,h)=>{g.fillStyle='#aaa69b';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=64)for(let x=0;x<w;x+=64){g.strokeStyle='rgba(60,60,55,.24)';g.lineWidth=2;g.strokeRect(x+1,y+1,62,62);}for(let i=0;i<800;i++){const v=100+Math.floor(Math.random()*100);g.fillStyle='rgba('+v+','+v+','+v+',.14)';g.fillRect(Math.random()*w,Math.random()*h,2,2);}},4,80);
 const asp=new THREE.MeshLambertMaterial({map:roadTexture,color:0x9a9a9a}),swm=new THREE.MeshLambertMaterial({map:sidewalkTexture,color:0xffffff}),wht=M(0xe8e5da),yellow=M(0xe4bf42),curb=M(0xd1cdc2),isRB=(x,z)=>RB.some(b=>x===b[0]&&z===b[1]);
@@ -541,7 +562,7 @@ flat(8,40,M(0x7a5c3c),90,.08,185);[[-60,0xc94a3a],[20,0x2b5b3a],[140,0xd9b13a]].
 let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647,wm={},pm={};
 const wmat=(c,h)=>wm[c+'|'+h]||(wm[c+'|'+h]=new THREE.MeshLambertMaterial({map:winTex('#'+c.toString(16).padStart(6,'0'),.35,2,Math.max(1,Math.round(h/7)))}));
 const plain=c=>pm[c]||(pm[c]=M(c));
-function roadNear(x,z,m){return HR.some(r=>Math.abs(z-r[0])<8+m&&x>r[2]-10&&x<r[3]+10)||VR.some(r=>Math.abs(x-r[0])<8+m&&z>r[2]-10&&z<r[3]+10)||RB.some(b=>Math.hypot(x-b[0],z-b[1])<24+m);}
+function roadNear(x,z,m){return HR.some(r=>Math.abs(z-r[0])<8+m&&x>r[2]-10&&x<r[3]+10)||VR.some(r=>Math.abs(x-r[0])<8+m&&z>r[2]-10&&z<r[3]+10)||RB.some(b=>Math.hypot(x-b[0],z-b[1])<24+m)||LOCAL_ROADS.some(r=>r.axis==='h'?Math.abs(z-r.fixed)<r.width/2+m&&x>r.lo-4&&x<r.hi+4:Math.abs(x-r.fixed)<r.width/2+m&&z>r.lo-4&&z<r.hi+4);}
 
 /* ---------- Streetworks v2: junction markings, kerbs, roundabouts and street lamps ---------- */
 (function(){
@@ -683,6 +704,29 @@ function roadNear(x,z,m){return HR.some(r=>Math.abs(z-r[0])<8+m&&x>r[2]-10&&x<r[
  flush();
 })();
 
+/* Residential lanes layer onto the world independently; no existing main road/roundabout geometry is replaced. */
+LOCAL_ROADS.forEach(r=>{
+ const len=r.hi-r.lo,mid=(r.lo+r.hi)/2,half=r.width/2;
+ if(r.axis==='h'){
+  flatW(len,r.width,asphalt2,mid,.052,r.fixed,8);
+  flat(len,1.05,swm,mid,.045,r.fixed-half-.58);flat(len,1.05,swm,mid,.045,r.fixed+half+.58);
+  flat(len,.12,curb,mid,.095,r.fixed-half);flat(len,.12,curb,mid,.095,r.fixed+half);
+  for(let t=r.lo+6;t<r.hi-2;t+=13)flat(2.25,.095,wht,t,.09,r.fixed);
+ }else{
+  flatW(r.width,len,asphalt2,r.fixed,.052,mid,8);
+  flat(1.05,len,swm,r.fixed-half-.58,.045,mid);flat(1.05,len,swm,r.fixed+half+.58,.045,mid);
+  flat(.12,len,curb,r.fixed-half,.095,mid);flat(.12,len,curb,r.fixed+half,.095,mid);
+  for(let t=r.lo+6;t<r.hi-2;t+=13)flat(.095,2.25,wht,r.fixed,.09,t);
+ }
+});
+/* Each registered rental home receives a paved approach linking the front apron to its district street. */
+HOUSE_PLOTS.forEach(h=>{
+ const street=LOCAL_ROADS.find(r=>r.axis==='h'&&r.zone===h.zone&&r.fixed>h.z);
+ if(!street)return;
+ const front=h.cls==='hut'?h.w*.48:h.d/2;
+ const start=h.z+front+6.8,end=street.fixed-street.width/2-.18,depth=end-start;
+ if(depth>.85)flatW(3.0,depth,asphalt2,h.x,.058,(start+end)/2,6);
+});
 for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx,gz)||DEF;if(rnd()>Z.d)continue;
  const R=a=>Math.round(a[0]+rnd()*(a[1]-a[0])),w=R(Z.w),d=R(Z.w),h=R(Z.h),x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,c=Z.cols[Math.floor(rnd()*Z.cols.length)];
  if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
@@ -1037,7 +1081,7 @@ function routeTransitionIn(){clearTimeout(routeFadeTimer);routeFade.style.opacit
 function routeTransitionOut(){clearTimeout(routeFadeTimer);routeFadeTimer=setTimeout(()=>{routeFade.style.opacity='0';},280);}
 function panel(h){modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';};}
 
-function openExitRouteMenu(){if(!inside)return;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. In the private car park, select an owned car, drive to the striped gate, stop, and hold the horn to join the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button><button data-exit-route="carpark">🚗 Go to the private car park<br><small>Spawn one of your cars and drive out.</small></button>');}
+function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!inside.home?.isOwner;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. Use the marked front entrance to return to the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Go to your private car park<br><small>Spawn one of your cars and drive out.</small></button>':'')+'');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
 function garageRoom(d){
  const existing=HOME_ROOMS.__privateGarage;
@@ -1130,6 +1174,12 @@ function openGarageFootExitMenu(){
 function openGarageSpawnMenu(){const N=window.NRS||{},life=N.life||{},owned=new Set(life.ownedCars||[]),list=cars.filter(c=>c.kind!=="t"&&c.id&&owned.has(c.id));const names={c0:"Black executive saloon",c1:"Red city saloon",c2:"Blue family saloon",c3:"Silver luxury saloon",c4:"Black premium saloon"};panel('<b>🚘 Private car park</b><p class="route-copy">Select one of your cars. It spawns in a numbered bay. Drive slowly to the enclosed garage door, stop completely and hold the horn to open the gate and enter the street.</p>'+list.map(c=>'<button data-garage-car="'+c.id+'">🚗 '+(names[c.id]||("Vehicle "+c.id))+'<br><small>'+c.id.toUpperCase()+' · Fuel '+Math.round(c.fuel||0)+' L</small></button>').join('')+(list.length?'':'<p>No owned vehicles are available.</p>'));}
 
 modal.addEventListener('click',e=>{
+ const lockButton=e.target.closest('[data-house-lock]');
+ if(lockButton){const N=window.NRS;if(N?.setHouseLock){const id=lockButton.dataset.houseLock,locked=lockButton.dataset.houseLockTo==='true';modal.style.display='none';modal.innerHTML='';N.setHouseLock(id,locked);}return;}
+ const visitButton=e.target.closest('[data-house-visit]');
+ if(visitButton){const N=window.NRS;if(N?.enterHouse){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';N.enterHouse(visitButton.dataset.houseVisit);}else sys('House access is not connected yet.');return;}
+ const rentButton=e.target.closest('[data-house-rent]');
+ if(rentButton){const N=window.NRS;if(N?.rentHouse&&!rentButton.disabled){const id=rentButton.dataset.houseRent,days=Number(modal.querySelector('#houseRentDays')?.value||1);modal.style.display='none';modal.innerHTML='';N.rentHouse(id,days);}return;}
  const garageRoute=e.target.closest('[data-garage-route]')?.dataset.garageRoute;
  if(garageRoute&&inside?.isCarpark&&!driving){
   const N=window.NRS;
@@ -1138,7 +1188,7 @@ modal.addEventListener('click',e=>{
   N.exitCarparkOnFoot(garageRoute);return;
  }
  const route=e.target.closest('[data-exit-route]')?.dataset.exitRoute;
- if(route){if(route==='street')returnToStreetFromRoom();else{const N=window.NRS;if(N&&N.enterCarpark){routeTransitionIn();modal.style.display='none';modal.innerHTML='';N.enterCarpark();}}return;}
+ if(route){if(route==='street')returnToStreetFromRoom();else{if(!inside?.isHome||!inside.home?.isOwner){sys('Only the owner can use this private car park.');return;}const N=window.NRS;if(N&&N.enterCarpark){routeTransitionIn();modal.style.display='none';modal.innerHTML='';N.enterCarpark();}}return;}
  const carId=e.target.closest('[data-garage-car]')?.dataset.garageCar;
  if(carId&&inside?.isCarpark){
   const c=cars.find(v=>v.id===carId&&v.kind!=='t');
@@ -1347,7 +1397,7 @@ beacon.visible=false;scene.add(beacon);
 const HOME_ROOMS=Object.create(null);
 function homeRoom(d){
  const h=d.home||{},id=String(h.id||'my-home');
- if(HOME_ROOMS[id])return HOME_ROOMS[id];
+ if(HOME_ROOMS[id]){HOME_ROOMS[id].home=h;return HOME_ROOMS[id];}
  const ix=Number(d.roomX)||280,iz=Number(d.roomZ)||280,cls=h.cls||'flat';
  const plans={
   hut:{w:8.2,d:8.0,height:2.8,wall:0xbba07c,floor:0x8b7150,wood:0x65462e,soft:0xd2b48c,trim:0x5f412c,accent:0x9a7448},
@@ -1493,7 +1543,7 @@ function homeRoom(d){
  addCollider(-doorW/2-frontSeg/2,frontZ,frontSeg/2,.12);
  addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
  mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
- return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
+ return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),home:h,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
 }
 const ROOMS={};
 function room(p){if(ROOMS[p.id])return ROOMS[p.id];
@@ -1511,9 +1561,22 @@ function room(p){if(ROOMS[p.id])return ROOMS[p.id];
  return ROOMS[p.id]={name:p.name,x:ix,z:iz,cb:{x:ix,z:iz-2,hw:2.6,hd:.6},pois};}
 function enterRoom(p){const r=room(p);r.ret={x:p.x,z:p.z,sx:p.sx};inside=r;pos.set(r.x,0,r.z+3.2);vel.set(0,0,0);face=Math.PI;camYaw=0;camPitch=.3;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
 function leaveRoom(){if(!inside)return;openExitRouteMenu();}
+function openHouseMenu(h){
+ const N=window.NRS||{},houses=N.houses||[],latest=houses.find(q=>q.id===h?.id)||h;
+ if(!latest)return;h=latest;
+ const life=N.life||{},own=!!h.occupiedByMe,vacant=!!h.vacant,locked=!!h.locked;
+ const canVisit=own||vacant||!locked,canRent=vacant&&(!life.homeId||life.homeId===h.id);
+ const daysLeft=Math.max(1,7-(own?Number(life.rentDays||0):0));
+ const days=Array.from({length:Math.min(7,daysLeft)},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+'</option>').join('');
+ const state=own?(locked?'LOCKED · OWNER ACCESS':'YOUR HOME · OPEN'):vacant?'VACANT · OPEN FOR VIEWING':locked?'LOCKED BY OWNER':'OCCUPIED · VISITORS ALLOWED';
+ const gate=own?'<button data-house-lock="'+h.id+'" data-house-lock-to="'+(!locked)+'">'+(locked?'🔓 Unlock house':'🔒 Lock house')+'</button>':'';
+ const visit=canVisit?'<button data-house-visit="'+h.id+'">🚪 Enter and inspect</button>':'<button disabled>🔒 House locked</button><p>Only the owner can unlock this house.</p>';
+ const rent=vacant?'<p><label>Rent duration <select id="houseRentDays">'+days+'</select></label></p><button data-house-rent="'+h.id+'" '+(canRent?'':'disabled')+'>🏠 Rent this house</button>'+(canRent?'':'<p>You already rent another house or have reached the prepaid-rent limit.</p>'):'';
+ panel('<b>🏠 '+(h.name||'House')+'</b><p>'+String(h.zone||'Port Harcourt')+' · '+h.id+'</p><p><b>'+state+'</b></p><p>Rent: ₦'+Number(h.rentPerDay||0).toLocaleString('en-NG')+' per day</p>'+visit+gate+rent);
+}
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
  if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
-act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.k==='Enter'&&p.housePoi){const N=window.NRS;if(N&&N.enterHome){routeTransitionIn();N.enterHome();}return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
+act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.k==='Enter'&&p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
 /* bank + ATM */
 function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
