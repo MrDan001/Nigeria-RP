@@ -753,6 +753,10 @@ const HOSPITAL_SITES=[
  {id:'hospital-main',name:'Mile One General Hospital',x:-79,z:98,w:12,d:12,h:7,wall:0xd8ccb4,accent:0xb43f3b,trim:0x2e6674,entryX:-79,entryZ:106,leaderTitle:'CHIEF MEDICAL DIRECTOR'},
  {id:'hospital-princess',name:'Princess Hospital',x:155,z:-139,w:25,d:20,h:8,wall:0xe1e5e2,accent:0x0f8b91,trim:0x2c5969,entryX:155,entryZ:-126,leaderTitle:'MEDICAL DIRECTOR'}
 ];
+const SCHOOL_SITES=[
+ {id:'school-primary',name:'Rivers State Primary School',x:180,z:135,w:20,d:18,h:6,wall:0xdacaa2,accent:0x297a52,trim:0x6e4b2e,entryX:180,entryZ:144,leaderTitle:'PRINCIPAL'},
+ {id:'school-secondary',name:'Rivers State Secondary School',x:215,z:135,w:20,d:18,h:7,wall:0xc9d0d3,accent:0x315f95,trim:0x38495e,entryX:215,entryZ:144,leaderTitle:'PRINCIPAL'}
+];
 /* Added residential access roads. Existing main roads and roundabouts above remain untouched. */
 const LOCAL_ROADS=[
  {id:'mile1-front',axis:'h',fixed:116,lo:-85,hi:-10,width:5.5,zone:'Mile 1 Market'},
@@ -999,7 +1003,7 @@ flatW(73,1.4,swm,-48.5,.066,MILE1_ALLEY_Z,4);
 });
 for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx,gz)||DEF;if(rnd()>Z.d)continue;
  const R=a=>Math.round(a[0]+rnd()*(a[1]-a[0])),w=R(Z.w),d=R(Z.w),h=R(Z.h),x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,c=Z.cols[Math.floor(rnd()*Z.cols.length)];
- if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
+ if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||SCHOOL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
  const f=wmat(c,h),p=plain(c);add(new THREE.BoxGeometry(w,h,d),[f,f,p,p,f,f],x,h/2,z);const b={x,z,hw:w/2,hd:d/2,h,c,gen:true};boxes.push(b);bld.push(b);}
 for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4)&&!boxes.some(b=>Math.abs(x-b.x)<b.hw+2&&Math.abs(z-b.z)<b.hd+2))palm(x,z);}
 /* ---------- Building detailing: plinth, cornice, parapet, roof equipment, entrances ---------- */
@@ -1145,7 +1149,9 @@ const UNIFORM_LOOKS={
  'frsc-rivers':{top:0x17744b,bottom:0x243c30,shoe:0x1b231c,long:true,cap:true,print:false},
  'fire-rivers':{top:0xc94a21,bottom:0x292c32,shoe:0x202020,long:true,cap:true,print:false},
  'army-rivers':{top:0x4e5b2e,bottom:0x3d4827,shoe:0x292719,long:true,cap:true,print:false},
- 'transport-union':{top:0x286ab1,bottom:0x24272b,shoe:0x252525,long:true,cap:false,print:false}
+ 'transport-union':{top:0x286ab1,bottom:0x24272b,shoe:0x252525,long:true,cap:false,print:false},
+ 'school-primary':{top:0x27794d,bottom:0x263c31,shoe:0x202020,long:true,cap:false,print:false},
+ 'school-secondary':{top:0x2c5489,bottom:0x27364c,shoe:0x202020,long:true,cap:false,print:false}
 };
 function dress(){const uniform=UNIFORM_LOOKS[activeUniformWorkplaceId],o=uniform?{...OUTFITS[look.o],...uniform}:OUTFITS[look.o],sk=SKIN[look.s];
  mat.skin.color.setHex(sk);mat.hair.color.setHex(HAIR[look.s]);mat.top.color.setHex(o.top);mat.bottom.color.setHex(o.bottom);mat.shoe.color.setHex(o.shoe);
@@ -1651,7 +1657,29 @@ function buildHospital(site){
  POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
  addWorkplaceOccupantSign(site);
 }
+function buildSchool(site){
+ building(site.x,site.z,site.w,site.d,site.h,site.wall,-1,.38);
+ const front=site.z+site.d/2,wall=M(site.wall),trim=M(site.trim),accent=M(site.accent),glass=new THREE.MeshLambertMaterial({color:0x8eb4c8,emissive:0x0c1b22,transparent:true,opacity:.9});
+ add(new THREE.BoxGeometry(site.w+.45,.34,site.d+.45),trim,site.x,.28,site.z);
+ add(new THREE.BoxGeometry(site.w+.6,.2,site.d+.6),accent,site.x,site.h+.12,site.z);
+ add(new THREE.BoxGeometry(2.5,2.8,.14),trim,site.x,1.43,front+.14);
+ add(new THREE.BoxGeometry(2.0,2.4,.1),glass,site.x,1.38,front+.23);
+ add(new THREE.BoxGeometry(.12,2.4,.14),wall,site.x,1.35,front+.3);
+ [-1,1].forEach(side=>{for(let i=0;i<3;i++){
+  const x=site.x+side*(4.1+i*2.8),y=2.35+(i%2)*.1;
+  add(new THREE.BoxGeometry(1.7,1.35,.1),trim,x,y,front+.1);
+  add(new THREE.BoxGeometry(1.46,1.12,.08),glass,x,y,front+.17);
+  add(new THREE.BoxGeometry(1.46,.04,.1),wall,x,y,front+.22);
+ }});
+ add(new THREE.BoxGeometry(site.w*.42,.23,2.2),trim,site.x,site.h-.1,front+.85);
+ add(new THREE.BoxGeometry(site.w*.38,.16,2.0),accent,site.x,site.h,front+.9);
+ // A private pedestrian approach joins the existing Waterlines road edge without changing its geometry.
+ flatW(3.8,45,swm,site.x,.061,166.5,5);
+ POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
+ addWorkplaceOccupantSign(site);
+}
 HOSPITAL_SITES.forEach(buildHospital);
+SCHOOL_SITES.forEach(buildSchool);
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]]],
  [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000]]],
