@@ -2039,7 +2039,12 @@ wss.on("connection", (socket) => {
 
       if (message.type === "changeWorkUniform") {
         const workplaceId = String(message.workplaceId ?? "");
+        const workplace = findWorkplace(workplaceId);
         const employment = session.player.life.employment ?? null;
+        if (!workplace) {
+          sendWorkplaceResult(session, "uniform", false, "Unknown workplace.");
+          return;
+        }
         if (!session.inStaffRoom || session.currentStaffWorkplaceId !== workplaceId) {
           sendWorkplaceResult(session, "uniform", false, "Use the changing locker inside your assigned workplace staff room.");
           return;
