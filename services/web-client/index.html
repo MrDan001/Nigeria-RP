@@ -225,6 +225,11 @@ body.drv #camB{display:grid}
 @media(max-width:720px){#modal.work-menu .wm-cards{grid-template-columns:1fr;max-height:calc(88vh - 10rem)}}
 @media(max-height:520px){#modal.work-menu{max-height:92vh}#modal.work-menu .wm-cards{max-height:calc(92vh - 9rem)}#modal.work-menu .wm-head{padding:.55rem .8rem}#modal.work-menu .wm-current{margin:.45rem .8rem;padding:.45rem .6rem}#modal.work-menu .wm-section-title{margin:.1rem .8rem .35rem}#modal.work-menu .wm-cards{padding:0 .8rem .6rem;gap:.45rem}}
 
+
+#modal.work-menu .wm-admin-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.4rem;margin:.45rem 0}
+#modal.work-menu .wm-admin-controls select{min-width:0;width:100%;border:1px solid rgba(255,255,255,.18);border-radius:.45rem;background:#182d40;color:#fff;padding:.5rem;font-size:.67rem}
+#modal.work-menu .wm-admin-buttons{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+#modal.work-menu .wm-admin-tag{flex:none;padding:.2rem .35rem;border:1px solid rgba(93,180,247,.25);border-radius:.3rem;color:#8fd0ff;font-size:.52rem;font-weight:900}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -1948,14 +1953,16 @@ function renderWorkplaceMenu(data){
   else if(employment){actions+='<button class="subtle" disabled>Leave your current job first</button>';}
   else {actions+='<button data-work-apply="'+w.id+'">'+(w.requiresApproval?'Apply to faction':'Join workplace')+'</button>';}
   let management='';
-  if(ownBoss){
+  if(data.isFactionAdmin){
+   const targets=online.map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+(p.workplaceId?' — '+safeText(places.find(q=>q.id===p.workplaceId)?.name||p.workplaceId):' — unemployed')+'</option>').join('');
+   const ranks=(w.rankTitles||[]).map((titles,i)=>'<option value="'+(i+1)+'">Rank '+(i+1)+' — '+safeText(titles?.[0]||('Rank '+(i+1)))+'</option>').join('');
+   const staff=(w.staff||[]).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>'+safeText(p.rankTitle)+' · Rank '+p.rank+(p.onDuty?' · On duty':'')+'</small></span><span class="wm-admin-tag">'+(p.boss?'BOSS':'STAFF')+'</span></div>').join('');
+   management='<div class="wm-management"><h4>GLOBAL ADMIN CONTROLS</h4><p class="wm-note">Full faction administration: assign any online player to this workplace and choose any rank from 1 to 6.</p><div class="wm-admin-controls">'+(targets?'<select data-admin-target aria-label="Choose player">'+targets+'</select>':'<p class="wm-note">No online players are available.</p>')+'<select data-admin-rank-value aria-label="Choose rank">'+ranks+'</select><div class="wm-admin-buttons"><button data-admin-set-rank="'+w.id+'" '+(!targets?'disabled':'')+'>Assign workplace & rank</button><button class="subtle" data-admin-dismiss="'+w.id+'" '+(!targets?'disabled':'')+'>Remove from workplace</button></div></div><button data-admin-set-rank="'+w.id+'" data-rank-fixed="6" '+(!targets?'disabled':'')+'>Appoint selected player as boss (Rank 6)</button><h4>ONLINE STAFF</h4>'+(staff||'<p class="wm-note">No online staff currently belong to this workplace.</p>')+'</div>';
+  }else if(ownBoss){
    const staff=(w.staff||[]).filter(p=>p.id!==window.NRS?.session?.id && p.rank<6).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>'+safeText(p.rankTitle)+' · Rank '+p.rank+(p.onDuty?' · On duty':'')+'</small></span><div>'+(p.rank<5?'<button data-staff-rank="'+safeText(p.id)+'" data-rank="'+(p.rank+1)+'">Promote</button>':'')+(p.rank>1?'<button class="subtle" data-staff-rank="'+safeText(p.id)+'" data-rank="'+(p.rank-1)+'">Demote</button>':'')+'<button class="danger" data-staff-dismiss="'+safeText(p.id)+'">Dismiss</button></div></div>').join('');
    const applications=(w.applications||[]).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>Application submitted</small></span><div><button data-app-review="'+safeText(p.id)+'" data-approve="1">Accept</button><button class="danger" data-app-review="'+safeText(p.id)+'" data-approve="0">Decline</button></div></div>').join('');
    const free=online.filter(p=>!p.workplaceId&&p.id!==window.NRS?.session?.id).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+'</option>').join('');
    management='<div class="wm-management"><h4>Staff management</h4>'+(staff||'<p class="wm-note">No other online staff yet.</p>')+(applications?'<h4>Applications</h4>'+applications:'')+(free?'<div class="wm-hire"><select id="wmHirePlayer">'+free+'</select><button data-staff-hire="1">Hire player</button></div>':'')+'</div>';
-  }else if(data.isFactionAdmin){
-   const players=online.filter(p=>p.id!==window.NRS?.session?.id).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+(p.workplaceId?' — '+safeText(p.workplaceId):' — unemployed')+'</option>').join('');
-   management='<div class="wm-management"><h4>Server faction administration</h4><p class="wm-note">Admin allow-list is active for this account.</p>'+(players?'<div class="wm-hire"><select id="wmBossPlayer">'+players+'</select><button data-appoint-boss="'+w.id+'">Appoint boss</button></div>':'<p class="wm-note">No other online accounts are available.</p>')+'</div>';
   }
   const faction=w.faction||{};
   return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
@@ -1974,6 +1981,8 @@ modal.addEventListener('click',e=>{
  if(d.workTaskStart){N.startWorkTask(d.workTaskStart);return;}
  if(d.workTaskComplete){N.completeWorkTask();return;}
  if(d.appReview){const card=b.closest('.wm-card'),workplace=placesFromCard(card);if(workplace)N.approveWorkplaceApplication(workplace,d.appReview,d.approve==='1');return;}
+ if(d.adminSetRank){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value,rank=d.rankFixed?Number(d.rankFixed):Number(card?.querySelector('[data-admin-rank-value]')?.value);if(target)N.setStaffRank(d.adminSetRank,target,rank);return;}
+ if(d.adminDismiss){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value;if(target)N.dismissWorkplaceStaff(d.adminDismiss,target);return;}
  if(d.staffHire){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);const select=$('wmHirePlayer');if(workplace&&select?.value)N.hireWorkplaceStaff(workplace.id,select.value);return;}
  if(d.staffDismiss){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);if(workplace)N.dismissWorkplaceStaff(workplace.id,d.staffDismiss);return;}
  if(d.staffRank){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);if(workplace)N.setStaffRank(workplace.id,d.staffRank,Number(d.rank));return;}
