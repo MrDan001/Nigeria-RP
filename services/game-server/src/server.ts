@@ -36,6 +36,10 @@ import {
   workplaceRankTitle,
   workplaceTasks,
   settleLife,
+  MAIN_ADMIN_USERNAME,
+  resolveAdminRole,
+  canManageAdminRoles,
+  type AdminAuditAction,
   type CarparkVehicleTrack,
   type Life,
   type Workplace,
@@ -140,6 +144,9 @@ const DEBUG_CLOCK = process.env.NRS_DEBUG_CLOCK === "1";
 // Comma-separated account usernames authorised to appoint faction/workplace bosses.
 // Empty by default: leadership can never be claimed by an ordinary client.
 const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
+// Optional email binding protects the root account when its initial account is registered.
+// If unset, an already-existing Dbase_Mccoll account remains the configured root identity.
+const MAIN_ADMIN_EMAIL = String(process.env.NRS_MAIN_ADMIN_EMAIL ?? "").trim().toLowerCase();
 const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
 
@@ -308,6 +315,19 @@ async function saveWorld() {
   writeFileStore();
 }
 
+async function migrateLegacyAdminAllowlist() {
+  if (world.legacyAdminsMigrated) return;
+  // Import old configured admins by immutable account ID once. Subsequent revocations by
+  // Dbase_Mccoll are durable and must not be undone by a leftover Railway variable.
+  for (const usernameLower of FACTION_ADMIN_USERNAMES) {
+    if (usernameLower === MAIN_ADMIN_USERNAME) continue;
+    const account = await findAccountByUsername(usernameLower);
+    if (account) world.admins[account.id] = true;
+  }
+  world.legacyAdminsMigrated = true;
+  await saveWorld();
+}
+
 function housingSnapshot(session: Session) {
   return HOUSES.map((house) => {
     const cls = HOUSE_CLASSES.find((item) => item.id === house.cls)!;
@@ -322,17 +342,56 @@ function housingSnapshot(session: Session) {
   });
 }
 
+function adminRoleOf(session: Session) {
+  const usernameLower = session.player.name.toLowerCase();
+  const role = resolveAdminRole(session.player.name, session.player.id, world.admins);
+  if (usernameLower === MAIN_ADMIN_USERNAME) {
+    // Do not silently downgrade an email-mismatched root-name account through the legacy
+    // allowlist. When configured, the owner email is an additional immutable identity check.
+    if (MAIN_ADMIN_EMAIL && session.account.emailLower !== MAIN_ADMIN_EMAIL) return null;
+    return role === "main_admin" ? "main_admin" as const : null;
+  }
+  if (role === "admin") return "admin" as const;
+  return null;
+}
+
+function isMainAdmin(session: Session) {
+  return adminRoleOf(session) === "main_admin";
+}
+
 function isFactionAdmin(session: Session) {
-  return FACTION_ADMIN_USERNAMES.has(session.player.name.toLowerCase());
+  return adminRoleOf(session) !== null;
+}
+
+function appendAdminAudit(
+  actor: Session,
+  targetId: string,
+  targetUsername: string,
+  action: AdminAuditAction,
+  detail: string,
+) {
+  world.adminAudit.push({
+    actorId: actor.player.id,
+    actorUsername: actor.player.name,
+    targetId,
+    targetUsername,
+    action,
+    detail: String(detail).slice(0, 240),
+    at: Date.now(),
+  });
+  if (world.adminAudit.length > 200) world.adminAudit.splice(0, world.adminAudit.length - 200);
 }
 
 function workplaceSnapshot(session: Session) {
   const employment = session.player.life.employment ?? null;
   const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
-  const admin = isFactionAdmin(session);
+  const adminRole = adminRoleOf(session);
+  const admin = adminRole !== null;
+  const canManageAdmins = canManageAdminRoles(adminRole);
   const onlinePlayers = [...players.values()].map((member) => ({
     id: member.player.id,
     name: member.player.name,
+    adminRole: adminRoleOf(member),
     workplaceId: member.player.life.employment?.workplaceId ?? null,
     rank: member.player.life.employment?.rank ?? null,
     onDuty: member.player.life.employment?.onDuty === true,
@@ -380,6 +439,9 @@ function workplaceSnapshot(session: Session) {
     employment,
     bossWorkplaceId,
     isFactionAdmin: admin,
+    adminRole,
+    isMainAdmin: adminRole === "main_admin",
+    canManageAdmins,
     onlinePlayers,
     activeTask: session.workTask
       ? { ...session.workTask, elapsedMs: Math.max(0, Date.now() - session.workTask.startedAt), durationMs: WORK_TASK_DURATION_MS }
@@ -564,6 +626,7 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email SET NOT NULL");
     await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email_lower SET NOT NULL");
     await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
+    await migrateLegacyAdminAllowlist();
     console.log("NRS durable storage: PostgreSQL");
     return;
   }
@@ -577,6 +640,7 @@ async function initStore() {
   }
   world = normalizeWorld(fileStore.world, clock.dayKey());
   await saveWorld();
+  await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
 
@@ -712,6 +776,11 @@ async function createAccount(email: string, username: string, password: string) 
   if (password.length < 6) throw new Error("PASSWORD_TOO_SHORT");
 
   const usernameLower = username.toLowerCase();
+  if (usernameLower === MAIN_ADMIN_USERNAME && (!MAIN_ADMIN_EMAIL || emailLower !== MAIN_ADMIN_EMAIL)) {
+    // Never let a new public registration claim the fixed root-admin username.
+    // Configure NRS_MAIN_ADMIN_EMAIL before creating the owner's account if it does not exist.
+    throw new Error("USERNAME_RESERVED");
+  }
   if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
   if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
 
@@ -1095,6 +1164,7 @@ wss.on("connection", (socket) => {
             USERNAME_TOO_SHORT: "Username must be at least 3 characters.",
             USERNAME_INVALID: "Username must be exactly Firstname_lastname, using letters only.",
             USERNAME_TAKEN: "That username is already taken.",
+            USERNAME_RESERVED: "Dbase_Mccoll is reserved for the main administrator. The owner must use the configured NRS_MAIN_ADMIN_EMAIL.",
             INVALID_CREDENTIALS: "Incorrect email or password.",
             INVALID_SESSION: "Your session has expired. Please log in again.",
             AUTH_REQUIRED: "Please log in or create an account.",
@@ -1229,6 +1299,65 @@ wss.on("connection", (socket) => {
         session.player.job = { ...known };
         await persistSession(session);
         send(socket, { type: "jobResult", ok: true, job: session.player.job });
+        return;
+      }
+
+      if (message.type === "setAdminRole") {
+        if (!isMainAdmin(session)) {
+          sendWorkplaceResult(session, "adminRole", false, "Only Dbase_Mccoll, the main administrator, can grant or remove administrator access.");
+          return;
+        }
+
+        const targetUsername = sanitizeUsername(message.targetUsername);
+        const targetUsernameLower = targetUsername.toLowerCase();
+        const requestedRole = String(message.role ?? "").toLowerCase();
+        if (!/^[a-z]+_[a-z]+$/.test(targetUsernameLower)) {
+          sendWorkplaceResult(session, "adminRole", false, "Enter a valid Firstname_lastname account username.");
+          return;
+        }
+        if (!["admin", "player", "none"].includes(requestedRole)) {
+          sendWorkplaceResult(session, "adminRole", false, "Choose either grant admin or remove admin access.");
+          return;
+        }
+        const targetAccount = await findAccountByUsername(targetUsernameLower);
+        if (!targetAccount) {
+          sendWorkplaceResult(session, "adminRole", false, "No account was found for " + targetUsername + ".");
+          return;
+        }
+        if (targetAccount.id === session.player.id || targetAccount.usernameLower === MAIN_ADMIN_USERNAME) {
+          sendWorkplaceResult(session, "adminRole", false, "The main administrator account is protected from role changes.");
+          return;
+        }
+
+        const wasAdmin = world.admins[targetAccount.id] === true;
+        const grant = requestedRole === "admin";
+        if (wasAdmin === grant) {
+          sendWorkplaceResult(session, "adminRole", true, grant
+            ? targetAccount.username + " already has administrator access."
+            : targetAccount.username + " already has no delegated administrator access.");
+          return;
+        }
+
+        if (grant) world.admins[targetAccount.id] = true;
+        else delete world.admins[targetAccount.id];
+        appendAdminAudit(
+          session,
+          targetAccount.id,
+          targetAccount.username,
+          grant ? "grant_admin" : "revoke_admin",
+          grant ? "Granted delegated administrator role" : "Removed delegated administrator role",
+        );
+        await saveWorld();
+
+        const outcome = grant
+          ? targetAccount.username + " is now an administrator. The main administrator role remains exclusive to Dbase_Mccoll."
+          : "Administrator access removed from " + targetAccount.username + ".";
+        sendWorkplaceResult(session, "adminRole", true, outcome);
+        const activeTarget = players.get(targetAccount.id);
+        if (activeTarget) sendWorkplaceResult(activeTarget, "adminRole", true, grant
+          ? "Dbase_Mccoll granted you administrator access."
+          : "Your delegated administrator access was removed by Dbase_Mccoll.");
+        broadcastWorkplaceStates();
         return;
       }
 
@@ -1486,11 +1615,12 @@ wss.on("connection", (socket) => {
           sendWorkplaceResult(session, "dismiss", false, "That player is not a member of this workplace.");
           return;
         }
-        if (world.bosses[workplaceId] === targetId) {
-          world.bosses[workplaceId] = null;
-          await saveWorld();
+        if (admin) {
+          appendAdminAudit(session, targetId, target?.player.name ?? account?.username ?? "Staff member", "dismiss_staff", workplaceId);
         }
+        if (world.bosses[workplaceId] === targetId) world.bosses[workplaceId] = null;
         await setAccountEmployment(targetId, null);
+        if (admin) await saveWorld();
         sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been removed from " + workplace.name + ".");
         if (target) sendWorkplaceResult(target, "dismissed", true, "You have been removed from " + workplace.name + ".");
         broadcastWorkplaceStates();
@@ -1567,7 +1697,16 @@ wss.on("connection", (socket) => {
           account.life = { ...account.life, employment };
           await saveAccount(account);
         }
-        if (admin) await saveWorld();
+        if (admin) {
+          appendAdminAudit(
+            session,
+            targetId,
+            target?.player.name ?? account?.username ?? "Staff member",
+            "rank_change",
+            workplaceId + " -> rank " + newRank,
+          );
+          await saveWorld();
+        }
         const rankTitle = workplaceRankTitle(workplaceId, newRank);
         sendWorkplaceResult(session, "rank", true, (target?.player.name ?? account?.username ?? "Staff member") + " assigned to " + rankTitle + " at " + workplace.name + ".");
         if (target && target.player.id !== session.player.id) {
@@ -1604,6 +1743,7 @@ wss.on("connection", (socket) => {
         if (oldBossId && oldBossId !== targetId) await setAccountEmployment(oldBossId, workplaceId, MAX_STAFF_RANK);
         await setAccountEmployment(targetId, workplaceId, BOSS_RANK);
         world.bosses[workplaceId] = targetId;
+        appendAdminAudit(session, targetId, targetAccount.username, "appoint_boss", workplaceId);
         await saveWorld();
         sendWorkplaceResult(session, "appointBoss", true, targetAccount.username + " appointed as " + workplaceRankTitle(workplaceId, BOSS_RANK) + ".");
         broadcastWorkplaceStates();

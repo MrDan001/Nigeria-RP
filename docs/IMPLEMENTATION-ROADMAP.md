@@ -216,8 +216,16 @@ Acceptance: qualifications and facility access are enforced; production cannot c
 
 Acceptance: new players can understand their first session and earn starter rent; high-value actions resist forgery/replay; Android frame time, memory and interaction targets stay within the agreed budget.
 
-### Later task — Protected admin and boss assignment
-After the core job system is stable, add a protected admin tool to assign workplace bosses and manage exceptional account actions. It must require server-authorized admin identity, log each action, prevent self-granting admin permissions and avoid hard-coding a client-side secret. Manual boss data remains the source until that tool is reviewed and approved.
+### Protected admin and boss assignment — implementation in progress
+The current implementation branch introduces a persistent role hierarchy:
+- `Dbase_Mccoll` (case-insensitive username) is the exclusive main administrator.
+- Only the main administrator may grant or revoke delegated administrator access. The main account cannot be demoted through the in-game controls.
+- Delegated admins can use server-validated cross-workplace staff/rank/boss controls already in the job system; ordinary players cannot.
+- Admin-role changes, admin-driven rank/dismiss actions, and boss appointments are recorded in a bounded, persistent world audit trail.
+- `NRS_MAIN_ADMIN_EMAIL` can bind the root username to the owner's email. Configure this Railway variable to the owner's actual registered email for stronger protection. If the owner account has not yet been created, configure this variable first; public registration cannot claim `Dbase_Mccoll` without the matching email.
+- Legacy `NRS_FACTION_ADMINS` usernames are imported to immutable account IDs once on startup. After this migration, the environment allowlist no longer grants live privileges, so main-admin revocations stay effective even if the old Railway variable is still present. Remove that variable after rollout.
+
+This is not a claim that the entire administration feature is complete. It still needs CI, live verification, and a reviewed account-to-account test. Do not store passwords or admin secrets in the client.
 
 ---
 
@@ -249,7 +257,19 @@ Use `npm run web:dev` to start the browser workspace directly. Check the package
 
 ## 5. Current authorized focus — 10 October 2026
 
-Stage 3 has been approved and is in progress. The current user-requested work is to correct the player overhead-nameplate feature at its root, configure the named owner account as a faction administrator, and allow that administrator to assign online players to any workplace/faction rank (1 through 6) across departments. The user should be able to appoint bosses, assign staff ranks, and remove staff through server-validated controls.
+Stage 3 is in progress. The current user-requested work includes transparent player nameplates, grounding the on-foot character correctly, workplace-scoped entrance menus and a protected admin hierarchy. The branch adds `Dbase_Mccoll` as the fixed main administrator, persistent delegated admin roles, main-admin-only role grants/revocations, workplace boss/rank management, and durable audit records. It still requires the test/build workflows and live-device verification.
+
+
+### Current implementation branch — scope and remaining work
+
+The `feat/super-admin-hierarchy` branch currently contains:
+- server-owned main/delegated admin checks and persistent role/audit state;
+- an in-game control to grant/revoke delegated administrators by username, visible only to the main admin;
+- transparent remote/local nameplate rendering;
+- a fix for the seated-to-standing transition plus a neutral shoe-ground alignment adjustment;
+- workplace entrance menus scoped to one workplace rather than showing every organisation.
+
+Still outstanding from the requested upgrade and not to be marked complete yet: live testing of every listed change; estate-door interaction verification; actual occupant data/signposts for designated occupied buildings (school buildings are not currently in the client workplace catalogue); actual interior staff rooms/changing facilities; role-specific uniform assets and server-side uniform gating for clock-in/service duties; and contextual player-to-player click-and-hold interactions with mobile touch support. Preserve the existing road network, roundabouts, building geometry, account persistence, player funds and unrelated gameplay during this work. No new houses are part of this scope.
 
 The nameplate acceptance test must cover:
 1. One player online: the local avatar shows its authenticated username and current level above the head.

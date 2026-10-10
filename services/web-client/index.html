@@ -227,7 +227,11 @@ body.drv #camB{display:grid}
 
 
 #modal.work-menu .wm-admin-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.4rem;margin:.45rem 0}
-#modal.work-menu .wm-admin-controls select{min-width:0;width:100%;border:1px solid rgba(255,255,255,.18);border-radius:.45rem;background:#182d40;color:#fff;padding:.5rem;font-size:.67rem}
+#modal.work-menu .wm-admin-controls select,#modal.work-menu .wm-admin-controls input{min-width:0;width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.18);border-radius:.45rem;background:#182d40;color:#fff;padding:.5rem;font-size:.67rem}
+#modal.work-menu .wm-root-admin{margin:.7rem 1rem;padding:.7rem;border:1px solid rgba(238,187,73,.28);border-radius:.65rem;background:rgba(145,97,21,.09)}
+#modal.work-menu .wm-root-admin h4{color:#f6d584}
+#modal.work-menu .wm-root-admin .wm-admin-controls{grid-template-columns:minmax(0,1fr)}
+#modal.work-menu .wm-root-admin .wm-admin-buttons{grid-template-columns:1fr 1fr}
 #modal.work-menu .wm-admin-buttons{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 #modal.work-menu .wm-admin-tag{flex:none;padding:.2rem .35rem;border:1px solid rgba(93,180,247,.25);border-radius:.3rem;color:#8fd0ff;font-size:.52rem;font-weight:900}
 </style></head><body>
@@ -1143,13 +1147,15 @@ function syncOwnPlayerTag(identity){
  if(key===ownTagLast){ownTag.visible=true;return;}
  ownTagLast=key;
  ownTagCtx.clearRect(0,0,512,112);
- ownTagCtx.fillStyle='rgba(4,13,24,0.9)';ownTagCtx.strokeStyle='rgba(101,207,245,0.95)';ownTagCtx.lineWidth=3;
- ownTagCtx.beginPath();ownTagCtx.roundRect(8,5,496,102,18);ownTagCtx.fill();ownTagCtx.stroke();
- ownTagCtx.textAlign='center';ownTagCtx.textBaseline='middle';
+ // Match remote-player identity rendering: transparent canvas, text outline only.
+ ownTagCtx.textAlign='center';ownTagCtx.textBaseline='middle';ownTagCtx.lineJoin='round';
+ ownTagCtx.lineWidth=4;ownTagCtx.strokeStyle='rgba(0,0,0,.94)';
+ ownTagCtx.shadowColor='rgba(0,0,0,.9)';ownTagCtx.shadowBlur=7;
  let fs=36;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
  while(fs>20&&ownTagCtx.measureText(username).width>462){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
- ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(username,256,38,464);
- ownTagCtx.font='800 20px system-ui,sans-serif';ownTagCtx.fillStyle='#8be9ff';ownTagCtx.fillText('LEVEL '+level,256,79,460);
+ ownTagCtx.strokeText(username,256,36,464);ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(username,256,36,464);
+ ownTagCtx.font='800 20px system-ui,sans-serif';ownTagCtx.strokeText('LEVEL '+level,256,78,460);
+ ownTagCtx.fillStyle='#a7efff';ownTagCtx.fillText('LEVEL '+level,256,78,460);ownTagCtx.shadowBlur=0;
  ownTagTexture.needsUpdate=true;ownTag.visible=true;
 }
 window.addEventListener('nrs-player-identity',event=>syncOwnPlayerTag(event.detail));
@@ -1171,7 +1177,8 @@ const arm=[],elbow=[],leg=[],knee=[];
  const e=new THREE.Group();e.position.y=-.3;a.add(e);e.add(limb(.28,.046,mat.fore));add(new THREE.SphereGeometry(.05,8,6),mat.skin,0,-.3,0,e);arm[i]=a;elbow[i]=e;
  const l=new THREE.Group();l.position.set(s*.11,.92,0);model.add(l);l.add(limb(.45,.115,mat.bottom));
  const k=new THREE.Group();k.position.y=-.45;l.add(k);k.add(limb(.45,.1,mat.shin));
- add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.46,.06,k);leg[i]=l;knee[i]=k;});
+ // Keep the shoe bottom aligned to the neutral standing ground plane.
+ add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.42,.06,k);leg[i]=l;knee[i]=k;});
 dress();
 const shadow=flat(.9,.9,new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3}),0,.04,0);
 
@@ -1334,7 +1341,14 @@ $('act').onclick=()=>{
 function sitIn(c){c.body.add(player);player.position.set(.42,-.06,-.3);player.rotation.set(0,0,0);player.scale.setScalar(.85);player.visible=true;shadow.visible=false;
  model.rotation.y=0;model.position.y=0;model.scale.y=1;crouch=false;$('crch').classList.remove('on');
  leg.forEach(l=>l.rotation.x=-1.35);knee.forEach(k=>k.rotation.x=.9);arm.forEach(a=>a.rotation.x=-1.2);elbow.forEach(e=>e.rotation.x=-.5);upper.rotation.x=.05;}
-function standUp(){scene.add(player);player.scale.setScalar(1);player.rotation.set(0,0,0);player.position.copy(pos);model.rotation.y=face;}
+function standUp(){
+ scene.add(player);player.scale.setScalar(1);player.rotation.set(0,0,0);player.position.copy(pos);model.rotation.y=face;
+ // sitIn uses a bent-leg pose. Restore the canonical on-foot pose at the transition,
+ // instead of waiting for the idle/walk animation to ease the seated joints back.
+ leg.forEach(l=>l.rotation.set(0,0,0));knee.forEach(k=>k.rotation.set(0,0,0));
+ arm.forEach(a=>a.rotation.set(0,0,0));elbow.forEach(e=>e.rotation.set(0,0,0));
+ upper.rotation.set(0,0,0);model.position.y=0;model.scale.y=crouch?.86:1;
+}
 /* ignition: engine is OFF when you get in; gas does nothing until you start it */
 function setIgn(){const b=$('ign'),c=driving;b.classList.toggle('on',!!(c&&c.on));b.classList.toggle('st',!!(c&&c.starting));}
 function crank(){const a=ctx(),t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='sawtooth';o.frequency.setValueAtTime(48,t);o.frequency.linearRampToValueAtTime(70,t+.6);
@@ -1937,7 +1951,11 @@ function openWorkplaceMenu(){openWorkplaceMenuFor(null);}
 function openWorkplaceMenuFor(workplaceId){workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
 function renderWorkplaceMenu(data){
  if(!workplaceMenuOpen||!data)return;
- let places=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;if(focus)places=[...places.filter(w=>w.id===focus),...places.filter(w=>w.id!==focus)];const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
+ const allPlaces=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;
+ // Building entrances show only the configured workplace; the Careers tab (no focus)
+ // remains the central directory. This is also reflected in the rendered card list.
+ const places=focus?allPlaces.filter(w=>w.id===focus):allPlaces;
+ const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
  let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
  let cards=places.map(w=>{
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
@@ -1967,7 +1985,8 @@ function renderWorkplaceMenu(data){
   const faction=w.faction||{};
   return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
  }).join('');
- panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+intro+'<div class="wm-section-title">WORKPLACES & FACTIONS <small>'+places.length+' ORGANISATIONS</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');
 }
 window.addEventListener('nrs-workplaces',e=>{if(workplaceMenuOpen)renderWorkplaceMenu(e.detail||window.NRS?.workplaceState);});
@@ -1975,6 +1994,7 @@ const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMe
 modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.openWorkplaces){openWorkplaceMenu();return;}
+ if(d.adminRole){const username=$('nrsAdminTarget')?.value.trim();if(!username){sys('Enter the account username in Firstname_lastname format.');return;}N.setAdminRole(username,d.adminRole);return;}
  if(d.workApply){N.applyWorkplace(d.workApply);return;}
  if(d.workDuty){N.setWorkplaceDuty(d.workDuty,d.duty==='true');return;}
  if(d.workLeave){N.leaveWorkplace();return;}
@@ -2284,4 +2304,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261010-root-identity-admin-v1"></script></body></html>
+</script><script src="/nrs-online.js?v=20261010-super-admin-hierarchy-v1"></script></body></html>
