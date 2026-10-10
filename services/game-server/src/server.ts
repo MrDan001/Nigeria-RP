@@ -330,13 +330,15 @@ function housingSnapshot(session: Session) {
 }
 
 function adminRoleOf(session: Session) {
+  const usernameLower = session.player.name.toLowerCase();
   const role = resolveAdminRole(session.player.name, session.player.id, world.admins);
-  if (role === "main_admin") {
-    // When configured, bind the named root identity to its verified account email as well.
+  if (usernameLower === MAIN_ADMIN_USERNAME) {
+    // Do not silently downgrade an email-mismatched root-name account through the legacy
+    // allowlist. When configured, the owner email is an additional immutable identity check.
     if (MAIN_ADMIN_EMAIL && session.account.emailLower !== MAIN_ADMIN_EMAIL) return null;
-    return "main_admin" as const;
+    return role === "main_admin" ? "main_admin" as const : null;
   }
-  if (role === "admin" || FACTION_ADMIN_USERNAMES.has(session.player.name.toLowerCase())) return "admin" as const;
+  if (role === "admin" || FACTION_ADMIN_USERNAMES.has(usernameLower)) return "admin" as const;
   return null;
 }
 
@@ -760,6 +762,8 @@ async function createAccount(email: string, username: string, password: string) 
 
   const usernameLower = username.toLowerCase();
   if (usernameLower === MAIN_ADMIN_USERNAME && (!MAIN_ADMIN_EMAIL || emailLower !== MAIN_ADMIN_EMAIL)) {
+    // Never let a new public registration claim the fixed root-admin username.
+    // Configure NRS_MAIN_ADMIN_EMAIL before creating the owner's account if it does not exist.
     throw new Error("USERNAME_RESERVED");
   }
   if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
