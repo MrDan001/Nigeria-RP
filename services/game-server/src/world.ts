@@ -109,12 +109,12 @@ export type HouseClass = {
 export const MAX_PREPAID_DAYS = 7;
 
 export const HOUSE_CLASSES: readonly HouseClass[] = [
-  { id: "hut", name: "Local Hut", rentPerDay: 1000 },
-  { id: "faceme", name: "Face-Me-I-Face-You", rentPerDay: 2500 },
-  { id: "flat", name: "Flat", rentPerDay: 4000 },
-  { id: "estate", name: "Estate House", rentPerDay: 7500 },
-  { id: "mansion", name: "Mansion", rentPerDay: 10000 },
-  { id: "palace", name: "Palace", rentPerDay: 20000 },
+  { id: "hut", name: "Village Hut", rentPerDay: 1000 },
+  { id: "faceme", name: "Compound Rooms", rentPerDay: 2500 },
+  { id: "flat", name: "Urban Flat", rentPerDay: 4000 },
+  { id: "estate", name: "Estate Duplex", rentPerDay: 7500 },
+  { id: "mansion", name: "Grand Villa", rentPerDay: 10000 },
+  { id: "palace", name: "Royal Palace", rentPerDay: 20000 },
 ];
 
 export type HouseDef = {
