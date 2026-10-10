@@ -107,7 +107,10 @@ type Session = {
   rejectedSyncs: number;
   inHome: boolean;
   inCarpark: boolean;
+  inStaffRoom: boolean;
   homeReturn: { x: number; z: number } | null;
+  staffRoomReturn: { x: number; z: number } | null;
+  currentStaffWorkplaceId: string | null;
   /** House currently being visited; visitors may enter unlocked or vacant homes. */
   currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
@@ -248,6 +251,9 @@ function publicPlayer(player: PlayerState) {
     z: Number(player.z.toFixed(3)),
     yaw: Number(player.yaw.toFixed(3)),
     level: player.level,
+    workplaceId: player.life.employment?.workplaceId ?? null,
+    onDuty: player.life.employment?.onDuty === true,
+    uniformWorkplaceId: player.life.employment?.uniformWorkplaceId ?? null,
   };
 }
 
@@ -273,8 +279,8 @@ function accountPayload(player: PlayerState) {
 }
 
 function snapshot() {
-  // Private home interiors are not visible to other players in the shared street world.
-  return [...players.values()].filter((session) => !session.inHome).map((session) => publicPlayer(session.player));
+  // Private home and staff changing interiors are not visible in the shared street world.
+  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -477,7 +483,7 @@ async function setAccountEmployment(accountId: string, workplaceId: string | nul
   if (active) {
     active.player.life = {
       ...active.player.life,
-      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } : null,
     };
     active.workTask = null;
     await persistSession(active);
@@ -487,7 +493,7 @@ async function setAccountEmployment(accountId: string, workplaceId: string | nul
   if (!account) return null;
   account.life = {
     ...account.life,
-    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } : null,
   };
   await saveAccount(account);
   return account.username;
@@ -498,6 +504,13 @@ function homeInteriorPosition(homeId: string) {
   const index = Math.max(0, found);
   // Six columns by five rows, each room separated and kept inside WORLD_LIMIT.
   return { x: 280 + (index % 6) * 28, z: 280 + Math.floor(index / 6) * 27 };
+}
+
+function staffRoomInteriorPosition(workplaceId: string) {
+  const found = WORKPLACES.findIndex((workplace) => workplace.id === workplaceId);
+  const index = Math.max(0, found);
+  // Isolated interior grid away from both residential interiors and the car park.
+  return { x: -450 + (index % 4) * 23, z: -430 + Math.floor(index / 4) * 26 };
 }
 
 function houseExteriorDepth(cls: string): number {
@@ -896,8 +909,16 @@ async function persistSession(session: Session) {
   account.username = session.player.name;
   account.usernameLower = account.username.toLowerCase();
   // If a player disconnects or the server restarts indoors, resume outside the room.
-  account.x = session.inHome && session.homeReturn ? session.homeReturn.x : session.player.x;
-  account.z = session.inHome && session.homeReturn ? session.homeReturn.z : session.player.z;
+  account.x = session.inHome && session.homeReturn
+    ? session.homeReturn.x
+    : session.inStaffRoom && session.staffRoomReturn
+      ? session.staffRoomReturn.x
+      : session.player.x;
+  account.z = session.inHome && session.homeReturn
+    ? session.homeReturn.z
+    : session.inStaffRoom && session.staffRoomReturn
+      ? session.staffRoomReturn.z
+      : session.player.z;
   account.yaw = session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
@@ -1052,7 +1073,10 @@ wss.on("connection", (socket) => {
       rejectedSyncs: 0,
       inHome: false,
       inCarpark: false,
+      inStaffRoom: false,
       homeReturn: null,
+      staffRoomReturn: null,
+      currentStaffWorkplaceId: null,
       carparkVehicle: null,
       workTask: null,
     };
@@ -1062,7 +1086,7 @@ wss.on("connection", (socket) => {
     if (resumedOnDuty && session.player.life.employment) {
       session.player.life = {
         ...session.player.life,
-        employment: { ...session.player.life.employment, onDuty: false },
+        employment: { ...session.player.life.employment, onDuty: false, uniformWorkplaceId: null },
       };
     }
 
@@ -1212,7 +1236,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "posSync") {
-        if (session.inHome) return;
+        if (session.inHome || session.inStaffRoom) return;
         const x = Number(message.x);
         const z = Number(message.z);
         const yaw = Number(message.yaw);
@@ -1932,8 +1956,8 @@ wss.on("connection", (socket) => {
           ? String(session.player.life.homeId ?? "")
           : String(message.houseId ?? "");
         const home = findHouse(requestedId);
-        if (session.inHome) {
-          send(socket, { type: "homeInterior", ok: false, message: "You are already inside a house." });
+        if (session.inHome || session.inStaffRoom) {
+          send(socket, { type: "homeInterior", ok: false, message: "Exit your current interior before entering a house." });
           return;
         }
         if (!home) {
@@ -2350,7 +2374,7 @@ setInterval(() => {
   const now = Date.now();
 
   for (const session of players.values()) {
-    if (session.inHome) continue;
+    if (session.inHome || session.inStaffRoom) continue;
     const input = now - session.lastInputAt > INPUT_TIMEOUT_MS
       ? { forward: 0, strafe: 0 }
       : session.input;
