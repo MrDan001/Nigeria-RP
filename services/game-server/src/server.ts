@@ -975,7 +975,6 @@ async function persistSession(session: Session) {
     : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
       ? Number(session.staffRoomReturn.yaw)
       : session.player.yaw;
-  account.yaw = session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
   account.level = session.player.level;
@@ -2162,7 +2161,7 @@ wss.on("connection", (socket) => {
           employment: { ...employment, onDuty: false, uniformWorkplaceId: workplaceId },
         };
         await persistSession(session);
-        sendWorkplaceResult(session, "uniform", true, "You changed into your authorised " + workplace.name + " uniform. Exit the staff room and clock in at the entrance.");
+        sendWorkplaceResult(session, "uniform", true, "You changed into your authorised " + workplace.name + " uniform. Return to reception and clock in there.");
         return;
       }
 
