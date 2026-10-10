@@ -1,0 +1,10 @@
+{
+  "appId": "com.nigeriarp.game",
+  "appName": "Nigeria RP",
+  "webDir": "dist",
+  "server": {
+    "url": "https://nigeria-rp-production.up.railway.app",
+    "cleartext": false,
+    "androidScheme": "https"
+  }
+}
