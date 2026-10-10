@@ -152,7 +152,7 @@ test("administrator grants and explicit revocations survive world save migration
   const migrated = normalizeWorld(savedWorld, today);
   assert.equal(migrated.factionAdminOverrides["delegated-account"], true);
   assert.equal(migrated.factionAdminOverrides["revoked-env-admin"], false);
-  assert.equal(Object.hasOwn(migrated.factionAdminOverrides, "invalid-value"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(migrated.factionAdminOverrides, "invalid-value"), false);
 });
 
 test("legacy worlds receive an empty administrator override map", () => {
