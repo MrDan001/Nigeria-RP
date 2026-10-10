@@ -152,6 +152,11 @@ See [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for the complete Stag
 
 The user approved Stage 3 on 10 October 2026. Stage 3 careers/factions and the two requested hospitals are in progress; Stage 2 visual acceptance and later house additions remain outstanding. Patches are prohibited as a way to conceal failures. Trace each defect to its source of truth, fix the responsible component, protect unrelated features, and retest the exact failure on the deployed Android browser build.
 
+
+## Superior administrator hierarchy
+
+The production superior administrator is **Dbase_Mccoll**, configured via `NRS_SUPER_ADMINS` on the server. Only a superior administrator may grant or revoke delegated administrator roles. A delegated administrator can manage staff, workplace ranks and bosses, but cannot grant admin roles, modify their own workplace rank, or alter the superior administrator's workplace role. These permissions are decided by the server and persisted role overrides are stored in canonical world state.
+
 ## 13. Definition of done
 
 A system is not done because its UI appears.
