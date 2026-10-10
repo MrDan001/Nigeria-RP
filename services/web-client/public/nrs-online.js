@@ -620,6 +620,12 @@
       } else if (message.type === "workplaceInteriorExitResult") {
         if (message.ok) window.dispatchEvent(new CustomEvent("nrs-workplace-interior-exit", { detail: message }));
         else if (message.message) sys(message.message);
+      } else if (message.type === "shopInteriorEnterResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-shop-interior-enter", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "shopInteriorExitResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-shop-interior-exit", { detail: message }));
+        else if (message.message) sys(message.message);
       } else if (message.type === "playerInteractionResult") {
         if (message.message) sys(message.message);
         if (message.cash !== undefined) { cash = Number(message.cash) || 0; N.cash = cash; money(); }
@@ -799,6 +805,8 @@
   N.setAdminRole = (targetUsername, role) => send({ type: "setAdminRole", targetUsername, role });
   N.enterWorkplaceInterior = (workplaceId) => send({ type: "enterWorkplaceInterior", workplaceId });
   N.exitWorkplaceInterior = () => send({ type: "exitWorkplaceInterior" });
+  N.enterShopInterior = (shopId) => send({ type: "enterShopInterior", shopId });
+  N.exitShopInterior = () => send({ type: "exitShopInterior" });
   N.enterStaffRoom = (workplaceId) => send({ type: "enterStaffRoom", workplaceId });
   N.changeWorkUniform = (workplaceId) => send({ type: "changeWorkUniform", workplaceId });
   N.exitStaffRoom = () => send({ type: "exitStaffRoom" });
