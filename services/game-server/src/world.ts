@@ -190,7 +190,7 @@ export function checkWorkplaceDuty(employment: Employment | null, workplaceId: s
   if (!employment || employment.workplaceId !== workplaceId) return { ok: false, reason: "You do not work here." };
   if (!Number.isFinite(distance) || distance > WORKPLACE_RADIUS) return { ok: false, reason: "You must be at your workplace to clock in or out." };
   if (typeof onDuty !== "boolean") return { ok: false, reason: "Choose clock in or clock out." };
-  if (employment.onDuty === onDuty) return { ok: false, reason: onDuty ? "You are already on duty." : "You are already off duty." };
+  if ((employment.onDuty === true) === onDuty) return { ok: false, reason: onDuty ? "You are already on duty." : "You are already off duty." };
   return { ok: true };
 }
 
@@ -209,7 +209,7 @@ export function checkWorkTaskEligibility(args: {
   if (!onDuty || !employment.onDuty) return { ok: false, reason: "Clock in before doing workplace tasks." };
   if (!Number.isFinite(distance) || distance > WORKPLACE_RADIUS) return { ok: false, reason: "Return to your workplace to do this task." };
   if (!workplaceTasks(workplaceId).some((task) => task.id === taskId)) return { ok: false, reason: "Unknown task for this workplace." };
-  if (!Number.isFinite(now) || now - employment.lastTaskAt < WORK_TASK_COOLDOWN_MS) return { ok: false, reason: "Your next paid task is not ready yet." };
+  if (!Number.isFinite(now) || now - (Number(employment.lastTaskAt) || 0) < WORK_TASK_COOLDOWN_MS) return { ok: false, reason: "Your next paid task is not ready yet." };
   if (activeTaskId && activeTaskId !== taskId) return { ok: false, reason: "Finish your current task first." };
   if (startedAt > 0 && now - startedAt < WORK_TASK_DURATION_MS) return { ok: false, reason: "Your task is not complete yet." };
   if (startedAt <= 0 && activeTaskId === taskId) return { ok: false, reason: "Start this task first." };
@@ -429,7 +429,7 @@ export class GameClock {
 
 // ---------------------------------------------------------------- per-player life state
 
-export type Employment = { workplaceId: string; rank: number; onDuty: boolean; lastTaskAt: number };
+export type Employment = { workplaceId: string; rank: number; onDuty?: boolean; lastTaskAt?: number };
 
 export type Life = {
   v: 1;
@@ -554,6 +554,8 @@ export type WorldState = {
   houseTenants: Record<string, string | null>;
   // Persistent owner-selected privacy for each rented home; vacant homes are always visitable.
   houseLocks: Record<string, boolean>;
+  // Pending faction/workplace applications, keyed by workplace ID then account ID.
+  workplaceApplications: Record<string, Record<string, number>>;
   lastDay: string;
 };
 
@@ -562,8 +564,10 @@ export function newWorld(todayKey: string): WorldState {
   for (const w of WORKPLACES) bosses[w.id] = null;
   const houseTenants: Record<string, string | null> = {};
   const houseLocks: Record<string, boolean> = {};
+  const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
-  return { v: 1, bosses, houseTenants, houseLocks, lastDay: todayKey };
+  for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
+  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -574,6 +578,17 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
   for (const id of Object.keys(base.bosses)) {
     const b = v.bosses?.[id];
     if (typeof b === "string" && b) base.bosses[id] = b;
+  }
+  for (const workplaceId of Object.keys(base.workplaceApplications)) {
+    const saved = v.workplaceApplications?.[workplaceId];
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+      for (const [accountId, appliedAt] of Object.entries(saved as Record<string, unknown>)) {
+        const timestamp = Number(appliedAt);
+        if (accountId && Number.isFinite(timestamp) && timestamp > 0) {
+          base.workplaceApplications[workplaceId][accountId] = Math.floor(timestamp);
+        }
+      }
+    }
   }
   for (const id of Object.keys(base.houseTenants)) {
     const t = v.houseTenants?.[id];
