@@ -31,6 +31,11 @@ Stage 2 visual acceptance is still pending, and additional houses are intentiona
 
 Faction leadership is server-controlled. Boss appointment uses the optional NRS_FACTION_ADMINS comma-separated username allow-list; a normal client must never be able to claim a faction boss seat.
 
+
+## Superior administrator and delegated admins
+
+The production superior administrator is **Dbase_Mccoll** (username matching is case-insensitive), configured through the server-only `NRS_SUPER_ADMINS` setting. The superior admin can grant or revoke delegated admin roles for player accounts, assign players to any workplace at ranks 1–6, and appoint bosses. Delegated admins can perform workplace-wide staff/rank management but cannot appoint/revoke administrators or change the superior admin's account. Administrator roles are resolved server-side and delegated-role overrides persist in the world store.
+
 ## Required engineering standard
 
 Patches are prohibited as a substitute for a root-cause fix. Diagnose the authoritative data flow and the component responsible for a defect; repair or rebuild that component, remove stale workaround code, and test the exact failure scenario. Do not modify unrelated roads, roundabouts, saved accounts, controls, economy, or other systems without explicit authorization.
