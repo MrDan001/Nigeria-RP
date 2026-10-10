@@ -1130,7 +1130,7 @@ const ownTagMaterial=new THREE.SpriteMaterial({map:ownTagTexture,transparent:tru
 const ownTag=new THREE.Sprite(ownTagMaterial);ownTag.scale.set(2.6,.57,1);ownTag.position.set(0,2.18,0);ownTag.renderOrder=51;ownTag.visible=false;player.add(ownTag);
 let ownTagLast='';
 function syncOwnPlayerTag(){
- const username=($('identity-name')?.textContent||$('player-name')?.value||'').trim();
+ const username=String(window.NRS?.session?.name||$('identity-name')?.textContent||$('player-name')?.value||'').trim();
  const levelText=$('level-badge')?.textContent||$('top')?.querySelector('.lv')?.textContent||'LEVEL 1';
  const level=Math.max(1,Math.floor(Number((levelText.match(/\d+/)||[])[0])||1));
  if(!username){ownTag.visible=false;return;}
