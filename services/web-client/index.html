@@ -1948,6 +1948,28 @@ function homeRoom(d){
  mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
  return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),home:h,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
 }
+const STAFF_ROOM_VISUALS={};
+function staffRoomInterior(d){
+ const workplaceId=String(d.workplaceId||''),id='staff-room:'+workplaceId;if(STAFF_ROOM_VISUALS[id])return STAFF_ROOM_VISUALS[id];
+ const ix=Number(d.roomX??d.x)||-450,iz=Number(d.roomZ??d.z)||-430,w=14,depth=12,height=3.8;
+ const wall=M(0xd7dce0),trim=M(0x243a4c),floor=M(0xb7b4aa),metal=M(0x65737f),locker=M(0x2c7196),wood=M(0x78543a),mirror=new THREE.MeshBasicMaterial({color:0x9dc5d3,transparent:true,opacity:.72});
+ add(new THREE.BoxGeometry(w,.16,depth),floor,ix,.03,iz);add(new THREE.BoxGeometry(w,height,.18),wall,ix,height/2,iz-depth/2);
+ add(new THREE.BoxGeometry(.18,height,depth),wall,ix-w/2,height/2,iz);add(new THREE.BoxGeometry(.18,height,depth),wall,ix+w/2,height/2,iz);
+ // Front wall leaves an actual doorway instead of a blocked or invisible entrance.
+ add(new THREE.BoxGeometry((w-2.8)/2,height,.18),wall,ix-(w+2.8)/4,height/2,iz+depth/2);add(new THREE.BoxGeometry((w-2.8)/2,height,.18),wall,ix+(w+2.8)/4,height/2,iz+depth/2);
+ add(new THREE.BoxGeometry(w,.18,depth),trim,ix,height,iz);add(new THREE.BoxGeometry(w-.3,.12,depth-.3),trim,ix,.16,iz);
+ [-1,1].forEach(side=>{for(let i=0;i<3;i++){const x=ix+side*(2.4+i*1.18),z=iz-3.7;add(new THREE.BoxGeometry(.9,2.2,.7),metal,x,1.18,z);add(new THREE.BoxGeometry(.78,1.96,.74),locker,x,1.2,z+.04);add(new THREE.BoxGeometry(.035,.12,.035),M(0xe0c27a),x+.25,1.2,z+.42);add(new THREE.BoxGeometry(.9,.12,.75),trim,x,2.34,z);}});
+ add(new THREE.BoxGeometry(3.1,.24,1.0),wood,ix+2.3,.56,iz+.2);add(new THREE.BoxGeometry(3.0,.08,.94),floor,ix+2.3,.7,iz+.2);
+ add(new THREE.BoxGeometry(3.1,1.15,.1),mirror,ix-3.35,1.85,iz+4.7);add(new THREE.BoxGeometry(3.35,.13,.18),trim,ix-3.35,2.48,iz+4.7);
+ add(new THREE.BoxGeometry(.1,2.45,.18),trim,ix-5.05,1.82,iz+4.7);add(new THREE.BoxGeometry(.1,2.45,.18),trim,ix-1.65,1.82,iz+4.7);
+ mini('STAFF CHANGING',ix,3.05,iz-5.8,5.6,'#18384f');const exit=mini('EXIT',ix,2.5,iz+5.73,1.6,'#167247');exit.rotation.y=Math.PI;
+ boxes.push({x:ix,z:iz-depth/2,hw:w/2,hd:.12,staffRoomId:id},{x:ix-w/2,z:iz,hw:.12,hd:depth/2,staffRoomId:id},{x:ix+w/2,z:iz,hw:.12,hd:depth/2,staffRoomId:id},
+ {x:ix-(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},{x:ix+(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},
+ {x:ix-4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},
+ {x:ix+1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id});
+ return STAFF_ROOM_VISUALS[id]={id,name:(d.workplaceName||'Workplace')+' · Staff changing room',workplaceId,x:ix,z:iz,cb:{x:ix,z:iz,hw:w/2-.65,hd:depth/2-.65},
+  pois:[{x:ix-3.35,z:iz+3.1,k:'Use',name:'Change into authorised uniform',t:'uniform',workplaceId,r:2.6},{x:ix,z:iz+4.8,k:'Exit',name:'Exit staff changing room',t:'staffroom-exit',r:2.4}],isStaffRoom:true};
+}
 const ROOMS={};
 function room(p){if(ROOMS[p.id])return ROOMS[p.id];
  const ix=700+p.id*40,iz=700,col=parseInt(p.col.slice(1),16),wm=new THREE.MeshLambertMaterial({color:0xe9e2d0,side:THREE.BackSide}),no=new THREE.MeshBasicMaterial({visible:false});
