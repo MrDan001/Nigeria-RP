@@ -257,42 +257,30 @@ Use `npm run web:dev` to start the browser workspace directly. Check the package
 
 ## 5. Current authorized focus — 10 October 2026
 
-Stage 3's protected administrator hierarchy is merged to `main` and has been deployed. The newer `feat/workplace-life-systems` branch is a separate, not-yet-live follow-up and is being tested before merge. It retains the existing roads, roundabouts, housing catalogue, saved accounts, funds and driving controls.
+The administrator hierarchy and first workplace-life systems are already merged into `main`. The current feature branch is a separate follow-up for workplace interiors, the staff-room route, ground clearance and session-scoped player IDs. It does not modify administrator permissions.
 
-### Current feature branch — implementation being verified
+### Current feature — workplace interiors and player identity
 
-The branch now includes:
-- every house receives a door interaction marker, with the marker corrected to the rendered entrance as the exterior comes into view;
-- workplace staff-room entry/exit with a walkable changing-room interior, locker fixtures and uniform station;
-- server-enforced authorised uniform requirement before clock-in and paid workplace tasks; clocking out clears the uniform;
-- visible uniform colours for supported jobs;
-- mobile/desktop long-press player interaction menus with server-side range, employment, duty, uniform and funds checks;
-- medical treatment and Police/FRSC ID-request actions, plus basic citizen greeting;
-- dynamic leadership signboards for the two hospitals and new primary/secondary school buildings, each with a Principal/medical-lead title and occupant name sourced from the persistent workplace-boss assignment;
-- primary and secondary school career/faction entries, six ranks ending at Principal, and school duties/pay tasks;
-- persisted boss display names so signs remain correct while an appointed boss is offline;
-- unit coverage for uniform-gated tasks, legacy duty-state repair, school roles and boss-name migration.
+The branch introduces:
+- a walk-in 3D reception/lobby for every existing workplace and faction, with workplace-specific colours, a front entrance, waiting seats, an actual reception counter, office equipment and a visible secretary behind the desk;
+- a proximity interaction at the reception desk that welcomes visitors and routes them to reception guidance or the workplace's existing staff/career functions;
+- a side doorway/staff-only entry in each workplace reception; only an employee assigned to that workplace can enter that workplace's staff changing room;
+- a visible uniform counter/locker interaction inside the changing room. Server-side employment, correct workplace and off-duty checks remain authoritative. A uniform is not granted by clicking the counter in a different workplace;
+- a staff-room exit that returns the employee to the same workplace reception, not to the street. The lobby's own front exit returns them to the outdoor entrance at which they entered;
+- a server-authorised, temporary 3-digit player ID for each live login session, shown with the username above the avatar in the exact two-line format `023 | Dbase_Mccoll` / `Level 5`. The permanent account UUID stays internal for saves and player targeting; reconnects allocate a new active-session display ID;
+- a small avatar-root height adjustment to keep shoe soles above raised road/pavement and interior-floor surfaces, including after getting out of a vehicle;
+- a regression test that verifies each workplace's reception coordinates are unique and within server world bounds.
 
-The new workplace branch still must pass server typecheck, Stage 1 and Stage 2 tests, browser-client build, and live-device verification before being called complete. A green CI run alone does not replace testing on the deployed browser game. No existing road or roundabout geometry was edited, and no additional houses are part of this scope.
+No existing road or roundabout geometry, home catalogue, housing state, account balance, saved funds, vehicle controls or unrelated gameplay should be changed. This feature does not add new workplaces or houses, and does not implement the separate admin lookup/location tools.
 
-### Required live acceptance checks
+### Required verification before calling this complete
 
-1. Load the new deployment in a mobile browser and confirm that the new client URL/cache version is actually served.
-2. Approach several vacant and occupied houses and confirm the door menu appears at the actual front door.
-3. Appoint a school Principal and hospital lead; verify the signboards update with the saved username, including when the boss is offline.
-4. Test an employee's staff-room entry, locker uniform selection, exit, clock-in, paid task eligibility and clock-out/civilian outfit restoration.
-5. With two accounts online, test long-press greeting, authorized medical treatment and Police/FRSC ID requests; confirm role, proximity and payment checks reject invalid actions.
-6. Recheck login, saved funds, house ownership/locks, vehicle controls, existing roads and roundabouts.
+1. Run server typecheck/build and Stage 1/Stage 2 tests, plus the browser build.
+2. With a mobile browser, enter at least a hospital, bank, school and one law-enforcement/emergency workplace. Confirm each opens the right reception, and the counter interaction is reachable.
+3. Confirm a non-employee cannot enter the staff room or equip a uniform; an employee can go from reception into their assigned changing room, use the uniform counter, then return into reception—not to the street.
+4. Confirm the clock-in/task rules still require the authorised uniform and that clocking out restores civilian clothes.
+5. Check avatar foot placement on the main roads, walkways, indoor lobby floors, changing-room floors and after exiting a vehicle.
+6. With two or more accounts online, confirm every avatar displays a session ID and username on one line, level below, and a reconnect changes the reconnected player's ID without breaking player targeting.
+7. Recheck login, saved progress/funds, homes, vehicle controls, main roads and roundabouts.
 
-The main admin email environment binding `NRS_MAIN_ADMIN_EMAIL` remains intentionally unset until the account owner supplies the correct email. Do not invent or put an email into production without confirmation.
-
-The nameplate acceptance test must cover:
-1. One player online: the local avatar shows its authenticated username and current level above the head.
-2. Two or more players online: every player sees the other players' usernames and levels above their avatars.
-3. Reconnect: labels reappear from the newly authenticated server identity.
-4. Deployed Android browser: the cache-busted client assets load the same build that passed CI.
-
-Patches are prohibited as a substitute for root-cause correction. Trace the canonical identity from the server's authenticated player payload into session state and the avatar render object. Do not layer on duplicate loops or optional-DOM guesses to conceal a missing identity. Likewise, diagnose failures in the responsible layer and remove obsolete workarounds rather than stacking fixes.
-
-Preserve the main roads, roundabouts, residential access paths, homes, account progress, money, driving controls and all other unrelated features. Adding more houses is explicitly deferred. Do not claim the result is complete until the build/tests pass and the named visual scenario is checked in the live game.
-
+A passing automated build is necessary but is not a substitute for the live-device visual checks above. Do not claim completion until the checks have been performed on the deployed browser game.
