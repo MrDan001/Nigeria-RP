@@ -601,6 +601,8 @@ export type WorldState = {
   v: 1;
   // Boss of each workplace, by account id. Set by hand in the stored data for now.
   bosses: Record<string, string | null>;
+  // Last assigned display name for each boss, so building signboards remain correct while the boss is offline.
+  bossNames: Record<string, string | null>;
   // Who rents each house (account id), or null when vacant. Used from Stage 2.
   houseTenants: Record<string, string | null>;
   // Persistent owner-selected privacy for each rented home; vacant homes are always visitable.
@@ -618,13 +620,14 @@ export type WorldState = {
 
 export function newWorld(todayKey: string): WorldState {
   const bosses: Record<string, string | null> = {};
-  for (const w of WORKPLACES) bosses[w.id] = null;
+  const bossNames: Record<string, string | null> = {};
+  for (const w of WORKPLACES) { bosses[w.id] = null; bossNames[w.id] = null; }
   const houseTenants: Record<string, string | null> = {};
   const houseLocks: Record<string, boolean> = {};
   const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
+  return { v: 1, bosses, bossNames, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -635,6 +638,8 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
   for (const id of Object.keys(base.bosses)) {
     const b = v.bosses?.[id];
     if (typeof b === "string" && b) base.bosses[id] = b;
+    const displayName = v.bossNames?.[id];
+    if (typeof displayName === "string" && displayName.trim()) base.bossNames[id] = displayName.trim().slice(0, 32);
   }
   for (const workplaceId of Object.keys(base.workplaceApplications)) {
     const saved = v.workplaceApplications?.[workplaceId];
