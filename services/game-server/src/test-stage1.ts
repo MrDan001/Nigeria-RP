@@ -108,6 +108,16 @@ test("workplace applications enforce one main job and mark faction applications 
   assert.equal(FACTIONS.find((faction) => faction.id === "hospital-mile1")?.requiresApproval, true);
 });
 
+test("workplace catalogue includes principal-led primary and secondary schools", () => {
+  for (const id of ["school-primary", "school-secondary"]) {
+    const school = WORKPLACES.find((workplace) => workplace.id === id);
+    assert.equal(school?.kind, "school");
+    assert.equal(workplaceRankTitle(id, 6), "Principal");
+    assert.equal(workplaceTasks(id).length, 2);
+    assert.ok(FACTIONS.some((faction) => faction.workplaceId === id && faction.category === "education"));
+  }
+});
+
 test("workplace clock-in/out requires the assigned site and correct duty state", () => {
   const offDuty = { workplaceId: "hospital-main", rank: 1, onDuty: false, lastTaskAt: 0 };
   assert.deepEqual(checkWorkplaceDuty(offDuty, "hospital-main", true, 2), { ok: true });
@@ -136,9 +146,11 @@ test("paid workplace tasks require duty, correct task, workplace proximity, dura
 
 test("old saved worlds gain faction application buckets without losing bosses or home locks", () => {
   const today = new GameClock().dayKey();
-  const oldWorld = { v: 1, bosses: { "bank-main": "boss-id" }, houseTenants: {}, houseLocks: {}, lastDay: today };
+  const oldWorld = { v: 1, bosses: { "bank-main": "boss-id" }, bossNames: { "bank-main": "Branch_Boss" }, houseTenants: {}, houseLocks: {}, lastDay: today };
   const migrated = normalizeWorld(oldWorld, today);
   assert.equal(migrated.bosses["bank-main"], "boss-id");
+  assert.equal(migrated.bossNames["bank-main"], "Branch_Boss");
+  assert.ok(migrated.workplaceApplications["school-primary"]);
   assert.ok(migrated.workplaceApplications["police-rivers"]);
   assert.equal(migrated.houseLocks[HOUSES[0].id], false);
 });
