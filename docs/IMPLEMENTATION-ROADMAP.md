@@ -263,7 +263,7 @@ The administrator hierarchy and first workplace-life systems are already merged 
 
 The branch introduces:
 - a walk-in 3D reception/lobby for every existing workplace and faction, with workplace-specific colours, a front entrance, waiting seats, an actual reception counter, office equipment and a visible secretary behind the desk;
-- a proximity interaction at the reception desk that welcomes visitors and routes them to reception guidance or the workplace's existing staff/career functions;
+- a proximity interaction at the reception desk that welcomes visitors and routes them to reception guidance or the workplace's existing staff/career functions; players in the same reception can see one another and use the existing role-gated player service menu there;
 - a side doorway/staff-only entry in each workplace reception; only an employee assigned to that workplace can enter that workplace's staff changing room;
 - a visible uniform counter/locker interaction inside the changing room. Server-side employment, correct workplace and off-duty checks remain authoritative. A uniform is not granted by clicking the counter in a different workplace;
 - a staff-room exit that returns the employee to the same workplace reception, not to the street. The lobby's own front exit returns them to the outdoor entrance at which they entered;
@@ -277,10 +277,10 @@ No existing road or roundabout geometry, home catalogue, housing state, account 
 
 1. Run server typecheck/build and Stage 1/Stage 2 tests, plus the browser build.
 2. With a mobile browser, enter at least a hospital, bank, school and one law-enforcement/emergency workplace. Confirm each opens the right reception, and the counter interaction is reachable.
-3. Confirm a non-employee cannot enter the staff room or equip a uniform; an employee can go from reception into their assigned changing room, use the uniform counter, then return into reception—not to the street.
+3. Confirm a non-employee cannot enter the staff room or equip a uniform; an employee can go from reception through the staff-only doorway into their assigned changing room, use the uniform counter, then return into reception—not to the street.
 4. Confirm the clock-in/task rules still require the authorised uniform and that clocking out restores civilian clothes.
 5. Check avatar foot placement on the main roads, walkways, indoor lobby floors, changing-room floors and after exiting a vehicle.
-6. With two or more accounts online, confirm every avatar displays a session ID and username on one line, level below, and a reconnect changes the reconnected player's ID without breaking player targeting.
+6. With two or more accounts online in the same reception, confirm both avatars are visible to each other and that a permitted on-duty employee can use the role-gated player interaction menu inside the building. Confirm the nameplate displays a session ID and username on one line, level below, and a reconnect changes the reconnected player's ID without breaking player targeting.
 7. Recheck login, saved progress/funds, homes, vehicle controls, main roads and roundabouts.
 
 A passing automated build is necessary but is not a substitute for the live-device visual checks above. Do not claim completion until the checks have been performed on the deployed browser game.
