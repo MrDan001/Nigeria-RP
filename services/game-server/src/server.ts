@@ -315,6 +315,19 @@ async function saveWorld() {
   writeFileStore();
 }
 
+async function migrateLegacyAdminAllowlist() {
+  if (world.legacyAdminsMigrated) return;
+  // Import old configured admins by immutable account ID once. Subsequent revocations by
+  // Dbase_Mccoll are durable and must not be undone by a leftover Railway variable.
+  for (const usernameLower of FACTION_ADMIN_USERNAMES) {
+    if (usernameLower === MAIN_ADMIN_USERNAME) continue;
+    const account = await findAccountByUsername(usernameLower);
+    if (account) world.admins[account.id] = true;
+  }
+  world.legacyAdminsMigrated = true;
+  await saveWorld();
+}
+
 function housingSnapshot(session: Session) {
   return HOUSES.map((house) => {
     const cls = HOUSE_CLASSES.find((item) => item.id === house.cls)!;
@@ -338,7 +351,7 @@ function adminRoleOf(session: Session) {
     if (MAIN_ADMIN_EMAIL && session.account.emailLower !== MAIN_ADMIN_EMAIL) return null;
     return role === "main_admin" ? "main_admin" as const : null;
   }
-  if (role === "admin" || FACTION_ADMIN_USERNAMES.has(usernameLower)) return "admin" as const;
+  if (role === "admin") return "admin" as const;
   return null;
 }
 
@@ -613,6 +626,7 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email SET NOT NULL");
     await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email_lower SET NOT NULL");
     await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
+    await migrateLegacyAdminAllowlist();
     console.log("NRS durable storage: PostgreSQL");
     return;
   }
@@ -626,6 +640,7 @@ async function initStore() {
   }
   world = normalizeWorld(fileStore.world, clock.dayKey());
   await saveWorld();
+  await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
 
