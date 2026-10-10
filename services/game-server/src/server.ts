@@ -388,6 +388,23 @@ function appendAdminAudit(
   if (world.adminAudit.length > 200) world.adminAudit.splice(0, world.adminAudit.length - 200);
 }
 
+const bossDisplayLookupInFlight = new Set<string>();
+function ensureBossDisplayName(workplaceId: string) {
+  const bossId = world.bosses[workplaceId];
+  if (!bossId || world.bossNames[workplaceId] || bossDisplayLookupInFlight.has(workplaceId)) return;
+  bossDisplayLookupInFlight.add(workplaceId);
+  void (async () => {
+    const account = await findAccountById(bossId);
+    if (world.bosses[workplaceId] !== bossId || world.bossNames[workplaceId]) return;
+    if (account?.username) {
+      world.bossNames[workplaceId] = account.username;
+      await saveWorld();
+      broadcastWorkplaceStates();
+    }
+  })().catch((error) => console.error("Unable to resolve workplace boss display name:", error))
+    .finally(() => bossDisplayLookupInFlight.delete(workplaceId));
+}
+
 function workplaceSnapshot(session: Session) {
   const employment = session.player.life.employment ?? null;
   const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
@@ -414,6 +431,7 @@ function workplaceSnapshot(session: Session) {
       world.bossNames[workplace.id] = onlineBoss.name;
       void saveWorld().catch((error) => console.error("Unable to cache workplace boss display name:", error));
     }
+    if (!world.bossNames[workplace.id] && world.bosses[workplace.id]) ensureBossDisplayName(workplace.id);
     const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
     const canManage = world.bosses[workplace.id] === session.player.id;
     const applicants = (canManage || admin)
