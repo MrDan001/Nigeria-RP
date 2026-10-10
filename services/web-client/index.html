@@ -1121,6 +1121,34 @@ function dress(){const o=OUTFITS[look.o],sk=SKIN[look.s];
  capParts.forEach(c=>c.visible=!!o.cap);if(printMesh)printMesh.visible=!!o.print;}
 const player=new THREE.Group();scene.add(player);
 const model=new THREE.Group();player.add(model);
+
+// Canonical local-player nameplate: identity is supplied by the authenticated online session event.
+const ownTagCanvas=document.createElement('canvas');ownTagCanvas.width=512;ownTagCanvas.height=112;
+const ownTagCtx=ownTagCanvas.getContext('2d');
+const ownTagTexture=new THREE.CanvasTexture(ownTagCanvas);ownTagTexture.colorSpace=THREE.SRGBColorSpace;
+const ownTagMaterial=new THREE.SpriteMaterial({map:ownTagTexture,transparent:true,depthTest:false,depthWrite:false});
+const ownTag=new THREE.Sprite(ownTagMaterial);ownTag.scale.set(2.7,.59,1);ownTag.position.set(0,2.2,0);ownTag.renderOrder=51;ownTag.visible=false;player.add(ownTag);
+let ownTagLast='';
+function syncOwnPlayerTag(identity){
+ if(!identity||!identity.name){ownTag.visible=false;return;}
+ const username=String(identity.name).trim();
+ const level=Math.max(1,Math.floor(Number(identity.level)||1));
+ if(!username){ownTag.visible=false;return;}
+ const key=username+'|'+level;
+ if(key===ownTagLast){ownTag.visible=true;return;}
+ ownTagLast=key;
+ ownTagCtx.clearRect(0,0,512,112);
+ ownTagCtx.fillStyle='rgba(4,13,24,0.9)';ownTagCtx.strokeStyle='rgba(101,207,245,0.95)';ownTagCtx.lineWidth=3;
+ ownTagCtx.beginPath();ownTagCtx.roundRect(8,5,496,102,18);ownTagCtx.fill();ownTagCtx.stroke();
+ ownTagCtx.textAlign='center';ownTagCtx.textBaseline='middle';
+ let fs=36;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
+ while(fs>20&&ownTagCtx.measureText(username).width>462){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
+ ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(username,256,38,464);
+ ownTagCtx.font='800 20px system-ui,sans-serif';ownTagCtx.fillStyle='#8be9ff';ownTagCtx.fillText('LEVEL '+level,256,79,460);
+ ownTagTexture.needsUpdate=true;ownTag.visible=true;
+}
+window.addEventListener('nrs-player-identity',event=>syncOwnPlayerTag(event.detail));
+syncOwnPlayerTag(window.NRS?.playerIdentity);
 const upper=new THREE.Group();upper.position.y=.92;model.add(upper);
 const limb=(len,r,m)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.88,len,8),m);o.position.y=-len/2;return o;};
 add(new THREE.BoxGeometry(.4,.18,.23),mat.bottom,0,.92,0,model);
