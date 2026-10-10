@@ -421,7 +421,11 @@
         writeToken(message.token);
         syncAccount(message.player);
         N.houses = message.houses || [];
+        N.workplaces = message.workplaces || [];
+        N.factions = message.factions || [];
+        N.workplaceState = message.workplaces ? message : null;
         window.dispatchEvent(new CustomEvent("nrs-housing", { detail: { houses: N.houses, life: N.life, cash, today: N.today } }));
+        window.dispatchEvent(new CustomEvent("nrs-workplaces", { detail: message }));
         snapshot(message.players || [], message.onlineCount);
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
@@ -468,6 +472,21 @@
         S.jobCb = null;
         if (message.ok && message.job) job = message.job;
         cb?.(message);
+      } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
+        N.workplaceState = message;
+        N.workplaces = message.workplaces || N.workplaces || [];
+        N.factions = message.factions || N.factions || [];
+        if (Object.prototype.hasOwnProperty.call(message, "employment")) {
+          N.life = { ...(N.life || {}), employment: message.employment };
+        }
+        if (message.cash !== undefined) {
+          cash = Number(message.cash) || 0;
+          N.cash = cash;
+          money();
+        }
+        if (message.today) N.today = message.today;
+        if (message.type === "workplaceResult" && message.message) sys(message.message);
+        window.dispatchEvent(new CustomEvent("nrs-workplaces", { detail: message }));
       } else if (message.type === "lifeState" || message.type === "lifeUpdate") {
         N.life = message.life || N.life;
         N.today = message.today || N.today;
@@ -645,6 +664,19 @@
     S.jobCb = callback;
     send({ type: "acceptJob", name });
   };
+
+  // Stage 3 careers and factions are server-authoritative; this bridge only sends requests.
+  N.getWorkplaces = () => send({ type: "getWorkplaces" });
+  N.applyWorkplace = (workplaceId) => send({ type: "applyWorkplace", workplaceId });
+  N.leaveWorkplace = () => send({ type: "leaveWorkplace" });
+  N.setWorkplaceDuty = (workplaceId, onDuty) => send({ type: "setWorkplaceDuty", workplaceId, onDuty: onDuty === true });
+  N.startWorkTask = (taskId) => send({ type: "startWorkTask", taskId });
+  N.completeWorkTask = () => send({ type: "completeWorkTask" });
+  N.approveWorkplaceApplication = (workplaceId, targetId, approve) => send({ type: "approveWorkplaceApplication", workplaceId, targetId, approve: approve === true });
+  N.hireWorkplaceStaff = (workplaceId, targetId) => send({ type: "hireWorkplaceStaff", workplaceId, targetId });
+  N.dismissWorkplaceStaff = (workplaceId, targetId) => send({ type: "dismissWorkplaceStaff", workplaceId, targetId });
+  N.setStaffRank = (workplaceId, targetId, newRank) => send({ type: "setStaffRank", workplaceId, targetId, newRank });
+  N.appointWorkplaceBoss = (workplaceId, targetId) => send({ type: "appointWorkplaceBoss", workplaceId, targetId });
 
   N.buyFuel = (carId, litres, brand, callback) => {
     if (!S.authed || !S.open) {
