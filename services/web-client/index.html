@@ -1223,6 +1223,12 @@ cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;
  // Keep the chosen view angle relative to the vehicle so a side view stays a side view through turns.
  if(driving)driveCamOffset=Math.atan2(Math.sin(camYaw-(driving.ry+Math.PI)),Math.cos(camYaw-(driving.ry+Math.PI)));});
 const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
+let playerHoldTimer=null,playerHoldPointer=null,playerHoldX=0,playerHoldY=0;
+const cancelPlayerHold=()=>{if(playerHoldTimer!==null)clearTimeout(playerHoldTimer);playerHoldTimer=null;playerHoldPointer=null;};
+cv.addEventListener('pointerdown',e=>{cancelPlayerHold();if(driving||inside||modal.style.display==='block'||!window.NRS?.session?.remotes?.size)return;playerHoldPointer=e.pointerId;playerHoldX=e.clientX;playerHoldY=e.clientY;
+ playerHoldTimer=setTimeout(()=>{playerHoldTimer=null;const rect=cv.getBoundingClientRect(),pointer=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1),ray=new THREE.Raycaster();ray.setFromCamera(pointer,cam);const groups=[...window.NRS.session.remotes.values()],hits=ray.intersectObjects(groups,true);let hit=null;
+ for(const item of hits){let node=item.object;while(node&&!node.userData?.playerId)node=node.parent;if(node?.userData?.playerId){hit=node.userData;break;}}if(hit){lid=null;openPlayerInteractionMenu(hit);}},700);
+});cv.addEventListener('pointermove',e=>{if(e.pointerId===playerHoldPointer&&Math.hypot(e.clientX-playerHoldX,e.clientY-playerHoldY)>12)cancelPlayerHold();});cv.addEventListener('pointerup',e=>{if(e.pointerId===playerHoldPointer)cancelPlayerHold();});cv.addEventListener('pointercancel',e=>{if(e.pointerId===playerHoldPointer)cancelPlayerHold();});
 $('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?'none':'flex';};
 $('bo').onclick=()=>{look.o=(look.o+1)%OUTFITS.length;dress();};
 $('bs').onclick=()=>{look.s=(look.s+1)%SKIN.length;dress();};
@@ -2002,7 +2008,7 @@ function openHouseMenu(h){
 }
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
  if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
-act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){openWorkplaceMenuFor(p.workplaceId);return;}if(p.k==='Enter'&&p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
+act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){openWorkplaceMenuFor(p.workplaceId);return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.k==='Enter'&&p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
 /* bank + ATM */
 function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
@@ -2015,6 +2021,17 @@ let workplaceMenuOpen=false,workplaceRefreshTimer=null;
 const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function openWorkplaceMenu(){openWorkplaceMenuFor(null);}
 function openWorkplaceMenuFor(workplaceId){workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
+function openPlayerInteractionMenu(target){
+ const N=window.NRS||{},id=String(target?.playerId||'');if(!id||id===N.session?.id)return;
+ const username=safeText(target.name||'Player'),employment=N.workplaceState?.employment||N.life?.employment||null;
+ const workplace=(N.workplaceState?.workplaces||N.workplaces||[]).find(w=>w.id===employment?.workplaceId);
+ const ready=!!employment?.onDuty&&employment?.uniformWorkplaceId===employment?.workplaceId;
+ let actions='<button data-player-action="greet" data-player-id="'+safeText(id)+'">👋 Greet player</button>';
+ if(ready&&workplace?.kind==='hospital')actions+='<button data-player-action="medicalTreat" data-player-id="'+safeText(id)+'">🩺 Treat patient · ₦500</button>';
+ if(ready&&['police','frsc'].includes(workplace?.kind))actions+='<button data-player-action="requestId" data-player-id="'+safeText(id)+'">🪪 Request identification</button>';
+ panel('<div class="wm-head"><span>🤝</span><div><small>NEARBY CITIZEN</small><h2>'+username+'</h2><p>Hold on a nearby player to open this contextual menu.</p></div></div><p class="wm-note">Choose an action appropriate to your role and situation. The server verifies range, duty status and uniform.</p><div class="wm-buttons">'+actions+'</div>');
+ modal.classList.add('work-menu');
+}
 function renderWorkplaceMenu(data){
  if(!workplaceMenuOpen||!data)return;
  const allPlaces=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;
@@ -2027,6 +2044,7 @@ function renderWorkplaceMenu(data){
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
   let actions='';
   if(me){
+   actions+='<button data-staff-room="'+w.id+'" '+(employment.onDuty?'disabled':'')+'>🚪 Staff changing room</button>';
    actions+='<div class="wm-buttons"><button data-work-duty="'+w.id+'" data-duty="'+(!employment.onDuty)+'">'+(employment.onDuty?'Clock out':'Clock in')+'</button><button class="subtle" data-work-leave="1">Leave job</button></div>';
    if(employment.onDuty){
     if(running){actions+='<div class="wm-task-running"><small>IN PROGRESS</small><b>'+safeText(w.tasks?.find(t=>t.id===task.taskId)?.title||'Work task')+'</b><span data-work-countdown="'+Math.ceil(remain/1000)+'">'+(remain>0?'Ready in '+Math.ceil(remain/1000)+'s':'Task ready to complete')+'</span><button data-work-task-complete="1" '+(remain>0?'disabled':'')+'>Complete task</button></div>';}
@@ -2055,11 +2073,13 @@ function renderWorkplaceMenu(data){
  panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');
 }
-window.addEventListener('nrs-workplaces',e=>{if(workplaceMenuOpen)renderWorkplaceMenu(e.detail||window.NRS?.workplaceState);});
+window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});
 const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
 modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.openWorkplaces){openWorkplaceMenu();return;}
+  if(d.staffRoom){modal.style.display='none';modal.innerHTML='';N.enterStaffRoom(d.staffRoom);return;}
+  if(d.playerAction){modal.style.display='none';modal.innerHTML='';N.interactWithPlayer(d.playerId,d.playerAction);return;}
  if(d.adminRole){const username=$('nrsAdminTarget')?.value.trim();if(!username){sys('Enter the account username in Firstname_lastname format.');return;}N.setAdminRole(username,d.adminRole);return;}
  if(d.workApply){N.applyWorkplace(d.workApply);return;}
  if(d.workDuty){N.setWorkplaceDuty(d.workDuty,d.duty==='true');return;}
