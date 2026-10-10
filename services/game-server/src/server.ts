@@ -2138,7 +2138,22 @@ wss.on("connection", (socket) => {
           return;
         }
 
-        if (cashDelta > 0) {
+        // Bank moves must be balanced transfers between the two in-game balances.
+        // This lets ATM withdrawals increase cash without treating them as job rewards.
+        if (
+          reason === "bank" &&
+          (cashDelta === 0 || bankDelta === 0 || cashDelta + bankDelta !== 0)
+        ) {
+          send(socket, {
+            type: "walletResult",
+            requestId,
+            ok: false,
+            message: "Invalid bank transaction.",
+          });
+          return;
+        }
+
+        if (cashDelta > 0 && reason !== "bank") {
           const activeJob = session.player.job;
 
           if (
