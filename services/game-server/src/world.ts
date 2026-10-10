@@ -58,7 +58,7 @@ export const WORKPLACES: readonly Workplace[] = [
   {
     // Keep the existing ID so saved employment records remain valid.
     id: "hospital-main", name: "Mile One General Hospital", kind: "hospital", zone: "Mile 1 Market",
-    x: -91, z: 102, factionId: "hospital-mile1",
+    x: -79, z: 106, factionId: "hospital-mile1",
     rankTitles: ladder("Orderly", "Nurse Aide", "Nurse", "Senior Nurse", "Doctor", "Chief Medical Director"),
   },
   {
