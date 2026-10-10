@@ -53,7 +53,7 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #start{display:grid}#rot{display:none;z-index:10}#go{font-size:1.2rem;padding:.8rem 1.6rem;border:0;border-radius:.8rem;background:#1b8cf0;color:#fff}
 @media(orientation:portrait){#rot{display:grid}}
 #act.dr{right:.6rem;bottom:auto;top:17.2rem}
-#wheel{position:fixed;left:1.4rem;bottom:.8rem;width:min(12rem,52vh);height:min(12rem,52vh);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.05) 55%,rgba(255,255,255,.12) 100%);touch-action:none;display:none;z-index:2}
+#wheel{position:fixed;left:1rem;bottom:.65rem;width:min(17rem,78vh);height:min(17rem,78vh);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.05) 55%,rgba(255,255,255,.12) 100%);touch-action:none;display:none;z-index:2}
 #wsv{width:100%;height:100%;display:block;pointer-events:none}
 .ped{position:fixed;bottom:1rem;display:none;border-radius:.8rem;border:2px solid rgba(255,255,255,.4);color:#fff;font-weight:700;font-size:.75rem;touch-action:none;z-index:2;pointer-events:auto}
 #brk{left:10rem;width:4rem;height:5rem;background:rgba(170,35,35,.85)}#gas{left:14.8rem;width:4.2rem;height:7rem;background:rgba(30,130,70,.85)}
@@ -857,12 +857,13 @@ joy.addEventListener('pointerdown',e=>{jid=e.pointerId;joy.setPointerCapture(jid
 joy.addEventListener('pointermove',e=>{if(e.pointerId===jid)joyMove(e);});
 const jend=e=>{if(e.pointerId===jid){jid=null;inp.x=0;inp.y=0;knob.style.transform='';}};
 joy.addEventListener('pointerup',jend);joy.addEventListener('pointercancel',jend);
-let camYaw=0,camPitch=.3,lid=null,lx=0,ly=0;const cv=$('c');
+let camYaw=0,camPitch=.3,lid=null,lx=0,ly=0,driveCamOffset=0;const cv=$('c');
 cv.addEventListener('pointerdown',e=>{if(lid===null){lid=e.pointerId;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(lid);}});
 cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;
- // While the vehicle is moving, screen gestures are for pedals/steering, not camera rotation.
- if(driving&&Math.abs(driving.v)>.05){lx=e.clientX;ly=e.clientY;return;}
- camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;});
+ // Camera gestures rotate only the 3D view; the HUD and driving controls remain fixed.
+ camYaw-=(e.clientX-lx)*.005;camPitch=clamp(camPitch+(e.clientY-ly)*.004,.05,1.1);lx=e.clientX;ly=e.clientY;
+ // Keep the chosen view angle relative to the vehicle so a side view stays a side view through turns.
+ if(driving)driveCamOffset=Math.atan2(Math.sin(camYaw-(driving.ry+Math.PI)),Math.cos(camYaw-(driving.ry+Math.PI)));});
 const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
 $('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?'none':'flex';};
 $('bo').onclick=()=>{look.o=(look.o+1)%OUTFITS.length;dress();};
@@ -871,7 +872,7 @@ $('run').onclick=()=>{sprint=!sprint;$('run').classList.toggle('on',sprint);};
 $('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)return;const d=document.createElement('div');d.innerHTML='<b>You:</b> ';d.append(v);$('log').append(d);$('log').scrollTop=1e5;$('ci').value='';};
 
 /* ---------- Movement: camera-relative, delta-time, one update loop ---------- */
-const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24);
+const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24),camDrivePos=new THREE.Vector3();
 let face=Math.PI,speed=0,phase=0;
 function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);return;}
  let ix=inp.x,iy=inp.y;
@@ -897,8 +898,21 @@ function animate(dt,t){if(driving)return;
   dm(leg[i],-sw*amp*.9);dm(knee[i],Math.max(0,Math.cos(p))*amp*(.9+.5*run));dm(arm[i],sw*amp*.8);dm(elbow[i],-(.2+.7*run)*amp-.05);});
  dm(upper,.04+.14*run*amp);model.position.y=Math.abs(Math.sin(phase))*.04*amp;upper.scale.y=1+Math.sin(t*2)*.006;if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[pHand].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[pHand].rotation.x=-.3;}model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);}
 function updateCam(dt){
+ if(driving){
+  const c=driving,speed=Math.abs(c.v||0),follow=1-Math.exp(-dt*(speed>1?7:11));
+  // Aim a little ahead of the car at speed, while keeping the camera position anchored behind the vehicle.
+  const ahead=clamp(speed*.12,0,2.8);
+  focus.x+=(c.x+Math.sin(c.ry)*ahead-focus.x)*follow;
+  focus.z+=(c.z+Math.cos(c.ry)*ahead-focus.z)*follow;focus.y=1.2;
+  const wantedYaw=c.ry+Math.PI+driveCamOffset;
+  camYaw+=Math.atan2(Math.sin(wantedYaw-camYaw),Math.cos(wantedYaw-camYaw))*(1-Math.exp(-dt*(speed>1?5.5:10)));
+  const d=CAMD[camMode],cp=Math.cos(camPitch);
+  camDrivePos.set(c.x+Math.sin(camYaw)*cp*d,1.15+Math.sin(camPitch)*d,c.z+Math.cos(camYaw)*cp*d);
+  cam.position.lerp(camDrivePos,1-Math.exp(-dt*(speed>1?5.5:10)));
+  cam.lookAt(focus);return;
+ }
  const f=1-Math.exp(-dt*14);focus.x+=(pos.x-focus.x)*f;focus.z+=(pos.z-focus.z)*f;focus.y=1.4;
- const d=driving?CAMD[camMode]:(inside&&inside.isHome?3.1:inside?.isCarpark?5.5:4.6),cp=Math.cos(camPitch);
+ const d=inside&&inside.isHome?3.1:inside?.isCarpark?5.5:4.6,cp=Math.cos(camPitch);
  cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);cam.lookAt(focus);}
 
 /* ---------- HUD: compass and minimap ---------- */
@@ -985,7 +999,7 @@ function hudAct(){const a=$('act');
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
   standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
- else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
+ else if(nearCar){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=driving.box.hd=1.4;vel.set(0,0,0);driving.on=false;driving.starting=false;driveCamOffset=0;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
  else if(inside?.isCarpark){const door=Math.hypot(pos.x-inside.x,pos.z-(inside.z+13.4));if(door<3.2)openGarageFootExitMenu();else openGarageSpawnMenu();}};
 /* seated driver: player rides inside the car body, hands on the wheel, legs forward */
 function sitIn(c){c.body.add(player);player.position.set(.42,-.06,-.3);player.rotation.set(0,0,0);player.scale.setScalar(.85);player.visible=true;shadow.visible=false;
@@ -1705,7 +1719,7 @@ badge();
 
 /* driving HUD: indicators, hazards, headlights, camera, speedo */
 const CAMD=[8,5.2,12],AMO=0x8a5208,AMN=0xffd24a;let camMode=0,sig=0,hz=false,sgT=0,sgCar=null,sgLast=false,spT='';
-$('camB').onclick=()=>{if(driving&&Math.abs(driving.v)>.05){sys('📷 Bring the car fully to rest before moving the camera.');return;}camMode=(camMode+1)%CAMD.length;};
+$('camB').onclick=()=>{camMode=(camMode+1)%CAMD.length;};
 $('sigL').onclick=()=>{if(!driving)return;sig=sig<0?0:-1;hz=false;sgT=0;};
 $('sigR').onclick=()=>{if(!driving)return;sig=sig>0?0:1;hz=false;sgT=0;};
 $('hzd').onclick=()=>{if(!driving)return;hz=!hz;if(hz){sig=0;sgT=0;}};
