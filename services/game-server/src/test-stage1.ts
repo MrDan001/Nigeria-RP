@@ -7,6 +7,7 @@ import {
   WORK_TASK_COOLDOWN_MS,
   WORK_TASK_DURATION_MS,
   WORKPLACE_RADIUS,
+  workplaceInteriorPosition,
   GameClock,
   HOUSES,
   HOUSE_CLASSES,
@@ -80,6 +81,13 @@ test("every workplace has six rank entries and none are empty", () => {
     assert.equal(w.rankTitles.length, 6, w.id);
     for (const titles of w.rankTitles) assert.ok(titles.length >= 1, w.id);
   }
+});
+
+test("every workplace reception interior has a unique position inside world bounds", () => {
+  const positions = WORKPLACES.map((workplace) => workplaceInteriorPosition(workplace.id));
+  const encoded = positions.map((position) => position.x + ":" + position.z);
+  assert.equal(new Set(encoded).size, WORKPLACES.length);
+  for (const position of positions) assert.ok(Math.abs(position.x) < 500 && Math.abs(position.z) < 500);
 });
 
 
