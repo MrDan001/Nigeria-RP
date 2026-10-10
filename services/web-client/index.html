@@ -1406,8 +1406,21 @@ function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLock
  c.steer+=(steeringInput*.68/(1+kmh/48)-c.steer)*(1-Math.exp(-dt*17));
  const yaw=fv/2.8*Math.tan(c.steer)*(hb?1.4:1);c.ry-=yaw*dt;
  c.vx=sn*fv+cs*lv;c.vz=cs*fv-sn*lv;c.x+=c.vx*dt;c.z+=c.vz*dt;
- for(const b of boxes){if(b===c.box)continue;const ox=c.x-b.x,oz=c.z-b.z,px=b.hw+1.4-Math.abs(ox),pz=b.hd+1.4-Math.abs(oz);
-  if(px>0&&pz>0){if(px<pz)c.x+=Math.sign(ox||1)*px;else c.z+=Math.sign(oz||1)*pz;c.vx*=.5;c.vz*=.5;}}
+ /* Collision uses each object's real half-size, not an extra 1.4-unit invisible shell.
+    Convert the rotated vehicle footprint to an axis-aligned bound for broad-phase contact. */
+ const ownHW=Math.abs(Math.cos(c.ry))*c.box.hd+Math.abs(Math.sin(c.ry))*c.box.hw;
+ const ownHD=Math.abs(Math.sin(c.ry))*c.box.hd+Math.abs(Math.cos(c.ry))*c.box.hw;
+ for(const b of boxes){
+  if(b===c.box)continue;
+  const ox=c.x-b.x,oz=c.z-b.z;
+  const px=ownHW+b.hw-Math.abs(ox),pz=ownHD+b.hd-Math.abs(oz);
+  if(px>0&&pz>0){
+   if(px<pz){const push=Math.sign(ox||1)*px;c.x+=push;if(c.vx*push<0)c.vx=0;}
+   else{const push=Math.sign(oz||1)*pz;c.z+=push;if(c.vz*push<0)c.vz=0;}
+   /* Avoid a hard lock at corners: only damp the component entering the obstacle. */
+   c.v*=.82;
+  }
+ }
  if(inside?.isCarpark){
   // Garage walls must stop the car dead; clamping position alone left the car
   // "pinned" with its old speed, so the stopped-at-gate check never passed.
