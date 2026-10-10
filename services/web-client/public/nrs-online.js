@@ -16,6 +16,7 @@
     id: null,
     name: "",
     level: 1,
+    displayId: "000",
     token: readToken(),
     initialConnection: true,
     resume: false,
@@ -265,7 +266,8 @@
     S.id = player.id;
     S.name = String(player.name || "Player");
     S.level = Math.max(1, Math.floor(Number(player.level) || 1));
-    N.playerIdentity = { id: S.id, name: S.name, level: S.level };
+    S.displayId = String(player.sessionId || player.displayId || "000").padStart(3, "0");
+    N.playerIdentity = { id: S.id, name: S.name, level: S.level, sessionId: S.displayId };
     S.authed = true;
     writeToken(S.token);
     window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: N.playerIdentity }));
@@ -314,73 +316,75 @@
 
   // Always-visible, camera-facing multiplayer nameplate. It works on touch screens too
   // (no mouse-hover required) and refreshes when the server reports a new level/name.
-  function tag(username, level = 1) {
+  // Nameplates show a temporary session ID on the same line as the username. The
+  // permanent account UUID stays internal and is still used to target player interactions.
+  function tag(username, level = 1, sessionId = "000") {
     const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 128;
+    canvas.width = 640;
+    canvas.height = 140;
     const ctx = canvas.getContext("2d");
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
 
-    const label = { username: String(username || "Player"), level: Math.max(1, Math.floor(Number(level) || 1)) };
+    const label = {
+      username: String(username || "Player"),
+      level: Math.max(1, Math.floor(Number(level) || 1)),
+      sessionId: String(sessionId || "000").padStart(3, "0")
+    };
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Transparent nameplate: the username and level float directly above the avatar.
-      // A dark text stroke and soft shadow preserve contrast without drawing a card.
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.lineJoin = "round";
       ctx.lineWidth = 5;
-      ctx.strokeStyle = "rgba(0,0,0,0.94)";
+      ctx.strokeStyle = "rgba(0,0,0,0.96)";
       ctx.shadowColor = "rgba(0,0,0,0.9)";
       ctx.shadowBlur = 7;
 
-      // Username is the primary line; shrink long names instead of allowing them to clip.
-      const name = label.username;
+      const identityLine = label.sessionId + " | " + label.username;
       let fontSize = 34;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
       ctx.font = "700 " + fontSize + "px system-ui, sans-serif";
-      while (fontSize > 20 && ctx.measureText(name).width > 440) {
+      while (fontSize > 20 && ctx.measureText(identityLine).width > 590) {
         fontSize -= 2;
         ctx.font = "700 " + fontSize + "px system-ui, sans-serif";
       }
-      ctx.strokeText(name, 256, 45, 444);
+      ctx.strokeText(identityLine, 320, 43, 594);
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(name, 256, 45, 444);
+      ctx.fillText(identityLine, 320, 43, 594);
 
-      const levelText = "LEVEL " + label.level;
-      ctx.font = "800 19px system-ui, sans-serif";
+      const levelText = "Level " + label.level;
+      ctx.font = "800 23px system-ui, sans-serif";
       ctx.lineWidth = 4;
-      ctx.strokeStyle = "rgba(0,0,0,0.94)";
+      ctx.strokeStyle = "rgba(0,0,0,0.96)";
       ctx.shadowBlur = 5;
-      ctx.strokeText(levelText, 256, 87, 444);
+      ctx.strokeText(levelText, 320, 101, 590);
       ctx.fillStyle = "#a7efff";
-      ctx.fillText(levelText, 256, 87, 444);
+      ctx.fillText(levelText, 320, 101, 590);
       ctx.shadowBlur = 0;
       texture.needsUpdate = true;
     };
     draw();
 
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false
+      map: texture, transparent: true, depthTest: false, depthWrite: false
     }));
-    sprite.scale.set(3.25, .82, 1);
+    sprite.scale.set(3.65, .8, 1);
     sprite.position.y = 2.55;
     sprite.renderOrder = 50;
     sprite.userData.name = label.username;
     sprite.userData.level = label.level;
-    sprite.userData.setPlayerLabel = (nextUsername, nextLevel) => {
+    sprite.userData.sessionId = label.sessionId;
+    sprite.userData.setPlayerLabel = (nextUsername, nextLevel, nextSessionId) => {
       const nextName = String(nextUsername || "Player");
       const parsedLevel = Math.max(1, Math.floor(Number(nextLevel) || 1));
-      if (label.username === nextName && label.level === parsedLevel) return;
+      const parsedSessionId = String(nextSessionId || "000").padStart(3, "0");
+      if (label.username === nextName && label.level === parsedLevel && label.sessionId === parsedSessionId) return;
       label.username = nextName;
       label.level = parsedLevel;
+      label.sessionId = parsedSessionId;
       sprite.userData.name = nextName;
       sprite.userData.level = parsedLevel;
+      sprite.userData.sessionId = parsedSessionId;
       draw();
     };
     sprite.userData.disposeLabel = () => {
@@ -399,7 +403,8 @@
       group.add(model.clone(true));
       const playerName = player.name || "Player";
       const playerLevel = Math.max(1, Math.floor(Number(player.level) || 1));
-      const nameplate = tag(playerName, playerLevel);
+      const sessionId = String(player.sessionId || player.displayId || "000").padStart(3, "0");
+      const nameplate = tag(playerName, playerLevel, sessionId);
       nameplate.userData.playerNameplate = true;
       group.add(nameplate);
       group.position.set(Number(player.x) || 0, 0, Number(player.z) || 0);
@@ -409,6 +414,7 @@
         target: { x: Number(player.x) || 0, z: Number(player.z) || 0, yaw: Number(player.yaw) || 0 },
         name: playerName,
         level: playerLevel,
+        sessionId,
         workplaceId: player.workplaceId || null,
         onDuty: player.onDuty === true,
         uniformWorkplaceId: player.uniformWorkplaceId || null
@@ -420,14 +426,16 @@
 
     const nextName = player.name || group.userData.name || "Player";
     const nextLevel = Math.max(1, Math.floor(Number(player.level) || 1));
+    const nextSessionId = String(player.sessionId || player.displayId || group.userData.sessionId || "000").padStart(3, "0");
     group.userData.name = nextName;
     group.userData.level = nextLevel;
+    group.userData.sessionId = nextSessionId;
     group.userData.playerId = String(player.id);
     group.userData.workplaceId = player.workplaceId || null;
     group.userData.onDuty = player.onDuty === true;
     group.userData.uniformWorkplaceId = player.uniformWorkplaceId || null;
     const labelSprite = group.children.find((child) => child.userData?.playerNameplate);
-    labelSprite?.userData?.setPlayerLabel?.(nextName, nextLevel);
+    labelSprite?.userData?.setPlayerLabel?.(nextName, nextLevel, nextSessionId);
     group.userData.target = {
       x: Number(player.x) || 0,
       z: Number(player.z) || 0,
@@ -606,6 +614,12 @@
       } else if (message.type === "staffRoomExitResult") {
         if (message.ok) window.dispatchEvent(new CustomEvent("nrs-staff-room-exit", { detail: message }));
         else if (message.message) sys(message.message);
+      } else if (message.type === "workplaceInteriorEnterResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-workplace-interior-enter", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "workplaceInteriorExitResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-workplace-interior-exit", { detail: message }));
+        else if (message.message) sys(message.message);
       } else if (message.type === "playerInteractionResult") {
         if (message.message) sys(message.message);
         if (message.cash !== undefined) { cash = Number(message.cash) || 0; N.cash = cash; money(); }
@@ -783,6 +797,8 @@
   N.appointWorkplaceBoss = (workplaceId, targetId) => send({ type: "appointWorkplaceBoss", workplaceId, targetId });
   // Only the authenticated main administrator can change delegated admin roles; the server is authoritative.
   N.setAdminRole = (targetUsername, role) => send({ type: "setAdminRole", targetUsername, role });
+  N.enterWorkplaceInterior = (workplaceId) => send({ type: "enterWorkplaceInterior", workplaceId });
+  N.exitWorkplaceInterior = () => send({ type: "exitWorkplaceInterior" });
   N.enterStaffRoom = (workplaceId) => send({ type: "enterStaffRoom", workplaceId });
   N.changeWorkUniform = (workplaceId) => send({ type: "changeWorkUniform", workplaceId });
   N.exitStaffRoom = () => send({ type: "exitStaffRoom" });

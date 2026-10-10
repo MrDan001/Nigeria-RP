@@ -1158,33 +1158,35 @@ function dress(){const uniform=UNIFORM_LOOKS[activeUniformWorkplaceId],o=uniform
  mat.fore.color.setHex(o.long?o.top:sk);mat.shin.color.setHex(o.short?sk:o.bottom);
  capParts.forEach(c=>c.visible=!!o.cap);if(printMesh)printMesh.visible=!!o.print;}
 const player=new THREE.Group();scene.add(player);
-const model=new THREE.Group();player.add(model);
+const model=new THREE.Group();model.position.y=.085;player.add(model);
 
 // Canonical local-player nameplate: identity is supplied by the authenticated online session event.
-const ownTagCanvas=document.createElement('canvas');ownTagCanvas.width=512;ownTagCanvas.height=112;
+const ownTagCanvas=document.createElement('canvas');ownTagCanvas.width=640;ownTagCanvas.height=140;
 const ownTagCtx=ownTagCanvas.getContext('2d');
 const ownTagTexture=new THREE.CanvasTexture(ownTagCanvas);ownTagTexture.colorSpace=THREE.SRGBColorSpace;
 const ownTagMaterial=new THREE.SpriteMaterial({map:ownTagTexture,transparent:true,depthTest:false,depthWrite:false});
-const ownTag=new THREE.Sprite(ownTagMaterial);ownTag.scale.set(2.7,.59,1);ownTag.position.set(0,2.2,0);ownTag.renderOrder=51;ownTag.visible=false;player.add(ownTag);
+const ownTag=new THREE.Sprite(ownTagMaterial);ownTag.scale.set(3.65,.8,1);ownTag.position.set(0,2.3,0);ownTag.renderOrder=51;ownTag.visible=false;player.add(ownTag);
 let ownTagLast='';
 function syncOwnPlayerTag(identity){
  if(!identity||!identity.name){ownTag.visible=false;return;}
  const username=String(identity.name).trim();
  const level=Math.max(1,Math.floor(Number(identity.level)||1));
+ const sessionId=String(identity.sessionId||identity.displayId||'000').padStart(3,'0');
  if(!username){ownTag.visible=false;return;}
- const key=username+'|'+level;
+ const key=sessionId+'|'+username+'|'+level;
  if(key===ownTagLast){ownTag.visible=true;return;}
  ownTagLast=key;
- ownTagCtx.clearRect(0,0,512,112);
- // Match remote-player identity rendering: transparent canvas, text outline only.
+ ownTagCtx.clearRect(0,0,640,140);
+ // Transparent text-only nameplate: session ID, username, then player level.
  ownTagCtx.textAlign='center';ownTagCtx.textBaseline='middle';ownTagCtx.lineJoin='round';
- ownTagCtx.lineWidth=4;ownTagCtx.strokeStyle='rgba(0,0,0,.94)';
+ ownTagCtx.lineWidth=4;ownTagCtx.strokeStyle='rgba(0,0,0,.96)';
  ownTagCtx.shadowColor='rgba(0,0,0,.9)';ownTagCtx.shadowBlur=7;
- let fs=36;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
- while(fs>20&&ownTagCtx.measureText(username).width>462){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
- ownTagCtx.strokeText(username,256,36,464);ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(username,256,36,464);
- ownTagCtx.font='800 20px system-ui,sans-serif';ownTagCtx.strokeText('LEVEL '+level,256,78,460);
- ownTagCtx.fillStyle='#a7efff';ownTagCtx.fillText('LEVEL '+level,256,78,460);ownTagCtx.shadowBlur=0;
+ const identityLine=sessionId+' | '+username;
+ let fs=34;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
+ while(fs>20&&ownTagCtx.measureText(identityLine).width>590){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
+ ownTagCtx.strokeText(identityLine,320,43,594);ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(identityLine,320,43,594);
+ ownTagCtx.font='800 23px system-ui,sans-serif';ownTagCtx.strokeText('Level '+level,320,101,590);
+ ownTagCtx.fillStyle='#a7efff';ownTagCtx.fillText('Level '+level,320,101,590);ownTagCtx.shadowBlur=0;
  ownTagTexture.needsUpdate=true;ownTag.visible=true;
 }
 window.addEventListener('nrs-player-identity',event=>syncOwnPlayerTag(event.detail));
@@ -1232,7 +1234,7 @@ cv.addEventListener('pointermove',e=>{if(e.pointerId!==lid)return;
 const lend=e=>{if(e.pointerId===lid)lid=null;};cv.addEventListener('pointerup',lend);cv.addEventListener('pointercancel',lend);
 let playerHoldTimer=null,playerHoldPointer=null,playerHoldX=0,playerHoldY=0;
 const cancelPlayerHold=()=>{if(playerHoldTimer!==null)clearTimeout(playerHoldTimer);playerHoldTimer=null;playerHoldPointer=null;};
-cv.addEventListener('pointerdown',e=>{cancelPlayerHold();if(driving||inside||modal.style.display==='block'||!window.NRS?.session?.remotes?.size)return;playerHoldPointer=e.pointerId;playerHoldX=e.clientX;playerHoldY=e.clientY;
+cv.addEventListener('pointerdown',e=>{cancelPlayerHold();if(driving||(inside&&!inside.isWorkplaceInterior)||modal.style.display==='block'||!window.NRS?.session?.remotes?.size)return;playerHoldPointer=e.pointerId;playerHoldX=e.clientX;playerHoldY=e.clientY;
  playerHoldTimer=setTimeout(()=>{playerHoldTimer=null;const rect=cv.getBoundingClientRect(),pointer=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1),ray=new THREE.Raycaster();ray.setFromCamera(pointer,cam);const groups=[...window.NRS.session.remotes.values()],hits=ray.intersectObjects(groups,true);let hit=null;
  for(const item of hits){let node=item.object;while(node&&!node.userData?.playerId)node=node.parent;if(node?.userData?.playerId){hit=node.userData;break;}}if(hit){lid=null;openPlayerInteractionMenu(hit);}},700);
 });cv.addEventListener('pointermove',e=>{if(e.pointerId===playerHoldPointer&&Math.hypot(e.clientX-playerHoldX,e.clientY-playerHoldY)>12)cancelPlayerHold();});cv.addEventListener('pointerup',e=>{if(e.pointerId===playerHoldPointer)cancelPlayerHold();});cv.addEventListener('pointercancel',e=>{if(e.pointerId===playerHoldPointer)cancelPlayerHold();});
@@ -1257,7 +1259,7 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  for(const b of boxes){const ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);
   if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  if(inside?.isCarpark){pos.x=clamp(pos.x,inside.x-13.2,inside.x+13.2);pos.z=clamp(pos.z,inside.z-14.2,inside.z+14.2);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
- else if(inside){const halfW=inside.isHome?Math.max(4.8,(inside.roomW||10.4)/2-.45):5.2,back=inside.isHome?Math.max(4.3,(inside.roomD||10)/2-.45):4.6,front=inside.isHome?Math.max(5.0,(inside.roomD||10)/2-.45):5.4;pos.x=clamp(pos.x,inside.x-halfW,inside.x+halfW);pos.z=clamp(pos.z,inside.z-back,inside.z+front);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
+ else if(inside){const halfW=inside.isHome?Math.max(4.8,(inside.roomW||10.4)/2-.45):inside.isWorkplaceInterior?Math.max(6.0,(inside.roomW||16)/2-.55):5.2,back=inside.isHome?Math.max(4.3,(inside.roomD||10)/2-.45):inside.isWorkplaceInterior?Math.max(5.5,(inside.roomD||14)/2-.55):4.6,front=inside.isHome?Math.max(5.0,(inside.roomD||10)/2-.45):inside.isWorkplaceInterior?Math.max(5.7,(inside.roomD||14)/2-.55):5.4;pos.x=clamp(pos.x,inside.x-halfW,inside.x+halfW);pos.z=clamp(pos.z,inside.z-back,inside.z+front);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  else{pos.x=clamp(pos.x,-240,240);pos.z=clamp(pos.z,-240,240);}
  speed=Math.hypot(vel.x,vel.z);
  if(speed>.3){let d=Math.atan2(vel.x,vel.z)-face;d=Math.atan2(Math.sin(d),Math.cos(d));face+=d*(1-Math.exp(-dt*12));}
@@ -1267,7 +1269,7 @@ function animate(dt,t){if(driving)return;
  const dm=(o,v)=>{o.rotation.x+=(v-o.rotation.x)*Math.min(1,dt*18);};
  [0,1].forEach(i=>{const p=phase+i*Math.PI,sw=Math.sin(p);
   dm(leg[i],-sw*amp*.9);dm(knee[i],Math.max(0,Math.cos(p))*amp*(.9+.5*run));dm(arm[i],sw*amp*.8);dm(elbow[i],-(.2+.7*run)*amp-.05);});
- dm(upper,.04+.14*run*amp);model.position.y=Math.abs(Math.sin(phase))*.04*amp;upper.scale.y=1+Math.sin(t*2)*.006;if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[pHand].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[pHand].rotation.x=-.3;}model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);}
+ dm(upper,.04+.14*run*amp);model.position.y=.085+Math.abs(Math.sin(phase))*.025*amp;upper.scale.y=1+Math.sin(t*2)*.006;if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[pHand].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[pHand].rotation.x=-.3;}model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);}
 function updateCam(dt){
  if(driving){
   const c=driving,speed=Math.abs(c.v||0),follow=1-Math.exp(-dt*(speed>1?7:11));
@@ -1382,7 +1384,7 @@ function standUp(){
  // instead of waiting for the idle/walk animation to ease the seated joints back.
  leg.forEach(l=>l.rotation.set(0,0,0));knee.forEach(k=>k.rotation.set(0,0,0));
  arm.forEach(a=>a.rotation.set(0,0,0));elbow.forEach(e=>e.rotation.set(0,0,0));
- upper.rotation.set(0,0,0);model.position.y=0;model.scale.y=crouch?.86:1;
+ upper.rotation.set(0,0,0);model.position.y=.085;model.scale.y=crouch?.86:1;
 }
 /* ignition: engine is OFF when you get in; gas does nothing until you start it */
 function setIgn(){const b=$('ign'),c=driving;b.classList.toggle('on',!!(c&&c.on));b.classList.toggle('st',!!(c&&c.starting));}
@@ -2016,13 +2018,112 @@ function staffRoomInterior(d){
  add(new THREE.BoxGeometry(3.1,.24,1.0),wood,ix+2.3,.56,iz+.2);add(new THREE.BoxGeometry(3.0,.08,.94),floor,ix+2.3,.7,iz+.2);
  add(new THREE.BoxGeometry(3.1,1.15,.1),mirror,ix-3.35,1.85,iz+4.7);add(new THREE.BoxGeometry(3.35,.13,.18),trim,ix-3.35,2.48,iz+4.7);
  add(new THREE.BoxGeometry(.1,2.45,.18),trim,ix-5.05,1.82,iz+4.7);add(new THREE.BoxGeometry(.1,2.45,.18),trim,ix-1.65,1.82,iz+4.7);
- mini('STAFF CHANGING',ix,3.05,iz-5.8,5.6,'#18384f');const exit=mini('EXIT',ix,2.5,iz+5.73,1.6,'#167247');exit.rotation.y=Math.PI;
+ mini('STAFF CHANGING',ix,3.05,iz-5.8,5.6,'#18384f');
+ mini('UNIFORM COUNTER',ix+2.3,2.55,iz+.2,3.2,'#18384f');
+ const exit=mini('RETURN TO RECEPTION',ix,2.5,iz+5.73,3.3,'#167247');exit.rotation.y=Math.PI;
  boxes.push({x:ix,z:iz-depth/2,hw:w/2,hd:.12,staffRoomId:id},{x:ix-w/2,z:iz,hw:.12,hd:depth/2,staffRoomId:id},{x:ix+w/2,z:iz,hw:.12,hd:depth/2,staffRoomId:id},
  {x:ix-(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},{x:ix+(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},
  {x:ix-4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},
  {x:ix+1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id});
  return STAFF_ROOM_VISUALS[id]={id,name:(d.workplaceName||'Workplace')+' · Staff changing room',workplaceId,x:ix,z:iz,cb:{x:ix+2.3,z:iz+.2,hw:1.55,hd:.5},
-  pois:[{x:ix-3.35,z:iz+3.1,k:'Use',name:'Change into authorised uniform',t:'uniform',workplaceId,r:2.6},{x:ix,z:iz+4.8,k:'Exit',name:'Exit staff changing room',t:'staffroom-exit',r:2.4}],isStaffRoom:true};
+  pois:[{x:ix+2.3,z:iz+2.05,k:'Use',name:'Use uniform counter',t:'uniform',workplaceId,r:2.8},{x:ix,z:iz+4.8,k:'Exit',name:'Return to workplace reception',t:'staffroom-exit',r:2.4}],isStaffRoom:true};
+}
+const WORKPLACE_INTERIOR_VISUALS={};
+function workplaceInterior(d){
+ const workplaceId=String(d.workplaceId||''),id='workplace:'+workplaceId;
+ let layout=WORKPLACE_INTERIOR_VISUALS[id];
+ const workplace=(window.NRS?.workplaceState?.workplaces||window.NRS?.workplaces||[]).find(w=>w.id===workplaceId);
+ const workplaceName=String(d.workplaceName||workplace?.name||'Workplace');
+ const kind=String(d.workplaceKind||workplace?.kind||'market');
+ const ix=Number(d.roomX??d.x??-450),iz=Number(d.roomZ??d.z??-260),w=16,depth=14,height=4.0;
+ if(!layout){
+  const themes={
+   hospital:{wall:0xe6eeeb,floor:0xd4e5e2,trim:0x2d6673,accent:0xb23b45,glass:0x8fc5d0,uniform:0xf0f4f1},
+   bank:{wall:0xe2e5e8,floor:0xc9c4b6,trim:0x203c60,accent:0xc7a04d,glass:0x8eb6c8,uniform:0x203c60},
+   school:{wall:0xe9e1cb,floor:0xcbb88e,trim:0x5d6b4e,accent:0x337957,glass:0x9ec4cc,uniform:0x337957},
+   police:{wall:0xd8e0e8,floor:0xb6c0cb,trim:0x1b345f,accent:0x244f86,glass:0x8fb7ce,uniform:0x1b345f},
+   frsc:{wall:0xe1e7dd,floor:0xc7d0c4,trim:0x176f49,accent:0xe4c439,glass:0x9ac6b2,uniform:0x176f49},
+   fire:{wall:0xe9dfd7,floor:0xc8b4a6,trim:0x8b3626,accent:0xe16a32,glass:0x94bac6,uniform:0xb13c24},
+   military:{wall:0xd5d9c5,floor:0xb7b99b,trim:0x414d2d,accent:0x647441,glass:0x9ea989,uniform:0x414d2d},
+   government:{wall:0xe3e4e1,floor:0xc4bdac,trim:0x3a4650,accent:0xc5a14e,glass:0xa0c2c9,uniform:0x3a4650},
+   news:{wall:0xe0e1e8,floor:0xbdbfca,trim:0x393a5a,accent:0x7e4f92,glass:0x91b5c9,uniform:0x393a5a},
+   market:{wall:0xe7dfd0,floor:0xc5ab88,trim:0x70452f,accent:0xb44134,glass:0x9fc6cf,uniform:0x70452f},
+   park:{wall:0xe0e7d8,floor:0xb4c3a7,trim:0x2f6940,accent:0x7f9c42,glass:0x9fc5b4,uniform:0x2f6940},
+   transport:{wall:0xe5e0d4,floor:0xc8b99f,trim:0x275f9a,accent:0xe2b638,glass:0x9abfc8,uniform:0x275f9a}
+  };
+  const p=themes[kind]||{wall:0xe3e4e1,floor:0xc7c2b6,trim:0x344a5c,accent:0x2e7765,glass:0x95bec9,uniform:0x344a5c};
+  const g=new THREE.Group();g.position.set(ix,0,iz);scene.add(g);
+  const part=(geo,mat,x,y,z)=>{const obj=new THREE.Mesh(geo,mat);obj.position.set(x,y,z);g.add(obj);return obj;};
+  const wall=new THREE.MeshLambertMaterial({color:p.wall,side:THREE.DoubleSide});
+  const trim=M(p.trim),accent=M(p.accent),floor=M(p.floor);
+  const glass=new THREE.MeshPhongMaterial({color:p.glass,transparent:true,opacity:.66,shininess:65,side:THREE.DoubleSide});
+  const wood=M(kind==='hospital'?0x785d48:kind==='bank'?0x62472d:0x75543a),metal=M(0x4b5961),dark=M(0x202b34);
+  part(new THREE.BoxGeometry(w,.16,depth),floor,0,.03,0);
+  const ceiling=part(new THREE.PlaneGeometry(w,depth),wall,0,height,0);ceiling.rotation.x=-Math.PI/2;
+  part(new THREE.BoxGeometry(w,height,.18),wall,0,height/2,-depth/2);
+  // Left wall remains enclosed; the right wall has a staff-only doorway into changing.
+  part(new THREE.BoxGeometry(.18,height,depth),wall,-w/2,height/2,0);
+  part(new THREE.BoxGeometry(.18,height,7),wall,w/2,height/2,-3.5);
+  part(new THREE.BoxGeometry(.18,height,4.2),wall,w/2,height/2,4.9);
+  part(new THREE.BoxGeometry(.18,height-2.25,2.8),wall,w/2,(height+2.25)/2,1.4);
+  const staffDoor=part(new THREE.BoxGeometry(.055,2.05,1.05),glass,w/2-.14,1.025,1.5);staffDoor.rotation.y=.22;
+  // Public front entrance: a real opening with glass door leaves held slightly open.
+  const side=(w-3.4)/2;
+  part(new THREE.BoxGeometry(side,height,.18),wall,-(3.4+side)/2,height/2,depth/2);
+  part(new THREE.BoxGeometry(side,height,.18),wall,(3.4+side)/2,height/2,depth/2);
+  part(new THREE.BoxGeometry(3.4,.18,.18),trim,0,height-.09,depth/2);
+  part(new THREE.BoxGeometry(.09,2.35,.10),trim,-1.7,1.18,depth/2);
+  part(new THREE.BoxGeometry(.09,2.35,.10),trim,1.7,1.18,depth/2);
+  const leftDoor=part(new THREE.BoxGeometry(1.05,2.2,.055),glass,-.78,1.1,depth/2-.14);leftDoor.rotation.y=-.22;
+  const rightDoor=part(new THREE.BoxGeometry(1.05,2.2,.055),glass,.78,1.1,depth/2-.14);rightDoor.rotation.y=.22;
+  // Main reception desk, glass partitions and office equipment.
+  part(new THREE.BoxGeometry(5.4,1.08,1.05),wood,0,.65,-3.3);
+  part(new THREE.BoxGeometry(5.48,.10,1.12),trim,0,1.23,-3.3);
+  part(new THREE.BoxGeometry(2.4,.65,.06),glass,-1.3,1.62,-3.3);
+  part(new THREE.BoxGeometry(2.4,.65,.06),glass,1.3,1.62,-3.3);
+  [-1.65,1.55].forEach((sx)=>{part(new THREE.BoxGeometry(.85,.58,.10),dark,sx,1.58,-3.48);part(new THREE.BoxGeometry(.87,.055,.3),metal,sx,1.29,-3.32);part(new THREE.BoxGeometry(.3,.04,.2),M(0xe9e6dd),sx+.45,1.30,-3.0);});
+  part(new THREE.CylinderGeometry(.05,.05,.3,8),metal,2.2,1.43,-3.05);part(new THREE.SphereGeometry(.14,10,8),M(0xffd17b),2.2,1.65,-3.05);
+  // A recognisable secretary stands behind the counter, with workplace-specific attire.
+  const secretary=new THREE.Group();secretary.position.set(0,0,-5.25);g.add(secretary);
+  const sp=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);secretary.add(o);return o;};
+  const shirt=M(p.uniform),skin=M(0x8d5524),hair=M(0x151515);
+  sp(new THREE.BoxGeometry(.65,.78,.28),shirt,0,1.02,0);
+  sp(new THREE.BoxGeometry(.12,.65,.16),shirt,-.43,1.08,0);sp(new THREE.BoxGeometry(.12,.65,.16),shirt,.43,1.08,0);
+  sp(new THREE.SphereGeometry(.075,10,8),skin,-.43,.72,.02);sp(new THREE.SphereGeometry(.075,10,8),skin,.43,.72,.02);
+  sp(new THREE.CylinderGeometry(.055,.06,.16,8),skin,0,1.46,0);
+  sp(new THREE.SphereGeometry(.19,14,10),skin,0,1.68,0);
+  sp(new THREE.SphereGeometry(.193,12,8,0,Math.PI*2,0,Math.PI/2),hair,0,1.76,-.02);
+  sp(new THREE.BoxGeometry(.07,.035,.025),dark,-.065,1.69,.168);sp(new THREE.BoxGeometry(.07,.035,.025),dark,.065,1.69,.168);
+  sp(new THREE.BoxGeometry(.07,.32,.06),accent,0,1.20,.16);
+  // Waiting chairs and a simple indoor plant make this read as a public lobby.
+  [-1,1].forEach(s=>{const x=s*4.25;part(new THREE.BoxGeometry(1.35,.18,.75),wood,x,.48,.6);part(new THREE.BoxGeometry(1.35,.68,.16),trim,x,.83,.92);part(new THREE.BoxGeometry(.10,.40,.10),metal,x-.55,.22,.35);part(new THREE.BoxGeometry(.10,.40,.10),metal,x+.55,.22,.35);});
+  part(new THREE.CylinderGeometry(.24,.28,.32,10),wood,-6.0,.18,-1.0);part(new THREE.SphereGeometry(.42,12,10),M(0x2f824d),-6.0,.62,-1.0);
+  part(new THREE.BoxGeometry(2.2,1.25,.12),trim,5.5,2.0,-6.75);part(new THREE.BoxGeometry(2.0,1.05,.05),glass,5.5,2.0,-6.65);part(new THREE.BoxGeometry(.16,.15,.08),accent,5.5,2.0,-6.58);
+  // Collision edges follow the visible shell and preserve both doorways.
+  boxes.push(
+   {x:ix,z:iz-depth/2,hw:w/2,hd:.12},
+   {x:ix-w/2,z:iz,hw:.12,hd:depth/2},
+   {x:ix+w/2,z:iz-3.5,hw:.12,hd:3.5},
+   {x:ix+w/2,z:iz+4.9,hw:.12,hd:2.1},
+   {x:ix-(3.4+side)/2,z:iz+depth/2,hw:side/2,hd:.12},
+   {x:ix+(3.4+side)/2,z:iz+depth/2,hw:side/2,hd:.12},
+   {x:ix,z:iz-3.3,hw:2.65,hd:.55}
+  );
+  mini(workplaceName.toUpperCase().slice(0,28),ix,3.12,iz-depth/2+.11,Math.min(7.8,w-.8),'#'+p.trim.toString(16).padStart(6,'0'));
+  mini('RECEPTION',ix,2.70,iz-3.9,3.2,'#'+p.accent.toString(16).padStart(6,'0'));
+  const staffSign=mini('STAFF ONLY',ix+w/2-.16,2.55,iz+4.1,2.7,'#'+p.trim.toString(16).padStart(6,'0'));staffSign.rotation.y=Math.PI/2;
+  const streetSign=mini('EXIT TO STREET',ix,2.75,iz+depth/2-.08,3.6,'#206f4a');streetSign.rotation.y=Math.PI;
+  layout=WORKPLACE_INTERIOR_VISUALS[id]={id,name:workplaceName+' · Reception',workplaceId,kind,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix,z:iz-3.3,hw:2.1,hd:.5},isWorkplaceInterior:true};
+ }
+ const employment=window.NRS?.life?.employment||window.NRS?.workplaceState?.employment||null;
+ const pois=[
+  {x:layout.x,z:layout.z-1.95,k:'Reception',name:'Speak to the secretary',t:'workplace-service',workplaceId,r:3.0},
+  {x:layout.x,z:layout.z+5.75,k:'Exit',name:'Return to the street',t:'workplace-exit',workplaceId,r:2.8}
+ ];
+ if(employment?.workplaceId===workplaceId&&!employment.onDuty){
+  pois.push({x:layout.x+5.0,z:layout.z+1.4,k:'Staff',name:'Enter staff changing room',t:'workplace-staff-room',workplaceId,r:2.8});
+ }
+ return {...layout,name:workplaceName+' · Reception',workplaceName,kind,pois};
 }
 const ROOMS={};
 function room(p){if(ROOMS[p.id])return ROOMS[p.id];
@@ -2056,7 +2157,20 @@ function openHouseMenu(h){
 }
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
  if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
-act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){openWorkplaceMenuFor(p.workplaceId);return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
+function openWorkplaceReceptionMenu(workplaceId){
+ workplaceMenuOpen=false;
+ const places=window.NRS?.workplaceState?.workplaces||window.NRS?.workplaces||[];
+ const workplace=places.find(w=>w.id===workplaceId);
+ if(!workplace){openWorkplaceMenuFor(workplaceId);return;}
+ const name=safeText(workplace.name),kind=String(workplace.kind||'');
+ const guidance=kind==='hospital'?'For treatment, approach a real on-duty medical worker wearing this hospital uniform.':
+  ['police','frsc','fire','military'].includes(kind)?'For assistance, approach an on-duty uniformed officer or responder.':
+  kind==='school'?'For school enquiries, the secretary can direct visitors to available staff.':
+  'The secretary can direct visitors and staff requests to the right department.';
+ panel('<div class="wm-head"><span>🏢</span><div><small>FRONT DESK · RECEPTION</small><h2>'+name+'</h2><p>Secretary / Reception</p></div></div><p>Welcome. Please tell the reception desk what you need.</p><p class="wm-note">'+guidance+'</p><div class="wm-buttons"><button data-reception-career="'+workplaceId+'">Workplace & staff services</button></div>');
+ modal.classList.add('work-menu');
+}
+act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){window.NRS?.enterWorkplaceInterior(p.workplaceId);return;}if(p.t==='workplace-service'){openWorkplaceReceptionMenu(p.workplaceId);return;}if(p.t==='workplace-staff-room'){window.NRS?.enterStaffRoom(p.workplaceId);return;}if(p.t==='workplace-exit'){window.NRS?.exitWorkplaceInterior();return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
 /* bank + ATM */
 function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
@@ -2092,7 +2206,7 @@ function renderWorkplaceMenu(data){
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
   let actions='';
   if(me){
-   actions+='<button data-staff-room="'+w.id+'" '+(employment.onDuty?'disabled':'')+'>🚪 Staff changing room</button>';
+   actions+='<button data-staff-room="'+w.id+'" '+(employment.onDuty?'disabled':'')+'>'+(inside?.isWorkplaceInterior&&inside.workplaceId===w.id?'🚪 Enter staff changing room':'🏢 Enter workplace reception')+'</button>';
    actions+='<div class="wm-buttons"><button data-work-duty="'+w.id+'" data-duty="'+(!employment.onDuty)+'">'+(employment.onDuty?'Clock out':'Clock in')+'</button><button class="subtle" data-work-leave="1">Leave job</button></div>';
    if(employment.onDuty){
     if(running){actions+='<div class="wm-task-running"><small>IN PROGRESS</small><b>'+safeText(w.tasks?.find(t=>t.id===task.taskId)?.title||'Work task')+'</b><span data-work-countdown="'+Math.ceil(remain/1000)+'">'+(remain>0?'Ready in '+Math.ceil(remain/1000)+'s':'Task ready to complete')+'</span><button data-work-task-complete="1" '+(remain>0?'disabled':'')+'>Complete task</button></div>';}
@@ -2126,7 +2240,8 @@ const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMe
 modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.openWorkplaces){openWorkplaceMenu();return;}
-  if(d.staffRoom){modal.style.display='none';modal.innerHTML='';N.enterStaffRoom(d.staffRoom);return;}
+  if(d.receptionCareer){modal.style.display='none';modal.innerHTML='';openWorkplaceMenuFor(d.receptionCareer);return;}
+  if(d.staffRoom){workplaceMenuOpen=false;modal.style.display='none';modal.innerHTML='';if(inside?.isWorkplaceInterior&&inside.workplaceId===d.staffRoom)N.enterStaffRoom(d.staffRoom);else N.enterWorkplaceInterior(d.staffRoom);return;}
   if(d.playerAction){modal.style.display='none';modal.innerHTML='';N.interactWithPlayer(d.playerId,d.playerAction);return;}
  if(d.adminRole){const username=$('nrsAdminTarget')?.value.trim();if(!username){sys('Enter the account username in Firstname_lastname format.');return;}N.setAdminRole(username,d.adminRole);return;}
  if(d.workApply){N.applyWorkplace(d.workApply);return;}
@@ -2290,13 +2405,20 @@ function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.f
 window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;syncHouseExteriors(N.houses);}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
 window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
 window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
-window.addEventListener('nrs-staff-room-enter',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=staffRoomInterior(d);
- r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.7);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
- focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||'Staff changing room opened.');routeTransitionOut();});
-window.addEventListener('nrs-staff-room-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isStaffRoom)return;const r=inside;inside=null;
- pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);
- camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;
+window.addEventListener('nrs-workplace-interior-enter',e=>{const d=e.detail||{};if(!d.ok)return;workplaceMenuOpen=false;routeTransitionOut();const r=workplaceInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??(r.z+4.2)));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||('Welcome to '+r.workplaceName+'. Approach reception to speak to the secretary.'));routeTransitionOut();});
+window.addEventListener('nrs-workplace-interior-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isWorkplaceInterior)return;workplaceMenuOpen=false;inside=null;
+ pos.set(Number(d.x??0),0,Number(d.z??24));vel.set(0,0,0);jv=0;face=Number.isFinite(d.yaw)?Number(d.yaw):0;camYaw=Math.PI;camPitch=.28;
  focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back outside the workplace.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-enter',e=>{const d=e.detail||{};if(!d.ok)return;workplaceMenuOpen=false;routeTransitionOut();const r=staffRoomInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??(r.z+1.7)));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||'Staff changing room opened.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isStaffRoom)return;workplaceMenuOpen=false;const previous=inside,returnState=previous.ret;
+ const r=workplaceInterior({workplaceId:d.workplaceId||previous.workplaceId,workplaceName:d.workplaceName||previous.workplaceName,workplaceKind:d.workplaceKind||previous.kind,roomX:d.workplaceRoomX??previous.x,roomZ:d.workplaceRoomZ??previous.z});
+ r.ret=returnState||{x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face:Math.PI,camYaw:0,camPitch:.08};inside=r;
+ pos.set(Number(d.x??r.x),0,Number(d.z??r.z+4.2));vel.set(0,0,0);jv=0;face=Number.isFinite(returnState?.face)?returnState.face:Math.PI;camYaw=Number.isFinite(returnState?.camYaw)?returnState.camYaw:0;camPitch=Number.isFinite(returnState?.camPitch)?returnState.camPitch:.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back inside the reception area.');routeTransitionOut();});
 window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;carparkExitAttemptAt=0;sys(d.message||'Private car park entered.');openGarageSpawnMenu();routeTransitionOut();});
 window.addEventListener('nrs-carpark-foot-exit',e=>{
  const d=e.detail||{};if(!d.ok)return;
@@ -2445,4 +2567,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261010-workplace-life-systems"></script></body></html>
+</script><script src="/nrs-online.js?v=20261010-workplace-interiors-player-session-ids"></script></body></html>
