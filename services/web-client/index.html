@@ -1404,7 +1404,6 @@ function traffic(dt){
   if(blocker&&gap<18){
    const side=Math.sign(base||(dz<0?1:-1)),candidates=[clamp(base+side*2.5,-4.4,4.4),clamp(base-side*2.5,-4.4,4.4)];
    for(const candidate of candidates){
-    if(Math.abs(candidate)<2.8)continue;
     const lookZ=c.z+dz*Math.min(8,Math.max(3,gap));
     const statClear=!boxes.some(b=>b!==c.box&&b.hw>0&&b.hd>0&&(!b.owner||b.owner===c||b.owner.g.visible)&&Math.abs(candidate-b.x)<objectHalfExtents(b).hw+1.05&&Math.abs(lookZ-b.z)<objectHalfExtents(b).hd+2.3);
     const dynClear=!obs.some(o=>o!==c&&Number.isFinite(o.x)&&Math.abs(o.x-candidate)<2.2&&Math.abs(o.z-lookZ)<4.8);
