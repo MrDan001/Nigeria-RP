@@ -123,6 +123,8 @@ test("paid workplace tasks require duty, correct task, workplace proximity, dura
     now: 100_000, startedAt: 0, onDuty: true,
   };
   assert.deepEqual(checkWorkTaskEligibility(base), { ok: true });
+  assert.equal(checkWorkTaskEligibility({ ...base, employment: { ...employment, uniformWorkplaceId: null } }).ok, false);
+  assert.equal(checkWorkTaskEligibility({ ...base, employment: { ...employment, uniformWorkplaceId: "bank-main" } }).ok, false);
   assert.equal(checkWorkTaskEligibility({ ...base, distance: WORKPLACE_RADIUS + 1 }).ok, false);
   assert.equal(checkWorkTaskEligibility({ ...base, onDuty: false }).ok, false);
   assert.equal(checkWorkTaskEligibility({ ...base, taskId: "fake-pay" }).ok, false);
@@ -282,6 +284,9 @@ test("save/load: life survives a JSON round trip; bad data is repaired", () => {
     rentDays: 4,
   };
   assert.deepEqual(normalizeLife(JSON.parse(JSON.stringify(life)), today), life);
+  const oldOnDuty = normalizeLife({ employment: { workplaceId: "hospital-main", rank: 2, onDuty: true, lastTaskAt: 0 } }, today);
+  assert.equal(oldOnDuty.employment?.uniformWorkplaceId, null);
+  assert.equal(oldOnDuty.employment?.onDuty, false);
 
   const repaired = normalizeLife(
     { employment: { workplaceId: "nope", rank: 9 }, homeId: "ghost", rentDays: 99, lastDay: "tomorrow", ownedCars: ["c1", "zzz"] },
