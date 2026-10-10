@@ -433,9 +433,9 @@ const winTex=(base,lit,rx,ry)=>tex(256,512,(g,w,h)=>{
 function building(x,z,w,d,h,col,side,lit){const pl=M(col),fr=new THREE.MeshLambertMaterial({map:winTex('#'+col.toString(16).padStart(6,'0'),lit,Math.max(1,Math.round(d/8)),Math.max(1,Math.round(h/7)))});
  const m=[pl,pl,pl,pl,pl,pl];m[side<0?0:1]=fr;add(new THREE.BoxGeometry(w,h,d),m,x,h/2,z);
  const b={x,z,hw:w/2,hd:d/2,h,c:col};boxes.push(b);bld.push(b);}
-[[-17,-20,12,16,8,0xcdbf9d,-1,.3],[-17,6,12,14,6,0xb08a6a,-1,.2],[-17,32,12,16,11,0xc9ccd0,-1,.4],[-17,-52,12,18,14,0xd8d2c0,-1,.35],
- [17,-24,12,14,7,0xe0b878,1,.3],[17,2,12,14,9,0x9fb4c8,1,.4],[17,28,12,14,6,0xd6d0c4,1,.2],[17,-56,12,18,16,0xb8c8d8,1,.45],
- [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],[-30,-130,16,16,28,0xa09a90,-1,.4]].forEach(a=>building(...a));
+[[-17,6,12,14,6,0xb08a6a,-1,.2],[-17,32,12,16,11,0xc9ccd0,-1,.4],[-17,-52,12,18,14,0xd8d2c0,-1,.35],
+ [17,2,12,14,9,0x9fb4c8,1,.4],[17,28,12,14,6,0xd6d0c4,1,.2],
+ [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],].forEach(a=>building(...a));
 
 /* Residential exteriors are actual multi-part buildings, sized to each rental class. */
 const HOUSE_VISUALS=Object.create(null),HOUSE_MATERIALS=Object.create(null);
@@ -791,9 +791,26 @@ const HOSPITAL_SITES=[
  {id:'hospital-princess',name:'Princess Hospital',x:155,z:-139,w:25,d:20,h:8,wall:0xe1e5e2,accent:0x0f8b91,trim:0x2c5969,entryX:155,entryZ:-126,leaderTitle:'MEDICAL DIRECTOR'}
 ];
 const SCHOOL_SITES=[
- {id:'school-primary',name:'Rivers State Primary School',x:180,z:135,w:20,d:18,h:6,wall:0xdacaa2,accent:0x297a52,trim:0x6e4b2e,entryX:180,entryZ:144,leaderTitle:'PRINCIPAL'},
- {id:'school-secondary',name:'Rivers State Secondary School',x:215,z:135,w:20,d:18,h:7,wall:0xc9d0d3,accent:0x315f95,trim:0x38495e,entryX:215,entryZ:144,leaderTitle:'PRINCIPAL'}
+ {id:'school-primary',name:'Rivers State Primary School',x:180,z:135,w:30,d:28,h:10,wall:0xdacaa2,accent:0xd0a33a,trim:0x6e4b2e,entryX:180,entryZ:144,leaderTitle:'PRINCIPAL'},
+ {id:'school-secondary',name:'Rivers State Secondary School',x:215,z:135,w:30,d:28,h:11,wall:0xc9d0d3,accent:0x315f95,trim:0x38495e,entryX:215,entryZ:144,leaderTitle:'PRINCIPAL'}
 ];
+/* Reserved plots for purpose-built public and commercial facilities. This only
+   excludes procedural infill; existing roads, roundabouts and road geometry are untouched. */
+const ORGANIZATION_SITE_RESERVES=[
+ {id:'market-mile1',x:-70,z:27,w:38,d:24},
+ {id:'bank-main',x:-23,z:-20,w:28,d:28},
+ {id:'park-main',x:-31,z:12,w:19,d:18},
+ {id:'news-main',x:20,z:-65,w:31,d:26},
+ {id:'gov-rivers',x:36,z:-27,w:47,d:40},
+ {id:'police-rivers',x:-28,z:-143,w:20,d:22},
+ {id:'frsc-rivers',x:30,z:89,w:27,d:24},
+ {id:'fire-rivers',x:-45,z:-142,w:17,d:21},
+ {id:'army-rivers',x:185,z:-167,w:36,d:36},
+ {id:'transport-union',x:30,z:46,w:36,d:27},
+ {id:'school-primary',x:180,z:162,w:33,d:62},
+ {id:'school-secondary',x:215,z:162,w:33,d:62}
+];
+
 /* Added residential access roads. Existing main roads and roundabouts above remain untouched. */
 const LOCAL_ROADS=[
  {id:'mile1-front',axis:'h',fixed:116,lo:-85,hi:-10,width:5.5,zone:'Mile 1 Market'},
@@ -1040,7 +1057,7 @@ flatW(73,1.4,swm,-48.5,.066,MILE1_ALLEY_Z,4);
 });
 for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx,gz)||DEF;if(rnd()>Z.d)continue;
  const R=a=>Math.round(a[0]+rnd()*(a[1]-a[0])),w=R(Z.w),d=R(Z.w),h=R(Z.h),x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,c=Z.cols[Math.floor(rnd()*Z.cols.length)];
- if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||SCHOOL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
+ if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||SCHOOL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||ORGANIZATION_SITE_RESERVES.some(p=>Math.abs(x-p.x)<p.w/2+w/2+4&&Math.abs(z-p.z)<p.d/2+d/2+4)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
  const f=wmat(c,h),p=plain(c);add(new THREE.BoxGeometry(w,h,d),[f,f,p,p,f,f],x,h/2,z);const b={x,z,hw:w/2,hd:d/2,h,c,gen:true};boxes.push(b);bld.push(b);}
 for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4)&&!boxes.some(b=>Math.abs(x-b.x)<b.hw+2&&Math.abs(z-b.z)<b.hd+2))palm(x,z);}
 /* ---------- Building detailing: plinth, cornice, parapet, roof equipment, entrances ---------- */
@@ -1718,49 +1735,175 @@ function buildHospital(site){
  POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
  addWorkplaceOccupantSign(site);
 }
-function buildSchool(site){
- building(site.x,site.z,site.w,site.d,site.h,site.wall,-1,.38);
- const front=site.z+site.d/2,wall=M(site.wall),trim=M(site.trim),accent=M(site.accent),glass=new THREE.MeshLambertMaterial({color:0x8eb4c8,emissive:0x0c1b22,transparent:true,opacity:.9});
- add(new THREE.BoxGeometry(site.w+.45,.34,site.d+.45),trim,site.x,.28,site.z);
- add(new THREE.BoxGeometry(site.w+.6,.2,site.d+.6),accent,site.x,site.h+.12,site.z);
- add(new THREE.BoxGeometry(2.5,2.8,.14),trim,site.x,1.43,front+.14);
- add(new THREE.BoxGeometry(2.0,2.4,.1),glass,site.x,1.38,front+.23);
- add(new THREE.BoxGeometry(.12,2.4,.14),wall,site.x,1.35,front+.3);
- // Realistic door leaves and handles make the school entrance stand out against the opaque wall.
- add(new THREE.BoxGeometry(2.22,2.58,.16),trim,site.x,1.30,front+.43);
- [-1,1].forEach(side=>{
-  add(new THREE.BoxGeometry(.98,2.32,.08),M(0x18242b),site.x+side*.50,1.27,front+.54);
-  add(new THREE.BoxGeometry(.42,.7,.035),new THREE.MeshBasicMaterial({color:0x416a79}),site.x+side*.50,1.73,front+.60);
-  add(new THREE.BoxGeometry(.04,.23,.07),M(0xd8b76b),site.x+side*.16,1.08,front+.62);
+
+/* ---------- Purpose-built organization architecture ---------- */
+/* Facade textures keep these detailed campuses efficient enough for mobile rendering. */
+function organizationFacadeTexture(palette,kind,floors,mainFace){
+ const c=document.createElement('canvas');c.width=1024;c.height=512;
+ const g=c.getContext('2d'),hex=n=>'#'+Number(n).toString(16).padStart(6,'0');
+ const wall=hex(palette.wall),trim=hex(palette.trim),accent=hex(palette.accent);
+ g.fillStyle=wall;g.fillRect(0,0,c.width,c.height);
+ g.fillStyle='rgba(255,255,255,.20)';g.fillRect(0,0,c.width,12);
+ g.fillStyle=trim;g.fillRect(0,0,c.width,17);g.fillRect(0,c.height-20,c.width,20);
+ const rowH=(c.height-34)/Math.max(1,floors);
+ for(let row=0;row<Math.max(1,floors);row++){
+  const y=17+row*rowH;
+  if(row>0){g.fillStyle=trim;g.fillRect(0,y-4,c.width,8);}
+  if(kind==='fire'&&mainFace&&row===0){
+   const bays=3,bw=170,gap=28,start=(c.width-(bays*bw+(bays-1)*gap))/2;
+   for(let j=0;j<bays;j++){
+    const x=start+j*(bw+gap);g.fillStyle='#252d33';g.fillRect(x,y+18,bw,rowH-36);
+    g.strokeStyle=accent;g.lineWidth=10;g.strokeRect(x,y+18,bw,rowH-36);
+    g.strokeStyle='#718087';g.lineWidth=3;
+    for(let yy=y+36;yy<y+rowH-24;yy+=16){g.beginPath();g.moveTo(x+8,yy);g.lineTo(x+bw-8,yy);g.stroke();}
+   }
+  }else{
+   const cols=kind==='market'?11:kind==='news'?10:kind==='government'?8:kind==='bank'?7:6;
+   const gap=c.width/cols,ww=gap*(kind==='news'?.55:.48),wh=rowH*(kind==='market'?.38:.52);
+   for(let j=0;j<cols;j++){
+    const x=gap*j+(gap-ww)/2,wy=y+(rowH-wh)/2;
+    if(kind==='transport'&&row===0){g.fillStyle='#273942';g.fillRect(x,wy,ww,wh);g.fillStyle=accent;g.fillRect(x,wy,ww,8);g.fillStyle='#b8d5df';g.fillRect(x+9,wy+10,Math.max(3,ww*.12),wh-20);}
+    else{
+     g.fillStyle=trim;g.fillRect(x-5,wy-5,ww+10,wh+10);
+     g.fillStyle=kind==='news'?'#142a3a':kind==='bank'?'#173b4e':'#243d4a';g.fillRect(x,wy,ww,wh);
+     g.fillStyle='rgba(203,235,245,.68)';g.fillRect(x+5,wy+4,Math.max(3,ww*.13),wh-8);
+     g.fillStyle='rgba(246,249,248,.26)';g.fillRect(x,wy+wh*.72,ww,Math.max(2,wh*.035));
+     if(kind==='school'&&row===0){g.fillStyle=accent;g.fillRect(x-5,wy+wh+7,ww+10,5);}
+    }
+   }
+  }
+  if(kind==='government'||kind==='police'||kind==='frsc'||kind==='army'){
+   g.fillStyle=accent;g.fillRect(0,y+rowH-10,c.width,5);
+  }
+ }
+ if(kind==='market'){
+  g.fillStyle='#635647';g.fillRect(0,c.height-70,c.width,50);
+  for(let x=22;x<c.width;x+=130){g.fillStyle='#e4c37a';g.fillRect(x,c.height-62,90,7);}
+ }
+ if(kind==='school'){g.fillStyle=accent;g.fillRect(0,c.height-34,c.width,8);}
+ if(kind==='news'){g.fillStyle=accent;g.fillRect(0,0,18,c.height);g.fillRect(c.width-18,0,18,c.height);}
+ if(kind==='fire'&&mainFace){g.fillStyle=accent;g.fillRect(0,0,c.width,16);}
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t;
+}
+function organizationBlockZ(x,frontZ,w,d,h,floors,palette,kind){
+ const cz=frontZ-d/2;
+ const wall=M(palette.wall),roof=M(palette.trim),frontTex=organizationFacadeTexture(palette,kind,floors,true),sideTex=organizationFacadeTexture(palette,kind,floors,false);
+ const fm=new THREE.MeshLambertMaterial({map:frontTex,side:THREE.DoubleSide});
+ const sm=new THREE.MeshLambertMaterial({map:sideTex,side:THREE.DoubleSide});
+ const block=add(new THREE.BoxGeometry(w,h,d),[sm,sm,wall,wall,fm,sm],x,h/2,cz);
+ boxes.push({x,z:cz,hw:w/2,hd:d/2,h});
+ add(new THREE.BoxGeometry(w+.6,.3,d+.6),roof,x,h+.12,cz);
+ add(new THREE.BoxGeometry(w+.45,.34,.24),roof,x,h+.28,frontZ-.02);
+ add(new THREE.BoxGeometry(.24,.34,d+.4),roof,x-w/2-.02,h+.28,cz);
+ add(new THREE.BoxGeometry(.24,.34,d+.4),roof,x+w/2+.02,h+.28,cz);
+ return {x,z:cz,frontZ,w,d,h,block};
+}
+function organizationBlockX(site,orientation,w,d,h,floors,palette,kind){
+ const isEast=orientation==='east';
+ const faceX=isEast?site.x-2.05:site.x+2.05;
+ const cx=isEast?faceX-w/2:faceX+w/2;
+ const cz=isEast?site.z:site.z-d/2-2.0;
+ const wall=M(palette.wall),roof=M(palette.trim),frontTex=organizationFacadeTexture(palette,kind,floors,true),sideTex=organizationFacadeTexture(palette,kind,floors,false);
+ const fm=new THREE.MeshLambertMaterial({map:frontTex,side:THREE.DoubleSide});
+ const sm=new THREE.MeshLambertMaterial({map:sideTex,side:THREE.DoubleSide});
+ const materials=isEast?[fm,sm,wall,wall,sm,sm]:[sm,fm,wall,wall,sm,sm];
+ const block=add(new THREE.BoxGeometry(w,h,d),materials,cx,h/2,cz);
+ boxes.push({x:cx,z:cz,hw:w/2,hd:d/2,h});
+ add(new THREE.BoxGeometry(w+.6,.3,d+.6),roof,cx,h+.12,cz);
+ add(new THREE.BoxGeometry(.24,.34,d+.4),roof,faceX+(isEast?-.02:.02),h+.28,cz);
+ return {x:cx,z:cz,faceX,faceZ:null,w,d,h,block,orientation,frontZ:cz+d/2};
+}
+function organizationSign(name,palette,w,h,x,y,z,rotationY,subtitle){
+ const map=tex(1024,224,(g,W,H)=>{
+  g.fillStyle='#'+Number(palette.trim).toString(16).padStart(6,'0');g.fillRect(0,0,W,H);
+  g.fillStyle='#'+Number(palette.accent).toString(16).padStart(6,'0');g.fillRect(0,0,W,13);g.fillRect(0,H-13,W,13);
+  g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=5;g.strokeRect(8,8,W-16,H-16);
+  g.textAlign='center';g.fillStyle='#fff';g.font='bold 47px system-ui';g.fillText(name.toUpperCase(),W/2,84,W-38);
+  g.fillStyle='#eaf7f4';g.font='bold 25px system-ui';g.fillText((subtitle||'MAIN ENTRANCE').toUpperCase(),W/2,157,W-38);
  });
- [-1,1].forEach(side=>{for(let i=0;i<3;i++){
-  const x=site.x+side*(4.1+i*2.8),y=2.35+(i%2)*.1;
-  add(new THREE.BoxGeometry(1.7,1.35,.1),trim,x,y,front+.1);
-  add(new THREE.BoxGeometry(1.46,1.12,.08),glass,x,y,front+.17);
-  add(new THREE.BoxGeometry(1.46,.04,.1),wall,x,y,front+.22);
- }});
- add(new THREE.BoxGeometry(site.w*.42,.23,2.2),trim,site.x,site.h-.1,front+.85);
- add(new THREE.BoxGeometry(site.w*.38,.16,2.0),accent,site.x,site.h,front+.9);
- // A private pedestrian approach joins the existing Waterlines road edge without changing its geometry.
- flatW(3.8,45,swm,site.x,.061,166.5,5);
- POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
+ const mapMat=new THREE.MeshBasicMaterial({map,side:THREE.DoubleSide,fog:false});
+ const board=add(new THREE.PlaneGeometry(w,h),mapMat,x,y,z);board.rotation.y=rotationY||0;return board;
+}
+function organizationBox(w,h,d,x,y,z,color){
+ return add(new THREE.BoxGeometry(w,h,d),M(color),x,y,z);
+}
+function organizationEntranceZ(site,palette,opts){
+ const front=opts.frontZ,doorX=site.x+(opts.doorOffset||0),dw=opts.doorWidth||2.8,dh=opts.doorHeight||2.7;
+ organizationBox(dw+.85,dh+.55,.20,doorX,dh/2,front+.20,palette.trim);
+ organizationBox(dw,dh,.12,doorX,dh/2,front+.34,0x18242b);
+ const leaves=Math.max(1,Math.floor(dw/1.25));
+ for(let i=0;i<leaves;i++){
+  const leafW=dw/leaves;
+  organizationBox(leafW-.12,dh-.18,.05,doorX-dw/2+leafW*(i+.5),dh/2,front+.42,0x203b49);
+  organizationBox(.055,.22,.07,doorX-dw/2+leafW*(i+.5)+leafW*.35,1.0,front+.47,0xe4c87e);
+ }
+ organizationBox(dw+5.2,.34,2.2,doorX,3.48,front+1.05,palette.trim);
+ organizationBox(dw+5.5,.14,2.35,doorX,3.70,front+1.05,palette.accent);
+ const columns=opts.columns===undefined?2:opts.columns;
+ for(let i=0;i<columns;i++){
+  const xx=doorX+(i-(columns-1)/2)*(dw+3)/(Math.max(1,columns-1));
+  add(new THREE.CylinderGeometry(.19,.24,3.4,10),M(palette.trim),xx,1.75,front+.8);
+  organizationBox(.58,.16,.58,xx,3.48,front+.8,palette.accent);
+ }
+ organizationBox(dw+4,.18,1.3,doorX,.12,front+1.0,palette.wall);
+ organizationBox(dw+3,.16,.75,doorX,.30,front+1.0,palette.trim);
+ const signY=opts.signY||Math.max(4.3,dh+1.1);
+ organizationSign(site.name,palette,opts.signWidth||Math.min(12,Math.max(7,site.w*.65)),opts.signHeight||1.35,site.x,signY,front+.17,0,opts.subtitle||'MAIN ENTRANCE');
+}
+function organizationEntranceX(site,palette,opts){
+ const isEast=opts.orientation==='east',faceX=isEast?site.x-2.05:site.x+2.05;
+ const doorZ=opts.doorZ===undefined?site.z:opts.doorZ;
+ const dw=opts.doorWidth||2.8,dh=opts.doorHeight||2.7;
+ organizationBox(.20,dh+.55,dw+.85,faceX+(isEast?.20:-.20),dh/2,doorZ,palette.trim);
+ organizationBox(.12,dh,dw,faceX+(isEast?.34:-.34),dh/2,doorZ,0x18242b);
+ [-1,1].forEach(side=>{
+  organizationBox(.05,dh-.18,(dw-.16)/2,faceX+(isEast?.42:-.42),dh/2,doorZ+side*dw*.24,0x203b49);
+  organizationBox(.07,.22,.055,faceX+(isEast?.47:-.47),1.0,doorZ+side*.12,0xe4c87e);
+ });
+ organizationBox(2.2,.34,dw+5.2,faceX+(isEast?1.05:-1.05),3.48,doorZ,palette.trim);
+ organizationBox(2.35,.14,dw+5.5,faceX+(isEast?1.05:-1.05),3.70,doorZ,palette.accent);
+ const cols=[doorZ-(dw/2+1.25),doorZ+(dw/2+1.25)];
+ cols.forEach(zz=>{add(new THREE.CylinderGeometry(.19,.24,3.4,10),M(palette.trim),faceX+(isEast?.8:-.8),1.75,zz);});
+ organizationSign(site.name,palette,opts.signWidth||8.5,opts.signHeight||1.25,faceX+(isEast?.17:-.17),opts.signY||6.0,doorZ,Math.PI/2,opts.subtitle||'MAIN ENTRANCE');
+ organizationBox(1.2,.14,dw+3,faceX+(isEast?.85:-.85),.12,doorZ,palette.wall);
+ organizationBox(.75,.16,dw+2,faceX+(isEast?1.45:-1.45),.30,doorZ,palette.trim);
+}
+function buildSchool(site){
+ const palette={wall:site.wall,trim:site.trim,accent:site.accent};
+ const front=site.entryZ-2.05;
+ const floors=site.id==='school-primary'?3:3;
+ organizationBlockZ(site.x,front,site.w,site.d,site.h,floors,palette,'school');
+ organizationEntranceZ({x:site.entryX,z:site.entryZ,w:site.w,h:site.h,name:site.name},palette,{
+  frontZ:front,doorWidth:3.4,doorHeight:2.65,columns:4,signWidth:Math.min(15,site.w*.72),signHeight:1.4,signY:6.1,
+  subtitle:site.id==='school-primary'?'PRIMARY EDUCATION • ADMINISTRATION':'SECONDARY EDUCATION • SCIENCE & ARTS'
+ });
+ /* School grounds include a covered assembly forecourt, a flagpole, and outdoor activity space. */
+ flatW(5,40,asphalt2,site.entryX,.057,168,6);
+ flatW(1.1,38,swm,site.entryX-3.1,.066,168,4);flatW(1.1,38,swm,site.entryX+3.1,.066,168,4);
+ flatW(11,13,M(site.id==='school-primary'?0x76a74e:0x5d8f48),site.x+12,.058,site.entryZ+23,4);
+ organizationBox(11,.16,13,site.x+12,.13,site.entryZ+23,site.trim);
+ for(let j=0;j<3;j++)organizationBox(2.1,.15,.32,site.x+8+j*4,.35,site.entryZ+18,site.accent);
+ flag(site.x-8,site.entryZ+8);
+ const tank=add(new THREE.CylinderGeometry(.8,.8,1.7,12),M(0x4e6e80),site.x+site.w*.32,site.h+1.0,front-site.d+3);
+ add(new THREE.CylinderGeometry(.84,.84,.14,12),M(site.accent),site.x+site.w*.32,site.h+1.88,front-site.d+3);
  addWorkplaceOccupantSign(site);
+ POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
 }
 HOSPITAL_SITES.forEach(buildHospital);
 SCHOOL_SITES.forEach(buildSchool);
 // Work-only interaction markers for the remaining already-catalogued careers/factions.
 // These are POIs only: they do not move any road, roundabout, existing building, or house.
 const OTHER_WORKPLACE_ENTRIES=[
- {id:'market-mile1',name:'Mile 1 Market',x:-48,z:80},
+ {id:'market-mile1',name:'Mile 1 Market',x:-70,z:40},
  {id:'bank-main',name:'Port Harcourt Bank',x:-10,z:-20},
  {id:'park-main',name:'City Park',x:-30,z:20},
  {id:'news-main',name:'Rivers News Network',x:20,z:-52},
  {id:'gov-rivers',name:'Rivers State Government',x:36,z:-8},
  {id:'police-rivers',name:'Rivers State Police Service',x:-28,z:-132},
- {id:'frsc-rivers',name:'FRSC — Rivers Sector Command',x:28,z:48},
+ {id:'frsc-rivers',name:'FRSC — Rivers Sector Command',x:30,z:100},
  {id:'fire-rivers',name:'Rivers State Fire & Rescue',x:-45,z:-132},
- {id:'army-rivers',name:'Nigerian Army — Port Harcourt Garrison',x:185,z:-165},
- {id:'transport-union',name:'Port Harcourt Transport Union',x:5,z:62}
+ {id:'army-rivers',name:'Nigerian Army — Port Harcourt Garrison',x:185,z:-150},
+ {id:'transport-union',name:'Port Harcourt Transport Union',x:14,z:60}
 ];
 const WORKPLACE_ENTRY_DESIGNS={
  'market-mile1':{wall:0xb8a27a,trim:0x573b29,accent:0xf0b943},
@@ -1774,38 +1917,152 @@ const WORKPLACE_ENTRY_DESIGNS={
  'army-rivers':{wall:0xb3b7a4,trim:0x374734,accent:0xc39b4d},
  'transport-union':{wall:0xc5c6c2,trim:0x313b42,accent:0xe7a92d}
 };
+
+const WORKPLACE_BUILDING_PROFILES={
+ 'market-mile1':{kind:'market',w:34,d:22,h:7,floors:1,axis:'z',subtitle:'TRADERS • PRODUCE • DAILY COMMERCE'},
+ 'bank-main':{kind:'bank',w:22,d:24,h:16,floors:4,axis:'east',subtitle:'BANKING • CUSTOMER SERVICE',signWidth:9.2,signY:7.0},
+ 'park-main':{kind:'park',w:14,d:12,h:5,floors:1,axis:'z',subtitle:'PARK AUTHORITY • VISITOR SERVICES'},
+ 'news-main':{kind:'news',w:28,d:22,h:16,floors:4,axis:'z',subtitle:'NEWSROOM • RADIO • BROADCAST'},
+ 'gov-rivers':{kind:'government',w:44,d:34,h:27,floors:6,axis:'z',subtitle:'STATE SECRETARIAT • PUBLIC ADMINISTRATION'},
+ 'police-rivers':{kind:'police',w:16,d:18,h:12,floors:3,axis:'z',subtitle:'POLICE HEADQUARTERS • EMERGENCY DESK'},
+ 'frsc-rivers':{kind:'frsc',w:24,d:18,h:9,floors:2,axis:'z',subtitle:'ROAD SAFETY • DRIVER SUPPORT'},
+ 'fire-rivers':{kind:'fire',w:14,d:16,h:8,floors:2,axis:'z',subtitle:'FIRE • RESCUE • EMERGENCY RESPONSE'},
+ 'army-rivers':{kind:'army',w:32,d:30,h:12,floors:3,axis:'z',subtitle:'PORT HARCOURT GARRISON • DUTY HQ'},
+ 'transport-union':{kind:'transport',w:30,d:24,h:7,floors:1,axis:'west',subtitle:'PASSENGER TERMINAL • ROUTE DISPATCH'}
+};
 // The workplace coordinates are the navigation/interaction points. Give every POI-only site
 // a visible, branded entry facade, double doors, lights and a clear MAIN ENTRANCE sign.
 function buildWorkplaceEntrance(w){
- const d=WORKPLACE_ENTRY_DESIGNS[w.id]||{wall:0xbcc5c9,trim:0x334452,accent:0x4f9dba};
- const wall=M(d.wall),trim=M(d.trim),accent=M(d.accent),door=M(0x18242b),glass=new THREE.MeshBasicMaterial({color:0x70b1ca,transparent:true,opacity:.72});
- const faceZ=w.z-2.05;
- // Side wings and lintel form an unmistakable entrance where the original scene had no door model.
- add(new THREE.BoxGeometry(2.6,3.25,.38),wall,w.x-2.55,1.63,faceZ);
- add(new THREE.BoxGeometry(2.6,3.25,.38),wall,w.x+2.55,1.63,faceZ);
- add(new THREE.BoxGeometry(8.1,.62,.46),trim,w.x,3.34,faceZ);
- add(new THREE.BoxGeometry(8.2,.16,.5),accent,w.x,3.67,faceZ);
- add(new THREE.BoxGeometry(8.5,.16,2.45),trim,w.x,3.17,w.z-.72);
- add(new THREE.BoxGeometry(2.28,2.54,.18),trim,w.x,1.27,faceZ+.22);
- [-1,1].forEach(side=>{
-  add(new THREE.BoxGeometry(1.02,2.32,.08),door,w.x+side*.51,1.17,faceZ+.34);
-  add(new THREE.BoxGeometry(.43,.69,.035),glass,w.x+side*.51,1.68,faceZ+.40);
-  add(new THREE.BoxGeometry(.045,.24,.08),M(0xe4c87e),w.x+side*.16,1.08,faceZ+.43);
- });
- [-1,1].forEach(side=>{
-  add(new THREE.BoxGeometry(.28,.38,.12),new THREE.MeshBasicMaterial({color:0xffe9a6}),w.x+side*1.65,2.55,faceZ+.31);
-  add(new THREE.BoxGeometry(.12,4.0,.5),trim,w.x+side*4.0,2.0,faceZ);
- });
- const signTex=tex(512,128,(g,width,height)=>{
-  g.fillStyle='#'+d.trim.toString(16).padStart(6,'0');g.fillRect(0,0,width,height);
-  g.fillStyle='#ffffff';g.textAlign='center';g.font='bold 30px system-ui';
-  g.fillText(w.name.toUpperCase(),width/2,50,480);
-  g.fillStyle='#b9f4dd';g.font='bold 22px system-ui';g.fillText('MAIN ENTRANCE',width/2,96,480);
- });
- const sign=new THREE.Mesh(new THREE.PlaneGeometry(7.85,.9),new THREE.MeshBasicMaterial({map:signTex,side:THREE.DoubleSide}));
- sign.position.set(w.x,4.08,faceZ+.26);scene.add(sign);
- const ring=new THREE.Mesh(new THREE.RingGeometry(.78,1.02,24),new THREE.MeshBasicMaterial({color:0x36d99a,transparent:true,opacity:.76,side:THREE.DoubleSide,depthWrite:false}));
- ring.rotation.x=-Math.PI/2;ring.position.set(w.x,.075,w.z);scene.add(ring);
+ const palette=WORKPLACE_ENTRY_DESIGNS[w.id]||{wall:0xbcc5c9,trim:0x334452,accent:0x4f9dba};
+ const p=WORKPLACE_BUILDING_PROFILES[w.id]||{kind:'office',w:20,d:18,h:9,floors:2,axis:'z',subtitle:'MAIN ENTRANCE'};
+ const frontZ=w.z-2.05;
+ let main=null;
+ if(p.axis==='east'){
+  main=organizationBlockX(w,'east',p.w,p.d,p.h,p.floors,palette,p.kind);
+  organizationEntranceX(w,palette,{orientation:'east',doorWidth:3.3,signWidth:p.signWidth||9.2,signY:p.signY||7.0,subtitle:p.subtitle});
+  /* Public-facing ATM cubicle beside the entrance, clear of the arterial carriageway. */
+  organizationBox(1.35,2.5,1.35,-8.9,1.25,-12.6,0x27333a);
+  organizationBox(.8,.9,.06,-8.9,1.35,-11.89,0x218bd1);
+  organizationBox(.35,.22,.07,-8.9,1.0,-11.86,0x65dcad);
+  [-1,1].forEach(k=>organizationBox(.12,1.0,.12,-8.9+k*.65,.5,-12.6,0x5f6b73));
+ }else if(p.axis==='west'){
+  main=organizationBlockX(w,'west',p.w,p.d,p.h,p.floors,palette,p.kind);
+  const doorZ=w.z-6;
+  organizationEntranceX(w,palette,{orientation:'west',doorZ,doorWidth:3.4,signWidth:8.2,signY:4.9,subtitle:p.subtitle});
+  /* Covered passenger waiting bay and two compact local minibuses inside the depot plot. */
+  organizationBox(13,.32,7,w.x+37,4.0,w.z-7,palette.trim);
+  [-1,1].forEach(k=>{
+   organizationBox(.18,3.8,.18,w.x+31,1.9,w.z-4+k*5,palette.trim);
+   organizationBox(.18,3.8,.18,w.x+43,1.9,w.z-4+k*5,palette.trim);
+  });
+  [-1,1].forEach(k=>{
+   const bx=w.x+37,bz=w.z-10+k*8;
+   organizationBox(4.5,1.45,2.2,bx,.95,bz,0xeee9dd);
+   organizationBox(3.6,.63,2.28,bx,1.75,bz,0x263d4b);
+   organizationBox(3.9,.18,2.34,bx,1.36,bz,0xe1b247);
+   [-1,1].forEach(side=>organizationBox(.72,.52,.10,bx+side*1.22,1.78,bz-1.17,0x80b9cb));
+   [-1,1].forEach(side=>[-1,1].forEach(end=>add(new THREE.CylinderGeometry(.36,.36,.22,12),M(0x222629),bx+side*1.55,.38,bz+end*.72).rotation.z=Math.PI/2));
+  });
+  flatW(2.5,7,swm,w.x+2.8,.067,w.z-3.5,4);
+ }else{
+  main=organizationBlockZ(w.x,frontZ,p.w,p.d,p.h,p.floors,palette,p.kind);
+  if(w.id==='gov-rivers'){
+   /* State secretariat: a tall central administrative block and broad office wings. */
+   organizationBlockZ(w.x-15.2,frontZ-2.0,14,30,19,4,palette,'government');
+   organizationBlockZ(w.x+15.2,frontZ-2.0,14,30,19,4,palette,'government');
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:5.4,doorHeight:3.1,columns:6,signWidth:18,signHeight:2.0,signY:10.0,subtitle:p.subtitle});
+   organizationBox(18,.42,5.1,w.x,5.8,frontZ+2.1,palette.trim);
+   organizationBox(18,.16,5.3,w.x,6.05,frontZ+2.1,palette.accent);
+   flag(w.x-8,w.z+5);flag(w.x+8,w.z+5);
+   const seal=add(new THREE.CylinderGeometry(1.0,1.0,.16,24),M(0xd4ad4e),w.x,15.0,frontZ+.13);
+   seal.rotation.x=Math.PI/2;
+   organizationSign('RIVERS STATE GOVERNMENT',palette,16,1.55,w.x,18.0,frontZ+.16,0,'OFFICIAL STATE SECRETARIAT');
+  }else if(w.id==='market-mile1'){
+   const marketRoof=add(new THREE.ConeGeometry(19,3.5,4),M(0x80563c),w.x,p.h+1.6,frontZ-p.d/2);
+   marketRoof.rotation.y=Math.PI/4;marketRoof.scale.z=.66;
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:5.4,doorHeight:2.7,columns:4,signWidth:14,signHeight:1.45,signY:5.3,subtitle:p.subtitle});
+   /* Open produce bays flank the loading/visitor approach; the approach stops at the existing road edge. */
+   [-1,1].forEach(side=>{
+    const sx=w.x+side*10;
+    organizationBox(4.2,.28,3.0,sx,3.0,w.z+5.4,side<0?0xc4553a:0xd2a43c);
+    organizationBox(3.4,1.0,2.2,sx,.52,w.z+5.1,0x755239);
+    [0x6db25e,0xc4553a,0xd6b64b].forEach((c,i)=>organizationBox(.55,.4,.55,sx-1+i,1.15,w.z+5.0,c));
+   });
+   flatW(4,23,asphalt2,w.x,.056,w.z+13,6);
+  }else if(w.id==='park-main'){
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:2.8,doorHeight:2.45,columns:2,signWidth:9.2,signHeight:1.2,signY:3.9,subtitle:p.subtitle});
+   /* A real public park has a small admin/restroom pavilion, shaded paths, benches and planting. */
+   flatW(24,18,M(0x568b45),w.x-8,.056,w.z+12,4);
+   flatW(2,10,swm,w.x-3,.065,w.z+8,4);
+   [-18,-10].forEach(dx=>{palm(w.x+dx,w.z+11);palm(w.x+dx,w.z+19);});
+   [-1,1].forEach(side=>{
+    organizationBox(2.6,.22,.55,w.x-8+side*5,.55,w.z+15,0x684b35);
+    organizationBox(.12,.85,.12,w.x-8+side*5-1.05,.43,w.z+15,0x424b4a);
+    organizationBox(.12,.85,.12,w.x-8+side*5+1.05,.43,w.z+15,0x424b4a);
+   });
+   organizationBox(1.3,.85,.25,w.x-10,1.0,w.z+7,0x8b8f87);
+  }else if(w.id==='news-main'){
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:3.8,doorHeight:2.8,columns:4,signWidth:15,signHeight:1.5,signY:10.7,subtitle:p.subtitle});
+   organizationBox(8.4,12.4,.20,w.x,6.8,frontZ+.24,0x183847);
+   [-1,1].forEach(side=>organizationBox(.18,12.4,.22,w.x+side*4.2,6.8,frontZ+.28,palette.accent));
+   for(let y=2;y<=12;y+=2.5)organizationBox(8.4,.12,.24,w.x,y,frontZ+.33,palette.trim);
+   const mast=add(new THREE.CylinderGeometry(.06,.09,9,8),M(0x434b50),w.x+10.0,p.h+4.7,frontZ-p.d+3);
+   add(new THREE.CylinderGeometry(.95,.95,.12,16),M(0xbec5c5),w.x+8.2,p.h+1.25,frontZ-p.d+4).rotation.x=Math.PI/2;
+   add(new THREE.CylinderGeometry(.72,.72,.12,16),M(0xbec5c5),w.x+12,p.h+1.1,frontZ-p.d+4).rotation.x=Math.PI/2;
+  }else if(w.id==='police-rivers'){
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:2.8,doorHeight:2.7,columns:4,signWidth:10.5,signHeight:1.3,signY:5.8,subtitle:p.subtitle});
+   organizationBox(8,.28,8,w.x+13,3.2,w.z-5,palette.trim);
+   [-1,1].forEach(k=>organizationBox(.16,3.2,.16,w.x+9.5,1.6,w.z-5+k*3.1,palette.accent));
+   [-1,1].forEach(k=>{
+    const px=w.x+13,pz=w.z-6+k*5.8;
+    organizationBox(3.8,1.3,1.9,px,.82,pz,0xe5e8e8);
+    organizationBox(2.9,.55,2.0,px,1.48,pz,0x244d81);
+    organizationBox(3.4,.16,2.0,px,1.16,pz,0x17242d);
+   });
+   add(new THREE.CylinderGeometry(.55,.7,1.5,12),M(0x39454a),w.x+4,p.h+1.05,frontZ-p.d+3);
+  }else if(w.id==='frsc-rivers'){
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:3.4,doorHeight:2.7,columns:4,signWidth:13,signHeight:1.35,signY:5.8,subtitle:p.subtitle});
+   organizationBox(9,.3,3.4,w.x,4.0,frontZ+1.9,0xe0bf36);
+   [-1,1].forEach(side=>organizationBox(.18,.16,3.2,w.x+side*4.3,2.9,frontZ+1.9,0x255a4b));
+   flatW(4,22,asphalt2,w.x,.056,w.z-11.5,6);
+   [-1,1].forEach(side=>organizationBox(.22,1.0,.22,w.x+side*3.2,.52,w.z-7,0xe0bf36));
+   organizationSign('FRSC',palette,3.8,1.0,w.x+8,3.1,frontZ+.18,0,'ROAD SAFETY');
+  }else if(w.id==='fire-rivers'){
+   organizationEntranceZ({...w,x:w.x-4.5},palette,{frontZ,doorWidth:2.0,doorHeight:2.55,columns:2,signWidth:10.6,signHeight:1.25,signY:6.1,subtitle:p.subtitle,doorOffset:0});
+   for(let bay=0;bay<3;bay++){
+    const bx=w.x+(bay-1)*4.1;
+    organizationBox(3.55,3.55,.18,bx,1.85,frontZ+.15,palette.trim);
+    organizationBox(3.12,3.15,.10,bx,1.72,frontZ+.28,0x252c31);
+    for(let yy=.45;yy<3.05;yy+=.42)organizationBox(2.9,.055,.08,bx,yy,frontZ+.35,0x89949a);
+   }
+   organizationBox(3.2,12,3.2,w.x+5.8,6,frontZ-p.d+3,0xc9b9ad);
+   for(let y=2;y<11;y+=1.6)organizationBox(1.1,.10,.14,w.x+5.8,y,frontZ-p.d+1.35,0x6b2929);
+   add(new THREE.SphereGeometry(.24,10,10),new THREE.MeshBasicMaterial({color:0xff3429}),w.x+5.8,p.h+1.0,frontZ-p.d+3);
+  }else if(w.id==='army-rivers'){
+   organizationEntranceZ(w,palette,{frontZ,doorWidth:3.6,doorHeight:2.8,columns:4,signWidth:16,signHeight:1.5,signY:7.7,subtitle:p.subtitle});
+   /* Gate posts and a separate vehicle-maintenance building identify this as a garrison, not an office. */
+   [-1,1].forEach(side=>{
+    organizationBox(.75,4.5,.75,w.x+side*19,2.25,w.z+.2,palette.trim);
+    organizationBox(1.0,.25,1.0,w.x+side*19,4.6,w.z+.2,palette.accent);
+    organizationBox(.45,2.5,.45,w.x+side*15,1.25,w.z-5,palette.trim);
+   });
+   organizationBlockZ(w.x+22,frontZ-3,10,14,6,1,{wall:0xb3b7a4,trim:0x374734,accent:0xc39b4d},'army');
+   flatW(12,10,swm,w.x+18,.06,w.z-7,4);
+   flag(w.x-8,w.z+6);flag(w.x+8,w.z+6);
+  }
+  if(w.id==='transport-union'||w.id==='army-rivers'){}
+ }
+ if(w.id==='gov-rivers'){
+  organizationBox(43,.16,30,w.x,0.08,w.z-18,0xa9a69a);
+  organizationBox(0.28,.5,28,w.x-21.2,.25,w.z-18,palette.trim);
+  organizationBox(0.28,.5,28,w.x+21.2,.25,w.z-18,palette.trim);
+ }
+ if(w.id==='market-mile1'){
+  flatW(1.2,23,swm,w.x-2.7,.066,w.z+13,4);flatW(1.2,23,swm,w.x+2.7,.066,w.z+13,4);
+ }
+ if(w.id==='transport-union'){
+  organizationSign('PH TRANSPORT UNION',palette,8.5,1.3,w.x+37,6.2,w.z-6,0,'ROUTES & PASSENGER SERVICE');
+ }
 }
 OTHER_WORKPLACE_ENTRIES.forEach(w=>{
  if(!POI.some(p=>p.t==='workplace'&&p.workplaceId===w.id)){
@@ -1821,9 +2078,11 @@ const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['P
  [1,28,'Job Center','#444d58',null],
  [-1,-20,'Rivers Bank','#0a4d8c','bank']];
 SH.forEach(a=>{const sx=a[0],z=a[1],fx=sx*10.9;
- sign(7,1.4,(g,w,h)=>{g.fillStyle=a[3];g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';fit(g,a[2],54,480);g.fillText(a[2],w/2,h*.66);},fx,4.9,z,-sx*Math.PI/2);
- add(new THREE.BoxGeometry(2,.25,8),M(parseInt(a[3].slice(1),16)),sx*10,3.5,z);
- add(new THREE.PlaneGeometry(2.4,3),new THREE.MeshBasicMaterial({color:0x1b232b,side:THREE.DoubleSide}),fx,1.5,z).rotation.y=-sx*Math.PI/2;
+ if(a[2]!=='Rivers Bank'){
+  sign(7,1.4,(g,w,h)=>{g.fillStyle=a[3];g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';fit(g,a[2],54,480);g.fillText(a[2],w/2,h*.66);},fx,4.9,z,-sx*Math.PI/2);
+  add(new THREE.BoxGeometry(2,.25,8),M(parseInt(a[3].slice(1),16)),sx*10,3.5,z);
+  add(new THREE.PlaneGeometry(2.4,3),new THREE.MeshBasicMaterial({color:0x1b232b,side:THREE.DoubleSide}),fx,1.5,z).rotation.y=-sx*Math.PI/2;
+ }
  POI.push({x:sx*8.4,z,k:'Enter',name:a[2],items:a[4],t:a[4]===null?'job':a[4]==='bank'?'bank':'shop',sx,col:a[3],id:POI.length});});
 function seller(x,z,name,shirt,um,items){const dx=x>0?-1.2:1.2,g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
  add(new THREE.CylinderGeometry(.2,.24,.9,8),M(shirt),0,.9,0,g);const sM=M(0x6b3e1f);add(new THREE.SphereGeometry(.13,12,10),sM,0,1.5,0,g);{const f=mkFace(sM,M(0x111111),.13);f.position.set(0,1.5,0);f.rotation.y=x>0?-Math.PI/2:Math.PI/2;g.add(f);}
