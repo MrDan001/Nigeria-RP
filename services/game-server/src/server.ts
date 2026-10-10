@@ -14,7 +14,6 @@ import {
   MAX_STAFF_RANK,
   FACTIONS,
   WORKPLACES,
-  WORKPLACE_RADIUS,
   WORK_TASK_COOLDOWN_MS,
   WORK_TASK_DURATION_MS,
   CARPARK_EXIT_GATE,
@@ -37,11 +36,9 @@ import {
   workplaceRankTitle,
   workplaceTasks,
   settleLife,
-  type Employment,
   type CarparkVehicleTrack,
   type Life,
   type Workplace,
-  type WorkplaceTask,
   type WorldState,
 } from "./world";
 
@@ -359,9 +356,9 @@ function workplaceSnapshot(session: Session) {
     return {
       ...workplace,
       faction,
-      rankTitle: isMember ? workplaceRankTitle(workplace.id, employment.rank) : "",
+      rankTitle: isMember ? workplaceRankTitle(workplace.id, employment?.rank ?? 1) : "",
       employed: isMember,
-      onDuty: isMember && employment.onDuty === true,
+      onDuty: isMember && employment?.onDuty === true,
       canManage,
       bossName: members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
       memberCount: members.length,
@@ -371,7 +368,7 @@ function workplaceSnapshot(session: Session) {
       requiresApproval: faction?.requiresApproval === true,
       tasks: workplaceTasks(workplace.id).map((task) => ({
         ...task,
-        pay: payForTask(task.basePay, isMember ? employment.rank : 1),
+        pay: payForTask(task.basePay, isMember ? (employment?.rank ?? 1) : 1),
         durationMs: WORK_TASK_DURATION_MS,
         cooldownMs: WORK_TASK_COOLDOWN_MS,
       })),
