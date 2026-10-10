@@ -730,6 +730,11 @@ function palm(x,z){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
 /* ---------- Stage 3: Port Harcourt map ---------- */
 const HR=[[-110,'Trans Amadi Road',-240,240],[70,'Ikwerre Road',-240,240],[-190,'Peter Odili Road',-240,240]],
  VR=[[0,'Aba Road',-250,250],[-90,'Old GRA Avenue',-240,70],[90,'Waterlines Road',-110,198]],RB=[[-90,-110],[90,70]];
+/* Hospital building plots are additive and excluded from procedural infill. Main roads/roundabouts remain unchanged. */
+const HOSPITAL_SITES=[
+ {id:'hospital-main',name:'Mile One General Hospital',x:-91,z:91,w:19,d:16,h:7,wall:0xd8ccb4,accent:0xb43f3b,trim:0x2e6674,entryX:-91,entryZ:102},
+ {id:'hospital-princess',name:'Princess Hospital',x:155,z:-139,w:25,d:20,h:8,wall:0xe1e5e2,accent:0x0f8b91,trim:0x2c5969,entryX:155,entryZ:-126}
+];
 /* Added residential access roads. Existing main roads and roundabouts above remain untouched. */
 const LOCAL_ROADS=[
  {id:'mile1-front',axis:'h',fixed:116,lo:-85,hi:-10,width:5.5,zone:'Mile 1 Market'},
@@ -976,7 +981,7 @@ flatW(73,1.4,swm,-48.5,.066,MILE1_ALLEY_Z,4);
 });
 for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx,gz)||DEF;if(rnd()>Z.d)continue;
  const R=a=>Math.round(a[0]+rnd()*(a[1]-a[0])),w=R(Z.w),d=R(Z.w),h=R(Z.h),x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,c=Z.cols[Math.floor(rnd()*Z.cols.length)];
- if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
+ if(z+d/2>190||roadNear(x,z,Math.max(w,d)/2+1.5)||HOSPITAL_SITES.some(site=>Math.abs(x-site.x)<site.w/2+w/2+5&&Math.abs(z-site.z)<site.d/2+d/2+5)||boxes.some(b=>Math.abs(x-b.x)<b.hw+w/2+3&&Math.abs(z-b.z)<b.hd+d/2+3)||HOUSE_PLOTS.some(h=>Math.abs(x-h.x)<(h.w+w)/2+4&&Math.abs(z-h.z)<(h.d+d)/2+4))continue;
  const f=wmat(c,h),p=plain(c);add(new THREE.BoxGeometry(w,h,d),[f,f,p,p,f,f],x,h/2,z);const b={x,z,hw:w/2,hd:d/2,h,c,gen:true};boxes.push(b);bld.push(b);}
 for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4)&&!boxes.some(b=>Math.abs(x-b.x)<b.hw+2&&Math.abs(z-b.z)<b.hd+2))palm(x,z);}
 /* ---------- Building detailing: plinth, cornice, parapet, roof equipment, entrances ---------- */
@@ -1489,6 +1494,66 @@ let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
 const mini=(t,x,y,z,w,bg)=>{const board=new THREE.Group();board.position.set(x,y,z);scene.add(board);const geo=new THREE.PlaneGeometry(w,w/4),map=tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);}),mat=new THREE.MeshBasicMaterial({map});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
+function buildHospital(site){
+ building(site.x,site.z,site.w,site.d,site.h,site.wall,-1,.35);
+ const front=site.z+site.d/2;
+ const mat=c=>M(c);
+ const wall=mat(site.wall),trim=mat(site.trim),accent=mat(site.accent),glass=new THREE.MeshLambertMaterial({color:0x517f91,emissive:0x0d2027,transparent:true,opacity:.88});
+ add(new THREE.BoxGeometry(site.w+.45,.38,site.d+.45),trim,site.x,.35,site.z);
+ add(new THREE.BoxGeometry(site.w+.55,.25,site.d+.55),wall,site.x,site.h+.08,site.z);
+ add(new THREE.BoxGeometry(site.w*.46,.28,2.0),trim,site.x,site.h-.1,front+.65);
+ add(new THREE.BoxGeometry(site.w*.49,.18,2.8),accent,site.x,2.85,front+.95);
+ // A clearly visible main entrance with a covered drop-off canopy.
+ add(new THREE.BoxGeometry(3.6,2.5,.13),trim,site.x,1.27,front+.12);
+ add(new THREE.BoxGeometry(3.15,2.15,.09),glass,site.x,1.22,front+.22);
+ add(new THREE.BoxGeometry(.10,2.1,.11),wall,site.x,1.2,front+.29);
+ add(new THREE.BoxGeometry(5.7,.18,2.6),trim,site.x,3.15,front+1.0);
+ add(new THREE.BoxGeometry(5.9,.12,2.8),accent,site.x,3.26,front+1.0);
+ [-1,1].forEach(side=>{
+  for(let floor=0;floor<2;floor++)for(let col=0;col<4;col++){
+   const wx=site.x+side*(3.1+col*2.05),wy=2.0+floor*3.2;
+   add(new THREE.BoxGeometry(1.42,1.22,.1),trim,wx,wy,front+.09);
+   add(new THREE.BoxGeometry(1.2,1.0,.08),glass,wx,wy,front+.16);
+   add(new THREE.BoxGeometry(1.2,.04,.1),wall,wx,wy,front+.21);
+  }
+ });
+ // Roof plant room and water tank make each hospital read as an occupied Nigerian facility.
+ add(new THREE.BoxGeometry(4.2,1.4,3.6),wall,site.x-site.w*.28,site.h+.82,site.z-.6);
+ add(new THREE.CylinderGeometry(.72,.72,1.45,14),trim,site.x+site.w*.28,site.h+.9,site.z-1.7);
+ add(new THREE.CylinderGeometry(.76,.76,.12,14),accent,site.x+site.w*.28,site.h+1.66,site.z-1.7);
+ const signTex=tex(512,112,(g,w,h)=>{
+  g.fillStyle='#'+site.trim.toString(16).padStart(6,'0');g.fillRect(0,0,w,h);
+  g.fillStyle='#ffffff';g.font='bold 34px system-ui';g.textAlign='center';
+  g.fillText(site.name.toUpperCase(),w/2,44);
+  g.font='bold 17px system-ui';g.fillStyle='#dff5f5';g.fillText('PATIENT CARE  •  EMERGENCY SERVICES',w/2,80);
+ });
+ add(new THREE.PlaneGeometry(site.w*.82,1.7),new THREE.MeshBasicMaterial({map:signTex,side:THREE.DoubleSide}),site.x,site.h-1.0,front+.17);
+ // Distinctive medical cross signage.
+ const cx=site.x-site.w/2+2.2,cy=site.h-1.05,cz=front+.2;
+ add(new THREE.BoxGeometry(1.5,1.5,.1),M(0xf4f4ef),cx,cy,cz);
+ add(new THREE.BoxGeometry(.34,1.05,.13),accent,cx,cy,cz+.08);
+ add(new THREE.BoxGeometry(1.05,.34,.13),accent,cx,cy,cz+.08);
+ // Patient drop-off driveways connect to the existing road edge; they do not modify the road itself.
+ if(site.id==='hospital-main'){
+  flatW(8.5,6,swm,site.x+2,.061,front+3.0,4);
+  flatW(4.0,14,asphalt2,site.x+4,.063,108,6);
+  flatW(8,4,swm,site.x+2,.062,113,4);
+  [-1,1].forEach(side=>add(new THREE.BoxGeometry(.08,.06,7),M(0xe6d7b4),site.x+4+side*2,.09,108));
+ }else{
+  flatW(11,7,swm,site.x-9,.061,front+3.2,4);
+  flatW(4.4,14,asphalt2,site.x,.063,-122,6);
+  flatW(8,4,swm,site.x,.062,-116.7,4);
+  [-1,1].forEach(side=>add(new THREE.BoxGeometry(.08,.06,6),M(0xe6d7b4),site.x+side*2.1,.09,-122));
+ }
+ [-1,1].forEach(side=>{
+  add(new THREE.BoxGeometry(.24,2.9,.24),trim,site.x+side*2.45,1.45,front+1.7);
+  add(new THREE.BoxGeometry(.58,.3,.58),accent,site.x+side*2.45,.18,front+1.7);
+  add(new THREE.BoxGeometry(1.7,.32,1.7),M(0x9aab8c),site.x+side*(site.w/2+1.2),.18,front-.5);
+  add(new THREE.SphereGeometry(.45,10,8),M(0x2f824d),site.x+side*(site.w/2+1.2),.62,front-.5);
+ });
+ POI.push({x:site.entryX,z:site.entryZ,k:'Work',name:site.name,t:'workplace',workplaceId:site.id,r:8});
+}
+HOSPITAL_SITES.forEach(buildHospital);
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]]],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]]],
  [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000]]],
@@ -1824,7 +1889,7 @@ function openHouseMenu(h){
 }
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
  if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
-act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.k==='Enter'&&p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
+act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){openWorkplaceMenuFor(p.workplaceId);return;}if(p.k==='Enter'&&p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
 /* bank + ATM */
 function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
@@ -1835,10 +1900,11 @@ function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.
 /* ---------- Stage 3: careers, work tasks and roleplay factions ---------- */
 let workplaceMenuOpen=false,workplaceRefreshTimer=null;
 const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function openWorkplaceMenu(){workplaceMenuOpen=true;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
+function openWorkplaceMenu(){openWorkplaceMenuFor(null);}
+function openWorkplaceMenuFor(workplaceId){workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
 function renderWorkplaceMenu(data){
  if(!workplaceMenuOpen||!data)return;
- const places=data.workplaces||window.NRS?.workplaces||[],employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
+ let places=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;if(focus)places=[...places.filter(w=>w.id===focus),...places.filter(w=>w.id!==focus)];const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
  let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
  let cards=places.map(w=>{
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
