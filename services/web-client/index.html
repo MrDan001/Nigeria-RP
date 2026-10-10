@@ -233,7 +233,7 @@ body.drv #camB{display:grid}
  <div class="p" id="top"><span class="cash">₦ <span id="cash">0</span></span><span class="lv" id="level-badge">LEVEL 1</span><span>👤 <b id="online-count">0</b> online</span><button id="gear">⚙</button></div>
  <div class="p" id="gp"><button id="bo">Change outfit</button><button id="bs">Change skin tone</button></div>
  <div class="p" id="chat"><div id="tabs"><span>GLOBAL</span><span>LOCAL</span><span>SYSTEM</span><span id="cx">✕</span></div><div id="log"><div><b>System:</b> Welcome to Port Harcourt.</div></div><form id="cf"><input id="ci" placeholder="Type a message..." autocomplete="off"></form></div>
- <div id="col"><button class="ib" id="chatB">✉️<span id="chatBadge">1</span></button><button class="ib" id="ib0">📱</button><button class="ib" id="ib1">👥</button><button class="ib" id="ib2">🎒</button><button class="ib" id="ib3">🗺</button><button class="ib" id="ib4" aria-label="Careers and factions">💼</button></div>
+ <div id="col"><button class="ib" id="chatB">✉️<span id="chatBadge">1</span></button><button class="ib" id="ib0">📱</button><button class="ib" id="ib1">👥</button><button class="ib" id="ib2">🎒</button><button class="ib" id="ib3">🗺</button></div>
  <div class="p" id="mis"><i>NEW MISSION</i><b>Get a job from the Job Center</b></div>
  <canvas id="mm" width="240" height="240"></canvas>
  <div id="joy"><div id="knob"></div></div>
@@ -1895,7 +1895,7 @@ act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){openWorkplac
 function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
 /* job center */
 const JOBS=[['Parcel to Mile 1 Market',-6.5,95,6000],['Parcel to Rumuola',110,70,9000],['Parcel to Waterlines',90,150,12000]];
-function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.n+'</b></p><p>Deliver it, then come back for the next one.</p>');
+function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.n+'</b></p><p>Deliver it, then come back for the next one.</p><button data-open-workplaces="1">🏢 Careers & factions</button>');
  else{const j=JOBS[jobN%JOBS.length];panel('<b>💼 Job Center</b><p>“We need a rider for a delivery.”</p><p><b>'+j[0]+'</b><br>Pay: ₦'+f(j[3])+'</p><button data-j="1">Accept job</button><button data-open-workplaces="1">🏢 Careers & factions</button>');}}
 /* ---------- Stage 3: careers, work tasks and roleplay factions ---------- */
 let workplaceMenuOpen=false,workplaceRefreshTimer=null;
@@ -1905,7 +1905,7 @@ function openWorkplaceMenuFor(workplaceId){workplaceMenuOpen=true;window.NRS.wor
 function renderWorkplaceMenu(data){
  if(!workplaceMenuOpen||!data)return;
  let places=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;if(focus)places=[...places.filter(w=>w.id===focus),...places.filter(w=>w.id!==focus)];const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
- let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
+ let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
  let cards=places.map(w=>{
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
   let actions='';
@@ -1936,7 +1936,7 @@ function renderWorkplaceMenu(data){
  modal.classList.add('work-menu');
 }
 window.addEventListener('nrs-workplaces',e=>{if(workplaceMenuOpen)renderWorkplaceMenu(e.detail||window.NRS?.workplaceState);});
-$('ib4').onclick=openWorkplaceMenu;
+const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
 modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.openWorkplaces){openWorkplaceMenu();return;}
@@ -1959,7 +1959,7 @@ setInterval(()=>{if(!workplaceMenuOpen)return;const s=window.NRS?.workplaceState
 const FX={'Jollof Rice & Chicken':[35,0],'Pounded Yam & Egusi':[40,0],'Bole & Fish':[35,0],'Zobo Drink':[8,0],'Bread':[15,0],'Sachet Water':[5,0],'Bottle Water':[8,0],'Soft Drink':[10,0],'Roasted Corn':[12,0],'Corn & Ube':[18,0],'Suya (small)':[20,0],'Suya (large)':[35,0],'Gala':[10,0],'Biscuit':[6,0],'Groundnut':[6,0],'Pineapple':[12,0],'Oranges (bag)':[15,0],'Watermelon':[15,0],'Chapman':[10,0],'Malt':[8,0],'Coke':[10,0],'Paracetamol':[0,10],'Bandage Kit':[0,30],'Vitamin C':[0,10]};
 function bagUI(){bagK=Object.keys(inv).filter(n=>inv[n]>0);panel('<b>🎒 Backpack</b><p>📱 Phone</p>'+(bagK.length?bagK.map((n,i)=>'<p>'+n+' ×'+inv[n]+' '+(FX[n]?'<button data-u="'+i+'">Use</button> ':'')+(n==='Parcel'?'<i>(job item)</i>':'<button data-d="'+i+'">Drop</button>')+'</p>').join(''):'<p><i>Empty. Buy something first.</i></p>')+'<p>Cash: ₦'+f(cash)+'</p>'+(bagMsg?'<p><i>'+bagMsg+'</i></p>':''));}
 $('ib2').onclick=()=>{bagMsg='';bagUI();};
-$('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
+$('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><button data-open-workplaces="1">💼 Careers & factions</button><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
 modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();});return;}bankUI();}
