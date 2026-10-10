@@ -2827,7 +2827,7 @@ function renderApartmentRoom(d,ret){
 function openApartmentRoomMenu(p){
  const state=inside?.apartmentRooms?.find(r=>Number(r.roomNumber)===Number(p.roomNumber));
  if(!inside?.isApartmentBuilding||!state){sys("Apartment room information is still loading. Try the door again.");return;}
- const occupied=!state.vacant,own=state.occupiedByMe===true,life=window.NRS?.life||{},canRent=own||(!life.homeId&&!(life.homeId));
+ const occupied=!state.vacant,own=state.occupiedByMe===true,life=window.NRS?.life||{},canRent=own||!life.homeId;
  const days=Array.from({length:7},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+' · ₦'+((i+1)*1500).toLocaleString('en-NG')+'</option>').join('');
  panel('<div class="wm-head"><span>🏠</span><div><small>RESIDENTIAL APARTMENT · FLOOR '+inside.apartmentFloor+'</small><h2>Room '+p.roomNumber+'</h2><p>'+safeText(inside.apartmentBuildingName)+'</p></div></div>'+
   '<p class="wm-note">'+(own?'This is your private apartment. Other users may rent different numbered rooms in the same building.':occupied?'This numbered room already has a tenant. Choose another vacant room.':'Private one-bedroom apartment. Each room has its own tenant and separate interior.')+'</p>'+
@@ -2835,7 +2835,7 @@ function openApartmentRoomMenu(p){
   (occupied&&!own?'':'<p><label>'+(own?'Extend tenancy':'Rent duration')+' <select id="apartmentRentDays">'+days+'</select></label></p>')+
   (own?'<button data-apartment-enter="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">🚪 Enter my room</button><button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">Extend rent & enter</button>':
    occupied?'':'<button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'" '+(canRent?'':'disabled')+'>Rent & enter room '+p.roomNumber+'</button>')+
-  (own||canRent?'':'<p>You already rent a house. Leave that tenancy before renting an apartment.</p>'));
+  (own||occupied||canRent?'':'<p>You already rent a house. Leave that tenancy before renting an apartment.</p>'));
  modal.classList.add('house-menu');
 }
 
