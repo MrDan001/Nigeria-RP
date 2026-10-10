@@ -1501,6 +1501,11 @@ wss.on("connection", (socket) => {
         const target = players.get(targetId);
         const account = target?.account ?? await findAccountById(targetId);
         const targetLife = target?.player.life ?? account?.life;
+        const targetName = target?.player.name ?? account?.username ?? "";
+        if (!isSuperAdmin(session) && isSuperAdminName(targetName)) {
+          sendWorkplaceResult(session, "dismiss", false, "Only the superior administrator can manage their own account.");
+          return;
+        }
         if (!targetLife?.employment || targetLife.employment.workplaceId !== workplaceId) {
           sendWorkplaceResult(session, "dismiss", false, "That player is not a member of this workplace.");
           return;
@@ -1536,6 +1541,16 @@ wss.on("connection", (socket) => {
         const target = players.get(targetId);
         const account = target?.account ?? await findAccountById(targetId);
         const targetLife = target?.player.life ?? account?.life;
+        const targetName = target?.player.name ?? account?.username ?? "";
+        const superAdmin = isSuperAdmin(session);
+        if (!superAdmin && targetId === session.player.id) {
+          sendWorkplaceResult(session, "rank", false, "Delegated administrators cannot change their own workplace rank.");
+          return;
+        }
+        if (!superAdmin && isSuperAdminName(targetName)) {
+          sendWorkplaceResult(session, "rank", false, "Only the superior administrator can manage their own account.");
+          return;
+        }
         if (!targetLife) {
           sendWorkplaceResult(session, "rank", false, "That player account could not be found.");
           return;
