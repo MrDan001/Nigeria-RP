@@ -1241,8 +1241,12 @@ wss.on("connection", (socket) => {
         const workplaceId = String(message.workplaceId ?? "");
         const workplace = findWorkplace(workplaceId);
         const check = checkWorkplaceApplication(session.player.life.employment ?? null, workplaceId);
-        if (!workplace || !check.ok) {
-          sendWorkplaceResult(session, "apply", false, !workplace ? "Unknown workplace or faction." : check.reason);
+        if (!workplace) {
+          sendWorkplaceResult(session, "apply", false, "Unknown workplace or faction.");
+          return;
+        }
+        if (!check.ok) {
+          sendWorkplaceResult(session, "apply", false, check.reason);
           return;
         }
         const faction = FACTIONS.find((candidate) => candidate.id === workplace.factionId);
