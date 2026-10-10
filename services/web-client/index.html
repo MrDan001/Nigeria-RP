@@ -230,6 +230,21 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-admin-controls select{min-width:0;width:100%;border:1px solid rgba(255,255,255,.18);border-radius:.45rem;background:#182d40;color:#fff;padding:.5rem;font-size:.67rem}
 #modal.work-menu .wm-admin-buttons{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 #modal.work-menu .wm-admin-tag{flex:none;padding:.2rem .35rem;border:1px solid rgba(93,180,247,.25);border-radius:.3rem;color:#8fd0ff;font-size:.52rem;font-weight:900}
+
+#modal.work-menu .wm-super-admin{margin:.7rem 1rem;padding:.85rem;border:1px solid rgba(226,185,88,.5);border-radius:.8rem;background:linear-gradient(140deg,rgba(117,83,20,.2),rgba(255,255,255,.025))}
+#modal.work-menu .wm-super-admin-title{display:flex;align-items:center;gap:.65rem}
+#modal.work-menu .wm-super-admin-title>span{display:grid;place-items:center;width:2.5rem;height:2.5rem;border-radius:.65rem;background:linear-gradient(145deg,#e9c265,#916322);color:#1e1a10;font-size:1.35rem}
+#modal.work-menu .wm-super-admin-title small{color:#f2d27b;font-size:.57rem;font-weight:900;letter-spacing:.12em}
+#modal.work-menu .wm-super-admin-title h3{margin:.1rem 0;font-size:.85rem}
+#modal.work-menu .wm-super-admin>p{margin:.55rem 0;color:#b9c6d1;font-size:.68rem;line-height:1.4}
+#modal.work-menu .wm-super-admin .wm-admin-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:.4rem}
+#modal.work-menu .wm-super-admin .wm-admin-controls select{min-width:0;width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.18);border-radius:.45rem;background:#182d40;color:#fff;padding:.55rem;font-size:.7rem}
+#modal.work-menu .wm-super-admin .wm-admin-buttons{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+#modal.work-menu .wm-super-admin .wm-admin-buttons button{padding:.55rem .4rem}
+#modal.work-menu .wm-super-admin .wm-admin-buttons .danger{background:rgba(178,56,56,.25);color:#ffc1c1}
+#modal.work-menu .wm-super-admin-current{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.6rem}
+#modal.work-menu .wm-super-admin-current small{width:100%;color:#a5b8c6;font-size:.55rem;font-weight:900;letter-spacing:.09em}
+#modal.work-menu .wm-super-admin-chip{border:1px solid rgba(96,218,166,.25);border-radius:99px;padding:.2rem .45rem;background:rgba(40,155,105,.12);color:#9be7c4;font-size:.62rem}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -1939,6 +1954,13 @@ function renderWorkplaceMenu(data){
  if(!workplaceMenuOpen||!data)return;
  let places=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;if(focus)places=[...places.filter(w=>w.id===focus),...places.filter(w=>w.id!==focus)];const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
  let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
+ const superAdminPanel=data.isSuperAdmin?(()=>{
+  const candidates=online.filter(p=>p.id!==window.NRS?.session?.id&&!p.isSuperAdmin);
+  const options=candidates.map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+' — '+(p.isFactionAdmin?'ADMIN':'PLAYER')+'</option>').join('');
+  const admins=online.filter(p=>p.isFactionAdmin&&!p.isSuperAdmin).map(p=>'<span class="wm-super-admin-chip">'+safeText(p.name)+'</span>').join('');
+  return '<section class="wm-super-admin"><div class="wm-super-admin-title"><span>♛</span><div><small>SUPERIOR ADMINISTRATOR</small><h3>Dbase_Mccoll · Server-wide access</h3></div></div><p>Appoint or revoke administrator access. Administrators can manage workplace staffing and assign bosses; only the superior administrator can manage this list.</p><div class="wm-admin-controls">'+(options?'<select id="wmFactionAdminTarget" aria-label="Choose an administrator">'+options+'</select>':'<p class="wm-note">No other online players are available. Ask the player to join first.</p>')+'<div class="wm-admin-buttons"><button data-set-faction-admin="1" data-admin-enabled="1" '+(!options?'disabled':'')+'>Make admin</button><button class="danger" data-set-faction-admin="1" data-admin-enabled="0" '+(!options?'disabled':'')+'>Remove admin</button></div></div><div class="wm-super-admin-current"><small>ONLINE DELEGATED ADMINS</small>'+(admins||'<span class="wm-note">No delegated admins online.</span>')+'</div></section>';
+ })():'';
+
  let cards=places.map(w=>{
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
   let actions='';
@@ -1967,7 +1989,7 @@ function renderWorkplaceMenu(data){
   const faction=w.faction||{};
   return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
  }).join('');
- panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+intro+'<div class="wm-section-title">WORKPLACES & FACTIONS <small>'+places.length+' ORGANISATIONS</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+intro+superAdminPanel+'<div class="wm-section-title">WORKPLACES & FACTIONS <small>'+places.length+' ORGANISATIONS</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');
 }
 window.addEventListener('nrs-workplaces',e=>{if(workplaceMenuOpen)renderWorkplaceMenu(e.detail||window.NRS?.workplaceState);});
@@ -1981,6 +2003,7 @@ modal.addEventListener('click',e=>{
  if(d.workTaskStart){N.startWorkTask(d.workTaskStart);return;}
  if(d.workTaskComplete){N.completeWorkTask();return;}
  if(d.appReview){const card=b.closest('.wm-card'),workplace=placesFromCard(card);if(workplace)N.approveWorkplaceApplication(workplace,d.appReview,d.approve==='1');return;}
+ if(d.setFactionAdmin){const target=$('wmFactionAdminTarget');if(target?.value)N.setFactionAdmin(target.value,d.adminEnabled==='1');return;}
  if(d.adminSetRank){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value,rank=d.rankFixed?Number(d.rankFixed):Number(card?.querySelector('[data-admin-rank-value]')?.value);if(target)N.setStaffRank(d.adminSetRank,target,rank);return;}
  if(d.adminDismiss){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value;if(target)N.dismissWorkplaceStaff(d.adminDismiss,target);return;}
  if(d.staffHire){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);const select=$('wmHirePlayer');if(workplace&&select?.value)N.hireWorkplaceStaff(workplace.id,select.value);return;}
