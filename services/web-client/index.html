@@ -2242,6 +2242,13 @@ function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.f
 window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;syncHouseExteriors(N.houses);}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
 window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
 window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
+window.addEventListener('nrs-staff-room-enter',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=staffRoomInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.7);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||'Staff changing room opened.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isStaffRoom)return;const r=inside;inside=null;
+ pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);
+ camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back outside the workplace.');routeTransitionOut();});
 window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;carparkExitAttemptAt=0;sys(d.message||'Private car park entered.');openGarageSpawnMenu();routeTransitionOut();});
 window.addEventListener('nrs-carpark-foot-exit',e=>{
  const d=e.detail||{};if(!d.ok)return;
@@ -2390,4 +2397,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261010-super-admin-hierarchy-v1"></script></body></html>
+</script><script src="/nrs-online.js?v=20261010-workplace-life-systems"></script></body></html>
