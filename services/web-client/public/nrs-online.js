@@ -325,19 +325,15 @@
     const label = { username: String(username || "Player"), level: Math.max(1, Math.floor(Number(level) || 1)) };
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // A soft outline plus a dark translucent card keeps the text legible over bright scenery.
-      const x = 12, y = 8, w = 488, h = 108, r = 18;
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.beginPath();
-      ctx.roundRect(x + 2, y + 3, w, h, r);
-      ctx.fill();
-      ctx.fillStyle = "rgba(6,16,27,0.88)";
-      ctx.strokeStyle = "rgba(142,201,231,0.78)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, r);
-      ctx.fill();
-      ctx.stroke();
+      // Transparent nameplate: the username and level float directly above the avatar.
+      // A dark text stroke and soft shadow preserve contrast without drawing a card.
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "rgba(0,0,0,0.94)";
+      ctx.shadowColor = "rgba(0,0,0,0.9)";
+      ctx.shadowBlur = 7;
 
       // Username is the primary line; shrink long names instead of allowing them to clip.
       const name = label.username;
@@ -349,22 +345,19 @@
         fontSize -= 2;
         ctx.font = "700 " + fontSize + "px system-ui, sans-serif";
       }
+      ctx.strokeText(name, 256, 45, 444);
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(name, 256, 48, 444);
+      ctx.fillText(name, 256, 45, 444);
 
       const levelText = "LEVEL " + label.level;
       ctx.font = "800 19px system-ui, sans-serif";
-      const pillW = Math.max(94, ctx.measureText(levelText).width + 34);
-      const pillX = (512 - pillW) / 2;
-      ctx.fillStyle = "rgba(32,139,178,0.25)";
-      ctx.beginPath();
-      ctx.roundRect(pillX, 78, pillW, 29, 14);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(112,219,245,0.45)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = "#92ebff";
-      ctx.fillText(levelText, 256, 93, pillW - 14);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(0,0,0,0.94)";
+      ctx.shadowBlur = 5;
+      ctx.strokeText(levelText, 256, 87, 444);
+      ctx.fillStyle = "#a7efff";
+      ctx.fillText(levelText, 256, 87, 444);
+      ctx.shadowBlur = 0;
       texture.needsUpdate = true;
     };
     draw();
@@ -769,6 +762,8 @@
   N.dismissWorkplaceStaff = (workplaceId, targetId) => send({ type: "dismissWorkplaceStaff", workplaceId, targetId });
   N.setStaffRank = (workplaceId, targetId, newRank) => send({ type: "setStaffRank", workplaceId, targetId, newRank });
   N.appointWorkplaceBoss = (workplaceId, targetId) => send({ type: "appointWorkplaceBoss", workplaceId, targetId });
+  // Only the authenticated main administrator can change delegated admin roles; the server is authoritative.
+  N.setAdminRole = (targetUsername, role) => send({ type: "setAdminRole", targetUsername, role });
 
   N.buyFuel = (carId, litres, brand, callback) => {
     if (!S.authed || !S.open) {
