@@ -263,8 +263,12 @@
 
   function syncAccount(player) {
     S.id = player.id;
+    S.name = String(player.name || "Player");
+    S.level = Math.max(1, Math.floor(Number(player.level) || 1));
+    N.playerIdentity = { id: S.id, name: S.name, level: S.level };
     S.authed = true;
     writeToken(S.token);
+    window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: N.playerIdentity }));
 
     cash = Number(player.cash) || 0;
     N.cash = cash;
@@ -291,7 +295,7 @@
     face = Number(player.yaw) || Math.PI;
 
     const level = $("top")?.querySelector(".lv");
-    if (level) level.textContent = "LEVEL " + (player.level || 1);
+    if (level) level.textContent = "LEVEL " + S.level;
 
     if ($("cash")) $("cash").textContent = Math.round(cash).toLocaleString();
     if ($("hpv")) $("hpv").textContent = String(Math.round(hp));
