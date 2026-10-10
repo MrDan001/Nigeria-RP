@@ -1489,6 +1489,14 @@ function updateCam(dt){
    if(hit)cam.position.copy(focus).addScaledVector(direction,Math.max(.62,hit.distance-.28));
   }
  }
+ if(inside?.isApartmentRoom){
+  // Never let the orbit camera cross the apartment shell when the player turns toward a wall.
+  cam.position.x=clamp(cam.position.x,inside.x-5.25,inside.x+5.25);
+  cam.position.z=clamp(cam.position.z,inside.z-5.25,inside.z+5.25);
+ }else if(inside?.isApartmentBuilding){
+  cam.position.x=clamp(cam.position.x,inside.x-9.25,inside.x+9.25);
+  cam.position.z=clamp(cam.position.z,inside.z-11.2,inside.z+11.2);
+ }
  cam.lookAt(focus.x,lookY,focus.z);
 }
 
@@ -2860,7 +2868,7 @@ function renderApartmentHall(d,ret){
  const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
  const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
  const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
- const floorMat=M(0x777871),wall=M(0xd8d4c9),trim=M(0x5c5b54),dark=M(0x24313a),door=M(0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
+ const floorMat=M(0x777871),wall=new THREE.MeshLambertMaterial({color:0xd8d4c9,side:THREE.DoubleSide}),trim=M(0x5c5b54),dark=M(0x24313a),door=M(0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
  A(new THREE.BoxGeometry(20,.16,24),floorMat,0,-.08,0);
  A(new THREE.BoxGeometry(20,.10,24),M(0xe1d6c1),0,3.48,0);
  A(new THREE.BoxGeometry(.20,3.5,24),wall,-9.9,1.72,0);A(new THREE.BoxGeometry(.20,3.5,24),wall,9.9,1.72,0);
@@ -2923,7 +2931,7 @@ function renderApartmentRoom(d,ret){
  const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
  const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
  const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
- const wall=M(0xe9e2d7),floorMat=M(0xb4a48b),trim=M(0x4d4137),wood=M(0x6b4934),soft=M(0x526e79),glass=new THREE.MeshPhongMaterial({color:0x7fb4c3,transparent:true,opacity:.56,side:THREE.DoubleSide});
+ const wall=new THREE.MeshLambertMaterial({color:0xe9e2d7,side:THREE.DoubleSide}),floorMat=M(0xb4a48b),trim=M(0x4d4137),wood=M(0x6b4934),soft=M(0x526e79),glass=new THREE.MeshPhongMaterial({color:0x7fb4c3,transparent:true,opacity:.56,side:THREE.DoubleSide});
  A(new THREE.BoxGeometry(12,.14,12),floorMat,0,-.08,0);A(new THREE.BoxGeometry(12,.10,12),trim,0,.01,0);
  A(new THREE.BoxGeometry(.18,3.15,12),wall,-5.9,1.55,0);A(new THREE.BoxGeometry(.18,3.15,12),wall,5.9,1.55,0);
  A(new THREE.BoxGeometry(12,3.15,.18),wall,0,1.55,-5.9);
