@@ -732,7 +732,7 @@ const HR=[[-110,'Trans Amadi Road',-240,240],[70,'Ikwerre Road',-240,240],[-190,
  VR=[[0,'Aba Road',-250,250],[-90,'Old GRA Avenue',-240,70],[90,'Waterlines Road',-110,198]],RB=[[-90,-110],[90,70]];
 /* Hospital building plots are additive and excluded from procedural infill. Main roads/roundabouts remain unchanged. */
 const HOSPITAL_SITES=[
- {id:'hospital-main',name:'Mile One General Hospital',x:-91,z:91,w:19,d:16,h:7,wall:0xd8ccb4,accent:0xb43f3b,trim:0x2e6674,entryX:-91,entryZ:102},
+ {id:'hospital-main',name:'Mile One General Hospital',x:-79,z:98,w:12,d:12,h:7,wall:0xd8ccb4,accent:0xb43f3b,trim:0x2e6674,entryX:-79,entryZ:106},
  {id:'hospital-princess',name:'Princess Hospital',x:155,z:-139,w:25,d:20,h:8,wall:0xe1e5e2,accent:0x0f8b91,trim:0x2c5969,entryX:155,entryZ:-126}
 ];
 /* Added residential access roads. Existing main roads and roundabouts above remain untouched. */
@@ -1536,8 +1536,8 @@ function buildHospital(site){
  // Patient drop-off driveways connect to the existing road edge; they do not modify the road itself.
  if(site.id==='hospital-main'){
   flatW(8.5,6,swm,site.x+2,.061,front+3.0,4);
-  flatW(4.0,14,asphalt2,site.x+4,.063,108,6);
-  flatW(8,4,swm,site.x+2,.062,113,4);
+  flatW(4.0,9,asphalt2,site.x+4,.063,108.5,6);
+  flatW(8,4,swm,site.x+2,.062,112.5,4);
   [-1,1].forEach(side=>add(new THREE.BoxGeometry(.08,.06,7),M(0xe6d7b4),site.x+4+side*2,.09,108));
  }else{
   flatW(11,7,swm,site.x-9,.061,front+3.2,4);
