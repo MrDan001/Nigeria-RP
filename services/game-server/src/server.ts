@@ -345,12 +345,15 @@ function workplaceSnapshot(session: Session) {
   const employment = session.player.life.employment ?? null;
   const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
   const admin = isFactionAdmin(session);
+  const superAdmin = isSuperAdmin(session);
   const onlinePlayers = [...players.values()].map((member) => ({
     id: member.player.id,
     name: member.player.name,
     workplaceId: member.player.life.employment?.workplaceId ?? null,
     rank: member.player.life.employment?.rank ?? null,
     onDuty: member.player.life.employment?.onDuty === true,
+    isFactionAdmin: isFactionAdmin(member),
+    isSuperAdmin: isSuperAdmin(member),
   }));
   const workplaces = WORKPLACES.map((workplace) => {
     const faction = FACTIONS.find((candidate) => candidate.id === workplace.factionId) ?? null;
@@ -395,6 +398,7 @@ function workplaceSnapshot(session: Session) {
     employment,
     bossWorkplaceId,
     isFactionAdmin: admin,
+    isSuperAdmin: superAdmin,
     onlinePlayers,
     activeTask: session.workTask
       ? { ...session.workTask, elapsedMs: Math.max(0, Date.now() - session.workTask.startedAt), durationMs: WORK_TASK_DURATION_MS }
