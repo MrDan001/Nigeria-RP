@@ -72,8 +72,28 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #run.on{background:#1b8cf0}
 .rb.on{background:#1b8cf0}
 #act{position:fixed;right:16.5rem;bottom:2.4rem;padding:.8rem 1.1rem;font-size:.95rem;font-weight:700;color:#fff;background:#1b8cf0;border:0;border-radius:.8rem;z-index:3}
-#modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:1rem 1.4rem;max-height:80vh;overflow:auto;z-index:5;color:#fff;font-size:.9rem;pointer-events:auto}
+#modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:1rem;max-height:80vh;max-width:calc(100vw - 1rem);box-sizing:border-box;overflow:auto;z-index:5;color:#fff;font-size:.9rem;pointer-events:auto}
 #modal p{margin:.4rem 0}#modal button{margin-top:.6rem;background:#1b8cf0;border:0;color:#fff;border-radius:.4rem;padding:.4rem .9rem}
+#modal.apartment-menu,#modal.bank-menu{box-sizing:border-box;width:min(31rem,calc(100vw - 1rem));max-height:84vh;padding:1rem;overflow:auto;overflow-wrap:anywhere;border:1px solid rgba(190,218,239,.23);border-radius:1rem;background:linear-gradient(145deg,rgba(13,28,43,.98),rgba(5,15,26,.97));box-shadow:0 1.25rem 3.8rem rgba(0,0,0,.5);line-height:1.4}
+#modal.apartment-menu .wm-head{display:flex;align-items:center;gap:.7rem;padding:.2rem 0 .8rem;border-bottom:1px solid rgba(255,255,255,.1)}
+#modal.apartment-menu .wm-head>span{display:grid;place-items:center;flex:0 0 2.5rem;height:2.5rem;border-radius:.7rem;background:linear-gradient(145deg,#1a8ce8,#15589b);font-size:1.25rem}
+#modal.apartment-menu .wm-head small{display:block;color:#75c8ff;font-size:.6rem;font-weight:900;letter-spacing:.1em}
+#modal.apartment-menu .wm-head h2{margin:.18rem 0;font-size:1.08rem;line-height:1.2}
+#modal.apartment-menu .wm-head p,#modal.apartment-menu .wm-note,#modal.bank-menu .bank-transfer p{color:#c2cfdb;font-size:.78rem;line-height:1.45}
+#modal.apartment-menu .hm-price{display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin:.75rem 0;padding:.75rem;border:1px solid rgba(255,255,255,.1);border-radius:.7rem;background:rgba(255,255,255,.035)}
+#modal.apartment-menu .hm-price small{display:block;color:#9db2c4;font-size:.62rem;font-weight:900;letter-spacing:.1em}
+#modal.apartment-menu .hm-price strong{display:block;margin-top:.14rem;color:#7be2b0;font-size:1.35rem}
+#modal.apartment-menu label,#modal.bank-menu .bank-transfer label{display:grid;gap:.3rem;margin:.65rem 0;color:#d7e3ec;font-size:.76rem;font-weight:700}
+#modal.apartment-menu select,#modal.apartment-menu input,#modal.bank-menu .bank-transfer input{box-sizing:border-box;width:100%;min-width:0;min-height:2.55rem;padding:.55rem .65rem;border:1px solid rgba(255,255,255,.18);border-radius:.55rem;background:#152638;color:#fff;font-size:.9rem}
+#modal.apartment-menu button[data-apartment-enter],#modal.apartment-menu button[data-apartment-rent],#modal.apartment-menu button[data-apartment-lock],#modal.apartment-menu button[data-apartment-floor]{display:block;box-sizing:border-box;width:100%;max-width:100%;min-height:2.55rem;margin:.45rem 0;padding:.65rem .8rem;border:1px solid rgba(255,255,255,.12);border-radius:.6rem;font-weight:800;line-height:1.25;white-space:normal;overflow-wrap:anywhere;text-align:center}
+#modal.apartment-menu button[data-apartment-rent]{background:linear-gradient(100deg,#f1a52b,#d87913)}
+#modal.apartment-menu .wm-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem;margin:.55rem 0}
+#modal.apartment-menu .wm-buttons button{min-width:0;white-space:normal;overflow-wrap:anywhere}
+#modal.apartment-menu #mx,#modal.bank-menu #mx{display:block;width:100%;margin-top:1rem;padding:.65rem;border:1px solid rgba(255,255,255,.16);border-radius:.6rem;background:transparent;color:#d7e3ec;font-weight:800}
+#modal.bank-menu .bank-transfer{margin-top:.9rem;padding-top:.8rem;border-top:1px solid rgba(255,255,255,.12)}
+#modal.bank-menu .bank-transfer button{width:100%;min-height:2.65rem;font-weight:800;background:linear-gradient(100deg,#198653,#10633d);white-space:normal}
+@media(max-width:420px){#modal.apartment-menu .wm-buttons{grid-template-columns:1fr}#modal.apartment-menu .wm-head{padding:.1rem 0 .7rem}}
+@media(max-height:520px){#modal.apartment-menu,#modal.bank-menu{max-height:90vh}}
 #fm{display:block;width:min(60vh,20rem);height:min(60vh,20rem);margin:.5rem auto}
 #start,#rot{position:fixed;inset:0;background:#0d1620;color:#fff;place-items:center;text-align:center;z-index:9;font-size:1.1rem}
 #start{display:grid}#rot{display:none;z-index:10}#go{font-size:1.2rem;padding:.8rem 1.6rem;border:0;border-radius:.8rem;background:#1b8cf0;color:#fff}
@@ -506,7 +526,7 @@ function building(x,z,w,d,h,col,side,lit,doorWidth=3.2,doorAxis='x',residentialC
  bld.push(b);}
 [[-17,6,12,14,6,0xb08a6a,-1,.2],[-17,32,12,16,11,0xc9ccd0,-1,.4],[-17,-52,12,18,14,0xd8d2c0,-1,.35],
  [17,2,12,14,9,0x9fb4c8,1,.4],[17,28,12,14,6,0xd6d0c4,1,.2],
- [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5],].forEach(a=>building(...a,3.2,'x',true));
+ [-30,-90,16,16,34,0x8aa0b4,-1,.5],[30,-96,16,16,42,0x7f95aa,1,.5]].forEach((a,i)=>building(...a,3.2,'x',i>=5));
 
 /* Residential exteriors are actual multi-part buildings, sized to each rental class. */
 const HOUSE_VISUALS=Object.create(null),HOUSE_MATERIALS=Object.create(null);
@@ -1416,9 +1436,15 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  if(mag>0){const dx=ix*c-iy*s,dz=-ix*s-iy*c,l=Math.hypot(dx,dz),top=sprint?6.3:4.5;
   const sp=mag<.7?2*(mag/.7):2+(mag-.7)/.3*(top-2);const cf=crouch?.45:1;tx=dx/l*sp*cf;tz=dz/l*sp*cf;}
  const k=1-Math.exp(-dt*10);vel.x+=(tx-vel.x)*k;vel.z+=(tz-vel.z)*k;
- pos.x+=vel.x*dt;pos.z+=vel.z*dt;
- for(const b of boxes){if(b.hw<=0||b.hd<=0||(b.owner&&!b.owner.g.visible))continue;const e=objectHalfExtents(b),ox=pos.x-b.x,oz=pos.z-b.z,px=e.hw+.12-Math.abs(ox),pz=e.hd+.12-Math.abs(oz);
-  if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
+ const moveX=vel.x*dt,moveZ=vel.z*dt,collisionSteps=Math.max(1,Math.min(128,Math.ceil(Math.max(Math.abs(moveX),Math.abs(moveZ))/.08)));
+ const stepX=moveX/collisionSteps,stepZ=moveZ/collisionSteps;
+ for(let step=0;step<collisionSteps;step++){
+  pos.x+=stepX;pos.z+=stepZ;
+  for(const b of boxes){if(b.hw<=0||b.hd<=0||(b.owner&&!b.owner.g.visible))continue;
+   const e=objectHalfExtents(b),ox=pos.x-b.x,oz=pos.z-b.z,px=e.hw+.12-Math.abs(ox),pz=e.hd+.12-Math.abs(oz);
+   if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||stepX||1)*px;else pos.z+=Math.sign(oz||stepZ||1)*pz;}
+  }
+ }
  if(inside?.isCarpark){pos.x=clamp(pos.x,inside.x-13.2,inside.x+13.2);pos.z=clamp(pos.z,inside.z-14.2,inside.z+14.2);const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}
  else if(inside){const halfW=inside.isHome?Math.max(4.8,(inside.roomW||10.4)/2-.45):inside.isWorkplaceInterior?Math.max(6.0,(inside.roomW||16)/2-.55):(inside.isApartmentBuilding?8.7:inside.isApartmentRoom?5.4:5.2),back=inside.isHome?Math.max(4.3,(inside.roomD||10)/2-.45):inside.isWorkplaceInterior?Math.max(5.5,(inside.roomD||14)/2-.55):(inside.isApartmentBuilding?10.7:inside.isApartmentRoom?5.3:4.6),front=inside.isHome?Math.max(5.0,(inside.roomD||10)/2-.45):inside.isWorkplaceInterior?Math.max(5.7,(inside.roomD||14)/2-.55):(inside.isApartmentBuilding?10.7:inside.isApartmentRoom?5.3:5.4);pos.x=clamp(pos.x,inside.x-halfW,inside.x+halfW);pos.z=clamp(pos.z,inside.z-back,inside.z+front);if(inside.cb){const b=inside.cb,ox=pos.x-b.x,oz=pos.z-b.z,px=b.hw+.3-Math.abs(ox),pz=b.hd+.3-Math.abs(oz);if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||1)*px;else pos.z+=Math.sign(oz||1)*pz;}}}
  else{pos.x=clamp(pos.x,-240,240);pos.z=clamp(pos.z,-240,240);}
@@ -1452,15 +1478,19 @@ function updateCam(dt){
   return;
  }
  const f=1-Math.exp(-dt*14);focus.x+=(pos.x-focus.x)*f;focus.z+=(pos.z-focus.z)*f;focus.y=1.4;
- const d=inside&&inside.isHome?3.1:inside?.isCarpark?5.5:4.6,cp=Math.cos(camPitch);
- if(camPitch<0){
-  // Negative pitch tilts the view upward without putting the camera underground.
-  cam.position.set(focus.x+Math.sin(camYaw)*d,focus.y+.25,focus.z+Math.cos(camYaw)*d);
-  cam.lookAt(focus.x,focus.y+.25+Math.tan(-camPitch)*d,focus.z);
- }else{
-  cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);
-  cam.lookAt(focus);
- }}
+ const d=inside&&inside.isHome?3.1:inside?.isCarpark?5.5:inside?.isApartmentRoom?3.15:inside?.isApartmentBuilding?3.7:inside?.isShopInterior?3.35:inside?.isWorkplaceInterior?3.6:4.6,cp=Math.cos(camPitch);
+ let lookY=focus.y;
+ if(camPitch<0){cam.position.set(focus.x+Math.sin(camYaw)*d,focus.y+.25,focus.z+Math.cos(camYaw)*d);lookY=focus.y+.25+Math.tan(-camPitch)*d;}
+ else cam.position.set(focus.x+Math.sin(camYaw)*cp*d,focus.y+Math.sin(camPitch)*d,focus.z+Math.cos(camYaw)*cp*d);
+ if((inside?.isApartmentRoom||inside?.isApartmentBuilding)&&APARTMENT_INTERIOR_VISUAL){
+  const cameraDelta=cam.position.clone().sub(focus),cameraDistance=cameraDelta.length();
+  if(cameraDistance>.1){const direction=cameraDelta.multiplyScalar(1/cameraDistance),raycaster=new THREE.Raycaster(focus.clone(),direction,.12,cameraDistance);
+   const hit=raycaster.intersectObjects(APARTMENT_INTERIOR_VISUAL.children,true).find(item=>item.distance>.16);
+   if(hit)cam.position.copy(focus).addScaledVector(direction,Math.max(.62,hit.distance-.28));
+  }
+ }
+ cam.lookAt(focus.x,lookY,focus.z);
+}
 
 /* ---------- HUD: compass and minimap ---------- */
 const cc=$('comp').getContext('2d'),LAB={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
@@ -1625,7 +1655,7 @@ const routeFade=document.createElement('div');routeFade.id='routeFade';routeFade
 let routeFadeTimer=0;
 function routeTransitionIn(){clearTimeout(routeFadeTimer);routeFade.style.opacity='1';}
 function routeTransitionOut(){clearTimeout(routeFadeTimer);routeFadeTimer=setTimeout(()=>{routeFade.style.opacity='0';},280);}
-function panel(h){modal.classList.remove('house-menu','work-menu');modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu');workplaceMenuOpen=false;};}
+function panel(h){modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu');modal.innerHTML=h+'<br><button id="mx">Close</button>';modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu');workplaceMenuOpen=false;};}
 
 function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!inside.home?.isOwner;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. Use the marked front entrance to return to the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Go to your private car park<br><small>Spawn one of your cars and drive out.</small></button>':'')+'');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}if(r.isApartmentRoom){window.NRS?.exitApartmentRoom();return;}if(r.isApartmentBuilding){window.NRS?.exitApartmentBuilding();return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
@@ -2722,6 +2752,7 @@ function room(p,roomPosition={}){
  const pois=[{x:ix,z:iz-2,k:'Talk',name:p.name,items:p.items,t:p.t},{x:ix,z:iz+5.2,k:'Exit',name:'Leave',r:1.8}];
  if(p.t==='bank'){add(new THREE.BoxGeometry(.7,1.8,.9),M(0x2a3138),ix+5.4,.9,iz+1);add(new THREE.PlaneGeometry(.5,.4),new THREE.MeshBasicMaterial({color:0x39a0ff,side:THREE.DoubleSide}),ix+4.94,1.3,iz+1).rotation.y=Math.PI/2;pois.push({x:ix+4.6,z:iz+1,k:'Use',name:'ATM',t:'atm',r:2});}
  if(p.t==='job')add(new THREE.BoxGeometry(.1,1.6,3),M(0xb08a5a),ix-5.9,2,iz);
+ [{x:ix-6,z:iz,hw:.12,hd:6},{x:ix+6,z:iz,hw:.12,hd:6},{x:ix,z:iz-6,hw:6,hd:.12},{x:ix-3.8,z:iz+6,hw:2.2,hd:.12},{x:ix+3.8,z:iz+6,hw:2.2,hd:.12}].forEach(collider=>boxes.push({...collider,shopInteriorId:key}));
  return ROOMS[key]={name:p.name,x:ix,z:iz,cb:{x:ix,z:iz-2,hw:2.6,hd:.6},pois,isShopInterior:!!p.shopId,shopId:p.shopId||null};}
 function enterRoom(p){if(p.shopId){const N=window.NRS;if(N?.enterShopInterior){N.enterShopInterior(p.shopId);return;}sys('Store connection is not ready. Please reconnect and try again.');return;}
  const r=room(p);r.ret={x:p.x,z:p.z,sx:p.sx};inside=r;pos.set(r.x,0,r.z+3.2);vel.set(0,0,0);face=Math.PI;camYaw=0;camPitch=.3;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
@@ -2730,7 +2761,10 @@ const APARTMENT_FACADE_DETAILS=Object.create(null);
 const APARTMENT_BLOCK_NUMBERS=new Map();
 const APARTMENT_ROOMS_PER_FLOOR=10;
 let APARTMENT_INTERIOR_VISUAL=null;
-
+const APARTMENT_INTERIOR_COLLIDERS=[];
+function addApartmentInteriorCollider(x,z,hw,hd,kind='wall'){
+ const collider={x,z,hw,hd,apartmentInteriorWall:true,kind};boxes.push(collider);APARTMENT_INTERIOR_COLLIDERS.push(collider);return collider;
+}
 function apartmentBlockId(b){return "apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10);}
 function apartmentBlockNumber(b){return APARTMENT_BLOCK_NUMBERS.get(apartmentBlockId(b))||1;}
 function apartmentBuildingName(b){
@@ -2810,6 +2844,8 @@ function apartmentText(text,bg='#183441',fg='#fff'){
 }
 function clearApartmentInteriorVisual(){
  if(APARTMENT_INTERIOR_VISUAL){scene.remove(APARTMENT_INTERIOR_VISUAL);APARTMENT_INTERIOR_VISUAL=null;}
+ for(const collider of APARTMENT_INTERIOR_COLLIDERS){const index=boxes.indexOf(collider);if(index>=0)boxes.splice(index,1);}
+ APARTMENT_INTERIOR_COLLIDERS.length=0;
 }
 function apartmentPose(x,z,yaw=Math.PI,pitch=.10){
  pos.set(Number(x)||450,0,Number(z)||-270);vel.set(0,0,0);jv=0;
@@ -2831,6 +2867,8 @@ function renderApartmentHall(d,ret){
  A(new THREE.BoxGeometry(20,3.5,.20),wall,0,1.72,-11.9);
  A(new THREE.BoxGeometry(8.0,3.5,.20),wall,-6.0,1.72,11.9);A(new THREE.BoxGeometry(8.0,3.5,.20),wall,6.0,1.72,11.9);
  A(new THREE.BoxGeometry(4.0,.85,.20),wall,0,3.06,11.9);
+ addApartmentInteriorCollider(ix-9.9,iz,.12,12,'hall-side-wall');addApartmentInteriorCollider(ix+9.9,iz,.12,12,'hall-side-wall');
+ addApartmentInteriorCollider(ix,iz-11.9,10,.12,'hall-back-wall');addApartmentInteriorCollider(ix-6,iz+11.9,4,.12,'hall-front-wall');addApartmentInteriorCollider(ix+6,iz+11.9,4,.12,'hall-front-wall');
  A(new THREE.BoxGeometry(1.85,2.48,.10),door,0,1.24,11.78);
  A(new THREE.BoxGeometry(.78,2.26,.05),glass,-.43,1.2,11.68);A(new THREE.BoxGeometry(.78,2.26,.05),glass,.43,1.2,11.68);
  A(new THREE.BoxGeometry(.055,2.2,.05),brass,0,1.16,11.62);
@@ -2851,6 +2889,7 @@ function renderApartmentHall(d,ret){
   A(new THREE.BoxGeometry(.045,2.02,.055),brass,x-side*.16,1.10,z);
   A(new THREE.BoxGeometry(.07,.08,.08),brass,x-side*.18,1.08,z+.46);
   A(new THREE.BoxGeometry(.3,.28,.22),M(color),x-side*.16,2.0,z-.64);
+  addApartmentInteriorCollider(ix+side*8.55,iz+z,.09,.78,'numbered-room-door');
   const plate=apartmentText(String(roomInfo.roomNumber),'#17303b');
   const board=A(new THREE.PlaneGeometry(1.45,.46),new THREE.MeshBasicMaterial({map:plate,side:THREE.DoubleSide}),x-side*.19,2.18,z);
   board.rotation.y=side<0?Math.PI/2:-Math.PI/2;
@@ -2891,6 +2930,8 @@ function renderApartmentRoom(d,ret){
  A(new THREE.BoxGeometry(4.25,3.15,.18),wall,-3.85,1.55,5.9);A(new THREE.BoxGeometry(4.25,3.15,.18),wall,3.85,1.55,5.9);
  A(new THREE.BoxGeometry(3.5,.74,.18),wall,0,2.78,5.9);
  A(new THREE.BoxGeometry(3.5,2.35,.10),wood,0,1.16,5.78);
+ addApartmentInteriorCollider(ix-5.9,iz,.12,6,'room-side-wall');addApartmentInteriorCollider(ix+5.9,iz,.12,6,'room-side-wall');
+ addApartmentInteriorCollider(ix,iz-5.9,6,.12,'room-back-wall');addApartmentInteriorCollider(ix-3.85,iz+5.9,2.125,.12,'room-front-wall');addApartmentInteriorCollider(ix+3.85,iz+5.9,2.125,.12,'room-front-wall');
  A(new THREE.BoxGeometry(1.45,2.12,.055),glass,-.78,1.10,5.68);A(new THREE.BoxGeometry(1.45,2.12,.055),glass,.78,1.10,5.68);
  const roomPlate=apartmentText('ROOM '+number,'#17313d','#fff2c7');
  A(new THREE.PlaneGeometry(3.0,.72),new THREE.MeshBasicMaterial({map:roomPlate,side:THREE.DoubleSide}),0,2.52,5.68);
@@ -2904,11 +2945,11 @@ function renderApartmentRoom(d,ret){
  A(new THREE.BoxGeometry(.98,.12,.75),soft,4.25,1.10,2.45);A(new THREE.BoxGeometry(.65,.08,.48),glass,4.25,1.17,2.45);
  A(new THREE.BoxGeometry(.82,2.0,.9),M(0xd7d8d2),5.0,1.0,4.0);
  A(new THREE.BoxGeometry(4.25,.05,2.85),M(0x6a4141),-1.3,.045,2.7);
- A(new THREE.BoxGeometry(3.5,.64,1.15),soft,-1.25,.48,2.85);A(new THREE.BoxGeometry(3.5,.98,.20),soft,-1.25,.85,3.35);
- A(new THREE.BoxGeometry(1.55,.42,1.05),wood,.05,.42,.65);A(new THREE.BoxGeometry(1.42,.07,.92),M(0x82684e),.05,.66,.65);
+ A(new THREE.BoxGeometry(3.5,.64,1.15),soft,-2.6,.48,1.9);A(new THREE.BoxGeometry(3.5,.98,.20),soft,-2.6,.85,2.42);
+ A(new THREE.BoxGeometry(1.55,.42,1.05),wood,-2.5,.42,.05);A(new THREE.BoxGeometry(1.42,.07,.92),M(0x82684e),-2.5,.66,.05);
  A(new THREE.CylinderGeometry(.34,.28,.12,14),trim,0,3.03,0);A(new THREE.CylinderGeometry(.23,.23,.08,14),new THREE.MeshBasicMaterial({color:0xffe6a2}),0,2.93,0);
  A(new THREE.BoxGeometry(1.65,1.18,.08),trim,1.0,2.1,-5.78);A(new THREE.BoxGeometry(1.35,.9,.04),M(0x6b998d),1.0,2.1,-5.72);
- A(new THREE.BoxGeometry(2.3,2.9,.12),wall,0,1.45,-.55);A(new THREE.BoxGeometry(2.15,.65,1.8),M(0xf0eee5),.15,.34,-1.2);
+ A(new THREE.BoxGeometry(2.2,.95,.42),wood,1.55,.48,-.2);A(new THREE.BoxGeometry(2.05,.07,.38),trim,1.55,.98,-.2);
  const isTenant=d.isTenant===true,locked=d.locked===true;
  const pois=[{x:ix,z:iz+4.7,k:'Exit',name:'Return to Floor '+floor+' corridor',t:'apartment-room-exit',r:2.6}];
  if(isTenant)pois.push({x:ix+3.8,z:iz+.6,k:'Room settings',name:locked?'Unlock this room':'Lock this room',t:'apartment-room-settings',r:2.6});
@@ -2934,7 +2975,7 @@ function openApartmentRoomMenu(p){
   '<div class="hm-price"><div><small>DAILY RENT</small><strong>₦1,500</strong></div><span>PER DAY</span></div>'+
   visit+rental+(own?apartmentRoomLockButton(p.buildingId,p.roomNumber,locked):'')+
   (!own&&!occupied&&!canRent?'<p>You already rent a separate house or apartment, so you cannot rent this room.</p>':''));
- modal.classList.add('house-menu');
+ modal.classList.add('apartment-menu');
 }
 function openApartmentElevatorMenu(){
  if(!inside?.isApartmentBuilding)return;
@@ -2944,13 +2985,13 @@ function openApartmentElevatorMenu(){
   return '<button data-apartment-floor="'+target+'" '+(current?'disabled':'')+'>'+label+(current?' · Current floor':'')+'</button>';
  }).join('');
  panel('<div class="wm-head"><span>🛗</span><div><small>'+safeText(inside.apartmentBuildingName)+'</small><h2>Elevator</h2><p>Currently on '+(floor===1?'Ground Floor':'Floor '+floor)+' of '+floors+'</p></div></div><p class="wm-note">Choose any floor directly. The street exit is only available on the Ground Floor (Floor 1).</p><div class="wm-buttons">'+buttons+'</div>');
- modal.classList.add('house-menu');
+ modal.classList.add('apartment-menu');
 }
 function openApartmentRoomSettings(){
  if(!inside?.isApartmentRoom||!inside.isApartmentRoomOwner)return;
  const locked=inside.apartmentRoomLocked===true;
  panel('<div id="apartmentRoomSettingsPanel"><div class="wm-head"><span>🔐</span><div><small>YOUR RENTED APARTMENT</small><h2>Room '+inside.apartmentRoomNumber+' access</h2><p>'+safeText(inside.apartmentBuildingName)+'</p></div></div><p class="wm-note">'+(locked?'Your room is locked. Visitors are blocked from entering.':'Your room is unlocked. Other players can enter and look around.')+'</p>'+apartmentRoomLockButton(inside.apartmentBuildingId,inside.apartmentRoomNumber,locked)+'</div>');
- modal.classList.add('house-menu');
+ modal.classList.add('apartment-menu');
 }
 
 refreshApartmentPOIs();
@@ -2969,7 +3010,13 @@ function openHouseMenu(h){
  modal.classList.add('house-menu');
 }
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
- if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b)act2.textContent=b.k+' · '+b.name;}}
+ if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b){
+  if(b.t==='apartment-room')act2.textContent='Enter Room '+b.roomNumber;
+  else if(b.t==='apartment-elevator')act2.textContent='Use Elevator';
+  else if(b.t==='apartment-building-exit')act2.textContent='Exit to Street';
+  else if(b.apartmentBuildingPoi)act2.textContent='Enter '+b.apartmentBuilding.buildingName;
+  else act2.textContent=b.k+' · '+b.name;
+ }}}
 function openWorkplaceReceptionMenu(workplaceId){
  workplaceMenuOpen=false;
  const places=window.NRS?.workplaceState?.workplaces||window.NRS?.workplaces||[];
@@ -2986,7 +3033,17 @@ function openWorkplaceReceptionMenu(workplaceId){
 act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='workplace'){window.NRS?.enterWorkplaceInterior(p.workplaceId);return;}if(p.t==='workplace-service'){openWorkplaceReceptionMenu(p.workplaceId);return;}if(p.t==='workplace-staff-room'){window.NRS?.enterStaffRoom(p.workplaceId);return;}if(p.t==='workplace-exit'){window.NRS?.exitWorkplaceInterior();return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.t==='apartment-elevator'){openApartmentElevatorMenu();return;}if(p.t==='apartment-room'){openApartmentRoomMenu(p);return;}if(p.t==='apartment-room-settings'){openApartmentRoomSettings();return;}if(p.t==='apartment-room-exit'){window.NRS?.exitApartmentRoom();return;}if(p.t==='apartment-building-exit'){window.NRS?.exitApartmentBuilding();return;}if(p.apartmentBuildingPoi){window.NRS?.enterApartmentBuilding(p.apartmentBuilding);return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
 /* bank + ATM */
-function bankUI(){panel('<b>🏦 '+shopP.name+'</b><p>Cash: ₦'+f(cash)+'<br>Bank: ₦'+f(bank)+'</p>'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
+function bankUI(){
+ panel('<div class="wm-head"><span>🏦</span><div><small>IN-GAME BANKING</small><h2>'+shopP.name+'</h2><p>Cash: ₦'+f(cash)+' · Bank: ₦'+f(bank)+'</p></div></div>'+
+  '<p>Deposit and withdraw game currency, or send money to another player by their username.</p>'+
+  '<div class="bank-actions">'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+'</div>'+
+  '<div class="bank-transfer"><h3>Transfer game currency</h3><p>In-game bank balance only. This feature does not send or accept real money.</p>'+
+  '<label>Player username<input id="moneyTransferUsername" maxlength="31" autocomplete="off" placeholder="Firstname_lastname"></label>'+
+  '<label>Amount to transfer (₦)<input id="moneyTransferAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 2500"></label>'+
+  '<button data-money-transfer="1">Transfer from bank</button></div>'+
+  (pMsg?'<p><i>'+pMsg+'</i></p>':''));
+ modal.classList.add('bank-menu');
+}
 /* job center */
 const JOBS=[['Parcel to Mile 1 Market',-6.5,95,6000],['Parcel to Rumuola',110,70,9000],['Parcel to Waterlines',90,150,12000]];
 function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.n+'</b></p><p>Deliver it, then come back for the next one.</p><button data-open-workplaces="1">🏢 Careers & factions</button>');
@@ -3080,6 +3137,18 @@ function bagUI(){bagK=Object.keys(inv).filter(n=>inv[n]>0);panel('<b>🎒 Backpa
 $('ib2').onclick=()=>{bagMsg='';bagUI();};
 $('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><button data-open-workplaces="1">💼 Careers & factions</button><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
 modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
+ if(d.moneyTransfer!==undefined){
+  const username=String(modal.querySelector('#moneyTransferUsername')?.value||'').trim();
+  const amount=Math.floor(Number(modal.querySelector('#moneyTransferAmount')?.value));
+  if(!/^[A-Za-z]+_[A-Za-z]+$/.test(username)){pMsg='Enter the recipient username as Firstname_lastname.';bankUI();return;}
+  if(!Number.isSafeInteger(amount)||amount<1){pMsg='Enter a positive whole amount in game currency.';bankUI();return;}
+  pMsg='Sending game currency…';bankUI();
+  window.NRS?.transferFunds(username,amount,(result)=>{
+   pMsg=result?.ok?'Transferred ₦'+f(amount)+' to '+(result.recipientUsername||username)+'.':(result?.message||'Transfer failed.');
+   money();bankUI();
+  });
+  return;
+ }
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();});return;}bankUI();}
  else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];NRS.acceptJob(j[0],(r)=>{if(r.ok){job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
@@ -3486,4 +3555,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=20261011-apartment-elevator-visitor-room-locks"></script></body></html>
+</script><script src="/nrs-online.js?v=20261011-game-bank-transfers-apartment-walls-mamaput"></script></body></html>

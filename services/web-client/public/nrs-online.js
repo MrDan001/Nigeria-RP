@@ -24,6 +24,8 @@
     remotes: new Map(),
     target: null,
     pending: [],
+    transferCallbacks: new Map(),
+    transferSeq: 0,
     jobCb: null,
     fuelCb: null,
     garageSpawnCb: null,
@@ -275,6 +277,7 @@
     cash = Number(player.cash) || 0;
     N.cash = cash;
     bank = Number(player.bank) || 0;
+    N.bank = bank;
     hp = Number(player.hp) || 100;
     hunger = Number(player.hunger) || 82;
     job = player.job || null;
@@ -705,10 +708,28 @@
           cash = Number(message.cash) || 0;
           bank = Number(message.bank) || 0;
           N.cash = cash;
+          N.bank = bank;
           money();
         }
         request?.cb?.(message);
         drain();
+      } else if (message.type === "moneyTransferResult") {
+        const requestId = String(message.requestId || "");
+        const callback = S.transferCallbacks.get(requestId);
+        S.transferCallbacks.delete(requestId);
+        if (message.ok) {
+          bank = Number(message.bank) || 0;
+          N.bank = bank;
+          money();
+        }
+        callback?.(message);
+      } else if (message.type === "moneyTransferNotice") {
+        if (message.bank !== undefined) {
+          bank = Number(message.bank) || 0;
+          N.bank = bank;
+          money();
+        }
+        if (message.message) sys(message.message);
       }
     };
 
@@ -801,6 +822,23 @@
       reason
     });
     drain();
+  };
+
+  // Player-to-player transfers use only the in-game bank balance (never real money).
+  N.transferFunds = (username, amount, callback) => {
+    if (!S.authed || !S.open) {
+      callback?.({ ok: false, message: "Connect to the game server before transferring funds." });
+      return;
+    }
+    const recipient = String(username || "").trim();
+    const value = Math.floor(Number(amount));
+    if (!/^[A-Za-z]+_[A-Za-z]+$/.test(recipient) || !Number.isSafeInteger(value) || value < 1) {
+      callback?.({ ok: false, message: "Enter a valid Firstname_lastname username and a positive whole amount." });
+      return;
+    }
+    const requestId = "transfer-" + Date.now() + "-" + (++S.transferSeq);
+    S.transferCallbacks.set(requestId, callback);
+    send({ type: "transferGameFunds", requestId, username: recipient, amount: value });
   };
 
   N.acceptJob = (name, callback) => {

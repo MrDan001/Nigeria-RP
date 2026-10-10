@@ -2002,6 +2002,125 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "transferGameFunds") {
+        const requestId = String(message.requestId ?? "").slice(0, 120);
+        const username = sanitizeUsername(message.username);
+        const usernameLower = username.toLowerCase();
+        const amount = Math.trunc(Number(message.amount));
+        const fail = (text: string) => send(socket, {
+          type: "moneyTransferResult", requestId, ok: false, message: text,
+        });
+        if (!requestId || !/^[a-z]+_[a-z]+$/.test(usernameLower) ||
+            !Number.isSafeInteger(amount) || amount < 1 || amount > 50_000_000) {
+          fail("Enter a valid Firstname_lastname username and a whole amount between ₦1 and ₦50,000,000.");
+          return;
+        }
+        const recipientAccount = await findAccountByUsername(usernameLower);
+        if (!recipientAccount) {
+          fail("No player account was found for " + username + ".");
+          return;
+        }
+        if (recipientAccount.id === session.player.id) {
+          fail("You cannot transfer money to your own account.");
+          return;
+        }
+
+        let senderBank = 0;
+        let recipientBank = 0;
+        let recipientUsername = recipientAccount.username;
+        const recipientSession = players.get(recipientAccount.id);
+
+        if (pool) {
+          // Lock both bank rows in a consistent order so simultaneous transfers cannot overspend.
+          const client = await pool.connect();
+          try {
+            await client.query("BEGIN");
+            const accountIds = [session.player.id, recipientAccount.id].sort();
+            const locked = await client.query(
+              "SELECT id,username,username_lower,bank FROM nrs_accounts WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE",
+              [accountIds],
+            );
+            const senderRow = locked.rows.find((row: any) => String(row.id) === session.player.id);
+            const recipientRow = locked.rows.find((row: any) => String(row.id) === recipientAccount.id);
+            if (!senderRow || !recipientRow || String(recipientRow.username_lower).toLowerCase() !== usernameLower) {
+              await client.query("ROLLBACK");
+              fail("The recipient account changed or is no longer available. Try again.");
+              return;
+            }
+            const currentSenderBank = Number(senderRow.bank);
+            const currentRecipientBank = Number(recipientRow.bank);
+            if (!Number.isSafeInteger(currentSenderBank) || !Number.isSafeInteger(currentRecipientBank) ||
+                currentSenderBank < amount || currentRecipientBank > Number.MAX_SAFE_INTEGER - amount) {
+              await client.query("ROLLBACK");
+              fail(currentSenderBank < amount ? "Insufficient bank funds for this transfer." : "The recipient bank balance is at its game limit.");
+              return;
+            }
+            senderBank = currentSenderBank - amount;
+            recipientBank = currentRecipientBank + amount;
+            recipientUsername = String(recipientRow.username);
+            const now = Date.now();
+            await client.query("UPDATE nrs_accounts SET bank=$2,updated_at=$3 WHERE id=$1", [session.player.id, senderBank, now]);
+            await client.query("UPDATE nrs_accounts SET bank=$2,updated_at=$3 WHERE id=$1", [recipientAccount.id, recipientBank, now]);
+            await client.query("COMMIT");
+          } catch (error) {
+            try { await client.query("ROLLBACK"); } catch {}
+            console.error("money-transfer-transaction", error);
+            fail("The transfer could not be completed. No money was transferred; please try again.");
+            return;
+          } finally {
+            client.release();
+          }
+
+          // Keep active sessions in sync with the database rows updated inside the transaction.
+          session.player.bank = senderBank;
+          session.account.bank = senderBank;
+          if (recipientSession) {
+            recipientSession.player.bank = recipientBank;
+            recipientSession.account.bank = recipientBank;
+          }
+          await persistSession(session);
+        } else {
+          const currentSenderBank = Number(session.player.bank);
+          const currentRecipientBank = Number(recipientSession?.player.bank ?? recipientAccount.bank);
+          if (!Number.isSafeInteger(currentSenderBank) || currentSenderBank < amount) {
+            fail("Insufficient bank funds for this transfer.");
+            return;
+          }
+          if (!Number.isSafeInteger(currentRecipientBank) || currentRecipientBank > Number.MAX_SAFE_INTEGER - amount) {
+            fail("The recipient bank balance is at its game limit.");
+            return;
+          }
+          senderBank = currentSenderBank - amount;
+          recipientBank = currentRecipientBank + amount;
+          session.player.bank = senderBank;
+          session.account.bank = senderBank;
+          if (recipientSession) {
+            recipientSession.player.bank = recipientBank;
+            recipientSession.account.bank = recipientBank;
+            await persistSession(recipientSession);
+            recipientUsername = recipientSession.player.name;
+          } else {
+            recipientAccount.bank = recipientBank;
+            await saveAccount(recipientAccount);
+          }
+          await persistSession(session);
+        }
+
+        send(socket, {
+          type: "moneyTransferResult", requestId, ok: true, bank: senderBank,
+          amount, recipientUsername,
+          message: "Transferred ₦" + amount.toLocaleString("en-NG") + " in game currency to " + recipientUsername + ".",
+        });
+        if (recipientSession) {
+          send(recipientSession.socket, {
+            type: "moneyTransferNotice", ok: true, bank: recipientBank, amount,
+            fromUsername: session.player.name,
+            message: "You received ₦" + amount.toLocaleString("en-NG") + " in game currency from " + session.player.name + ".",
+          });
+        }
+        return;
+      }
+
       if (message.type === "walletChange") {
         const requestId = String(message.requestId ?? "");
         const cashDelta = Math.trunc(Number(message.cashDelta ?? 0));
