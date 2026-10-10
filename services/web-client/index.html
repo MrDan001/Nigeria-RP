@@ -258,7 +258,7 @@ body.drv #camB{display:grid}
 <button class="ped" id="brk" data-l="BRAKE" aria-label="Brake"></button><button class="ped" id="gas" data-l="GAS" aria-label="Gas"></button>
 <button class="dbtn" id="hb">HB</button><button class="dbtn" id="radio">📻</button><button class="dbtn" id="hn"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5c1.6 1.2 1.6 3.8 0 5"/></svg></button><button class="dbtn" id="camB"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></button><button class="rb" id="jump">⤴</button>
 <input type="file" id="mf" accept="audio/*" style="display:none">
-<div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="shop" class="on">Shops</button><button data-t="svc">Services</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button><button data-t="homes">Homes</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
+<div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="shop" class="on">Shops</button><button data-t="svc">Services</button><button data-t="work">🏢 Works / Organization</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button><button data-t="homes">Homes</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
 <div id="navb"><i>NAVIGATION</i><b></b><small></small><button id="navx">✕ Cancel</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -2353,11 +2353,21 @@ const nvB=$('navb'),plc=$('plc'),pll=$('pll');let plTab='shop',plSel=-1,plItems=
 const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const fmtD=d=>d<1000?Math.round(d)+' m':(d/1000).toFixed(1)+' km';
 const rdName=(x,z)=>{let b=null,bd=1e9;HR.forEach(r=>{const d=Math.abs(z-r[0]);if(x>=r[2]-10&&x<=r[3]+10&&d<bd){bd=d;b=r[1];}});VR.forEach(r=>{const d=Math.abs(x-r[0]);if(z>=r[2]-10&&z<=r[3]+10&&d<bd){bd=d;b=r[1];}});return b||'Port Harcourt';};
-const ico=n=>/bank/i.test(n)?'🏦':/atm/i.test(n)?'🏧':/job/i.test(n)?'💼':/pharm/i.test(n)?'💊':/phone|gadget/i.test(n)?'📱':/fashion|cloth|wear/i.test(n)?'👕':/super|mart/i.test(n)?'🛒':/water/i.test(n)?'💧':/corn|ube/i.test(n)?'🌽':/yam|plantain|garri|pepper|veg|fruit/i.test(n)?'🍠':/kitchen|put|food|rice|suya|bole|eatery/i.test(n)?'🍲':'🏪';
+const ico=n=>/hospital|medical|clinic|health/i.test(n)?'🏥':/school|college|university/i.test(n)?'🎓':/police|security/i.test(n)?'🚓':/fire|rescue/i.test(n)?'🚒':/frsc|transport|union/i.test(n)?'🚦':/army|garrison/i.test(n)?'🪖':/government|state/i.test(n)?'🏛️':/news|network/i.test(n)?'📰':/park/i.test(n)?'🌳':/bank/i.test(n)?'🏦':/atm/i.test(n)?'🏧':/job/i.test(n)?'💼':/pharm/i.test(n)?'💊':/phone|gadget/i.test(n)?'📱':/fashion|cloth|wear/i.test(n)?'👕':/super|mart/i.test(n)?'🛒':/water/i.test(n)?'💧':/corn|ube/i.test(n)?'🌽':/yam|plantain|garri|pepper|veg|fruit/i.test(n)?'🍠':/kitchen|put|food|rice|suya|bole|eatery/i.test(n)?'🍲':'🏪';
 const hex=c=>typeof c==='number'?'#'+c.toString(16).padStart(6,'0'):(c||'#c2761c');
 function plData(tab){const o=[],seen={};
  if(tab==='shop')POI.forEach(q=>{if(((q.k==='Enter'&&q.t==='shop')||q.k==='Talk')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:q.k==='Enter'?'Shop · '+rdName(q.x,q.z):'Street stall · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:hex(q.col),r:7});}});
  else if(tab==='svc'){POI.forEach(q=>{if((q.t==='job'||q.t==='bank'||q.t==='atm')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:'Service · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:q.t==='atm'?'#0a4d8c':hex(q.col),r:7});}});if(job)o.push({n:'Drop-off · '+job.n,sub:'Current job · ₦'+f(job.pay),x:job.x,z:job.z,ico:'📦',c:'#b8860b',r:6});}
+ else if(tab==='work'){
+  POI.forEach(q=>{
+   if(q.t!=='workplace'&&q.k!=='Work')return;
+   const key=q.workplaceId||q.name;if(seen[key])return;seen[key]=1;
+   const n=q.name||key;
+   const kind=/hospital|medical|clinic|health/i.test(n)?'Healthcare':/school|college|university/i.test(n)?'Education':/police|fire|frsc|army|rescue/i.test(n)?'Public safety':/government|state/i.test(n)?'Government':/news|network/i.test(n)?'Media':/park/i.test(n)?'Public services':'Workplace / organization';
+   const color=/hospital|medical|clinic|health/i.test(n)?'#b33b45':/school|college|university/i.test(n)?'#28784b':/police|fire|frsc|army|rescue/i.test(n)?'#245c8e':'#52616b';
+   o.push({n,sub:kind+' · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(n),c:color,r:q.r||8,workplaceId:q.workplaceId});
+  });
+ }
  else if(tab==='fuel')FS.forEach(q=>o.push({n:q.brand+' · '+q.road,sub:'₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11}));
  else if(tab==='homes'){
   const N=window.NRS||{},life=N.life||{};
