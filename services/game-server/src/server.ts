@@ -10,19 +10,38 @@ import {
   HOUSES,
   HOUSE_CLASSES,
   MAX_PREPAID_DAYS,
+  BOSS_RANK,
+  MAX_STAFF_RANK,
+  FACTIONS,
+  WORKPLACES,
+  WORKPLACE_RADIUS,
+  WORK_TASK_COOLDOWN_MS,
+  WORK_TASK_DURATION_MS,
   CARPARK_EXIT_GATE,
   CARPARK_POSITION,
   CARPARK_VEHICLE_SPAWN,
   validateCarparkExit,
-  type CarparkVehicleTrack,
+  checkRankChange,
+  checkWorkplaceApplication,
+  checkWorkplaceDuty,
+  checkWorkTaskEligibility,
+  bossWorkplaceOf,
   findHouse,
+  findWorkplace,
   houseRent,
   newLife,
   newWorld,
   normalizeLife,
   normalizeWorld,
+  payForTask,
+  workplaceRankTitle,
+  workplaceTasks,
   settleLife,
+  type Employment,
+  type CarparkVehicleTrack,
   type Life,
+  type Workplace,
+  type WorkplaceTask,
   type WorldState,
 } from "./world";
 
@@ -91,6 +110,7 @@ type Session = {
   /** House currently being visited; visitors may enter unlocked or vacant homes. */
   currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
+  workTask: { workplaceId: string; taskId: string; startedAt: number } | null;
 };
 
 type FileStore = {
@@ -120,6 +140,9 @@ const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
 
 // Debug clock: lets a test skip days without waiting. Off unless NRS_DEBUG_CLOCK=1.
 const DEBUG_CLOCK = process.env.NRS_DEBUG_CLOCK === "1";
+// Comma-separated account usernames authorised to appoint faction/workplace bosses.
+// Empty by default: leadership can never be claimed by an ordinary client.
+const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
 const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
 
@@ -300,6 +323,115 @@ function housingSnapshot(session: Session) {
       locked: tenant !== null && world.houseLocks[house.id] === true,
     };
   });
+}
+
+function isFactionAdmin(session: Session) {
+  return FACTION_ADMIN_USERNAMES.has(session.player.name.toLowerCase());
+}
+
+function workplaceSnapshot(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
+  const admin = isFactionAdmin(session);
+  const onlinePlayers = [...players.values()].map((member) => ({
+    id: member.player.id,
+    name: member.player.name,
+    workplaceId: member.player.life.employment?.workplaceId ?? null,
+    rank: member.player.life.employment?.rank ?? null,
+    onDuty: member.player.life.employment?.onDuty === true,
+  }));
+  const workplaces = WORKPLACES.map((workplace) => {
+    const faction = FACTIONS.find((candidate) => candidate.id === workplace.factionId) ?? null;
+    const members = onlinePlayers.filter((member) => member.workplaceId === workplace.id).map((member) => ({
+      ...member,
+      rankTitle: workplaceRankTitle(workplace.id, Number(member.rank)),
+      boss: world.bosses[workplace.id] === member.id,
+    }));
+    const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
+    const canManage = world.bosses[workplace.id] === session.player.id;
+    const applicants = (canManage || admin)
+      ? Object.entries(applicationTimes).map(([accountId, appliedAt]) => {
+          const applicant = players.get(accountId);
+          return applicant ? { id: accountId, name: applicant.player.name, appliedAt } : { id: accountId, name: "Offline applicant", appliedAt };
+        })
+      : [];
+    const isMember = employment?.workplaceId === workplace.id;
+    return {
+      ...workplace,
+      faction,
+      rankTitle: isMember ? workplaceRankTitle(workplace.id, employment.rank) : "",
+      employed: isMember,
+      onDuty: isMember && employment.onDuty === true,
+      canManage,
+      bossName: members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
+      memberCount: members.length,
+      staff: members,
+      applications: applicants,
+      hasApplied: Object.prototype.hasOwnProperty.call(applicationTimes, session.player.id),
+      requiresApproval: faction?.requiresApproval === true,
+      tasks: workplaceTasks(workplace.id).map((task) => ({
+        ...task,
+        pay: payForTask(task.basePay, isMember ? employment.rank : 1),
+        durationMs: WORK_TASK_DURATION_MS,
+        cooldownMs: WORK_TASK_COOLDOWN_MS,
+      })),
+    };
+  });
+  return {
+    workplaces,
+    factions: FACTIONS,
+    employment,
+    bossWorkplaceId,
+    isFactionAdmin: admin,
+    onlinePlayers,
+    activeTask: session.workTask
+      ? { ...session.workTask, elapsedMs: Math.max(0, Date.now() - session.workTask.startedAt), durationMs: WORK_TASK_DURATION_MS }
+      : null,
+    taskReadyAt: Math.max(0, Number(employment?.lastTaskAt) + WORK_TASK_COOLDOWN_MS || 0),
+    cash: session.player.cash,
+    today: clock.dayKey(),
+  };
+}
+
+function sendWorkplaceState(session: Session) {
+  send(session.socket, { type: "workplaceState", ...workplaceSnapshot(session) });
+}
+
+function sendWorkplaceResult(session: Session, action: string, ok: boolean, message: string, extra: Record<string, unknown> = {}) {
+  send(session.socket, { type: "workplaceResult", action, ok, message, ...extra, ...workplaceSnapshot(session) });
+}
+
+function broadcastWorkplaceStates() {
+  for (const session of players.values()) sendWorkplaceState(session);
+}
+
+function workplaceDistance(session: Session, workplace: Workplace) {
+  return Math.hypot(session.player.x - workplace.x, session.player.z - workplace.z);
+}
+
+function hasWorkplaceBossPermission(session: Session, workplaceId: string) {
+  return world.bosses[workplaceId] === session.player.id;
+}
+
+async function setAccountEmployment(accountId: string, workplaceId: string | null, rank = 1) {
+  const active = players.get(accountId);
+  if (active) {
+    active.player.life = {
+      ...active.player.life,
+      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+    };
+    active.workTask = null;
+    await persistSession(active);
+    return active.player.name;
+  }
+  const account = await findAccountById(accountId);
+  if (!account) return null;
+  account.life = {
+    ...account.life,
+    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+  };
+  await saveAccount(account);
+  return account.username;
 }
 
 function homeInteriorPosition(homeId: string) {
@@ -856,6 +988,7 @@ wss.on("connection", (socket) => {
       inCarpark: false,
       homeReturn: null,
       carparkVehicle: null,
+      workTask: null,
     };
 
     // Offline players are settled here: any midnights that passed while they were away.
@@ -876,6 +1009,7 @@ wss.on("connection", (socket) => {
       players: snapshot(),
       onlineCount: players.size,
       houses: housingSnapshot(session),
+      ...workplaceSnapshot(session),
     });
     if (settled?.homeLost) {
       send(socket, {
