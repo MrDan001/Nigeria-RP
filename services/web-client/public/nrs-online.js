@@ -14,6 +14,8 @@
     open: false,
     authed: false,
     id: null,
+    name: "",
+    level: 1,
     token: readToken(),
     initialConnection: true,
     resume: false,
