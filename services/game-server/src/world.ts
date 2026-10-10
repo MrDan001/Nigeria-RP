@@ -546,6 +546,33 @@ export function checkRankChange(args: {
 
 // ---------------------------------------------------------------- world state (shared by everyone)
 
+// The named primary account is fixed in server policy, not selected by a client request.
+export const MAIN_ADMIN_USERNAME = "dbase_mccoll";
+export type AdminRole = "main_admin" | "admin" | null;
+export type AdminAuditAction = "grant_admin" | "revoke_admin" | "appoint_boss" | "rank_change" | "dismiss_staff";
+export type AdminAuditEntry = {
+  actorId: string;
+  actorUsername: string;
+  targetId: string;
+  targetUsername: string;
+  action: AdminAuditAction;
+  detail: string;
+  at: number;
+};
+
+export function resolveAdminRole(
+  username: string,
+  accountId: string,
+  administrators: Record<string, true>,
+): AdminRole {
+  if (String(username).trim().toLowerCase() === MAIN_ADMIN_USERNAME) return "main_admin";
+  return administrators[accountId] === true ? "admin" : null;
+}
+
+export function canManageAdminRoles(role: AdminRole): boolean {
+  return role === "main_admin";
+}
+
 export type WorldState = {
   v: 1;
   // Boss of each workplace, by account id. Set by hand in the stored data for now.
@@ -554,6 +581,10 @@ export type WorldState = {
   houseTenants: Record<string, string | null>;
   // Persistent owner-selected privacy for each rented home; vacant homes are always visitable.
   houseLocks: Record<string, boolean>;
+  // Persistent delegated admins are keyed by immutable account ID; the main admin is derived from identity.
+  admins: Record<string, true>;
+  // Bounded, durable audit trail for privileged account/workplace changes.
+  adminAudit: AdminAuditEntry[];
   // Pending faction/workplace applications, keyed by workplace ID then account ID.
   workplaceApplications: Record<string, Record<string, number>>;
   lastDay: string;
@@ -567,7 +598,7 @@ export function newWorld(todayKey: string): WorldState {
   const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, lastDay: todayKey };
+  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, admins: {}, adminAudit: [], lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -594,6 +625,38 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
     const t = v.houseTenants?.[id];
     if (typeof t === "string" && t) base.houseTenants[id] = t;
     base.houseLocks[id] = v.houseLocks?.[id] === true;
+  }
+  if (v.admins && typeof v.admins === "object" && !Array.isArray(v.admins)) {
+    for (const [accountId, granted] of Object.entries(v.admins as Record<string, unknown>)) {
+      if (accountId && accountId.length <= 160 && (granted === true || granted === "admin")) {
+        base.admins[accountId] = true;
+      }
+    }
+  }
+  const allowedAuditActions = new Set<AdminAuditAction>([
+    "grant_admin", "revoke_admin", "appoint_boss", "rank_change", "dismiss_staff",
+  ]);
+  if (Array.isArray(v.adminAudit)) {
+    base.adminAudit = v.adminAudit
+      .filter((entry: any) =>
+        entry && typeof entry === "object" &&
+        typeof entry.actorId === "string" && entry.actorId.length > 0 &&
+        typeof entry.actorUsername === "string" &&
+        typeof entry.targetId === "string" && entry.targetId.length > 0 &&
+        typeof entry.targetUsername === "string" &&
+        allowedAuditActions.has(entry.action) &&
+        Number.isFinite(Number(entry.at)) && Number(entry.at) > 0
+      )
+      .slice(-200)
+      .map((entry: any) => ({
+        actorId: String(entry.actorId).slice(0, 160),
+        actorUsername: String(entry.actorUsername).slice(0, 32),
+        targetId: String(entry.targetId).slice(0, 160),
+        targetUsername: String(entry.targetUsername).slice(0, 32),
+        action: entry.action as AdminAuditAction,
+        detail: String(entry.detail ?? "").slice(0, 240),
+        at: Math.floor(Number(entry.at)),
+      }));
   }
   if (typeof v.lastDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.lastDay)) base.lastDay = v.lastDay;
   return base;
