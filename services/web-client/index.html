@@ -2,6 +2,21 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Nigeria Roleplay - Port Harcourt Build</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#081018">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nigeria RP">
+<link rel="icon" href="/nrs-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/nrs-icon.svg">
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+</script>
 <style>
 html{font-size:clamp(8px,2.7vh,15px)}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:none;font-family:system-ui,sans-serif;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:linear-gradient(#5b86c6 0%,#a9b8d8 38%,#f0b985 52%,#e9b98c 100%)}
