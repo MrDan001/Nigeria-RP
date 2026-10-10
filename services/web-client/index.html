@@ -562,7 +562,19 @@ flat(8,40,M(0x7a5c3c),90,.08,185);[[-60,0xc94a3a],[20,0x2b5b3a],[140,0xd9b13a]].
 let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647,wm={},pm={};
 const wmat=(c,h)=>wm[c+'|'+h]||(wm[c+'|'+h]=new THREE.MeshLambertMaterial({map:winTex('#'+c.toString(16).padStart(6,'0'),.35,2,Math.max(1,Math.round(h/7)))}));
 const plain=c=>pm[c]||(pm[c]=M(c));
-function roadNear(x,z,m){return HR.some(r=>Math.abs(z-r[0])<8+m&&x>r[2]-10&&x<r[3]+10)||VR.some(r=>Math.abs(x-r[0])<8+m&&z>r[2]-10&&z<r[3]+10)||RB.some(b=>Math.hypot(x-b[0],z-b[1])<24+m)||LOCAL_ROADS.some(r=>r.axis==='h'?Math.abs(z-r.fixed)<r.width/2+m&&x>r.lo-4&&x<r.hi+4:Math.abs(x-r.fixed)<r.width/2+m&&z>r.lo-4&&z<r.hi+4);}
+function houseAccessCorridorNear(x,z,m){
+ return HOUSE_PLOTS.some(h=>{
+  const front=h.cls==='hut'?h.w*.48:h.d/2,start=h.z+front+5.5;
+  if(h.id.startsWith('hut-m1-'))return Math.abs(x-h.x)<.8+m&&z>=Math.min(start,95.5)-m&&z<=Math.max(start,95.5)+m;
+  const street=LOCAL_ROADS.find(r=>r.axis==='h'&&r.zone===h.zone&&r.fixed>h.z);
+  if(!street)return false;
+  const end=street.fixed-street.width/2-1.105;
+  return Math.abs(x-h.x)<1.45+m&&z>=Math.min(start,end)-m&&z<=Math.max(start,end)+m;
+ })||(
+  Math.abs(z-95.5)<.8+m&&x>=-85-m&&x<=-12+m
+ )||[-57.5,-39,-19].some(px=>Math.abs(x-px)<.8+m&&z>=95.5-m&&z<=112.145+m);
+}
+function roadNear(x,z,m){return HR.some(r=>Math.abs(z-r[0])<8+m&&x>r[2]-10&&x<r[3]+10)||VR.some(r=>Math.abs(x-r[0])<8+m&&z>r[2]-10&&z<r[3]+10)||RB.some(b=>Math.hypot(x-b[0],z-b[1])<24+m)||LOCAL_ROADS.some(r=>r.axis==='h'?Math.abs(z-r.fixed)<r.width/2+m&&x>r.lo-4&&x<r.hi+4:Math.abs(x-r.fixed)<r.width/2+m&&z>r.lo-4&&z<r.hi+4)||houseAccessCorridorNear(x,z,m);}
 
 /* ---------- Streetworks v2: junction markings, kerbs, roundabouts and street lamps ---------- */
 (function(){
@@ -719,13 +731,35 @@ LOCAL_ROADS.forEach(r=>{
   for(let t=r.lo+6;t<r.hi-2;t+=13)flat(.095,2.25,wht,r.fixed,.09,t);
  }
 });
-/* Each registered rental home receives a paved approach linking the front apron to its district street. */
+/* Residential driveways and pedestrian links. These are additive only: HR, VR and RB stay unchanged. */
+const MILE1_ALLEY_Z=95.5,MILE1_ACCESS_END=116-5.5/2-1.105;
 HOUSE_PLOTS.forEach(h=>{
+ const front=h.cls==='hut'?h.w*.48:h.d/2;
+ const start=h.z+front+5.5;
+ // The Mile 1 huts sit behind the face-me row. Give them a rear-side shared footpath
+ // instead of an asphalt driveway that would cut through the houses in front.
+ if(h.id.startsWith('hut-m1-')){
+  const end=MILE1_ALLEY_Z,depth=Math.abs(end-start);
+  if(depth>.08)flatW(1.5,depth,swm,h.x,.067,(start+end)/2,4);
+  return;
+ }
  const street=LOCAL_ROADS.find(r=>r.axis==='h'&&r.zone===h.zone&&r.fixed>h.z);
  if(!street)return;
- const front=h.cls==='hut'?h.w*.48:h.d/2;
- const start=h.z+front+6.8,end=street.fixed-street.width/2-.18,depth=end-start;
- if(depth>.85)flatW(3.0,depth,asphalt2,h.x,.058,(start+end)/2,6);
+ const end=street.fixed-street.width/2-1.105,depth=end-start;
+ if(depth>.45){
+  const mid=(start+end)/2;
+  flatW(2.7,depth,asphalt2,h.x,.058,mid,6);
+  // Paved pedestrian strips sit along both sides of each private approach.
+  flatW(1.0,depth,swm,h.x-1.78,.066,mid,4);
+  flatW(1.0,depth,swm,h.x+1.78,.066,mid,4);
+ }
+});
+// Shared Mile 1 rear-side footpath plus three connectors through the existing gaps
+// between face-me homes. This closes the hut-to-street route without moving any house.
+flatW(73,1.4,swm,-48.5,.066,MILE1_ALLEY_Z,4);
+[-57.5,-39,-19].forEach(x=>{
+ const depth=MILE1_ACCESS_END-MILE1_ALLEY_Z;
+ flatW(1.4,depth,swm,x,.067,(MILE1_ALLEY_Z+MILE1_ACCESS_END)/2,4);
 });
 for(let gx=-228;gx<=228;gx+=24)for(let gz=-228;gz<=180;gz+=24){const Z=zoneAt(gx,gz)||DEF;if(rnd()>Z.d)continue;
  const R=a=>Math.round(a[0]+rnd()*(a[1]-a[0])),w=R(Z.w),d=R(Z.w),h=R(Z.h),x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,c=Z.cols[Math.floor(rnd()*Z.cols.length)];
