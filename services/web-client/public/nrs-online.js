@@ -306,26 +306,88 @@
     setVisible(true);
   }
 
-  function tag(text) {
+  // Always-visible, camera-facing multiplayer nameplate. It works on touch screens too
+  // (no mouse-hover required) and refreshes when the server reports a new level/name.
+  function tag(username, level = 1) {
     const canvas = document.createElement("canvas");
-    canvas.width = 256; canvas.height = 64;
+    canvas.width = 512;
+    canvas.height = 128;
     const ctx = canvas.getContext("2d");
-    ctx.font = "bold 28px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#071016dd";
-    ctx.fillRect(6, 8, 244, 48);
-    ctx.fillStyle = "#fff";
-    ctx.fillText(text, 128, 42);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const label = { username: String(username || "Player"), level: Math.max(1, Math.floor(Number(level) || 1)) };
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // A soft outline plus a dark translucent card keeps the text legible over bright scenery.
+      const x = 12, y = 8, w = 488, h = 108, r = 18;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.roundRect(x + 2, y + 3, w, h, r);
+      ctx.fill();
+      ctx.fillStyle = "rgba(6,16,27,0.88)";
+      ctx.strokeStyle = "rgba(142,201,231,0.78)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fill();
+      ctx.stroke();
+
+      // Username is the primary line; shrink long names instead of allowing them to clip.
+      const name = label.username;
+      let fontSize = 34;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "700 " + fontSize + "px system-ui, sans-serif";
+      while (fontSize > 20 && ctx.measureText(name).width > 440) {
+        fontSize -= 2;
+        ctx.font = "700 " + fontSize + "px system-ui, sans-serif";
+      }
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(name, 256, 48, 444);
+
+      const levelText = "LEVEL " + label.level;
+      ctx.font = "800 19px system-ui, sans-serif";
+      const pillW = Math.max(94, ctx.measureText(levelText).width + 34);
+      const pillX = (512 - pillW) / 2;
+      ctx.fillStyle = "rgba(32,139,178,0.25)";
+      ctx.beginPath();
+      ctx.roundRect(pillX, 78, pillW, 29, 14);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(112,219,245,0.45)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "#92ebff";
+      ctx.fillText(levelText, 256, 93, pillW - 14);
+      texture.needsUpdate = true;
+    };
+    draw();
 
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: new THREE.CanvasTexture(canvas),
+      map: texture,
       transparent: true,
-      depthTest: false
+      depthTest: false,
+      depthWrite: false
     }));
-    sprite.scale.set(2.7, .68, 1);
-    sprite.position.y = 2.35;
+    sprite.scale.set(3.25, .82, 1);
+    sprite.position.y = 2.55;
     sprite.renderOrder = 50;
-    sprite.userData.name = text;
+    sprite.userData.name = label.username;
+    sprite.userData.level = label.level;
+    sprite.userData.setPlayerLabel = (nextUsername, nextLevel) => {
+      const nextName = String(nextUsername || "Player");
+      const parsedLevel = Math.max(1, Math.floor(Number(nextLevel) || 1));
+      if (label.username === nextName && label.level === parsedLevel) return;
+      label.username = nextName;
+      label.level = parsedLevel;
+      sprite.userData.name = nextName;
+      sprite.userData.level = parsedLevel;
+      draw();
+    };
+    sprite.userData.disposeLabel = () => {
+      texture.dispose();
+      sprite.material.dispose();
+    };
     return sprite;
   }
 
@@ -336,18 +398,29 @@
     if (!group) {
       group = new THREE.Group();
       group.add(model.clone(true));
-      group.add(tag(player.name || "Player"));
-      group.position.set(player.x, 0, player.z);
-      group.rotation.y = player.yaw || 0;
+      const playerName = player.name || "Player";
+      const playerLevel = Math.max(1, Math.floor(Number(player.level) || 1));
+      const nameplate = tag(playerName, playerLevel);
+      nameplate.userData.playerNameplate = true;
+      group.add(nameplate);
+      group.position.set(Number(player.x) || 0, 0, Number(player.z) || 0);
+      group.rotation.y = Number(player.yaw) || 0;
       group.userData = {
         target: { x: Number(player.x) || 0, z: Number(player.z) || 0, yaw: Number(player.yaw) || 0 },
-        name: player.name || "Player"
+        name: playerName,
+        level: playerLevel
       };
       scene.add(group);
       S.remotes.set(player.id, group);
       return;
     }
 
+    const nextName = player.name || group.userData.name || "Player";
+    const nextLevel = Math.max(1, Math.floor(Number(player.level) || 1));
+    group.userData.name = nextName;
+    group.userData.level = nextLevel;
+    const labelSprite = group.children.find((child) => child.userData?.playerNameplate);
+    labelSprite?.userData?.setPlayerLabel?.(nextName, nextLevel);
     group.userData.target = {
       x: Number(player.x) || 0,
       z: Number(player.z) || 0,
@@ -359,6 +432,9 @@
     const group = S.remotes.get(id);
     if (group) {
       scene.remove(group);
+      for (const child of group.children) {
+        child.userData?.disposeLabel?.();
+      }
       S.remotes.delete(id);
     }
   }
