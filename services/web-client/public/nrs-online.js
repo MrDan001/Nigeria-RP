@@ -626,6 +626,26 @@
       } else if (message.type === "shopInteriorExitResult") {
         if (message.ok) window.dispatchEvent(new CustomEvent("nrs-shop-interior-exit", { detail: message }));
         else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentBuildingEnterResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-building-enter", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentFloorResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-floor", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentRoomEnterResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-enter", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentRoomRentResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-rent", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentRoomExitResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-room-exit", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentBuildingExitResult") {
+        if (message.ok) window.dispatchEvent(new CustomEvent("nrs-apartment-building-exit", { detail: message }));
+        else if (message.message) sys(message.message);
+      } else if (message.type === "apartmentLeaseExpired") {
+        window.dispatchEvent(new CustomEvent("nrs-apartment-lease-expired", { detail: message }));
       } else if (message.type === "playerInteractionResult") {
         if (message.message) sys(message.message);
         if (message.cash !== undefined) { cash = Number(message.cash) || 0; N.cash = cash; money(); }
@@ -807,6 +827,12 @@
   N.exitWorkplaceInterior = () => send({ type: "exitWorkplaceInterior" });
   N.enterShopInterior = (shopId) => send({ type: "enterShopInterior", shopId });
   N.exitShopInterior = () => send({ type: "exitShopInterior" });
+  N.enterApartmentBuilding = (building) => send({ type: "enterApartmentBuilding", ...(building || {}) });
+  N.changeApartmentFloor = (floor) => send({ type: "changeApartmentFloor", floor });
+  N.enterApartmentRoom = (buildingId, roomNumber) => send({ type: "enterApartmentRoom", buildingId, roomNumber });
+  N.rentApartmentRoom = (buildingId, roomNumber, days) => send({ type: "rentApartmentRoom", buildingId, roomNumber, days });
+  N.exitApartmentRoom = () => send({ type: "exitApartmentRoom" });
+  N.exitApartmentBuilding = () => send({ type: "exitApartmentBuilding" });
   N.enterStaffRoom = (workplaceId) => send({ type: "enterStaffRoom", workplaceId });
   N.changeWorkUniform = (workplaceId) => send({ type: "changeWorkUniform", workplaceId });
   N.exitStaffRoom = () => send({ type: "exitStaffRoom" });
