@@ -25,62 +25,60 @@ export function payForTask(basePay: number, rank: number): number {
 
 // ---------------------------------------------------------------- workplaces
 
-export type WorkplaceKind = "market" | "bank" | "hospital" | "park" | "news" | "government";
+export type WorkplaceKind =
+  | "market" | "bank" | "hospital" | "park" | "news" | "government"
+  | "police" | "frsc" | "fire" | "military" | "transport";
 
 export type Workplace = {
   id: string;
   name: string;
   kind: WorkplaceKind;
-  zone: string; // district it belongs in; exact x/z are set when the stage that builds it places it
-  // Six entries, rank 1 first. Each entry lists the titles that share that rank.
+  zone: string;
+  x: number; // authorised on-site work interaction point in the shared world
+  z: number;
+  factionId: string;
   rankTitles: readonly (readonly string[])[];
 };
 
 const ladder = (...titles: string[]): readonly (readonly string[])[] => titles.map((t) => [t]);
 
-// Only workplaces whose six titles are already fixed in the plan are listed.
-// Police, army, FRSC, fire, transport, shops and the rest are added in their own stages.
+// One catalogue powers both ordinary careers and roleplay factions. Hospital locations
+// are shared with the client scene so duty/task checks happen at their real entrances.
 export const WORKPLACES: readonly Workplace[] = [
   {
-    id: "market-mile1",
-    name: "Mile 1 Market",
-    kind: "market",
-    zone: "Mile 1 Market",
+    id: "market-mile1", name: "Mile 1 Market", kind: "market", zone: "Mile 1 Market",
+    x: -48, z: 80, factionId: "market",
     rankTitles: ladder("Hawker", "Stall Assistant", "Sales Rep", "Senior Sales", "Market Supervisor", "Market Chairman"),
   },
   {
-    id: "bank-main",
-    name: "Port Harcourt Bank",
-    kind: "bank",
-    zone: "Port Harcourt Centre",
+    id: "bank-main", name: "Port Harcourt Bank", kind: "bank", zone: "Port Harcourt Centre",
+    x: -10, z: -20, factionId: "bank",
     rankTitles: ladder("Trainee", "Teller", "Senior Teller", "Loan Officer", "Operations Manager", "Branch Manager"),
   },
   {
-    id: "hospital-main",
-    name: "General Hospital",
-    kind: "hospital",
-    zone: "Port Harcourt Centre",
+    // Keep the existing ID so saved employment records remain valid.
+    id: "hospital-main", name: "Mile One General Hospital", kind: "hospital", zone: "Mile 1 Market",
+    x: -79, z: 106, factionId: "hospital-mile1",
     rankTitles: ladder("Orderly", "Nurse Aide", "Nurse", "Senior Nurse", "Doctor", "Chief Medical Director"),
   },
   {
-    id: "park-main",
-    name: "City Park",
-    kind: "park",
-    zone: "Port Harcourt Centre",
+    id: "hospital-princess", name: "Princess Hospital", kind: "hospital", zone: "Trans Amadi",
+    x: 155, z: -126, factionId: "hospital-princess",
+    rankTitles: ladder("Hospital Assistant", "Nursing Assistant", "Registered Nurse", "Senior Nurse", "Consultant", "Medical Director"),
+  },
+  {
+    id: "park-main", name: "City Park", kind: "park", zone: "Port Harcourt Centre",
+    x: -30, z: 20, factionId: "park",
     rankTitles: ladder("Cleaner", "Gate Attendant", "Ticket Seller", "Ranger", "Operations Officer", "Park Director"),
   },
   {
-    id: "news-main",
-    name: "Rivers News Network",
-    kind: "news",
-    zone: "Port Harcourt Centre",
+    id: "news-main", name: "Rivers News Network", kind: "news", zone: "Port Harcourt Centre",
+    x: 20, z: -52, factionId: "news",
     rankTitles: ladder("Intern", "Production Assistant", "Reporter", "Anchor", "Editor", "Editor-in-Chief"),
   },
   {
-    id: "gov-rivers",
-    name: "Rivers State Government",
-    kind: "government",
-    zone: "Port Harcourt Centre",
+    id: "gov-rivers", name: "Rivers State Government", kind: "government", zone: "Port Harcourt Centre",
+    x: 36, z: -8, factionId: "government",
     rankTitles: [
       ["Councillor", "Assistant", "Clerk"],
       ["Vice Chairman", "Special Adviser", "PRO"],
@@ -90,10 +88,132 @@ export const WORKPLACES: readonly Workplace[] = [
       ["Governor"],
     ],
   },
+  {
+    id: "police-rivers", name: "Rivers State Police Service", kind: "police", zone: "Port Harcourt Centre",
+    x: -28, z: -132, factionId: "police",
+    rankTitles: ladder("Recruit Constable", "Constable", "Corporal", "Sergeant", "Inspector", "Commissioner of Police"),
+  },
+  {
+    id: "frsc-rivers", name: "FRSC — Rivers Sector Command", kind: "frsc", zone: "Port Harcourt Centre",
+    x: 28, z: 48, factionId: "frsc",
+    rankTitles: ladder("Road Safety Marshal", "Senior Marshal", "Assistant Route Commander", "Route Commander", "Sector Operations Officer", "Sector Commander"),
+  },
+  {
+    id: "fire-rivers", name: "Rivers State Fire & Rescue", kind: "fire", zone: "Port Harcourt Centre",
+    x: -45, z: -132, factionId: "fire",
+    rankTitles: ladder("Firefighter Trainee", "Firefighter", "Crew Leader", "Station Officer", "Divisional Officer", "Chief Fire Officer"),
+  },
+  {
+    id: "army-rivers", name: "Nigerian Army — Port Harcourt Garrison", kind: "military", zone: "Trans Amadi",
+    x: 185, z: -165, factionId: "army",
+    rankTitles: ladder("Recruit", "Private", "Lance Corporal", "Corporal", "Sergeant", "Commanding Officer"),
+  },
+  {
+    id: "transport-union", name: "Port Harcourt Transport Union", kind: "transport", zone: "Port Harcourt Centre",
+    x: 5, z: 62, factionId: "transport",
+    rankTitles: ladder("Transport Assistant", "Route Assistant", "Driver", "Senior Driver", "Depot Supervisor", "Union Chairman"),
+  },
 ];
+
+export type Faction = {
+  id: string;
+  name: string;
+  workplaceId: string;
+  category: "commerce" | "medical" | "public-service" | "law-enforcement" | "emergency" | "military" | "media" | "transport";
+  description: string;
+  requiresApproval: boolean;
+};
+
+export const FACTIONS: readonly Faction[] = [
+  { id: "market", name: "Mile 1 Market Association", workplaceId: "market-mile1", category: "commerce", description: "Market operations, traders and customer service.", requiresApproval: false },
+  { id: "bank", name: "Port Harcourt Bank", workplaceId: "bank-main", category: "commerce", description: "Banking services and branch operations.", requiresApproval: false },
+  { id: "hospital-mile1", name: "Mile One General Hospital", workplaceId: "hospital-main", category: "medical", description: "Public hospital care, nursing and emergency support in Mile 1.", requiresApproval: true },
+  { id: "hospital-princess", name: "Princess Hospital", workplaceId: "hospital-princess", category: "medical", description: "Hospital care and clinical services along Trans Amadi Road.", requiresApproval: true },
+  { id: "park", name: "City Park Authority", workplaceId: "park-main", category: "public-service", description: "Public spaces, visitor assistance and park operations.", requiresApproval: false },
+  { id: "news", name: "Rivers News Network", workplaceId: "news-main", category: "media", description: "Reporting, broadcasting and newsroom operations.", requiresApproval: true },
+  { id: "government", name: "Rivers State Government", workplaceId: "gov-rivers", category: "public-service", description: "Civic administration and public service.", requiresApproval: true },
+  { id: "police", name: "Rivers State Police Service", workplaceId: "police-rivers", category: "law-enforcement", description: "Law enforcement, incident reporting and community safety.", requiresApproval: true },
+  { id: "frsc", name: "Federal Road Safety Corps — Rivers", workplaceId: "frsc-rivers", category: "law-enforcement", description: "Road safety, traffic assistance and crash response.", requiresApproval: true },
+  { id: "fire", name: "Rivers State Fire & Rescue Service", workplaceId: "fire-rivers", category: "emergency", description: "Fire prevention, rescue and emergency response.", requiresApproval: true },
+  { id: "army", name: "Nigerian Army — Port Harcourt Garrison", workplaceId: "army-rivers", category: "military", description: "Military service, training and base duties.", requiresApproval: true },
+  { id: "transport", name: "Port Harcourt Transport Union", workplaceId: "transport-union", category: "transport", description: "Public transport routes, passengers and depot operations.", requiresApproval: false },
+];
+
+export type WorkplaceTask = { id: string; title: string; basePay: number };
+
+export const WORK_TASK_DURATION_MS = 10_000;
+export const WORK_TASK_COOLDOWN_MS = 30_000;
+export const WORKPLACE_RADIUS = 24;
+
+const TASKS_BY_KIND: Record<WorkplaceKind, readonly WorkplaceTask[]> = {
+  market: [{ id: "stock-check", title: "Check market stock", basePay: 1000 }, { id: "customer-assist", title: "Assist customers", basePay: 1400 }],
+  bank: [{ id: "account-support", title: "Assist a bank customer", basePay: 1500 }, { id: "cash-reconciliation", title: "Reconcile branch records", basePay: 1900 }],
+  hospital: [{ id: "ward-rounds", title: "Complete ward support", basePay: 1800 }, { id: "patient-triage", title: "Assist patient intake", basePay: 2200 }],
+  park: [{ id: "groundskeeping", title: "Maintain park grounds", basePay: 1000 }, { id: "visitor-assist", title: "Assist park visitors", basePay: 1300 }],
+  news: [{ id: "field-report", title: "Prepare a field report", basePay: 1500 }, { id: "news-edit", title: "Edit a news bulletin", basePay: 1900 }],
+  government: [{ id: "public-desk", title: "Handle a public-service request", basePay: 1600 }, { id: "document-review", title: "Review official documents", basePay: 2100 }],
+  police: [{ id: "patrol-briefing", title: "Complete a patrol briefing", basePay: 1800 }, { id: "incident-report", title: "File an incident report", basePay: 2200 }],
+  frsc: [{ id: "road-safety", title: "Conduct road-safety support", basePay: 1600 }, { id: "traffic-report", title: "Prepare a traffic report", basePay: 2000 }],
+  fire: [{ id: "equipment-check", title: "Check rescue equipment", basePay: 1700 }, { id: "safety-inspection", title: "Complete a safety inspection", basePay: 2100 }],
+  military: [{ id: "base-duty", title: "Complete base duty", basePay: 1800 }, { id: "training-log", title: "Submit a training log", basePay: 2300 }],
+  transport: [{ id: "route-check", title: "Check the route board", basePay: 1200 }, { id: "passenger-assist", title: "Assist passengers", basePay: 1500 }],
+};
+
+export function workplaceTasks(workplaceId: string): readonly WorkplaceTask[] {
+  const workplace = findWorkplace(workplaceId);
+  return workplace ? TASKS_BY_KIND[workplace.kind] : [];
+}
+
+export function workplaceRankTitle(workplaceId: string, rank: number): string {
+  const workplace = findWorkplace(workplaceId);
+  const r = Math.floor(Number(rank));
+  if (!workplace || !Number.isFinite(r) || r < 1 || r > RANK_COUNT) return "";
+  return workplace.rankTitles[r - 1]?.[0] ?? "";
+}
 
 export function findWorkplace(id: string): Workplace | undefined {
   return WORKPLACES.find((w) => w.id === id);
+}
+
+export function findFaction(id: string): Faction | undefined {
+  return FACTIONS.find((f) => f.id === id);
+}
+
+export function checkWorkplaceApplication(current: Employment | null, workplaceId: string): RankCheck {
+  if (!findWorkplace(workplaceId)) return { ok: false, reason: "Unknown workplace." };
+  if (current?.workplaceId === workplaceId) return { ok: false, reason: "You already work here." };
+  if (current) return { ok: false, reason: "You already have a job. Leave it before applying elsewhere." };
+  return { ok: true };
+}
+
+export function checkWorkplaceDuty(employment: Employment | null, workplaceId: string, onDuty: boolean, distance: number): RankCheck {
+  if (!employment || employment.workplaceId !== workplaceId) return { ok: false, reason: "You do not work here." };
+  if (!Number.isFinite(distance) || distance > WORKPLACE_RADIUS) return { ok: false, reason: "You must be at your workplace to clock in or out." };
+  if (typeof onDuty !== "boolean") return { ok: false, reason: "Choose clock in or clock out." };
+  if ((employment.onDuty === true) === onDuty) return { ok: false, reason: onDuty ? "You are already on duty." : "You are already off duty." };
+  return { ok: true };
+}
+
+export function checkWorkTaskEligibility(args: {
+  employment: Employment | null;
+  workplaceId: string;
+  taskId: string;
+  distance: number;
+  now: number;
+  startedAt: number;
+  onDuty: boolean;
+  activeTaskId?: string | null;
+}): RankCheck {
+  const { employment, workplaceId, taskId, distance, now, startedAt, onDuty, activeTaskId } = args;
+  if (!employment || employment.workplaceId !== workplaceId) return { ok: false, reason: "You do not work here." };
+  if (!onDuty || !employment.onDuty) return { ok: false, reason: "Clock in before doing workplace tasks." };
+  if (!Number.isFinite(distance) || distance > WORKPLACE_RADIUS) return { ok: false, reason: "Return to your workplace to do this task." };
+  if (!workplaceTasks(workplaceId).some((task) => task.id === taskId)) return { ok: false, reason: "Unknown task for this workplace." };
+  if (!Number.isFinite(now) || now - (Number(employment.lastTaskAt) || 0) < WORK_TASK_COOLDOWN_MS) return { ok: false, reason: "Your next paid task is not ready yet." };
+  if (activeTaskId && activeTaskId !== taskId) return { ok: false, reason: "Finish your current task first." };
+  if (startedAt > 0 && now - startedAt < WORK_TASK_DURATION_MS) return { ok: false, reason: "Your task is not complete yet." };
+  if (startedAt <= 0 && activeTaskId === taskId) return { ok: false, reason: "Start this task first." };
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------- houses
@@ -309,7 +429,7 @@ export class GameClock {
 
 // ---------------------------------------------------------------- per-player life state
 
-export type Employment = { workplaceId: string; rank: number };
+export type Employment = { workplaceId: string; rank: number; onDuty?: boolean; lastTaskAt?: number };
 
 export type Life = {
   v: 1;
@@ -337,7 +457,9 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
     const workplaceId = String(e.workplaceId ?? "");
     const rank = Math.floor(Number(e.rank));
     if (findWorkplace(workplaceId) && Number.isFinite(rank) && rank >= 1 && rank <= RANK_COUNT) {
-      employment = { workplaceId, rank };
+      const onDuty = e.onDuty === true;
+      const lastTaskAt = Math.max(0, Math.floor(Number(e.lastTaskAt) || 0));
+      employment = { workplaceId, rank, onDuty, lastTaskAt };
     }
   }
 
@@ -432,6 +554,8 @@ export type WorldState = {
   houseTenants: Record<string, string | null>;
   // Persistent owner-selected privacy for each rented home; vacant homes are always visitable.
   houseLocks: Record<string, boolean>;
+  // Pending faction/workplace applications, keyed by workplace ID then account ID.
+  workplaceApplications: Record<string, Record<string, number>>;
   lastDay: string;
 };
 
@@ -440,8 +564,10 @@ export function newWorld(todayKey: string): WorldState {
   for (const w of WORKPLACES) bosses[w.id] = null;
   const houseTenants: Record<string, string | null> = {};
   const houseLocks: Record<string, boolean> = {};
+  const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
-  return { v: 1, bosses, houseTenants, houseLocks, lastDay: todayKey };
+  for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
+  return { v: 1, bosses, houseTenants, houseLocks, workplaceApplications, lastDay: todayKey };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -452,6 +578,17 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
   for (const id of Object.keys(base.bosses)) {
     const b = v.bosses?.[id];
     if (typeof b === "string" && b) base.bosses[id] = b;
+  }
+  for (const workplaceId of Object.keys(base.workplaceApplications)) {
+    const saved = v.workplaceApplications?.[workplaceId];
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+      for (const [accountId, appliedAt] of Object.entries(saved as Record<string, unknown>)) {
+        const timestamp = Number(appliedAt);
+        if (accountId && Number.isFinite(timestamp) && timestamp > 0) {
+          base.workplaceApplications[workplaceId][accountId] = Math.floor(timestamp);
+        }
+      }
+    }
   }
   for (const id of Object.keys(base.houseTenants)) {
     const t = v.houseTenants?.[id];

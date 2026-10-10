@@ -3,6 +3,10 @@
 import assert from "node:assert/strict";
 import {
   CAR_IDS,
+  FACTIONS,
+  WORK_TASK_COOLDOWN_MS,
+  WORK_TASK_DURATION_MS,
+  WORKPLACE_RADIUS,
   GameClock,
   HOUSES,
   HOUSE_CLASSES,
@@ -10,6 +14,9 @@ import {
   WORKPLACES,
   bossWorkplaceOf,
   checkRankChange,
+  checkWorkplaceApplication,
+  checkWorkplaceDuty,
+  checkWorkTaskEligibility,
   daysBetween,
   houseRent,
   newLife,
@@ -19,6 +26,8 @@ import {
   payForTask,
   settleLife,
   watDayKey,
+  workplaceRankTitle,
+  workplaceTasks,
 } from "./world";
 
 let passed = 0;
@@ -68,6 +77,65 @@ test("every workplace has six rank entries and none are empty", () => {
     assert.equal(w.rankTitles.length, 6, w.id);
     for (const titles of w.rankTitles) assert.ok(titles.length >= 1, w.id);
   }
+});
+
+
+test("workplaces and factions cover both requested hospitals and all six rank slots", () => {
+  assert.ok(FACTIONS.length >= 10);
+  for (const workplace of WORKPLACES) {
+    assert.equal(workplace.rankTitles.length, 6, workplace.id);
+    assert.ok(workplace.factionId);
+    assert.ok(Number.isFinite(workplace.x) && Number.isFinite(workplace.z));
+    assert.ok(FACTIONS.some((faction) => faction.workplaceId === workplace.id), workplace.id);
+  }
+  assert.equal(WORKPLACES.find((w) => w.id === "hospital-main")?.name, "Mile One General Hospital");
+  assert.equal(WORKPLACES.find((w) => w.id === "hospital-main")?.zone, "Mile 1 Market");
+  assert.equal(WORKPLACES.find((w) => w.id === "hospital-princess")?.name, "Princess Hospital");
+  assert.equal(WORKPLACES.find((w) => w.id === "hospital-princess")?.zone, "Trans Amadi");
+  assert.equal(workplaceRankTitle("hospital-main", 6), "Chief Medical Director");
+  assert.ok(workplaceTasks("hospital-princess").some((task) => task.id === "ward-rounds" || task.id === "patient-triage"));
+});
+
+test("workplace applications enforce one main job and mark faction applications for approval", () => {
+  assert.deepEqual(checkWorkplaceApplication(null, "market-mile1"), { ok: true });
+  assert.equal(checkWorkplaceApplication(null, "missing-workplace").ok, false);
+  assert.equal(checkWorkplaceApplication({ workplaceId: "market-mile1", rank: 1 }, "market-mile1").ok, false);
+  assert.equal(checkWorkplaceApplication({ workplaceId: "market-mile1", rank: 1 }, "bank-main").ok, false);
+  assert.equal(FACTIONS.find((faction) => faction.id === "police")?.requiresApproval, true);
+  assert.equal(FACTIONS.find((faction) => faction.id === "hospital-mile1")?.requiresApproval, true);
+});
+
+test("workplace clock-in/out requires the assigned site and correct duty state", () => {
+  const offDuty = { workplaceId: "hospital-main", rank: 1, onDuty: false, lastTaskAt: 0 };
+  assert.deepEqual(checkWorkplaceDuty(offDuty, "hospital-main", true, 2), { ok: true });
+  assert.equal(checkWorkplaceDuty(offDuty, "hospital-main", true, WORKPLACE_RADIUS + 1).ok, false);
+  assert.equal(checkWorkplaceDuty(offDuty, "bank-main", true, 2).ok, false);
+  assert.equal(checkWorkplaceDuty({ ...offDuty, onDuty: true }, "hospital-main", true, 2).ok, false);
+});
+
+test("paid workplace tasks require duty, correct task, workplace proximity, duration and cooldown", () => {
+  const employment = { workplaceId: "hospital-main", rank: 2, onDuty: true, lastTaskAt: 0 };
+  const base = {
+    employment, workplaceId: "hospital-main", taskId: "ward-rounds", distance: 3,
+    now: 100_000, startedAt: 0, onDuty: true,
+  };
+  assert.deepEqual(checkWorkTaskEligibility(base), { ok: true });
+  assert.equal(checkWorkTaskEligibility({ ...base, distance: WORKPLACE_RADIUS + 1 }).ok, false);
+  assert.equal(checkWorkTaskEligibility({ ...base, onDuty: false }).ok, false);
+  assert.equal(checkWorkTaskEligibility({ ...base, taskId: "fake-pay" }).ok, false);
+  assert.equal(checkWorkTaskEligibility({ ...base, startedAt: 100_000 - WORK_TASK_DURATION_MS / 2, activeTaskId: "ward-rounds" }).ok, false);
+  assert.deepEqual(checkWorkTaskEligibility({ ...base, startedAt: 100_000 - WORK_TASK_DURATION_MS, activeTaskId: "ward-rounds" }), { ok: true });
+  assert.equal(WORK_TASK_DURATION_MS, 10_000);
+  assert.equal(WORK_TASK_COOLDOWN_MS, 30_000);
+});
+
+test("old saved worlds gain faction application buckets without losing bosses or home locks", () => {
+  const today = new GameClock().dayKey();
+  const oldWorld = { v: 1, bosses: { "bank-main": "boss-id" }, houseTenants: {}, houseLocks: {}, lastDay: today };
+  const migrated = normalizeWorld(oldWorld, today);
+  assert.equal(migrated.bosses["bank-main"], "boss-id");
+  assert.ok(migrated.workplaceApplications["police-rivers"]);
+  assert.equal(migrated.houseLocks[HOUSES[0].id], false);
 });
 
 test("house classes and rents match the plan", () => {
@@ -169,7 +237,7 @@ test("save/load: life survives a JSON round trip; bad data is repaired", () => {
   const today = clock.dayKey();
   const life = {
     ...newLife(today),
-    employment: { workplaceId: "market-mile1", rank: 3 },
+    employment: { workplaceId: "market-mile1", rank: 3, onDuty: false, lastTaskAt: 0 },
     homeId: HOUSES[2].id,
     rentDays: 4,
   };

@@ -10,19 +10,35 @@ import {
   HOUSES,
   HOUSE_CLASSES,
   MAX_PREPAID_DAYS,
+  BOSS_RANK,
+  MAX_STAFF_RANK,
+  FACTIONS,
+  WORKPLACES,
+  WORK_TASK_COOLDOWN_MS,
+  WORK_TASK_DURATION_MS,
   CARPARK_EXIT_GATE,
   CARPARK_POSITION,
   CARPARK_VEHICLE_SPAWN,
   validateCarparkExit,
-  type CarparkVehicleTrack,
+  checkRankChange,
+  checkWorkplaceApplication,
+  checkWorkplaceDuty,
+  checkWorkTaskEligibility,
+  bossWorkplaceOf,
   findHouse,
+  findWorkplace,
   houseRent,
   newLife,
   newWorld,
   normalizeLife,
   normalizeWorld,
+  payForTask,
+  workplaceRankTitle,
+  workplaceTasks,
   settleLife,
+  type CarparkVehicleTrack,
   type Life,
+  type Workplace,
   type WorldState,
 } from "./world";
 
@@ -91,6 +107,7 @@ type Session = {
   /** House currently being visited; visitors may enter unlocked or vacant homes. */
   currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
+  workTask: { workplaceId: string; taskId: string; startedAt: number } | null;
 };
 
 type FileStore = {
@@ -120,6 +137,9 @@ const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
 
 // Debug clock: lets a test skip days without waiting. Off unless NRS_DEBUG_CLOCK=1.
 const DEBUG_CLOCK = process.env.NRS_DEBUG_CLOCK === "1";
+// Comma-separated account usernames authorised to appoint faction/workplace bosses.
+// Empty by default: leadership can never be claimed by an ordinary client.
+const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
 const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
 
@@ -300,6 +320,115 @@ function housingSnapshot(session: Session) {
       locked: tenant !== null && world.houseLocks[house.id] === true,
     };
   });
+}
+
+function isFactionAdmin(session: Session) {
+  return FACTION_ADMIN_USERNAMES.has(session.player.name.toLowerCase());
+}
+
+function workplaceSnapshot(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
+  const admin = isFactionAdmin(session);
+  const onlinePlayers = [...players.values()].map((member) => ({
+    id: member.player.id,
+    name: member.player.name,
+    workplaceId: member.player.life.employment?.workplaceId ?? null,
+    rank: member.player.life.employment?.rank ?? null,
+    onDuty: member.player.life.employment?.onDuty === true,
+  }));
+  const workplaces = WORKPLACES.map((workplace) => {
+    const faction = FACTIONS.find((candidate) => candidate.id === workplace.factionId) ?? null;
+    const members = onlinePlayers.filter((member) => member.workplaceId === workplace.id).map((member) => ({
+      ...member,
+      rankTitle: workplaceRankTitle(workplace.id, Number(member.rank)),
+      boss: world.bosses[workplace.id] === member.id,
+    }));
+    const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
+    const canManage = world.bosses[workplace.id] === session.player.id;
+    const applicants = (canManage || admin)
+      ? Object.entries(applicationTimes).map(([accountId, appliedAt]) => {
+          const applicant = players.get(accountId);
+          return applicant ? { id: accountId, name: applicant.player.name, appliedAt } : { id: accountId, name: "Offline applicant", appliedAt };
+        })
+      : [];
+    const isMember = employment?.workplaceId === workplace.id;
+    return {
+      ...workplace,
+      faction,
+      rankTitle: isMember ? workplaceRankTitle(workplace.id, employment?.rank ?? 1) : "",
+      employed: isMember,
+      onDuty: isMember && employment?.onDuty === true,
+      canManage,
+      bossName: members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
+      memberCount: members.length,
+      staff: members,
+      applications: applicants,
+      hasApplied: Object.prototype.hasOwnProperty.call(applicationTimes, session.player.id),
+      requiresApproval: faction?.requiresApproval === true,
+      tasks: workplaceTasks(workplace.id).map((task) => ({
+        ...task,
+        pay: payForTask(task.basePay, isMember ? (employment?.rank ?? 1) : 1),
+        durationMs: WORK_TASK_DURATION_MS,
+        cooldownMs: WORK_TASK_COOLDOWN_MS,
+      })),
+    };
+  });
+  return {
+    workplaces,
+    factions: FACTIONS,
+    employment,
+    bossWorkplaceId,
+    isFactionAdmin: admin,
+    onlinePlayers,
+    activeTask: session.workTask
+      ? { ...session.workTask, elapsedMs: Math.max(0, Date.now() - session.workTask.startedAt), durationMs: WORK_TASK_DURATION_MS }
+      : null,
+    taskReadyAt: Math.max(0, Number(employment?.lastTaskAt) + WORK_TASK_COOLDOWN_MS || 0),
+    cash: session.player.cash,
+    today: clock.dayKey(),
+  };
+}
+
+function sendWorkplaceState(session: Session) {
+  send(session.socket, { type: "workplaceState", ...workplaceSnapshot(session) });
+}
+
+function sendWorkplaceResult(session: Session, action: string, ok: boolean, message: string, extra: Record<string, unknown> = {}) {
+  send(session.socket, { type: "workplaceResult", action, ok, message, ...extra, ...workplaceSnapshot(session) });
+}
+
+function broadcastWorkplaceStates() {
+  for (const session of players.values()) sendWorkplaceState(session);
+}
+
+function workplaceDistance(session: Session, workplace: Workplace) {
+  return Math.hypot(session.player.x - workplace.x, session.player.z - workplace.z);
+}
+
+function hasWorkplaceBossPermission(session: Session, workplaceId: string) {
+  return world.bosses[workplaceId] === session.player.id;
+}
+
+async function setAccountEmployment(accountId: string, workplaceId: string | null, rank = 1) {
+  const active = players.get(accountId);
+  if (active) {
+    active.player.life = {
+      ...active.player.life,
+      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+    };
+    active.workTask = null;
+    await persistSession(active);
+    return active.player.name;
+  }
+  const account = await findAccountById(accountId);
+  if (!account) return null;
+  account.life = {
+    ...account.life,
+    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0 } : null,
+  };
+  await saveAccount(account);
+  return account.username;
 }
 
 function homeInteriorPosition(homeId: string) {
@@ -856,13 +985,23 @@ wss.on("connection", (socket) => {
       inCarpark: false,
       homeReturn: null,
       carparkVehicle: null,
+      workTask: null,
     };
+
+    // A disconnect never leaves a player clocked in or with an unfinished task.
+    const resumedOnDuty = session.player.life.employment?.onDuty === true;
+    if (resumedOnDuty && session.player.life.employment) {
+      session.player.life = {
+        ...session.player.life,
+        employment: { ...session.player.life.employment, onDuty: false },
+      };
+    }
 
     // Offline players are settled here: any midnights that passed while they were away.
     const settled = settleSession(session);
-    if (settled) {
+    if (settled || resumedOnDuty) {
       await persistSession(session);
-      if (settled.homeLost) await saveWorld();
+      if (settled?.homeLost) await saveWorld();
     }
 
     players.set(account.id, session);
@@ -876,6 +1015,7 @@ wss.on("connection", (socket) => {
       players: snapshot(),
       onlineCount: players.size,
       houses: housingSnapshot(session),
+      ...workplaceSnapshot(session),
     });
     if (settled?.homeLost) {
       send(socket, {
@@ -1089,6 +1229,337 @@ wss.on("connection", (socket) => {
         session.player.job = { ...known };
         await persistSession(session);
         send(socket, { type: "jobResult", ok: true, job: session.player.job });
+        return;
+      }
+
+      if (message.type === "getWorkplaces") {
+        sendWorkplaceState(session);
+        return;
+      }
+
+      if (message.type === "applyWorkplace") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        const check = checkWorkplaceApplication(session.player.life.employment ?? null, workplaceId);
+        if (!workplace) {
+          sendWorkplaceResult(session, "apply", false, "Unknown workplace or faction.");
+          return;
+        }
+        if (!check.ok) {
+          sendWorkplaceResult(session, "apply", false, check.reason);
+          return;
+        }
+        const faction = FACTIONS.find((candidate) => candidate.id === workplace.factionId);
+        if (faction?.requiresApproval) {
+          const applications = world.workplaceApplications[workplaceId] ?? (world.workplaceApplications[workplaceId] = {});
+          if (applications[session.player.id]) {
+            sendWorkplaceResult(session, "apply", false, "Your application is already waiting for review.");
+            return;
+          }
+          applications[session.player.id] = Date.now();
+          await saveWorld();
+          sendWorkplaceResult(session, "apply", true, "Application submitted. A faction boss must review it before you can join.");
+          broadcastWorkplaceStates();
+          return;
+        }
+        session.player.life = {
+          ...session.player.life,
+          employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0 },
+        };
+        delete world.workplaceApplications[workplaceId]?.[session.player.id];
+        await persistSession(session);
+        await saveWorld();
+        sendWorkplaceResult(session, "apply", true, "You have been hired as " + workplaceRankTitle(workplaceId, 1) + ". Report to the workplace to clock in.");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "leaveWorkplace") {
+        const employment = session.player.life.employment ?? null;
+        if (!employment) {
+          sendWorkplaceResult(session, "leave", false, "You do not currently have a workplace.");
+          return;
+        }
+        if (employment.onDuty) {
+          sendWorkplaceResult(session, "leave", false, "Clock out before leaving your job.");
+          return;
+        }
+        if (world.bosses[employment.workplaceId] === session.player.id) {
+          sendWorkplaceResult(session, "leave", false, "You are the boss of this workplace. An authorised admin must appoint your replacement first.");
+          return;
+        }
+        session.player.life = { ...session.player.life, employment: null };
+        session.workTask = null;
+        await persistSession(session);
+        sendWorkplaceResult(session, "leave", true, "You have left your workplace.");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "setWorkplaceDuty") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        const requested = message.onDuty;
+        if (!workplace) {
+          sendWorkplaceResult(session, "duty", false, "Unknown workplace.");
+          return;
+        }
+        const employment = session.player.life.employment ?? null;
+        const check = checkWorkplaceDuty(
+          employment,
+          workplaceId,
+          requested,
+          workplaceDistance(session, workplace),
+        );
+        if (!check.ok) {
+          sendWorkplaceResult(session, "duty", false, check.reason);
+          return;
+        }
+        session.player.life = {
+          ...session.player.life,
+          employment: { ...employment!, onDuty: requested as boolean },
+        };
+        // Clocking out safely abandons any unfinished, unpaid task.
+        if (!requested) session.workTask = null;
+        await persistSession(session);
+        sendWorkplaceResult(session, "duty", true, requested ? "Clocked in. You are now on duty." : "Clocked out. You are now off duty.");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "startWorkTask") {
+        const employment = session.player.life.employment ?? null;
+        const workplaceId = String(employment?.workplaceId ?? "");
+        const taskId = String(message.taskId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        if (!workplace || !employment) {
+          sendWorkplaceResult(session, "taskStart", false, "Join a workplace before starting a work task.");
+          return;
+        }
+        const check = checkWorkTaskEligibility({
+          employment,
+          workplaceId,
+          taskId,
+          distance: workplaceDistance(session, workplace),
+          now: Date.now(),
+          startedAt: 0,
+          onDuty: employment.onDuty === true,
+          activeTaskId: session.workTask?.taskId ?? null,
+        });
+        if (!check.ok) {
+          sendWorkplaceResult(session, "taskStart", false, check.reason);
+          return;
+        }
+        session.workTask = { workplaceId, taskId, startedAt: Date.now() };
+        const task = workplaceTasks(workplaceId).find((candidate) => candidate.id === taskId)!;
+        sendWorkplaceResult(session, "taskStart", true, "Task started: " + task.title + ". Stay at the workplace and finish after 10 seconds.", {
+          activeTask: { ...session.workTask, durationMs: WORK_TASK_DURATION_MS },
+        });
+        return;
+      }
+
+      if (message.type === "completeWorkTask") {
+        const employment = session.player.life.employment ?? null;
+        const activeTask = session.workTask;
+        if (!employment || !activeTask) {
+          sendWorkplaceResult(session, "taskComplete", false, "Start a workplace task before trying to complete one.");
+          return;
+        }
+        const workplace = findWorkplace(activeTask.workplaceId);
+        const check = checkWorkTaskEligibility({
+          employment,
+          workplaceId: activeTask.workplaceId,
+          taskId: activeTask.taskId,
+          distance: workplace ? workplaceDistance(session, workplace) : Number.POSITIVE_INFINITY,
+          now: Date.now(),
+          startedAt: activeTask.startedAt,
+          onDuty: employment.onDuty === true,
+          activeTaskId: activeTask.taskId,
+        });
+        if (!check.ok) {
+          sendWorkplaceResult(session, "taskComplete", false, check.reason);
+          return;
+        }
+        const task = workplaceTasks(activeTask.workplaceId).find((candidate) => candidate.id === activeTask.taskId);
+        if (!task) {
+          session.workTask = null;
+          sendWorkplaceResult(session, "taskComplete", false, "That task is no longer available.");
+          return;
+        }
+        const reward = payForTask(task.basePay, employment.rank);
+        const now = Date.now();
+        session.player.cash += reward;
+        session.player.life = {
+          ...session.player.life,
+          employment: { ...employment, onDuty: true, lastTaskAt: now },
+        };
+        session.workTask = null;
+        await persistSession(session);
+        sendWorkplaceResult(session, "taskComplete", true, "Task completed: " + task.title + ". You earned ₦" + reward.toLocaleString("en-NG") + ".", { reward, cash: session.player.cash });
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "approveWorkplaceApplication") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const targetId = String(message.targetId ?? "");
+        const approve = message.approve === true;
+        const workplace = findWorkplace(workplaceId);
+        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
+          sendWorkplaceResult(session, "applicationReview", false, "Only the boss of this workplace can review applications.");
+          return;
+        }
+        const applications = world.workplaceApplications[workplaceId] ?? {};
+        if (!applications[targetId]) {
+          sendWorkplaceResult(session, "applicationReview", false, "That application is no longer pending.");
+          return;
+        }
+        if (approve) {
+          const active = players.get(targetId);
+          const account = active?.account ?? await findAccountById(targetId);
+          if (!account) {
+            delete applications[targetId];
+            await saveWorld();
+            sendWorkplaceResult(session, "applicationReview", false, "The applicant account could not be found.");
+            return;
+          }
+          const currentLife = active?.player.life ?? account.life;
+          const check = checkWorkplaceApplication(currentLife.employment ?? null, workplaceId);
+          if (!check.ok) {
+            sendWorkplaceResult(session, "applicationReview", false, check.reason);
+            return;
+          }
+          await setAccountEmployment(targetId, workplaceId, 1);
+        }
+        delete applications[targetId];
+        await saveWorld();
+        sendWorkplaceResult(session, "applicationReview", true, approve ? "Applicant hired at Rank 1." : "Application declined.");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "hireWorkplaceStaff") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const targetId = String(message.targetId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        const target = players.get(targetId);
+        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
+          sendWorkplaceResult(session, "hire", false, "Only this workplace's boss can hire staff.");
+          return;
+        }
+        if (!target || targetId === session.player.id) {
+          sendWorkplaceResult(session, "hire", false, "Choose an online player to hire.");
+          return;
+        }
+        const check = checkWorkplaceApplication(target.player.life.employment ?? null, workplaceId);
+        if (!check.ok) {
+          sendWorkplaceResult(session, "hire", false, check.reason);
+          return;
+        }
+        target.player.life = { ...target.player.life, employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0 } };
+        delete world.workplaceApplications[workplaceId]?.[targetId];
+        await persistSession(target);
+        await saveWorld();
+        sendWorkplaceResult(session, "hire", true, target.player.name + " hired at Rank 1.");
+        sendWorkplaceResult(target, "hired", true, "You have been hired at " + workplace.name + ".");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "dismissWorkplaceStaff") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const targetId = String(message.targetId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
+          sendWorkplaceResult(session, "dismiss", false, "Only this workplace's boss can dismiss staff.");
+          return;
+        }
+        if (!targetId || targetId === session.player.id || world.bosses[workplaceId] === targetId) {
+          sendWorkplaceResult(session, "dismiss", false, "You cannot dismiss yourself or the current workplace boss.");
+          return;
+        }
+        const target = players.get(targetId);
+        const account = target?.account ?? await findAccountById(targetId);
+        const targetLife = target?.player.life ?? account?.life;
+        if (!targetLife?.employment || targetLife.employment.workplaceId !== workplaceId) {
+          sendWorkplaceResult(session, "dismiss", false, "That player is not a member of this workplace.");
+          return;
+        }
+        await setAccountEmployment(targetId, null);
+        sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been dismissed.");
+        if (target) sendWorkplaceResult(target, "dismissed", true, "You have been dismissed from " + workplace.name + ".");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "setStaffRank") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const targetId = String(message.targetId ?? "");
+        const newRank = Math.floor(Number(message.newRank));
+        const workplace = findWorkplace(workplaceId);
+        if (!workplace || !hasWorkplaceBossPermission(session, workplaceId)) {
+          sendWorkplaceResult(session, "rank", false, "Only this workplace's boss can change staff ranks.");
+          return;
+        }
+        const target = players.get(targetId);
+        const account = target?.account ?? await findAccountById(targetId);
+        const targetLife = target?.player.life ?? account?.life;
+        const check = checkRankChange({
+          workplaceId,
+          actorId: session.player.id,
+          actorBossOf: bossWorkplaceOf(world, session.player.id),
+          targetId,
+          targetEmployment: targetLife?.employment ?? null,
+          newRank,
+        });
+        if (!check.ok) {
+          sendWorkplaceResult(session, "rank", false, check.reason);
+          return;
+        }
+        if (target) {
+          target.player.life = { ...target.player.life, employment: { ...target.player.life.employment!, rank: newRank, onDuty: false } };
+          target.workTask = null;
+          await persistSession(target);
+        } else if (account) {
+          account.life = { ...account.life, employment: { ...account.life.employment!, rank: newRank, onDuty: false } };
+          await saveAccount(account);
+        }
+        sendWorkplaceResult(session, "rank", true, "Staff rank updated to " + workplaceRankTitle(workplaceId, newRank) + ".");
+        if (target) sendWorkplaceResult(target, "rank", true, "Your rank is now " + workplaceRankTitle(workplaceId, newRank) + ".");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "appointWorkplaceBoss") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const targetId = String(message.targetId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        if (!workplace || !isFactionAdmin(session)) {
+          sendWorkplaceResult(session, "appointBoss", false, "Only a server-authorised faction admin can appoint workplace bosses.");
+          return;
+        }
+        if (!targetId) {
+          sendWorkplaceResult(session, "appointBoss", false, "Choose an account to appoint.");
+          return;
+        }
+        const activeTarget = players.get(targetId);
+        const targetAccount = activeTarget?.account ?? await findAccountById(targetId);
+        const targetLife = activeTarget?.player.life ?? targetAccount?.life;
+        if (!targetAccount || !targetLife) {
+          sendWorkplaceResult(session, "appointBoss", false, "That account could not be found.");
+          return;
+        }
+        if (targetLife.employment && targetLife.employment.workplaceId !== workplaceId) {
+          sendWorkplaceResult(session, "appointBoss", false, "That player already belongs to another workplace.");
+          return;
+        }
+        const oldBossId = world.bosses[workplaceId] ?? null;
+        if (oldBossId && oldBossId !== targetId) await setAccountEmployment(oldBossId, workplaceId, MAX_STAFF_RANK);
+        await setAccountEmployment(targetId, workplaceId, BOSS_RANK);
+        world.bosses[workplaceId] = targetId;
+        await saveWorld();
+        sendWorkplaceResult(session, "appointBoss", true, targetAccount.username + " appointed as " + workplaceRankTitle(workplaceId, BOSS_RANK) + ".");
+        broadcastWorkplaceStates();
         return;
       }
 

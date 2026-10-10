@@ -8,8 +8,8 @@ The complete scope, sequence, implementation notes, acceptance checks and develo
 |---|---|---|
 | 0 | Repository, server, persistence, CI and deployment foundation | Foundation exists; maintain it |
 | 1 | Accounts, saved life, reconnect and multiplayer visibility | Core code exists; real-player testing remains |
-| 2 | Homes/rent, realistic exterior/interior, private car park, driving exit | **In progress — current focus** |
-| 3 | Workplace/job engine, staff ranks, boss permissions and payouts | **Next only after Stage 2 is tested and approved** |
+| 2 | Homes/rent, realistic exterior/interior, private car park, driving exit | In progress — visual checks and later house additions remain |
+| 3 | Workplace/job engine, staff ranks, boss permissions, factions and payroll | **In progress — user approved; first implementation pass** |
 | 4 | Markets, shops, food and everyday economy | Planned |
 | 5 | Banking, treasury and auditable financial records | Planned |
 | 6 | Health, hospital, pharmacy and recreation | Planned |
@@ -25,7 +25,11 @@ The complete scope, sequence, implementation notes, acceptance checks and develo
 
 ## Current gate
 
-Do **not** start Stage 3 yet. Finish Stage 2, run server tests plus **Browser Client Build** and **Game Server CI**, verify the live flow on Android, document failures, and get explicit user approval. Green CI is necessary, but it does not prove the game looks or behaves correctly in a browser.
+Stage 3 was explicitly approved by the user on 10 October 2026. Proceed with server-authoritative employment, faction applications and leadership, clock-in/out, timed paid tasks, rank management and test coverage. The user specifically requested two hospital exteriors in this stage: **Mile One General Hospital in Mile 1** and **Princess Hospital along Trans Amadi Road**. These are content additions; the existing main-road and roundabout arrays must remain untouched.
+
+Stage 2 visual acceptance is still pending, and additional houses are intentionally deferred. Keep current homes, account/persistence features, the existing delivery job, road network, roundabouts and driving controls intact. Run Stage 1/2 tests, Stage 3 tests, **Browser Client Build** and **Game Server CI** before merging. Green CI is necessary, but does not prove the game looks or behaves correctly in a browser.
+
+Faction leadership is server-controlled. Boss appointment uses the optional NRS_FACTION_ADMINS comma-separated username allow-list; a normal client must never be able to claim a faction boss seat.
 
 ## Project boundaries
 
