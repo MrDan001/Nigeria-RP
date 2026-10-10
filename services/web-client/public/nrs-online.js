@@ -769,6 +769,7 @@
   N.dismissWorkplaceStaff = (workplaceId, targetId) => send({ type: "dismissWorkplaceStaff", workplaceId, targetId });
   N.setStaffRank = (workplaceId, targetId, newRank) => send({ type: "setStaffRank", workplaceId, targetId, newRank });
   N.appointWorkplaceBoss = (workplaceId, targetId) => send({ type: "appointWorkplaceBoss", workplaceId, targetId });
+  N.setFactionAdmin = (targetId, enabled) => send({ type: "setFactionAdmin", targetId, enabled: enabled === true });
 
   N.buyFuel = (carId, litres, brand, callback) => {
     if (!S.authed || !S.open) {
