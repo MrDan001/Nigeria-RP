@@ -188,6 +188,14 @@ export function findWorkplace(id: string): Workplace | undefined {
   return WORKPLACES.find((w) => w.id === id);
 }
 
+// Each workplace has its own private reception interior. Positions stay within world
+// bounds and are spaced so the separate interior collision shells cannot overlap.
+export function workplaceInteriorPosition(id: string): { x: number; z: number } {
+  const found = WORKPLACES.findIndex((workplace) => workplace.id === id);
+  const index = Math.max(0, found);
+  return { x: -450 + (index % 4) * 24, z: -260 + Math.floor(index / 4) * 25 };
+}
+
 export function findFaction(id: string): Faction | undefined {
   return FACTIONS.find((f) => f.id === id);
 }
