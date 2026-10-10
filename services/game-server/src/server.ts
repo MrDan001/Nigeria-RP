@@ -27,6 +27,7 @@ import {
   bossWorkplaceOf,
   findHouse,
   findWorkplace,
+  workplaceInteriorPosition,
   houseRent,
   newLife,
   newWorld,
@@ -108,9 +109,13 @@ type Session = {
   inHome: boolean;
   inCarpark: boolean;
   inStaffRoom: boolean;
+  inWorkplaceInterior: boolean;
   homeReturn: { x: number; z: number } | null;
-  staffRoomReturn: { x: number; z: number } | null;
+  staffRoomReturn: { x: number; z: number; yaw?: number } | null;
+  workplaceInteriorReturn: { x: number; z: number; yaw?: number } | null;
   currentStaffWorkplaceId: string | null;
+  currentWorkplaceId: string | null;
+  displayId: string;
   /** House currently being visited; visitors may enter unlocked or vacant homes. */
   currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
@@ -155,6 +160,21 @@ let world: WorldState = newWorld(clock.dayKey());
 
 const players = new Map<string, Session>();
 const activeAccounts = new Map<string, WebSocket>();
+
+// Short display IDs belong to live login sessions, never to saved accounts. The account
+// UUID remains the internal key for persistence and player interactions.
+let nextDisplayPlayerNumber = Math.floor(Math.random() * 999);
+function allocateDisplayPlayerId(): string {
+  const used = new Set([...players.values()].map((session) => session.displayId));
+  for (let attempt = 0; attempt < 999; attempt++) {
+    nextDisplayPlayerNumber = (nextDisplayPlayerNumber % 999) + 1;
+    const displayId = String(nextDisplayPlayerNumber).padStart(3, "0");
+    if (!used.has(displayId)) return displayId;
+  }
+  let fallback = 1000;
+  while (used.has(String(fallback))) fallback++;
+  return String(fallback);
+}
 
 let pool: Pool | null = null;
 let fileStore: FileStore = { accounts: {}, sessions: {} };
@@ -246,6 +266,7 @@ function normalizeAccount(account: Account): Account {
 function publicPlayer(player: PlayerState) {
   return {
     id: player.id,
+    sessionId: players.get(player.id)?.displayId ?? "000",
     name: player.name,
     x: Number(player.x.toFixed(3)),
     z: Number(player.z.toFixed(3)),
@@ -260,6 +281,7 @@ function publicPlayer(player: PlayerState) {
 function accountPayload(player: PlayerState) {
   return {
     id: player.id,
+    sessionId: players.get(player.id)?.displayId ?? "000",
     name: player.name,
     x: player.x,
     z: player.z,
@@ -279,8 +301,8 @@ function accountPayload(player: PlayerState) {
 }
 
 function snapshot() {
-  // Private home and staff changing interiors are not visible in the shared street world.
-  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom).map((session) => publicPlayer(session.player));
+  // Private homes, workplace reception areas and changing rooms are hidden from the street.
+  return [...players.values()].filter((session) => !session.inHome && !session.inWorkplaceInterior && !session.inStaffRoom).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -494,6 +516,8 @@ function broadcastWorkplaceStates() {
 }
 
 function workplaceDistance(session: Session, workplace: Workplace) {
+  // Reception is still an authorised on-site location for this workplace's work actions.
+  if (session.inWorkplaceInterior && !session.inStaffRoom && session.currentWorkplaceId === workplace.id) return 0;
   return Math.hypot(session.player.x - workplace.x, session.player.z - workplace.z);
 }
 
@@ -934,14 +958,23 @@ async function persistSession(session: Session) {
   // If a player disconnects or the server restarts indoors, resume outside the room.
   account.x = session.inHome && session.homeReturn
     ? session.homeReturn.x
-    : session.inStaffRoom && session.staffRoomReturn
-      ? session.staffRoomReturn.x
-      : session.player.x;
+    : session.inWorkplaceInterior && session.workplaceInteriorReturn
+      ? session.workplaceInteriorReturn.x
+      : session.inStaffRoom && session.staffRoomReturn
+        ? session.staffRoomReturn.x
+        : session.player.x;
   account.z = session.inHome && session.homeReturn
     ? session.homeReturn.z
-    : session.inStaffRoom && session.staffRoomReturn
-      ? session.staffRoomReturn.z
-      : session.player.z;
+    : session.inWorkplaceInterior && session.workplaceInteriorReturn
+      ? session.workplaceInteriorReturn.z
+      : session.inStaffRoom && session.staffRoomReturn
+        ? session.staffRoomReturn.z
+        : session.player.z;
+  account.yaw = session.inWorkplaceInterior && session.workplaceInteriorReturn && Number.isFinite(session.workplaceInteriorReturn.yaw)
+    ? Number(session.workplaceInteriorReturn.yaw)
+    : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
+      ? Number(session.staffRoomReturn.yaw)
+      : session.player.yaw;
   account.yaw = session.player.yaw;
   account.hp = session.player.hp;
   account.hunger = session.player.hunger;
@@ -1097,9 +1130,13 @@ wss.on("connection", (socket) => {
       inHome: false,
       inCarpark: false,
       inStaffRoom: false,
+      inWorkplaceInterior: false,
       homeReturn: null,
       staffRoomReturn: null,
+      workplaceInteriorReturn: null,
       currentStaffWorkplaceId: null,
+      currentWorkplaceId: null,
+      displayId: allocateDisplayPlayerId(),
       carparkVehicle: null,
       workTask: null,
     };
@@ -1991,6 +2028,71 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "enterWorkplaceInterior") {
+        const workplaceId = String(message.workplaceId ?? "");
+        const workplace = findWorkplace(workplaceId);
+        if (!workplace) {
+          send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Unknown workplace." });
+          return;
+        }
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || session.inCarpark) {
+          send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Exit your current building before entering another workplace." });
+          return;
+        }
+        if (workplaceDistance(session, workplace) > 32) {
+          send(socket, { type: "workplaceInteriorEnterResult", ok: false, message: "Walk to this workplace's front entrance first." });
+          return;
+        }
+        const room = workplaceInteriorPosition(workplaceId);
+        session.workplaceInteriorReturn = { x: session.player.x, z: session.player.z, yaw: session.player.yaw };
+        session.currentWorkplaceId = workplaceId;
+        session.inWorkplaceInterior = true;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        session.player.x = room.x;
+        session.player.z = room.z + 4.2;
+        session.player.yaw = Math.PI;
+        await persistSession(session);
+        send(socket, {
+          type: "workplaceInteriorEnterResult", ok: true, workplaceId, workplaceName: workplace.name,
+          workplaceKind: workplace.kind, roomX: room.x, roomZ: room.z,
+          x: session.player.x, z: session.player.z,
+          returnX: session.workplaceInteriorReturn.x, returnZ: session.workplaceInteriorReturn.z,
+          uniformWorkplaceId: session.player.life.employment?.uniformWorkplaceId ?? null,
+          message: "You entered " + workplace.name + ". Approach reception to speak to the secretary.",
+        });
+        broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+        return;
+      }
+
+      if (message.type === "exitWorkplaceInterior") {
+        if (!session.inWorkplaceInterior || session.inStaffRoom) {
+          send(socket, { type: "workplaceInteriorExitResult", ok: false, message: "You are not in a workplace reception area." });
+          return;
+        }
+        const workplaceId = session.currentWorkplaceId;
+        const workplace = workplaceId ? findWorkplace(workplaceId) : undefined;
+        const destination = session.workplaceInteriorReturn ?? { x: 0, z: 24, yaw: 0 };
+        session.inWorkplaceInterior = false;
+        session.currentWorkplaceId = null;
+        session.workplaceInteriorReturn = null;
+        session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
+        session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        if (Number.isFinite(destination.yaw)) session.player.yaw = Number(destination.yaw);
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        await persistSession(session);
+        send(socket, {
+          type: "workplaceInteriorExitResult", ok: true, workplaceId,
+          x: session.player.x, z: session.player.z, yaw: session.player.yaw,
+          message: "You have returned to the street outside " + (workplace?.name ?? "the workplace") + ".",
+        });
+        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
+        return;
+      }
+
       if (message.type === "enterStaffRoom") {
         const workplaceId = String(message.workplaceId ?? "");
         const workplace = findWorkplace(workplaceId);
@@ -2007,16 +2109,13 @@ wss.on("connection", (socket) => {
           send(socket, { type: "staffRoomEnterResult", ok: false, message: "Clock out before entering the staff changing room." });
           return;
         }
-        if (session.inHome || session.inStaffRoom || session.inCarpark) {
-          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Exit your current interior before entering a staff room." });
-          return;
-        }
-        if (workplaceDistance(session, workplace) > 32) {
-          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Walk to the assigned workplace entrance first." });
+        if (!session.inWorkplaceInterior || session.currentWorkplaceId !== workplaceId || session.inStaffRoom || session.inHome || session.inCarpark) {
+          send(socket, { type: "staffRoomEnterResult", ok: false, message: "Enter your workplace reception first." });
           return;
         }
         const room = staffRoomInteriorPosition(workplaceId);
-        session.staffRoomReturn = { x: session.player.x, z: session.player.z };
+        const lobby = workplaceInteriorPosition(workplaceId);
+        session.staffRoomReturn = { x: session.player.x, z: session.player.z, yaw: session.player.yaw };
         session.currentStaffWorkplaceId = workplaceId;
         session.inStaffRoom = true;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
@@ -2027,11 +2126,12 @@ wss.on("connection", (socket) => {
         session.player.yaw = Math.PI;
         await persistSession(session);
         send(socket, {
-          type: "staffRoomEnterResult", ok: true, workplaceId, workplaceName: workplace.name,
+          type: "staffRoomEnterResult", ok: true, workplaceId, workplaceName: workplace.name, workplaceKind: workplace.kind,
           roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.7,
+          workplaceRoomX: lobby.x, workplaceRoomZ: lobby.z,
           returnX: session.staffRoomReturn.x, returnZ: session.staffRoomReturn.z,
           uniformWorkplaceId: session.player.life.employment?.uniformWorkplaceId ?? null,
-          message: "Staff changing room opened. Change into your authorised uniform, then exit and clock in at the workplace entrance.",
+          message: "Staff changing room opened. Change into your authorised uniform, then return to reception to clock in.",
         });
         broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
         return;
@@ -2071,21 +2171,28 @@ wss.on("connection", (socket) => {
           send(socket, { type: "staffRoomExitResult", ok: false, message: "You are not inside a staff changing room." });
           return;
         }
-        const destination = session.staffRoomReturn ?? { x: 0, z: 24 };
+        const destination = session.staffRoomReturn ?? { x: 0, z: 24, yaw: Math.PI };
+        const workplaceId = session.currentStaffWorkplaceId ?? session.currentWorkplaceId;
+        const workplace = workplaceId ? findWorkplace(workplaceId) : undefined;
+        const lobby = workplaceId ? workplaceInteriorPosition(workplaceId) : null;
         session.inStaffRoom = false;
+        // Stay inside the workplace and return to the reception area, not the street.
         session.currentStaffWorkplaceId = null;
         session.staffRoomReturn = null;
         session.player.x = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.x));
         session.player.z = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, destination.z));
+        if (Number.isFinite(destination.yaw)) session.player.yaw = Number(destination.yaw);
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
         await persistSession(session);
         send(socket, {
-          type: "staffRoomExitResult", ok: true, x: session.player.x, z: session.player.z,
-          message: "You are back outside the workplace entrance.",
+          type: "staffRoomExitResult", ok: true, workplaceId,
+          workplaceName: workplace?.name ?? "Workplace", workplaceKind: workplace?.kind ?? "market",
+          workplaceRoomX: lobby?.x ?? session.player.x, workplaceRoomZ: lobby?.z ?? session.player.z,
+          x: session.player.x, z: session.player.z, yaw: session.player.yaw,
+          message: "You returned to the workplace reception. You are still inside the building.",
         });
-        broadcast({ type: "playerJoined", player: publicPlayer(session.player), onlineCount: players.size });
         return;
       }
 
@@ -2475,7 +2582,7 @@ wss.on("connection", (socket) => {
           send(socket, { type: "playerInteractionResult", ok: false, message: "That player is no longer available." });
           return;
         }
-        if (session.inHome || session.inStaffRoom || target.inHome || target.inStaffRoom ||
+        if (session.inHome || session.inStaffRoom || session.inWorkplaceInterior || target.inHome || target.inStaffRoom || target.inWorkplaceInterior ||
             Math.hypot(session.player.x - target.player.x, session.player.z - target.player.z) > 6) {
           send(socket, { type: "playerInteractionResult", ok: false, message: "Move close to the player on the shared street before interacting." });
           return;
