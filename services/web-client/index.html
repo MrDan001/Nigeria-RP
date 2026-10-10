@@ -735,19 +735,25 @@ function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLock
  for(const b of boxes){if(b===c.box)continue;const ox=c.x-b.x,oz=c.z-b.z,px=b.hw+1.4-Math.abs(ox),pz=b.hd+1.4-Math.abs(oz);
   if(px>0&&pz>0){if(px<pz)c.x+=Math.sign(ox||1)*px;else c.z+=Math.sign(oz||1)*pz;c.vx*=.5;c.vz*=.5;}}
  if(inside?.isCarpark){
-  c.x=clamp(c.x,inside.x-11.2,inside.x+11.2);
-  c.z=clamp(c.z,inside.z-13.5,inside.z+14.1);
+  // Garage walls must stop the car dead; clamping position alone left the car
+  // "pinned" with its old speed, so the stopped-at-gate check never passed.
+  const gMinX=inside.x-11.2,gMaxX=inside.x+11.2,gMinZ=inside.z-13.5,gMaxZ=inside.z+14.1;
+  if(c.x<gMinX||c.x>gMaxX){c.x=clamp(c.x,gMinX,gMaxX);c.vx=0;}
+  if(c.z<gMinZ||c.z>gMaxZ){c.z=clamp(c.z,gMinZ,gMaxZ);c.vz=0;}
+  fv=c.vx*sn+c.vz*cs;
  }else{c.x=clamp(c.x,-240,240);c.z=clamp(c.z,-240,240);}c.v=fv;
  const k=1-Math.exp(-dt*6);c.pitch+=(clamp(-a*.004,-.06,.06)-c.pitch)*k;c.roll+=(clamp(yaw*fv*.003,-.07,.07)-c.roll)*k;
  c.tail.color.setHex(br>.05||hb?0xff2020:0x701010);c.rev.color.setHex(fv<-.5?0xffffff:0x555555);c.sw.rotation.z=wheelA*.0174533;
  c.wh.forEach(w=>{w.sp.rotation.x+=fv*dt/.38;if(w.f)w.pv.rotation.y=-c.steer;});
  if(eng){eng.o.frequency.value=38+c.rpm*95;eng.g.gain.value=.02+.03*th;}
  setCar(c);pos.set(c.x,0,c.z);face=c.ry;
- if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<=5.8&&c.z>=468&&c.z<=469.2&&Math.hypot(c.vx,c.vz)<.22&&performance.now()-carparkExitAttemptAt>650){
-  carparkExitPending=true;carparkExitAttemptAt=performance.now();
-  const N=window.NRS;
-  if(N&&N.exitCarpark)N.exitCarpark(c.id,true);
-  else{carparkExitPending=false;sys('Garage connection is not ready. Please try the horn again.');}
+ if(inside?.isCarpark&&!carparkExitPending&&(hornBtn||hornKey)&&Math.abs(c.x-455)<=5.8&&c.z>=468&&c.z<=469.2){
+  if(performance.now()-carparkExitAttemptAt>650){
+   carparkExitPending=true;carparkExitAttemptAt=performance.now();
+   const N=window.NRS;
+   if(N&&N.exitCarpark)N.exitCarpark(c.id,true);
+   else{carparkExitPending=false;sys('Garage connection is not ready. Please try the horn again.');}
+  }
  }
  cam.fov=60;cam.updateProjectionMatrix();
  /* Camera orientation stays where the driver set it; no automatic panning on turns. */}

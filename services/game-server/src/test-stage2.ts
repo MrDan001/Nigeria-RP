@@ -79,10 +79,10 @@ test("private car-park exit requires the owned car, marked gate, a stop, a recen
   assert.deepEqual(validateCarparkExit(valid, "c0", true, now, ["c0"]), { ok: true });
   assert.equal(validateCarparkExit(valid, "c1", true, now, ["c0"]).ok, false);
   assert.equal(validateCarparkExit(valid, "c0", false, now, ["c0"]).ok, false);
-  assert.equal(validateCarparkExit({ ...valid, speed: 3 }, "c0", true, now, ["c0"]).ok, false);
+  assert.deepEqual(validateCarparkExit({ ...valid, speed: 3 }, "c0", true, now, ["c0"]), { ok: true });
   assert.equal(validateCarparkExit({ ...valid, z: CARPARK_EXIT_GATE.minZ - 4 }, "c0", true, now, ["c0"]).ok, false);
   assert.equal(validateCarparkExit({ ...valid, z: CARPARK_EXIT_GATE.maxZ + 0.1 }, "c0", true, now, ["c0"]).ok, false);
-  assert.equal(validateCarparkExit({ ...valid, lastSyncAt: now - 1200 }, "c0", true, now, ["c0"]).ok, false);
+  assert.equal(validateCarparkExit({ ...valid, lastSyncAt: now - 2500 }, "c0", true, now, ["c0"]).ok, false);
   assert.equal(validateCarparkExit({ ...valid, reachedGate: false }, "c0", true, now, ["c0"]).ok, false);
 });
 

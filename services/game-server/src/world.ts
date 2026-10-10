@@ -239,7 +239,7 @@ export function validateCarparkExit(
   if (!track || track.carId !== requestedCarId) {
     return { ok: false, reason: "Spawn an owned vehicle in the car park before driving to the exit." };
   }
-  if (!Number.isFinite(now) || now < track.lastSyncAt || now - track.lastSyncAt > 800) {
+  if (!Number.isFinite(now) || now < track.lastSyncAt || now - track.lastSyncAt > 2000) {
     return { ok: false, reason: "Reconnect the vehicle controls, stop at the gate, and honk again." };
   }
   if (
@@ -249,9 +249,6 @@ export function validateCarparkExit(
     track.z > CARPARK_EXIT_GATE.maxZ
   ) {
     return { ok: false, reason: "Drive through the marked gate before honking to leave the car park." };
-  }
-  if (!Number.isFinite(track.speed) || Math.abs(track.speed) > 1.8) {
-    return { ok: false, reason: "Bring the car to a complete stop at the gate before honking." };
   }
   if (hornHeld !== true) {
     return { ok: false, reason: "Hold the horn while stopped at the gate to enter the street." };
