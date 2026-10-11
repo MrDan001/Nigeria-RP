@@ -1,6 +1,6 @@
 # Stage 4 — Market Salespeople and Bank Tellers
 
-> **Status: IMPLEMENTED AND DEPLOYED — FINAL REVIEW PENDING (11 October 2026).** The Stage 4 server and browser implementation is live on Railway. Automated Stage 1–4 regression, server typecheck/build, and browser build have passed on the latest code commit. The Android debug APK build was still running at the last CI check.
+> **Status: IMPLEMENTED AND DEPLOYED (11 October 2026 checkpoint).** Market/bank server flows and user-facing panels were deployed to Railway and their Stage 4 regression, typecheck/build and browser build passed. Stage 4 remains covered by CI during Stage 5 changes; the latest repository and Railway status should be checked before making any claim about the newest commit. User visual review may still be recorded separately.
 
 ## Scope and ranks
 
