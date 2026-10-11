@@ -228,7 +228,6 @@
 
       <div class="status" id="nrsStatus">Connecting securely to the game server…</div>
     </div>
-  `;
     <div class="card" id="nrsCharacterView" hidden>
       <div class="brand">
         <div class="logo">N</div>
@@ -253,6 +252,7 @@
       <button class="subtleButton" id="nrsSwitchAccount" type="button">USE ANOTHER ACCOUNT</button>
       <div class="characterStatus" id="nrsCharacterStatus" role="status" aria-live="polite"></div>
     </div>
+  `;
   document.body.appendChild(auth);
 
   const status = (message) => { $("nrsStatus").textContent = message || ""; };
