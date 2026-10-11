@@ -1,0 +1,933 @@
+/* ---------- Stage 5: pedestrians, zebra crossings, keke / danfo / okada traffic ---------- */
+const PEDS=[],TV=[],pedObs=[],ZC=[-150,-60,-28,30,100,140];
+ZC.forEach(z=>{for(let x=-4;x<=4.01;x+=1.3)flat(.6,3.2,wht,x,.055,z);});
+const bx=(w,h,d,m,x,y,z,p)=>add(new THREE.BoxGeometry(w,h,d),m,x,y,z,p);
+const TYM=M(0x141414),HBM=M(0xc9ced4),MKM=M(0x8a8f96),BLK=M(0x111111),
+ GLM=new THREE.MeshBasicMaterial({color:0x9fc4dd,transparent:true,opacity:.45,side:THREE.DoubleSide,depthWrite:false}),
+ DGM=new THREE.MeshBasicMaterial({color:0x1b2a36}),HLM=new THREE.MeshBasicMaterial({color:0xfff2c0}),TLM=new THREE.MeshBasicMaterial({color:0xb01818});
+const WGc={};
+function wheelAt(g,x,y,z,r,w){const k=r+'_'+w;if(!WGc[k]){const t=new THREE.CylinderGeometry(r,r,w,12);t.rotateZ(Math.PI/2);const h=new THREE.CylinderGeometry(r*.55,r*.55,w+.02,8);h.rotateZ(Math.PI/2);WGc[k]=[t,h,new THREE.BoxGeometry(w+.04,r*.28,r*.28)];}
+ const pv=new THREE.Group();pv.position.set(x,y,z);g.add(pv);const sp=new THREE.Group();pv.add(sp);
+ add(WGc[k][0],TYM,0,0,0,sp);add(WGc[k][1],HBM,0,0,0,sp);add(WGc[k][2],MKM,0,r*.72,0,sp);return {pv,sp,f:0};}
+const hs=(r,m,x,y,z,p)=>add(new THREE.SphereGeometry(r,10,8),m,x,y,z,p);
+const fc=(sk,r,x,y,z,p)=>{const f=mkFace(sk,HLMH,r);f.position.set(x,y,z);p.add(f);};const HLMH=M(0x111111);
+function mkKeke(){const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+ const Y=M(0xe8b923),G=M(0x1f6f3a),sk=M(0x6b3e1f),sh=M(0x3a5fa0);
+ bx(1.2,.12,2.1,BLK,0,.5,-.1,body);bx(1.0,.62,.9,Y,0,.85,1.0,body);bx(1.34,.75,1.4,Y,0,.95,-.6,body);
+ [-1,1].forEach(s=>[.4,-1.25].forEach(z=>bx(.06,.62,.06,BLK,s*.64,1.64,z,body)));
+ bx(1.5,.08,2.0,G,0,1.97,-.4,body);
+ const ws=bx(1.0,.55,.03,GLM,0,1.6,.62,body);ws.rotation.x=-.25;
+ bx(.06,.5,.06,BLK,0,1.05,.9,body);bx(.8,.05,.05,BLK,0,1.28,.85,body);
+ bx(.4,.12,.4,BLK,0,.7,.2,body);bx(.34,.5,.2,sh,0,1.1,.15,body);hs(.11,sk,0,1.5,.15,body);fc(sk,.11,0,1.5,.15,body);
+ bx(1.1,.12,.5,BLK,0,.7,-.75,body);bx(1.1,.5,.08,BLK,0,.98,-1.05,body);
+ hs(.09,HLM,0,.9,1.47,body);bx(.5,.1,.04,TLM,0,.7,-1.33,body);
+ const wh=[wheelAt(g,0,.3,1.3,.3,.14),wheelAt(g,-.62,.3,-.85,.3,.16),wheelAt(g,.62,.3,-.85,.3,.16)];
+ return {g,body,wh,hw:.8,hd:1.55,type:'keke'};}
+function mkDanfo(){const g=new THREE.Group(),body=new THREE.Group();g.add(body);const Y=M(0xf0c419);
+ bx(2.0,1.45,5.0,Y,0,1.2,0,body);bx(2.03,.2,5.03,BLK,0,.88,0,body);bx(2.04,.5,3.3,DGM,0,1.6,-.5,body);
+ bx(1.7,.6,.04,DGM,0,1.6,2.51,body);bx(2.02,.08,5.02,M(0xe8e8e8),0,1.97,0,body);
+ [2.55,-2.55].forEach(z=>bx(2.1,.22,.2,BLK,0,.5,z,body));
+ [-1,1].forEach(s=>{bx(.3,.18,.05,HLM,s*.7,.75,2.52,body);bx(.3,.16,.05,TLM,s*.7,.85,-2.52,body);});
+ bx(1.0,.25,.04,BLK,0,.75,2.52,body);bx(.9,.22,.06,BLK,0,2.14,2.2,body);
+ const wh=[];[[-1.02,1.65],[1.02,1.65],[-1.02,-1.65],[1.02,-1.65]].forEach(q=>wh.push(wheelAt(g,q[0],.42,q[1],.42,.22)));
+ return {g,body,wh,hw:1.1,hd:2.6,type:'danfo'};}
+function mkOkada(col,c1,c2){const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+ const F=M(col),sk=M(0x6b3e1f),s1=M(c1),s2=M(c2),pn=M(0x223044);
+ bx(.16,.22,1.3,F,0,.6,0,body);bx(.28,.22,.5,F,0,.82,.3,body);bx(.26,.1,.95,BLK,0,.82,-.35,body);
+ const fk=bx(.06,.62,.06,BLK,0,.66,.72,body);fk.rotation.x=.3;bx(.7,.05,.05,BLK,0,1.05,.58,body);
+ hs(.07,HLM,0,.95,.82,body);bx(.15,.06,.04,TLM,0,.8,-.85,body);
+ const t1=bx(.32,.5,.22,s1,0,1.2,-.05,body);t1.rotation.x=.25;hs(.11,sk,0,1.6,.06,body);fc(sk,.11,0,1.6,.06,body);
+ add(new THREE.SphereGeometry(.125,10,8,0,Math.PI*2,0,Math.PI/2),M(0xcc2222),0,1.62,.06,body);
+ [-1,1].forEach(s=>{bx(.1,.45,.14,pn,s*.2,.7,-.05,body);const a=bx(.06,.06,.5,s1,s*.22,1.12,.3,body);a.rotation.x=.4;bx(.1,.45,.14,pn,s*.22,.65,-.55,body);});
+ bx(.32,.5,.22,s2,0,1.18,-.62,body);hs(.11,sk,0,1.56,-.6,body);fc(sk,.11,0,1.56,-.6,body);
+ const wh=[wheelAt(g,0,.33,.78,.33,.12),wheelAt(g,0,.33,-.78,.33,.12)];
+ return {g,body,wh,hw:.55,hd:1.3,type:'okada'};}
+function mkTV(b,x,z,ry,vm){b.g.position.set(x,0,z);b.g.rotation.y=ry;keepVehicleVisible(b.g);scene.add(b.g);
+ const c={g:b.g,body:b.body,wh:b.wh,box:{x,z,hw:b.hw,hd:b.hd},kind:'t',type:b.type,v:vm,vm,vx:0,vz:0,steer:0,ry,x,z,lx:x,roll:0,pitch:0,ph:Math.random()*6};
+ boxes.push(c.box);tr.push(c);TV.push(c);return c;}
+mkTV(mkKeke(),1.6,60,Math.PI,7);mkTV(mkDanfo(),1.6,-90,Math.PI,8);mkTV(mkOkada(0xb02a2a,0x2f6f4f,0xe8c14a),1.6,125,Math.PI,11);
+mkTV(mkKeke(),-1.6,-65,0,7);mkTV(mkDanfo(),-1.6,45,0,8);mkTV(mkOkada(0x1d4a8a,0xc94a3a,0xf0f0f0),-1.6,-145,0,11);
+
+/* pedestrians */
+const PSK=[0x8d5524,0x6b3e1f,0x4a2a14,0xa8703c].map(M),PSH=[0xc94a3a,0x2f6f4f,0x3a5fa0,0xe8c14a,0x6a2a8a,0xf0f0f0,0x151515,0xd9863a].map(M),PPN=[0x1c2330,0x2b2b2b,0xa39373,0x3a4a6a,0x5a4030].map(M),HRM=M(0x111111);
+const PG={t:new THREE.BoxGeometry(.36,.55,.2),h:new THREE.SphereGeometry(.11,12,9),hr:new THREE.SphereGeometry(.12,10,7),
+ l:(()=>{const g=new THREE.CylinderGeometry(.075,.065,.82,6);g.translate(0,-.41,0);return g;})(),
+ a:(()=>{const g=new THREE.CylinderGeometry(.05,.045,.55,6);g.translate(0,-.275,0);return g;})()};
+const prn=a=>a[Math.floor(Math.random()*a.length)];
+function mkPed(o){const g=new THREE.Group(),sk=prn(PSK),sh=prn(PSH),pn=prn(PPN);g.scale.setScalar(.92+Math.random()*.16);
+ add(PG.t,sh,0,1.15,0,g);add(PG.h,sk,0,1.58,0,g).scale.set(.95,1.1,1);add(PG.hr,HRM,0,1.633,-.029,g).scale.set(1,.8,1);{const f=mkFace(sk,HRM,.11);f.position.set(0,1.58,0);g.add(f);}
+ const lg=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.1,.85,0);g.add(p);add(PG.l,pn,0,0,0,p);return p;});
+ const am=Math.random()<.5?sk:sh,ar=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.23,1.4,0);g.add(p);add(PG.a,am,0,0,0,p);return p;});
+ scene.add(g);return Object.assign({g,lg,ar,ph:Math.random()*6,s:'walk',cd:0,t:0},o);}
+const blocked=(x,z)=>boxes.some(b=>{if(b.hw<=0||b.hd<=0||(b.owner&&!b.owner.g.visible))return false;const e=objectHalfExtents(b);return Math.abs(x-b.x)<e.hw+.05&&Math.abs(z-b.z)<e.hd+.05;});
+function laneClear(zc){for(const c of tr){const d=zc-c.z,vz=(c.ry>2?-1:1)*c.v;if(Math.abs(d)<3.5)return false;if(d*vz>0&&Math.abs(d)<10+Math.abs(c.v)*1.4)return false;}
+ if(driving){const d=zc-driving.z;if(Math.abs(d)<4)return false;if(d*driving.vz>0&&Math.abs(d)<10+Math.abs(driving.v)*1.4)return false;}return true;}
+function pedUpdate(p,dt){let vx=0,vz=0,mv=false;
+ if(p.m==='w'){
+  if(p.s==='walk'){p.x+=(p.lx-p.x)*Math.min(1,dt*2);if(p.cd>0)p.cd-=dt;const nz=p.z+p.dz*p.sp*dt;
+   if(p.cd<=0)for(const zc of ZC){if((p.z-zc)*(nz-zc)<=0){p.cd=5;if(Math.random()<.45){p.s='wait';p.zc=zc;p.t=0;p.tx=-Math.sign(p.lx)*(5.7+Math.random()*1.5);p.z=zc+(Math.random()-.5)*2;break;}}}
+   if(p.s==='walk'){if(Math.abs(nz)>185||blocked(p.x,nz+p.dz*.4))p.dz=-p.dz;else{p.z=nz;vz=p.dz*p.sp;mv=true;}}}
+  else if(p.s==='wait'){p.t+=dt;if(laneClear(p.zc)||p.t>14)p.s='cross';}
+  else{const d=p.tx-p.x,st=1.5*dt;if(Math.abs(d)<=st){p.x=p.tx;p.lx=p.tx;p.s='walk';p.cd=6;p.dz=Math.random()<.5?1:-1;}else{p.x+=Math.sign(d)*st;vx=Math.sign(d)*1.5;mv=true;}}}
+ else if(p.idle>0)p.idle-=dt;
+ else{p.tmr-=dt;const nx=p.x+Math.sin(p.hd)*p.sp*dt,nz=p.z+Math.cos(p.hd)*p.sp*dt;
+  if(p.tmr<=0){p.hd=Math.random()*6.283;p.tmr=2+Math.random()*4;if(Math.random()<.4)p.idle=1+Math.random()*3;}
+  else if(nx<p.x1||nx>p.x2||nz<p.z1||nz>p.z2||blocked(nx,nz)||roadNear(nx,nz,0)){p.hd=Math.random()*6.283;p.tmr=1.5+Math.random()*2;}
+  else{p.x=nx;p.z=nz;vx=Math.sin(p.hd)*p.sp;vz=Math.cos(p.hd)*p.sp;mv=true;}}
+ /* get out of the way of the player */
+ if(driving){const dx=p.x-driving.x,dz=p.z-driving.z,d=Math.hypot(dx,dz);if(d<2.5&&d>.01&&Math.abs(driving.v)>2){p.x+=dx/d*6*dt;p.z+=dz/d*6*dt;}}
+ else{const dx=p.x-pos.x,dz=p.z-pos.z,d=Math.hypot(dx,dz);if(d<.6&&d>.01){p.x+=dx/d*(.6-d)*.5;p.z+=dz/d*(.6-d)*.5;}}
+ const sp=Math.hypot(vx,vz);if(mv)p.ph+=sp*dt*4.6;
+ const am=mv?Math.min(1,sp/1.2)*.7:0,k=Math.min(1,dt*12),sw=Math.sin(p.ph)*am;
+ p.lg[0].rotation.x+=(sw-p.lg[0].rotation.x)*k;p.lg[1].rotation.x+=(-sw-p.lg[1].rotation.x)*k;
+ p.ar[0].rotation.x+=(-sw*.8-p.ar[0].rotation.x)*k;p.ar[1].rotation.x+=(sw*.8-p.ar[1].rotation.x)*k;
+ const ta=mv?Math.atan2(vx,vz):(p.s==='wait'?Math.atan2(p.tx-p.x,0):p.g.rotation.y);let da=Math.atan2(Math.sin(ta-p.g.rotation.y),Math.cos(ta-p.g.rotation.y));
+ p.g.rotation.y+=da*Math.min(1,dt*8);p.g.position.set(p.x,mv?Math.abs(Math.sin(p.ph))*.03:0,p.z);}
+function peds(dt,t){pedObs.length=0;for(const p of PEDS){pedUpdate(p,dt);if(p.s==='cross')pedObs.push(p);}
+ for(const c of TV)if(c.type==='okada')c.x=c.lx+Math.sin(t*.8+c.ph)*.35;}
+for(let i=0;i<14;i++){const sd=i%2?1:-1;let x,z,n=0;
+ do{x=sd*(5.7+Math.random()*1.6);z=-175+Math.random()*350;n++;}while(n<40&&(blocked(x,z)||blocked(x,z+3)||blocked(x,z-3)||ZC.some(c=>Math.abs(z-c)<3)||HR.some(r=>Math.abs(z-r[0])<9)));
+ PEDS.push(mkPed({m:'w',x,z,lx:x,dz:Math.random()<.5?1:-1,sp:1+Math.random()*.7}));}
+function spawnWander(n,x1,x2,z1,z2){for(let i=0;i<n;i++){let x,z,k=0;do{x=x1+Math.random()*(x2-x1);z=z1+Math.random()*(z2-z1);k++;}while(k<60&&(blocked(x,z)||roadNear(x,z,0)));
+ PEDS.push(mkPed({m:'r',x,z,x1,x2,z1,z2,hd:Math.random()*6.283,sp:.8+Math.random()*.6,idle:Math.random()*2,tmr:1+Math.random()*3}));}}
+spawnWander(7,-83,-14,80,111);spawnWander(5,22,78,125,185);
+
+/* ---------- Stage 6: shop interiors, working backpack, ATM + bank, Job Center missions ---------- */
+let bank=0,hp=100,hunger=82,lh=-1,lp=-1,bagMsg='',bagK=[],job=null,jobN=0,misT='';
+const f=n=>Math.round(n).toLocaleString();
+function sys(t){const d=document.createElement('div');d.innerHTML='<b>System:</b> ';d.append(t);$('log').append(d);$('log').scrollTop=1e5;}
+function mis(h){if(h!==misT){misT=h;$('mis').innerHTML=h;}}
+/* ATM kiosk on Aba Road pavement */
+add(new THREE.BoxGeometry(.7,1.8,.9),M(0x2a3138),-7.6,.9,-36);boxes.push({x:-7.6,z:-36,hw:.4,hd:.5});
+add(new THREE.PlaneGeometry(.5,.4),new THREE.MeshBasicMaterial({color:0x39a0ff,side:THREE.DoubleSide}),-7.24,1.3,-36).rotation.y=Math.PI/2;
+mini('ATM',-7.22,1.85,-36,.7,'#0a4d8c').rotation.y=Math.PI/2;
+POI.push({x:-6.9,z:-36,k:'Use',name:'ATM',t:'atm'});
+/* mission beacon */
+const beacon=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,40,16,1,true),new THREE.MeshBasicMaterial({color:0xffc928,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false,fog:false}));
+beacon.visible=false;scene.add(beacon);
+/* Interiors are real walkable 3D rooms; coordinates are kept inside server world limits. */
+const HOME_ROOMS=Object.create(null);
+function homeRoom(d){
+ const h=d.home||{},id=String(h.id||'my-home');
+ if(HOME_ROOMS[id]){HOME_ROOMS[id].home=h;return HOME_ROOMS[id];}
+ const ix=Number(d.roomX)||280,iz=Number(d.roomZ)||280,cls=h.cls||'flat';
+ const plans={
+  hut:{w:8.2,d:8.0,height:2.8,wall:0xbba07c,floor:0x8b7150,wood:0x65462e,soft:0xd2b48c,trim:0x5f412c,accent:0x9a7448},
+  faceme:{w:10.2,d:8.8,height:3.0,wall:0xd6c9b0,floor:0x9c8b70,wood:0x694c35,soft:0x91a3ad,trim:0x5f4635,accent:0xb05c43},
+  flat:{w:12.2,d:10.8,height:3.25,wall:0xe7e2d7,floor:0x9c927e,wood:0x65462e,soft:0x476a80,trim:0x5b4433,accent:0x276276},
+  estate:{w:14.2,d:12.2,height:3.5,wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d,accent:0xb89a68},
+  mansion:{w:16.2,d:14.2,height:3.9,wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645,accent:0xc0a16a},
+  palace:{w:18.2,d:16.2,height:4.25,wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55,accent:0xe1c678}
+ };
+ const p=plans[cls]||plans.flat,w=p.w,depth=p.d,height=p.height,frontZ=depth/2,doorW=1.75,doorH=2.35;
+ const g=new THREE.Group();g.position.set(ix,0,iz);scene.add(g);
+ const A=(geo,mat,x,y,z)=>add(geo,mat,x,y,z,g);
+ const wall=new THREE.MeshLambertMaterial({color:p.wall,side:THREE.DoubleSide});
+ const floorMat=M(p.floor),trim=M(p.trim),wood=M(p.wood),soft=M(p.soft),accent=M(p.accent);
+ const dark=M(0x202b32),metal=M(0x343b3f),cream=M(0xf4eee0),glass=new THREE.MeshPhongMaterial({color:0x78aebd,transparent:true,opacity:.72,shininess:80,side:THREE.DoubleSide});
+ const brass=M(0xc7a55d),rug=M(cls==='hut'?0x8f633d:cls==='palace'?0x6c252c:0x76513b);
+ A(new THREE.BoxGeometry(w,.12,depth),floorMat,0,-.06,0);
+ A(new THREE.BoxGeometry(w+.06,.045,depth+.06),trim,0,.012,0);
+ A(new THREE.PlaneGeometry(w,depth),new THREE.MeshLambertMaterial({color:0xd0cabd,side:THREE.DoubleSide}),0,height,0).rotation.x=-Math.PI/2;
+ // Per-class room envelope: compact traditional room, shared compound room, apartment, family house and luxury suites.
+ const sideWinDepth=Math.min(1.65,depth*.15),sideWinHeight=1.05,sideWinY=Math.min(2.05,height*.62);
+ function sideWall(side){
+  const x=side*w/2,windows=[-depth*.22,depth*.22].map(v=>({z:v,start:v-sideWinDepth/2,end:v+sideWinDepth/2})).sort((a,b)=>a.start-b.start);
+  let cursor=-depth/2;
+  windows.forEach(win=>{
+   const before=win.start-cursor;
+   if(before>.05)A(new THREE.BoxGeometry(.18,height,before),wall,x,height/2,cursor+before/2);
+   const lower=sideWinY-sideWinHeight/2,upper=height-(sideWinY+sideWinHeight/2);
+   if(lower>.05)A(new THREE.BoxGeometry(.18,lower,sideWinDepth),wall,x,lower/2,win.z);
+   if(upper>.05)A(new THREE.BoxGeometry(.18,upper,sideWinDepth),wall,x,sideWinY+sideWinHeight/2+upper/2,win.z);
+   A(new THREE.BoxGeometry(.055,sideWinHeight,sideWinDepth-.08),glass,x-side*.025,sideWinY,win.z);
+   A(new THREE.BoxGeometry(.12,.075,sideWinDepth+.12),trim,x-side*.04,sideWinY+sideWinHeight/2+.025,win.z);
+   A(new THREE.BoxGeometry(.12,.075,sideWinDepth+.12),trim,x-side*.04,sideWinY-sideWinHeight/2-.025,win.z);
+   A(new THREE.BoxGeometry(.12,sideWinHeight+.12,.075),trim,x-side*.04,sideWinY,win.z-sideWinDepth/2-.025);
+   A(new THREE.BoxGeometry(.12,sideWinHeight+.12,.075),trim,x-side*.04,sideWinY,win.z+sideWinDepth/2+.025);
+   A(new THREE.BoxGeometry(.08,sideWinHeight,.045),metal,x-side*.055,sideWinY,win.z);
+   A(new THREE.BoxGeometry(.12,.05,sideWinDepth),metal,x-side*.055,sideWinY,win.z);
+   cursor=win.end;
+  });
+  if(depth/2-cursor>.05)A(new THREE.BoxGeometry(.18,height,depth/2-cursor),wall,x,height/2,cursor+(depth/2-cursor)/2);
+ }
+ sideWall(-1);sideWall(1);
+ // Rear wall has a real window opening; the front wall leaves a walkable doorway.
+ const backWinW=Math.min(3.1,w*.3),backWinH=1.15,backWinY=Math.min(2.05,height*.62),backZ=-depth/2;
+ const sideWidth=(w-backWinW)/2;
+ A(new THREE.BoxGeometry(sideWidth,height,.18),wall,-backWinW/2-sideWidth/2,height/2,backZ);
+ A(new THREE.BoxGeometry(sideWidth,height,.18),wall,backWinW/2+sideWidth/2,height/2,backZ);
+ const lowerBack=backWinY-backWinH/2,upperBack=height-(backWinY+backWinH/2);
+ if(lowerBack>.05)A(new THREE.BoxGeometry(backWinW,lowerBack,.18),wall,0,lowerBack/2,backZ);
+ if(upperBack>.05)A(new THREE.BoxGeometry(backWinW,upperBack,.18),wall,0,backWinY+backWinH/2+upperBack/2,backZ);
+ A(new THREE.BoxGeometry(backWinW-.1,backWinH-.08,.055),glass,0,backWinY,backZ+.045);
+ A(new THREE.BoxGeometry(backWinW+.16,.075,.13),trim,0,backWinY+backWinH/2+.025,backZ+.045);
+ A(new THREE.BoxGeometry(backWinW+.16,.075,.13),trim,0,backWinY-backWinH/2-.025,backZ+.045);
+ A(new THREE.BoxGeometry(.08,backWinH+.12,.13),trim,-backWinW/2-.04,backWinY,backZ+.045);
+ A(new THREE.BoxGeometry(.08,backWinH+.12,.13),trim,backWinW/2+.04,backWinY,backZ+.045);
+ A(new THREE.BoxGeometry(.06,backWinH,.06),metal,0,backWinY,backZ+.085);
+ A(new THREE.BoxGeometry(backWinW, .06,.06),metal,0,backWinY,backZ+.085);
+ const frontSeg=(w-doorW)/2;
+ A(new THREE.BoxGeometry(frontSeg,height,.18),wall,-doorW/2-frontSeg/2,height/2,frontZ);
+ A(new THREE.BoxGeometry(frontSeg,height,.18),wall,doorW/2+frontSeg/2,height/2,frontZ);
+ A(new THREE.BoxGeometry(doorW,height-doorH,.18),wall,0,doorH+(height-doorH)/2,frontZ);
+ // Thick door frame, open timber door, raised threshold and two exterior steps.
+ A(new THREE.BoxGeometry(.12,doorH+.14,.22),trim,-doorW/2-.08,doorH/2,frontZ-.02);
+ A(new THREE.BoxGeometry(.12,doorH+.14,.22),trim,doorW/2+.08,doorH/2,frontZ-.02);
+ A(new THREE.BoxGeometry(doorW+.28,.13,.22),trim,0,doorH+.06,frontZ-.02);
+ const door=new THREE.Group();door.position.set(-doorW/2,0,frontZ-.1);door.rotation.y=-.48;g.add(door);
+ add(new THREE.BoxGeometry(doorW-.08,doorH-.08,.12),wood,(doorW-.08)/2,doorH/2,0,door);
+ add(new THREE.BoxGeometry((doorW-.08)*.7,.72,.045),accent,(doorW-.08)/2,doorH*.64,.085,door);
+ add(new THREE.SphereGeometry(.055,10,8),brass,doorW-.2,1.04,.1,door);
+ A(new THREE.BoxGeometry(2.45,.16,.72),M(0xa7a49c),0,.02,frontZ+.52);
+ A(new THREE.BoxGeometry(2.05,.14,.58),M(0xc0bdb3),0,.12,frontZ+.91);
+ A(new THREE.BoxGeometry(doorW,.08,.32),brass,0,.07,frontZ+.08);
+ // Interior wall skirting, painted pilasters and warm ceiling light.
+ [-1,1].forEach(side=>A(new THREE.BoxGeometry(.22,.18,depth-.3),trim,side*(w/2-.06),.14,0));
+ A(new THREE.BoxGeometry(w-.3,.16,.2),trim,0,.14,-depth/2+.08);
+ A(new THREE.BoxGeometry(w-doorW-.3,.16,.2),trim,0,.14,frontZ-.08);
+ const lampY=height-.18;
+ A(new THREE.CylinderGeometry(.23,.28,.12,16),brass,0,lampY,0);
+ A(new THREE.SphereGeometry(.18,12,8),new THREE.MeshBasicMaterial({color:0xffe8a8}),0,lampY-.15,0);
+ // Every home has a woven centre rug; its finish reflects the rented class.
+ A(new THREE.BoxGeometry(w*.48,.025,depth*.28),rug,w*.08,.075,depth*.11);
+ A(new THREE.BoxGeometry(w*.48-.12,.027,depth*.28-.12),accent,w*.08,.093,depth*.11);
+ // Bed and wardrobe anchor the sleeping area on the left so the door and walkway stay clear.
+ const bedW=cls==='hut'?1.25:cls==='faceme'?1.5:cls==='flat'?1.8:cls==='estate'?2.0:cls==='mansion'?2.15:2.35,bedD=cls==='hut'?2.0:2.45;
+ const bedX=-w*.28,bedZ=-depth*.12;
+ A(new THREE.BoxGeometry(bedW+.16,.38,bedD+.18),wood,bedX,.25,bedZ);
+ A(new THREE.BoxGeometry(bedW,.18,bedD),cream,bedX,.51,bedZ+.02);
+ A(new THREE.BoxGeometry(bedW+.22,.86,.16),trim,bedX,.82,bedZ-bedD/2-.05);
+ A(new THREE.BoxGeometry(bedW*.38,.11,.38),cream,bedX-bedW*.26,.66,bedZ-bedD/2+.28);
+ A(new THREE.BoxGeometry(bedW*.38,.11,.38),cream,bedX+bedW*.26,.66,bedZ-bedD/2+.28);
+ A(new THREE.BoxGeometry(.82,1.85,.85),wood,-w*.39,.96,depth*.12);
+ A(new THREE.BoxGeometry(.88,.08,.91),trim,-w*.39,1.92,depth*.12);
+ // Small homes receive traditional seating and practical storage; larger rentals get a complete lounge.
+ if(cls==='hut'){
+  A(new THREE.CylinderGeometry(.25,.31,.48,10),M(0x925b35),w*.27,.26,depth*.23);
+  A(new THREE.CylinderGeometry(.12,.15,.23,10),M(0x6a452e),w*.27,.59,depth*.23);
+  A(new THREE.BoxGeometry(1.15,.32,.7),wood,w*.27,.38,depth*.33);
+  A(new THREE.BoxGeometry(.62,.45,.62),soft,w*.27,.3,depth*.05);
+ }else if(cls==='faceme'){
+  A(new THREE.BoxGeometry(1.05,.35,.68),soft,w*.28,.36,depth*.21);
+  A(new THREE.BoxGeometry(.78,.4,.7),soft,w*.31,.53,depth*.21);
+  A(new THREE.BoxGeometry(1.3,.13,.78),wood,w*.21,.6,depth*.02);
+  A(new THREE.BoxGeometry(.08,.48,.08),metal,w*.21-.48,.31,depth*.02);
+  A(new THREE.BoxGeometry(.08,.48,.08),metal,w*.21+.48,.31,depth*.02);
+ }else{
+  const sofaX=w*.27,sofaZ=depth*.13,sofaW=Math.min(3.4,w*.28);
+  A(new THREE.BoxGeometry(sofaW,.48,.94),soft,sofaX,.43,sofaZ);
+  A(new THREE.BoxGeometry(sofaW, .72,.22),soft,sofaX,.84,sofaZ-.37);
+  [-1,1].forEach(side=>A(new THREE.BoxGeometry(.22,.66,.98),soft,sofaX+side*(sofaW/2-.11),.68,sofaZ));
+  A(new THREE.BoxGeometry(1.55,.2,.82),wood,0,.4,depth*.16);
+  A(new THREE.BoxGeometry(1.48,.06,.74),trim,0,.53,depth*.16);
+  A(new THREE.BoxGeometry(2.35,1.32,.14),wood,-w*.27,1.78,-depth/2+.18);
+  A(new THREE.BoxGeometry(2.12,1.1,.045),dark,-w*.27,1.78,-depth/2+.09);
+  A(new THREE.BoxGeometry(2.45,.15,.64),wood,-w*.27,.24,-depth/2+.55);
+  A(new THREE.BoxGeometry(2.05,.09,.68),trim,-w*.27,.36,-depth/2+.55);
+  if(['estate','mansion','palace'].includes(cls)){
+   // Proper dining area with a table, chairs, and pendant light in larger homes.
+   const dx=w*.27,dz=-depth*.24;
+   A(new THREE.BoxGeometry(2.55,.15,1.25),wood,dx,.95,dz);
+   A(new THREE.BoxGeometry(2.42,.07,1.13),trim,dx,1.06,dz);
+   for(const ox of [-.9,.9])for(const oz of [-.75,.75]){
+    A(new THREE.BoxGeometry(.62,.14,.62),wood,dx+ox,.43,dz+oz);
+    A(new THREE.BoxGeometry(.62,.58,.12),soft,dx+ox,.72,dz+oz-Math.sign(oz)*.22);
+    A(new THREE.BoxGeometry(.12,.82,.12),wood,dx+ox,.43,dz+oz);
+   }
+  }
+  if(['mansion','palace'].includes(cls)){
+   A(new THREE.CylinderGeometry(.05,.05,.62,10),brass,sofaX,2.28,sofaZ);
+   A(new THREE.SphereGeometry(.22,14,10),new THREE.MeshBasicMaterial({color:0xffe4a1}),sofaX,2.0,sofaZ);
+   for(let i=0;i<4;i++){const blade=A(new THREE.BoxGeometry(.08,.025,.7),brass,0,height-.25,0);blade.rotation.y=i*Math.PI/2;}
+   A(new THREE.SphereGeometry(.23,12,8),brass,0,height-.29,0);
+  }
+ }
+ // More expensive room classes have progressively better kitchen fittings.
+ if(['faceme','flat','estate','mansion','palace'].includes(cls)){
+  const shared=cls==='faceme';
+  const kw=shared?1.55:cls==='flat'?2.55:cls==='estate'?2.9:cls==='mansion'?3.2:3.55;
+  const kx=w*.28,kz=-depth/2+.72;
+  const cabinets=shared?M(0x79624d):wood;
+  const counter=shared?M(0x857b6b):cls==='flat'?M(0xb8b7b0):cls==='estate'?M(0xc9c7bf):cls==='mansion'?M(0xd9d2c4):M(0xe5d7b0);
+  A(new THREE.BoxGeometry(kw,.64,.62),cabinets,kx,.39,kz);
+  A(new THREE.BoxGeometry(kw+.12,.10,.70),counter,kx,.76,kz);
+  A(new THREE.BoxGeometry(kw*.88,shared?.32:.46,.30),cabinets,kx,1.43,kz-.22);
+  A(new THREE.BoxGeometry(kw*.92,.075,.34),counter,kx,1.69,kz-.22);
+  const sinkX=kx-kw*.22;
+  A(new THREE.BoxGeometry(shared?.40:.54,.035,shared?.29:.36),M(0x536f79),sinkX,.818,kz);
+  A(new THREE.CylinderGeometry(.035,.035,.20,8),metal,sinkX,.91,kz-.12);
+  if(!shared){
+   const fx=w/2-.53,fz=kz+.72;
+   A(new THREE.BoxGeometry(.72,1.72,.72),M(cls==='palace'?0xc9c7be:0xa9b2b4),fx,.87,fz);
+   A(new THREE.BoxGeometry(.66,.72,.045),M(0xdde3e4),fx,.48,fz+.375);
+   A(new THREE.BoxGeometry(.045,.38,.045),metal,fx+.23,.50,fz+.405);
+   A(new THREE.BoxGeometry(.42,.035,.32),M(0x202a30),kx+kw*.23,.818,kz);
+   [-.12,.12].forEach(dx=>A(new THREE.TorusGeometry(.07,.018,6,12),metal,kx+kw*.23+dx,.846,kz));
+   if(['mansion','palace'].includes(cls)){
+    for(let i=0;i<3;i++)A(new THREE.BoxGeometry(.055,.055,.04),brass,kx-kw*.30+i*kw*.30,1.42,kz);
+    A(new THREE.CylinderGeometry(.04,.04,.42,8),brass,kx,2.45,kz+.2);
+    A(new THREE.CylinderGeometry(.24,.32,.12,12),brass,kx,2.23,kz+.2);
+   }
+  }
+ }
+ // Modern and luxury rooms receive a house plant near a window; smaller compounds stay uncluttered.
+ if(['flat','estate','mansion','palace'].includes(cls)){
+  A(new THREE.CylinderGeometry(.22,.28,.32,10),M(0x8b5b35),w*.4,.16,depth*.34);
+  A(new THREE.SphereGeometry(.42,12,10),M(0x2d813d),w*.4,.62,depth*.34);
+ }
+ // Collision edges match the visible room shell while leaving the door opening clear.
+ const addCollider=(x,z,hw,hd)=>boxes.push({x:ix+x,z:iz+z,hw,hd,homeInteriorId:id});
+ addCollider(-w/2,0,.12,depth/2);addCollider(w/2,0,.12,depth/2);
+ addCollider(0,-depth/2,w/2,.12);
+ addCollider(-doorW/2-frontSeg/2,frontZ,frontSeg/2,.12);
+  addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
+  addCollider(0,frontZ,doorW/2,.12);
+ mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
+ return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),home:h,group:g,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
+}
+const STAFF_ROOM_VISUALS={};
+function staffRoomInterior(d){
+ const workplaceId=String(d.workplaceId||''),id='staff-room:'+workplaceId;if(STAFF_ROOM_VISUALS[id])return STAFF_ROOM_VISUALS[id];
+ const ix=Number(d.roomX??d.x)||-450,iz=Number(d.roomZ??d.z)||-430,w=14,depth=12,height=3.8;
+ const wall=M(0xd7dce0),trim=M(0x243a4c),floor=M(0xb7b4aa),metal=M(0x65737f),locker=M(0x2c7196),wood=M(0x78543a),mirror=new THREE.MeshBasicMaterial({color:0x9dc5d3,transparent:true,opacity:.72});
+ add(new THREE.BoxGeometry(w,.16,depth),floor,ix,.03,iz);add(new THREE.BoxGeometry(w,height,.18),wall,ix,height/2,iz-depth/2);
+ add(new THREE.BoxGeometry(.18,height,depth),wall,ix-w/2,height/2,iz);add(new THREE.BoxGeometry(.18,height,depth),wall,ix+w/2,height/2,iz);
+ // Front wall leaves an actual doorway instead of a blocked or invisible entrance.
+ add(new THREE.BoxGeometry((w-2.8)/2,height,.18),wall,ix-(w+2.8)/4,height/2,iz+depth/2);add(new THREE.BoxGeometry((w-2.8)/2,height,.18),wall,ix+(w+2.8)/4,height/2,iz+depth/2);
+ add(new THREE.BoxGeometry(w,.18,depth),trim,ix,height,iz);add(new THREE.BoxGeometry(w-.3,.12,depth-.3),trim,ix,.16,iz);
+ [-1,1].forEach(side=>{for(let i=0;i<3;i++){const x=ix+side*(2.4+i*1.18),z=iz-3.7;add(new THREE.BoxGeometry(.9,2.2,.7),metal,x,1.18,z);add(new THREE.BoxGeometry(.78,1.96,.74),locker,x,1.2,z+.04);add(new THREE.BoxGeometry(.035,.12,.035),M(0xe0c27a),x+.25,1.2,z+.42);add(new THREE.BoxGeometry(.9,.12,.75),trim,x,2.34,z);}});
+ add(new THREE.BoxGeometry(3.1,.24,1.0),wood,ix+2.3,.56,iz+.2);add(new THREE.BoxGeometry(3.0,.08,.94),floor,ix+2.3,.7,iz+.2);
+ add(new THREE.BoxGeometry(3.1,1.15,.1),mirror,ix-3.35,1.85,iz+4.7);add(new THREE.BoxGeometry(3.35,.13,.18),trim,ix-3.35,2.48,iz+4.7);
+ add(new THREE.BoxGeometry(.1,2.45,.18),trim,ix-5.05,1.82,iz+4.7);add(new THREE.BoxGeometry(.1,2.45,.18),trim,ix-1.65,1.82,iz+4.7);
+ mini('STAFF CHANGING',ix,3.05,iz-5.8,5.6,'#18384f');
+ mini('UNIFORM COUNTER',ix+2.3,2.55,iz+.2,3.2,'#18384f');
+ const exit=mini('RETURN TO RECEPTION',ix,2.5,iz+5.73,3.3,'#167247');exit.rotation.y=Math.PI;
+ boxes.push({x:ix,z:iz-depth/2,hw:w/2,hd:.12,staffRoomId:id},{x:ix-w/2,z:iz,hw:.12,hd:depth/2,staffRoomId:id},{x:ix+w/2,z:iz,hw:.12,hd:depth/2,staffRoomId:id},
+ {x:ix-(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},{x:ix+(w+2.8)/4,z:iz+depth/2,hw:(w-2.8)/4,hd:.12,staffRoomId:id},
+  {x:ix,z:iz+depth/2,hw:1.4,hd:.12,staffRoomId:id},
+ {x:ix-4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix-1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},
+ {x:ix+1.95,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+3.12,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id},{x:ix+4.3,z:iz-3.7,hw:.48,hd:.4,staffRoomId:id});
+ return STAFF_ROOM_VISUALS[id]={id,name:(d.workplaceName||'Workplace')+' · Staff changing room',workplaceId,x:ix,z:iz,cb:{x:ix+2.3,z:iz+.2,hw:1.55,hd:.5},
+  pois:[{x:ix+2.3,z:iz+2.05,k:'Use',name:'Use uniform counter',t:'uniform',workplaceId,r:2.8},{x:ix,z:iz+4.8,k:'Exit',name:'Return to workplace reception',t:'staffroom-exit',r:2.4}],isStaffRoom:true};
+}
+const WORKPLACE_INTERIOR_VISUALS={};
+function workplaceInterior(d){
+ const workplaceId=String(d.workplaceId||''),id='workplace:'+workplaceId;
+ let layout=WORKPLACE_INTERIOR_VISUALS[id];
+ const workplace=(window.NRS?.workplaceState?.workplaces||window.NRS?.workplaces||[]).find(w=>w.id===workplaceId);
+ const workplaceName=String(d.workplaceName||workplace?.name||'Workplace');
+ const kind=String(d.workplaceKind||workplace?.kind||'market');
+ const ix=Number(d.roomX??d.x??-450),iz=Number(d.roomZ??d.z??-260),w=16,depth=14,height=4.0;
+ if(!layout){
+  const themes={
+   hospital:{wall:0xe6eeeb,floor:0xd4e5e2,trim:0x2d6673,accent:0xb23b45,glass:0x8fc5d0,uniform:0xf0f4f1},
+   bank:{wall:0xe2e5e8,floor:0xc9c4b6,trim:0x203c60,accent:0xc7a04d,glass:0x8eb6c8,uniform:0x203c60},
+   school:{wall:0xe9e1cb,floor:0xcbb88e,trim:0x5d6b4e,accent:0x337957,glass:0x9ec4cc,uniform:0x337957},
+   police:{wall:0xd8e0e8,floor:0xb6c0cb,trim:0x1b345f,accent:0x244f86,glass:0x8fb7ce,uniform:0x1b345f},
+   frsc:{wall:0xe1e7dd,floor:0xc7d0c4,trim:0x176f49,accent:0xe4c439,glass:0x9ac6b2,uniform:0x176f49},
+   fire:{wall:0xe9dfd7,floor:0xc8b4a6,trim:0x8b3626,accent:0xe16a32,glass:0x94bac6,uniform:0xb13c24},
+   military:{wall:0xd5d9c5,floor:0xb7b99b,trim:0x414d2d,accent:0x647441,glass:0x9ea989,uniform:0x414d2d},
+   government:{wall:0xe3e4e1,floor:0xc4bdac,trim:0x3a4650,accent:0xc5a14e,glass:0xa0c2c9,uniform:0x3a4650},
+   news:{wall:0xe0e1e8,floor:0xbdbfca,trim:0x393a5a,accent:0x7e4f92,glass:0x91b5c9,uniform:0x393a5a},
+   market:{wall:0xe7dfd0,floor:0xc5ab88,trim:0x70452f,accent:0xb44134,glass:0x9fc6cf,uniform:0x70452f},
+   park:{wall:0xe0e7d8,floor:0xb4c3a7,trim:0x2f6940,accent:0x7f9c42,glass:0x9fc5b4,uniform:0x2f6940},
+   transport:{wall:0xe5e0d4,floor:0xc8b99f,trim:0x275f9a,accent:0xe2b638,glass:0x9abfc8,uniform:0x275f9a}
+  };
+  const p=themes[kind]||{wall:0xe3e4e1,floor:0xc7c2b6,trim:0x344a5c,accent:0x2e7765,glass:0x95bec9,uniform:0x344a5c};
+  const g=new THREE.Group();g.position.set(ix,0,iz);scene.add(g);
+  const part=(geo,mat,x,y,z)=>{const obj=new THREE.Mesh(geo,mat);obj.position.set(x,y,z);g.add(obj);return obj;};
+  const wall=new THREE.MeshLambertMaterial({color:p.wall,side:THREE.DoubleSide});
+  const trim=M(p.trim),accent=M(p.accent),floor=M(p.floor);
+  const glass=new THREE.MeshPhongMaterial({color:p.glass,transparent:true,opacity:.66,shininess:65,side:THREE.DoubleSide});
+  const wood=M(kind==='hospital'?0x785d48:kind==='bank'?0x62472d:0x75543a),metal=M(0x4b5961),dark=M(0x202b34);
+  part(new THREE.BoxGeometry(w,.16,depth),floor,0,.03,0);
+  const ceiling=part(new THREE.PlaneGeometry(w,depth),wall,0,height,0);ceiling.rotation.x=-Math.PI/2;
+  part(new THREE.BoxGeometry(w,height,.18),wall,0,height/2,-depth/2);
+  // Left wall remains enclosed; the right wall has a staff-only doorway into changing.
+  part(new THREE.BoxGeometry(.18,height,depth),wall,-w/2,height/2,0);
+  part(new THREE.BoxGeometry(.18,height,7),wall,w/2,height/2,-3.5);
+  part(new THREE.BoxGeometry(.18,height,4.2),wall,w/2,height/2,4.9);
+  part(new THREE.BoxGeometry(.18,height-2.25,2.8),wall,w/2,(height+2.25)/2,1.4);
+  const staffDoor=part(new THREE.BoxGeometry(.055,2.05,1.05),glass,w/2-.14,1.025,1.5);staffDoor.rotation.y=.22;
+  // Public front entrance: a real opening with glass door leaves held slightly open.
+  const side=(w-3.4)/2;
+  part(new THREE.BoxGeometry(side,height,.18),wall,-(3.4+side)/2,height/2,depth/2);
+  part(new THREE.BoxGeometry(side,height,.18),wall,(3.4+side)/2,height/2,depth/2);
+  part(new THREE.BoxGeometry(3.4,.18,.18),trim,0,height-.09,depth/2);
+  part(new THREE.BoxGeometry(.09,2.35,.10),trim,-1.7,1.18,depth/2);
+  part(new THREE.BoxGeometry(.09,2.35,.10),trim,1.7,1.18,depth/2);
+  const leftDoor=part(new THREE.BoxGeometry(1.05,2.2,.055),glass,-.78,1.1,depth/2-.14);leftDoor.rotation.y=-.22;
+  const rightDoor=part(new THREE.BoxGeometry(1.05,2.2,.055),glass,.78,1.1,depth/2-.14);rightDoor.rotation.y=.22;
+  // Main reception desk, glass partitions and office equipment.
+  part(new THREE.BoxGeometry(5.4,1.08,1.05),wood,0,.65,-3.3);
+  part(new THREE.BoxGeometry(5.48,.10,1.12),trim,0,1.23,-3.3);
+  part(new THREE.BoxGeometry(2.4,.65,.06),glass,-1.3,1.62,-3.3);
+  part(new THREE.BoxGeometry(2.4,.65,.06),glass,1.3,1.62,-3.3);
+  [-1.65,1.55].forEach((sx)=>{part(new THREE.BoxGeometry(.85,.58,.10),dark,sx,1.58,-3.48);part(new THREE.BoxGeometry(.87,.055,.3),metal,sx,1.29,-3.32);part(new THREE.BoxGeometry(.3,.04,.2),M(0xe9e6dd),sx+.45,1.30,-3.0);});
+  part(new THREE.CylinderGeometry(.05,.05,.3,8),metal,2.2,1.43,-3.05);part(new THREE.SphereGeometry(.14,10,8),M(0xffd17b),2.2,1.65,-3.05);
+  // A recognisable secretary stands behind the counter, with workplace-specific attire.
+  const secretary=new THREE.Group();secretary.position.set(0,0,-5.25);g.add(secretary);
+  const sp=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);secretary.add(o);return o;};
+  const shirt=M(p.uniform),skin=M(0x8d5524),hair=M(0x151515);
+  sp(new THREE.BoxGeometry(.65,.78,.28),shirt,0,1.02,0);
+  sp(new THREE.BoxGeometry(.12,.65,.16),shirt,-.43,1.08,0);sp(new THREE.BoxGeometry(.12,.65,.16),shirt,.43,1.08,0);
+  sp(new THREE.SphereGeometry(.075,10,8),skin,-.43,.72,.02);sp(new THREE.SphereGeometry(.075,10,8),skin,.43,.72,.02);
+  sp(new THREE.CylinderGeometry(.055,.06,.16,8),skin,0,1.46,0);
+  sp(new THREE.SphereGeometry(.19,14,10),skin,0,1.68,0);
+  sp(new THREE.SphereGeometry(.193,12,8,0,Math.PI*2,0,Math.PI/2),hair,0,1.76,-.02);
+  sp(new THREE.BoxGeometry(.07,.035,.025),dark,-.065,1.69,.168);sp(new THREE.BoxGeometry(.07,.035,.025),dark,.065,1.69,.168);
+  sp(new THREE.BoxGeometry(.07,.32,.06),accent,0,1.20,.16);
+  // Waiting chairs and a simple indoor plant make this read as a public lobby.
+  [-1,1].forEach(s=>{const x=s*4.25;part(new THREE.BoxGeometry(1.35,.18,.75),wood,x,.48,.6);part(new THREE.BoxGeometry(1.35,.68,.16),trim,x,.83,.92);part(new THREE.BoxGeometry(.10,.40,.10),metal,x-.55,.22,.35);part(new THREE.BoxGeometry(.10,.40,.10),metal,x+.55,.22,.35);});
+  part(new THREE.CylinderGeometry(.24,.28,.32,10),wood,-6.0,.18,-1.0);part(new THREE.SphereGeometry(.42,12,10),M(0x2f824d),-6.0,.62,-1.0);
+  part(new THREE.BoxGeometry(2.2,1.25,.12),trim,5.5,2.0,-6.75);part(new THREE.BoxGeometry(2.0,1.05,.05),glass,5.5,2.0,-6.65);part(new THREE.BoxGeometry(.16,.15,.08),accent,5.5,2.0,-6.58);
+  // Collision edges follow the visible shell and preserve both doorways.
+  boxes.push(
+   {x:ix,z:iz-depth/2,hw:w/2,hd:.12},
+   {x:ix-w/2,z:iz,hw:.12,hd:depth/2},
+   {x:ix+w/2,z:iz-3.5,hw:.12,hd:3.5},
+   {x:ix+w/2,z:iz+4.9,hw:.12,hd:2.1},
+   {x:ix-(3.4+side)/2,z:iz+depth/2,hw:side/2,hd:.12},
+    {x:ix+(3.4+side)/2,z:iz+depth/2,hw:side/2,hd:.12},
+    {x:ix,z:iz+depth/2,hw:1.7,hd:.12},
+    {x:ix+w/2,z:iz+1.4,hw:.12,hd:1.4,workplaceStaffDoorId:id},
+    {x:ix,z:iz-3.3,hw:2.65,hd:.55}
+  );
+  mini(workplaceName.toUpperCase().slice(0,28),ix,3.12,iz-depth/2+.11,Math.min(7.8,w-.8),'#'+p.trim.toString(16).padStart(6,'0'));
+  mini('RECEPTION',ix,2.70,iz-3.9,3.2,'#'+p.accent.toString(16).padStart(6,'0'));
+  const staffSign=mini('STAFF ONLY',ix+w/2-.16,2.55,iz+4.1,2.7,'#'+p.trim.toString(16).padStart(6,'0'));staffSign.rotation.y=Math.PI/2;
+  const streetSign=mini('EXIT TO STREET',ix,2.75,iz+depth/2-.08,3.6,'#206f4a');streetSign.rotation.y=Math.PI;
+  layout=WORKPLACE_INTERIOR_VISUALS[id]={id,name:workplaceName+' · Reception',workplaceId,kind,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix,z:iz-3.3,hw:2.1,hd:.5},isWorkplaceInterior:true};
+ }
+ const employment=window.NRS?.life?.employment||window.NRS?.workplaceState?.employment||null;
+ const pois=[
+  {x:layout.x,z:layout.z-1.95,k:'Reception',name:'Speak to the secretary',t:'workplace-service',workplaceId,r:3.0},
+  {x:layout.x,z:layout.z+5.75,k:'Exit',name:'Return to the street',t:'workplace-exit',workplaceId,r:2.8}
+ ];
+ if(employment?.workplaceId===workplaceId&&!employment.onDuty){
+  pois.push({x:layout.x+5.0,z:layout.z+1.4,k:'Staff',name:'Enter staff changing room',t:'workplace-staff-room',workplaceId,r:2.8});
+ }
+ return {...layout,name:workplaceName+' · Reception',workplaceName,kind,pois};
+}
+const ROOMS={},ROOM_SLOTS=Object.create(null);
+function room(p,roomPosition={}){
+ const key=String(p.shopId??p.id??p.name);if(ROOMS[key])return ROOMS[key];
+ let slot=ROOM_SLOTS[key];if(slot===undefined){slot=Object.keys(ROOM_SLOTS).length;ROOM_SLOTS[key]=slot;}
+ const rx=Number(roomPosition.roomX??roomPosition.x),rz=Number(roomPosition.roomZ??roomPosition.z);
+ const ix=Number.isFinite(rx)?rx:280+(slot%4)*32,iz=Number.isFinite(rz)?rz:-420+Math.floor(slot/4)*24;
+ const col=parseInt((p.col||'#9b9b9b').slice(1),16),wm=new THREE.MeshLambertMaterial({color:0xe9e2d0}),no=new THREE.MeshBasicMaterial({visible:false});
+ flat(12,12,M(0x8a7a66),ix,.02,iz);
+ add(new THREE.BoxGeometry(12,.12,12),wm,ix,4.18,iz);
+ add(new THREE.BoxGeometry(.18,4.1,12),wm,ix-6,2.05,iz);add(new THREE.BoxGeometry(.18,4.1,12),wm,ix+6,2.05,iz);
+ add(new THREE.BoxGeometry(12,4.1,.18),wm,ix,2.05,iz-6);
+ add(new THREE.BoxGeometry(4.4,4.1,.18),wm,ix-3.8,2.05,iz+6);add(new THREE.BoxGeometry(4.4,4.1,.18),wm,ix+3.8,2.05,iz+6);
+ add(new THREE.BoxGeometry(3.2,.95,.18),wm,ix,3.65,iz+6);
+ const doorMat=new THREE.MeshPhongMaterial({color:0x6a9ba8,transparent:true,opacity:.46,side:THREE.DoubleSide});
+ add(new THREE.BoxGeometry(1.35,2.25,.07),doorMat,ix-.7,1.13,iz+5.95);add(new THREE.BoxGeometry(1.35,2.25,.07),doorMat,ix+.7,1.13,iz+5.95);
+ add(new THREE.BoxGeometry(11.8,.5,.1),M(col),ix,3.6,iz-5.9);
+ for(let i=0;i<4;i++){const sx=ix-4.2+i*2.8;add(new THREE.BoxGeometry(2,2.2,.5),M(0x5a4630),sx,1.1,iz-5.6);
+  [0xe8c14a,0xd9534f,0x5cb85c,0x4a8fd8,0xf0f0f0].forEach((c,k)=>{add(new THREE.BoxGeometry(.3,.35,.3),M(c),sx-.8+k*.4,.5+(k%2)*.8,iz-5.3);add(new THREE.BoxGeometry(.3,.35,.3),M(c),sx-.8+k*.4,1.4,iz-5.3);});}
+ add(new THREE.BoxGeometry(5.2,1.1,1.2),M(0x6b4f33),ix,.55,iz-2);add(new THREE.BoxGeometry(5.4,.1,1.4),M(0xc9b48a),ix,1.12,iz-2);
+ const k=new THREE.Group();k.position.set(ix,0,iz-3.1);scene.add(k);add(new THREE.CylinderGeometry(.25,.3,1,8),M(col),0,1,0,k);add(new THREE.SphereGeometry(.16,10,8),M(0x5a3318),0,1.65,0,k);
+ mini(p.name,ix,3.1,iz-5.85,5.4,p.col);mini('EXIT',ix,3.2,iz+5.9,2.4,'#1f8a4c').rotation.y=Math.PI;flat(2.6,1.2,M(0x1f8a4c),ix,.03,iz+5.2);
+ const pois=[{x:ix,z:iz-2,k:'Talk',name:p.name,items:p.items,t:p.t},{x:ix,z:iz+5.2,k:'Exit',name:'Leave',r:1.8}];
+ if(p.t==='bank'){add(new THREE.BoxGeometry(.7,1.8,.9),M(0x2a3138),ix+5.4,.9,iz+1);add(new THREE.PlaneGeometry(.5,.4),new THREE.MeshBasicMaterial({color:0x39a0ff,side:THREE.DoubleSide}),ix+4.94,1.3,iz+1).rotation.y=Math.PI/2;pois.push({x:ix+4.6,z:iz+1,k:'Use',name:'ATM',t:'atm',r:2});}
+ if(p.t==='job')add(new THREE.BoxGeometry(.1,1.6,3),M(0xb08a5a),ix-5.9,2,iz);
+ [{x:ix-6,z:iz,hw:.12,hd:6},{x:ix+6,z:iz,hw:.12,hd:6},{x:ix,z:iz-6,hw:6,hd:.12},{x:ix-3.8,z:iz+6,hw:2.2,hd:.12},{x:ix+3.8,z:iz+6,hw:2.2,hd:.12},
+   {x:ix,z:iz+6,hw:1.8,hd:.12}].forEach(collider=>boxes.push({...collider,shopInteriorId:key}));
+ return ROOMS[key]={name:p.name,x:ix,z:iz,cb:{x:ix,z:iz-2,hw:2.6,hd:.6},pois,isShopInterior:!!p.shopId,shopId:p.shopId||null};}
+function enterRoom(p){if(p.shopId){const N=window.NRS;if(N?.enterShopInterior){N.enterShopInterior(p.shopId);return;}sys('Store connection is not ready. Please reconnect and try again.');return;}
+ const r=room(p);r.ret={x:p.x,z:p.z,sx:p.sx};inside=r;pos.set(r.x,0,r.z+3.2);vel.set(0,0,0);face=Math.PI;camYaw=0;camPitch=.3;focus.set(pos.x,1.4,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';}
+function leaveRoom(){if(!inside)return;if(inside.isShopInterior){window.NRS?.exitShopInterior();return;}if(inside.isApartmentRoom){window.NRS?.exitApartmentRoom();return;}if(inside.isApartmentBuilding){window.NRS?.exitApartmentBuilding();return;}openExitRouteMenu();}
+const APARTMENT_FACADE_DETAILS=Object.create(null);
+const APARTMENT_BLOCK_NUMBERS=new Map();
+const APARTMENT_ROOMS_PER_FLOOR=10;
+let APARTMENT_INTERIOR_VISUAL=null;
+const APARTMENT_INTERIOR_COLLIDERS=[];
+function addApartmentInteriorCollider(x,z,hw,hd,kind='wall'){
+ const collider={x,z,hw,hd,apartmentInteriorWall:true,kind};boxes.push(collider);APARTMENT_INTERIOR_COLLIDERS.push(collider);return collider;
+}
+function apartmentBlockId(b){return "apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10);}
+function apartmentBlockNumber(b){return APARTMENT_BLOCK_NUMBERS.get(apartmentBlockId(b))||1;}
+function apartmentBuildingName(b){
+ return "Apartment Block #"+String(apartmentBlockNumber(b)).padStart(3,'0');
+}
+function apartmentBuildingPayload(b){
+ const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10),floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
+ return {buildingId:id,buildingName:apartmentBuildingName(b),x:Number(b.x),z:Number(b.z),
+  entryX:Number(b.entryX),entryZ:Number(b.entryZ),width:Number(b.hw*2),depth:Number(b.hd*2),height:Number(b.h),floors};
+}
+function addApartmentExteriorDetails(b,id){
+ if(APARTMENT_FACADE_DETAILS[id])return;
+ const root=new THREE.Group();root.position.set(b.x,0,b.z);scene.add(root);
+ const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
+ const trim=M(0x38434b),door=M(0x18262e),step=M(0x9a9b96),glass=new THREE.MeshPhongMaterial({color:0x83b5c6,transparent:true,opacity:.65,side:THREE.DoubleSide});
+ const axis=b.entryAxis||'x',sign=b.entrySign||1,fx=axis==='x'?sign*b.hw:0,fz=axis==='z'?sign*b.hd:0;
+ if(!b.gen){
+  if(axis==='x'){
+   A(new THREE.BoxGeometry(.20,2.65,2.35),trim,fx+sign*.05,1.33,0);
+   A(new THREE.BoxGeometry(.10,2.28,1.65),door,fx+sign*.16,1.15,0);
+   A(new THREE.BoxGeometry(.04,2.05,.07),M(0x899aa0),fx+sign*.22,1.15,0);
+   A(new THREE.BoxGeometry(.08,.1,.1),M(0xd0b66d),fx+sign*.24,1.08,.48);
+  }else{
+   A(new THREE.BoxGeometry(2.35,2.65,.20),trim,0,1.33,fz+sign*.05);
+   A(new THREE.BoxGeometry(1.65,2.28,.10),door,0,1.15,fz+sign*.16);
+   A(new THREE.BoxGeometry(.07,2.05,.04),M(0x899aa0),0,1.15,fz+sign*.22);
+   A(new THREE.BoxGeometry(.1,.1,.04),M(0xd0b66d),.48,1.08,fz+sign*.24);
+  }
+ }
+ for(let stepNo=0;stepNo<3;stepNo++){
+  const width=2.8-stepNo*.28,depth=1.0,y=.10+stepNo*.17,offset=1.1+stepNo*.72;
+  if(axis==='x')A(new THREE.BoxGeometry(depth,.18,width),step,fx+sign*offset,y,0);
+  else A(new THREE.BoxGeometry(width,.18,depth),step,0,y,fz+sign*offset);
+ }
+ const boardTex=tex(512,112,(g,w,h)=>{
+  g.fillStyle='#17313e';g.fillRect(0,0,w,h);
+  g.fillStyle='#d8ad52';g.fillRect(0,0,w,9);g.fillRect(0,h-9,w,9);
+  const floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
+  const block=String(apartmentBlockNumber(b)).padStart(3,'0');
+  g.fillStyle='#fff';g.textAlign='center';g.font='bold 32px system-ui';g.fillText('APARTMENT BLOCK #'+block,w/2,50);
+  g.fillStyle='#b8e7f4';g.font='bold 20px system-ui';g.fillText((floors*APARTMENT_ROOMS_PER_FLOOR)+' UNITS · '+floors+' FLOORS',w/2,84);
+ });
+ let boardX,boardZ,boardYaw;
+ if(axis==='x'){boardX=fx+sign*.19;boardZ=0;boardYaw=sign>0?Math.PI/2:-Math.PI/2;}
+ else {boardX=0;boardZ=fz+sign*.19;boardYaw=sign>0?0:Math.PI;}
+ readableTextBoard(root,new THREE.PlaneGeometry(3.8,.84),boardTex,boardX,3.25,boardZ,boardYaw);
+ APARTMENT_FACADE_DETAILS[id]=root;
+}
+function refreshApartmentPOIs(){
+ for(let i=POI.length-1;i>=0;i--)if(POI[i].apartmentBuildingPoi)POI.splice(i,1);
+ APARTMENT_BLOCK_NUMBERS.clear();
+ const numberedBlocks=bld.filter(b=>(b.apartmentCandidate||b.gen)&&Number.isFinite(Number(b.h))&&b.h>=5&&b.hw>=4&&b.hd>=4)
+  .slice().sort((a,b)=>Number(a.x)-Number(b.x)||Number(a.z)-Number(b.z));
+ numberedBlocks.forEach((b,index)=>APARTMENT_BLOCK_NUMBERS.set(apartmentBlockId(b),index+1));
+ const activeIds=new Set();
+ for(const b of bld){
+  if((!b.apartmentCandidate&&!b.gen)||!Number.isFinite(Number(b.h))||b.h<5||b.hw<4||b.hd<4)continue;
+  const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10);
+  if(activeIds.has(id))continue;
+  activeIds.add(id);
+  const building=apartmentBuildingPayload(b);
+  addApartmentExteriorDetails(b,id);
+  POI.push({x:building.entryX,z:building.entryZ,k:'Enter',name:'Enter '+building.buildingName,
+   t:'apartment-building',r:4.5,apartmentBuildingPoi:true,apartmentBuilding:building});
+ }
+ for(const [id,root] of Object.entries(APARTMENT_FACADE_DETAILS)){
+  if(!activeIds.has(id)){scene.remove(root);delete APARTMENT_FACADE_DETAILS[id];}
+ }
+}
+
+function apartmentText(text,bg='#183441',fg='#fff'){
+ return tex(512,128,(g,w,h)=>{
+  g.fillStyle=bg;g.fillRect(0,0,w,h);
+  g.fillStyle='#d7b15d';g.fillRect(0,0,w,8);g.fillRect(0,h-8,w,8);
+  g.fillStyle=fg;g.textAlign='center';g.font='bold '+(text.length>16?30:42)+'px system-ui';g.fillText(text,w/2,h*.61,w-24);
+ });
+}
+function clearApartmentInteriorVisual(){
+ if(APARTMENT_INTERIOR_VISUAL){scene.remove(APARTMENT_INTERIOR_VISUAL);APARTMENT_INTERIOR_VISUAL=null;}
+ for(const collider of APARTMENT_INTERIOR_COLLIDERS){const index=boxes.indexOf(collider);if(index>=0)boxes.splice(index,1);}
+ APARTMENT_INTERIOR_COLLIDERS.length=0;
+}
+function apartmentPose(x,z,yaw=Math.PI,pitch=.10){
+ pos.set(Number(x)||450,0,Number(z)||-270);vel.set(0,0,0);jv=0;
+ face=yaw;camYaw=0;camPitch=pitch;focus.set(pos.x,1.4,pos.z);
+ player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';
+ if(MP.open)closeMap();plShow(false);
+}
+function renderApartmentHall(d,ret){
+ clearApartmentInteriorVisual();
+ const ix=Number(d.roomX)||450,iz=Number(d.roomZ)||-270,floor=Number(d.floor)||1,floors=Number(d.floors)||2;
+ const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
+ const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
+ const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
+ const floorMat=M(0x777871),wall=new THREE.MeshLambertMaterial({color:0xd8d4c9,side:THREE.DoubleSide}),trim=M(0x5c5b54),dark=M(0x24313a),door=M(0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
+ A(new THREE.BoxGeometry(20,.16,24),floorMat,0,-.08,0);
+ A(new THREE.BoxGeometry(20,.10,24),M(0xe1d6c1),0,3.48,0);
+ A(new THREE.BoxGeometry(.20,3.5,24),wall,-9.9,1.72,0);A(new THREE.BoxGeometry(.20,3.5,24),wall,9.9,1.72,0);
+ A(new THREE.BoxGeometry(20,3.5,.20),wall,0,1.72,-11.9);
+ A(new THREE.BoxGeometry(8.0,3.5,.20),wall,-6.0,1.72,11.9);A(new THREE.BoxGeometry(8.0,3.5,.20),wall,6.0,1.72,11.9);
+ A(new THREE.BoxGeometry(4.0,.85,.20),wall,0,3.06,11.9);
+ addApartmentInteriorCollider(ix-9.9,iz,.12,12,'hall-side-wall');addApartmentInteriorCollider(ix+9.9,iz,.12,12,'hall-side-wall');
+ addApartmentInteriorCollider(ix,iz-11.9,10,.12,'hall-back-wall');addApartmentInteriorCollider(ix-6,iz+11.9,4,.12,'hall-front-wall');addApartmentInteriorCollider(ix+6,iz+11.9,4,.12,'hall-front-wall');addApartmentInteriorCollider(ix,iz+11.9,2,.12,'hall-front-door');
+ A(new THREE.BoxGeometry(1.85,2.48,.10),door,0,1.24,11.78);
+ A(new THREE.BoxGeometry(.78,2.26,.05),glass,-.43,1.2,11.68);A(new THREE.BoxGeometry(.78,2.26,.05),glass,.43,1.2,11.68);
+ A(new THREE.BoxGeometry(.055,2.2,.05),brass,0,1.16,11.62);
+ [-1,1].forEach(side=>{A(new THREE.BoxGeometry(.18,.42,.12),brass,side*8.95,2.55,9.7);A(new THREE.BoxGeometry(.10,.22,.06),new THREE.MeshBasicMaterial({color:0xffe8a3}),side*8.95,2.55,9.60);});
+ const titleTex=apartmentText(buildingName.toUpperCase());
+ readableTextBoard(root,new THREE.PlaneGeometry(9.2,1.55),titleTex,0,2.72,-11.72);
+ const floorTex=apartmentText('FLOOR '+floor+' / '+floors,'#293d47','#f7e5bf');
+ readableTextBoard(root,new THREE.PlaneGeometry(3.2,.72),floorTex,0,2.26,11.62,Math.PI);
+ const firstRoom=(floor-1)*APARTMENT_ROOMS_PER_FLOOR+1;
+ const numbers=(d.rooms||Array.from({length:APARTMENT_ROOMS_PER_FLOOR},(_,i)=>({roomNumber:firstRoom+i,vacant:true,occupiedByMe:false})));
+ const pois=[],doorZ=[-7.2,-4.0,-.8,2.4,5.6];
+ for(let i=0;i<APARTMENT_ROOMS_PER_FLOOR;i++){
+  const roomNumber=firstRoom+i;
+  const roomInfo=numbers.find(r=>Number(r.roomNumber)===roomNumber)||{roomNumber,vacant:true,occupiedByMe:false};
+  const side=i<5?-1:1,j=i%5,x=side*8.65,z=doorZ[j],color=roomInfo.occupiedByMe?0x1e8a72:roomInfo.vacant?0x597d58:roomInfo.locked?0xa33b36:0x7e4a45;
+  A(new THREE.BoxGeometry(.14,2.38,1.82),trim,x,1.2,z);
+  A(new THREE.BoxGeometry(.10,2.15,1.55),door,x-side*.10,1.10,z);
+  A(new THREE.BoxGeometry(.045,2.02,.055),brass,x-side*.16,1.10,z);
+  A(new THREE.BoxGeometry(.07,.08,.08),brass,x-side*.18,1.08,z+.46);
+  A(new THREE.BoxGeometry(.3,.28,.22),M(color),x-side*.16,2.0,z-.64);
+  addApartmentInteriorCollider(ix+side*8.55,iz+z,.09,.78,'numbered-room-door');
+  const plate=apartmentText(String(roomInfo.roomNumber),'#17303b');
+  readableTextBoard(root,new THREE.PlaneGeometry(1.45,.46),plate,x-side*.19,2.18,z,side<0?Math.PI/2:-Math.PI/2);
+  pois.push({x:ix+side*7.4,z:iz+z,k:'Room',name:'Room '+roomInfo.roomNumber+(roomInfo.locked&&!roomInfo.occupiedByMe?' · LOCKED':''),t:'apartment-room',roomNumber:roomInfo.roomNumber,buildingId,r:2.9});
+ }
+ // Elevator lobby replaces the staircase with framed sliding doors, floor display and call buttons.
+ A(new THREE.BoxGeometry(3.75,2.95,.22),trim,-1.2,1.48,-10.95);
+ A(new THREE.BoxGeometry(3.42,2.64,.10),dark,-1.2,1.42,-10.79);
+ A(new THREE.BoxGeometry(1.62,2.52,.12),M(0x9da9ae),-2.04,1.40,-10.70);
+ A(new THREE.BoxGeometry(1.62,2.52,.12),M(0x7d8b92),-.36,1.40,-10.70);
+ A(new THREE.BoxGeometry(.035,2.45,.035),brass,-1.2,1.40,-10.61);
+ A(new THREE.BoxGeometry(3.45,.11,.16),brass,-1.2,2.80,-10.68);
+ const liftLabel=apartmentText('ELEVATOR · '+(floor===1?'GROUND FLOOR':'FLOOR '+floor),'#17313e','#fff0bd');
+ readableTextBoard(root,new THREE.PlaneGeometry(3.65,.62),liftLabel,-1.2,3.15,-10.66);
+ A(new THREE.BoxGeometry(.48,.92,.12),metal,1.10,1.72,-10.73);
+ A(new THREE.BoxGeometry(.29,.32,.05),M(0x17252c),1.10,2.20,-10.64);
+ A(new THREE.BoxGeometry(.13,.13,.05),new THREE.MeshBasicMaterial({color:floor===1?0x39c980:0xf0bd58}),1.10,2.20,-10.59);
+ A(new THREE.BoxGeometry(.13,.13,.05),new THREE.MeshBasicMaterial({color:0x6e7f87}),1.10,1.82,-10.59);
+ const elevatorText=apartmentText('SELECT YOUR FLOOR','#293d47','#f7e5bf');
+ readableTextBoard(root,new THREE.PlaneGeometry(3.3,.48),elevatorText,-1.2,3.47,-10.65);
+ pois.push({x:ix-1.2,z:iz-8.4,k:'Elevator',name:'Choose a floor · '+floor+' / '+floors,t:'apartment-elevator',r:3.2});
+ if(floor===1)pois.push({x:ix,z:iz+9.9,k:'Exit',name:'Exit to street',t:'apartment-building-exit',r:2.8});
+ const prevRet=ret||{x:Number(d.returnX)||0,z:Number(d.returnZ)||24,face:face,camYaw:Math.PI,camPitch:.28};
+ inside={name:buildingName,x:ix,z:iz,roomW:18,roomD:22,isApartmentBuilding:true,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentFloor:floor,apartmentFloors:floors,apartmentRooms:numbers,ret:prevRet,pois};
+ apartmentPose(d.x??ix,d.z??iz,Math.PI,.08);
+}
+function renderApartmentRoom(d,ret){
+ clearApartmentInteriorVisual();
+ const ix=Number(d.roomX)||450,iz=Number(d.roomZ)||-270,number=Number(d.roomNumber)||1;
+ const floor=Number(d.floor)||Math.floor((number-1)/APARTMENT_ROOMS_PER_FLOOR)+1,floors=Number(d.floors)||Math.max(2,floor);
+ const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
+ const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
+ const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
+ const wall=new THREE.MeshLambertMaterial({color:0xe9e2d7,side:THREE.DoubleSide}),floorMat=M(0xb4a48b),trim=M(0x4d4137),wood=M(0x6b4934),soft=M(0x526e79),glass=new THREE.MeshPhongMaterial({color:0x7fb4c3,transparent:true,opacity:.56,side:THREE.DoubleSide});
+ A(new THREE.BoxGeometry(12,.14,12),floorMat,0,-.08,0);A(new THREE.BoxGeometry(12,.10,12),trim,0,.01,0);
+ A(new THREE.BoxGeometry(.18,3.15,12),wall,-5.9,1.55,0);A(new THREE.BoxGeometry(.18,3.15,12),wall,5.9,1.55,0);
+ A(new THREE.BoxGeometry(12,3.15,.18),wall,0,1.55,-5.9);
+ A(new THREE.BoxGeometry(4.25,3.15,.18),wall,-3.85,1.55,5.9);A(new THREE.BoxGeometry(4.25,3.15,.18),wall,3.85,1.55,5.9);
+ A(new THREE.BoxGeometry(3.5,.74,.18),wall,0,2.78,5.9);
+ A(new THREE.BoxGeometry(3.5,2.35,.10),wood,0,1.16,5.78);
+ addApartmentInteriorCollider(ix-5.9,iz,.12,6,'room-side-wall');addApartmentInteriorCollider(ix+5.9,iz,.12,6,'room-side-wall');
+ addApartmentInteriorCollider(ix,iz-5.9,6,.12,'room-back-wall');addApartmentInteriorCollider(ix-3.85,iz+5.9,2.125,.12,'room-front-wall');addApartmentInteriorCollider(ix+3.85,iz+5.9,2.125,.12,'room-front-wall');addApartmentInteriorCollider(ix,iz+5.9,1.75,.12,'room-front-door');
+ A(new THREE.BoxGeometry(1.45,2.12,.055),glass,-.78,1.10,5.68);A(new THREE.BoxGeometry(1.45,2.12,.055),glass,.78,1.10,5.68);
+ const roomPlate=apartmentText('ROOM '+number,'#17313d','#fff2c7');
+ readableTextBoard(root,new THREE.PlaneGeometry(3.0,.72),roomPlate,0,2.52,5.68,Math.PI);
+ const title=apartmentText(buildingName+' · ROOM '+number);
+ readableTextBoard(root,new THREE.PlaneGeometry(6.2,.85),title,0,3.0,-5.78);
+ A(new THREE.BoxGeometry(3.5,.42,4.1),wood,-2.75,.25,-2.4);A(new THREE.BoxGeometry(3.35,.22,3.85),M(0xeee7d7),-2.75,.56,-2.35);
+ A(new THREE.BoxGeometry(3.35,.18,2.0),M(0x537b89),-2.75,.72,-3.1);A(new THREE.BoxGeometry(1.05,.17,.65),M(0xf7f2e8),-3.5,.78,-4.05);A(new THREE.BoxGeometry(1.05,.17,.65),M(0xf7f2e8),-2.0,.78,-4.05);
+ A(new THREE.BoxGeometry(3.72,.23,.25),trim,-2.75,1.05,-4.4);
+ A(new THREE.BoxGeometry(1.55,2.45,.82),wood,4.55,1.23,-3.4);A(new THREE.BoxGeometry(.055,2.05,.04),M(0x9bb4b9),3.7,1.25,-3.4);
+ A(new THREE.BoxGeometry(3.45,.22,1.25),trim,3.65,.92,2.55);A(new THREE.BoxGeometry(3.3,.86,1.12),wood,3.65,.47,2.55);
+ A(new THREE.BoxGeometry(.98,.12,.75),soft,4.25,1.10,2.45);A(new THREE.BoxGeometry(.65,.08,.48),glass,4.25,1.17,2.45);
+ A(new THREE.BoxGeometry(.82,2.0,.9),M(0xd7d8d2),5.0,1.0,4.0);
+ A(new THREE.BoxGeometry(4.25,.05,2.85),M(0x6a4141),-1.3,.045,2.7);
+ A(new THREE.BoxGeometry(3.5,.64,1.15),soft,-2.6,.48,1.9);A(new THREE.BoxGeometry(3.5,.98,.20),soft,-2.6,.85,2.42);
+ A(new THREE.BoxGeometry(1.55,.42,1.05),wood,-2.5,.42,.05);A(new THREE.BoxGeometry(1.42,.07,.92),M(0x82684e),-2.5,.66,.05);
+ A(new THREE.CylinderGeometry(.34,.28,.12,14),trim,0,3.03,0);A(new THREE.CylinderGeometry(.23,.23,.08,14),new THREE.MeshBasicMaterial({color:0xffe6a2}),0,2.93,0);
+ A(new THREE.BoxGeometry(1.65,1.18,.08),trim,1.0,2.1,-5.78);A(new THREE.BoxGeometry(1.35,.9,.04),M(0x6b998d),1.0,2.1,-5.72);
+ A(new THREE.BoxGeometry(2.2,.95,.42),wood,1.55,.48,-.2);A(new THREE.BoxGeometry(2.05,.07,.38),trim,1.55,.98,-.2);
+ const isTenant=d.isTenant===true,locked=d.locked===true;
+ const pois=[{x:ix,z:iz+4.7,k:'Exit',name:'Return to Floor '+floor+' corridor',t:'apartment-room-exit',r:2.6}];
+ if(isTenant)pois.push({x:ix+3.8,z:iz+.6,k:'Room settings',name:locked?'Unlock this room':'Lock this room',t:'apartment-room-settings',r:2.6});
+ inside={name:buildingName+' · Room '+number,x:ix,z:iz,roomW:12,roomD:12,isApartmentRoom:true,isApartmentRoomOwner:isTenant,apartmentRoomLocked:locked,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentRoomNumber:number,apartmentFloor:floor,apartmentFloors:floors,prepaidDays:Number(d.prepaidDays)||0,ret:ret||null,pois};
+ apartmentPose(d.x??ix,d.z??iz,Math.PI,.08);
+}
+function apartmentRoomLockButton(buildingId,roomNumber,locked){
+ return '<button data-apartment-lock="'+(!locked)+'" data-apartment-building="'+buildingId+'" data-apartment-room="'+roomNumber+'">'+(locked?'🔓 Unlock room':'🔒 Lock room')+'</button>';
+}
+function openApartmentRoomMenu(p){
+ const state=inside?.apartmentRooms?.find(r=>Number(r.roomNumber)===Number(p.roomNumber));
+ if(!inside?.isApartmentBuilding||!state){sys("Apartment room information is still loading. Try the numbered door again.");return;}
+ const occupied=!state.vacant,own=state.occupiedByMe===true,locked=state.locked===true,life=window.NRS?.life||{},canRent=own||!life.homeId;
+ const days=Array.from({length:7},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+' · ₦'+((i+1)*1500).toLocaleString('en-NG')+'</option>').join('');
+ const status=own?'This is your private apartment. You can lock it to prevent visitors entering.':locked?'🔒 The tenant has locked this room. Visitors cannot enter until it is unlocked.':occupied?'This apartment is rented but unlocked. You may enter and look around; please respect the tenant’s property.':'This apartment is vacant and open for viewing. You can inspect it before renting.';
+ const visit=own?'<button data-apartment-enter="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">🚪 Enter my room</button>':
+  locked?'<button disabled>🔒 Room locked by tenant</button>':
+  '<button data-apartment-enter="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">👀 '+(occupied?'Visit apartment':'Preview apartment')+'</button>';
+ const rental=own?'<p><label>Extend tenancy <select id="apartmentRentDays">'+days+'</select></label></p><button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">Extend rent</button>':
+  !occupied?'<p><label>Rent duration <select id="apartmentRentDays">'+days+'</select></label></p><button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'" '+(canRent?'':'disabled')+'>Rent & enter room '+p.roomNumber+'</button>':'';
+ panel('<div class="wm-head"><span>🏠</span><div><small>BLOCK '+safeText(inside.apartmentBuildingName.replace('Apartment Block #',''))+' · FLOOR '+inside.apartmentFloor+'</small><h2>Apartment Room #'+p.roomNumber+'</h2><p>'+safeText(inside.apartmentBuildingName)+' · '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' total units</p></div></div>'+
+  '<p class="wm-note">'+status+' Rooms on this floor are '+((inside.apartmentFloor-1)*APARTMENT_ROOMS_PER_FLOOR+1)+'–'+(inside.apartmentFloor*APARTMENT_ROOMS_PER_FLOOR)+'. This block has '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' units in total.</p>'+
+  '<div class="hm-price"><div><small>DAILY RENT</small><strong>₦1,500</strong></div><span>PER DAY</span></div>'+
+  visit+rental+(own?apartmentRoomLockButton(p.buildingId,p.roomNumber,locked):'')+
+  (!own&&!occupied&&!canRent?'<p>You already rent a separate house or apartment, so you cannot rent this room.</p>':''));
+ modal.classList.add('apartment-menu');
+}
+function openApartmentElevatorMenu(){
+ if(!inside?.isApartmentBuilding)return;
+ const floor=inside.apartmentFloor,floors=inside.apartmentFloors;
+ const buttons=Array.from({length:floors},(_,i)=>{
+  const target=i+1,current=target===floor,label=target===1?'Ground Floor · Floor 1':'Floor '+target;
+  return '<button data-apartment-floor="'+target+'" '+(current?'disabled':'')+'>'+label+(current?' · Current floor':'')+'</button>';
+ }).join('');
+ panel('<div class="wm-head"><span>🛗</span><div><small>'+safeText(inside.apartmentBuildingName)+'</small><h2>Elevator</h2><p>Currently on '+(floor===1?'Ground Floor':'Floor '+floor)+' of '+floors+'</p></div></div><p class="wm-note">Choose any floor directly. The street exit is only available on the Ground Floor (Floor 1).</p><div class="wm-buttons">'+buttons+'</div>');
+ modal.classList.add('apartment-menu');
+}
+function openApartmentRoomSettings(){
+ if(!inside?.isApartmentRoom||!inside.isApartmentRoomOwner)return;
+ const locked=inside.apartmentRoomLocked===true;
+ panel('<div id="apartmentRoomSettingsPanel"><div class="wm-head"><span>🔐</span><div><small>YOUR RENTED APARTMENT</small><h2>Room '+inside.apartmentRoomNumber+' access</h2><p>'+safeText(inside.apartmentBuildingName)+'</p></div></div><p class="wm-note">'+(locked?'Your room is locked. Visitors are blocked from entering.':'Your room is unlocked. Other players can enter and look around.')+'</p>'+apartmentRoomLockButton(inside.apartmentBuildingId,inside.apartmentRoomNumber,locked)+'</div>');
+ modal.classList.add('apartment-menu');
+}
+
+refreshApartmentPOIs();
+function openHouseMenu(h){
+ const N=window.NRS||{},houses=N.houses||[],latest=houses.find(q=>q.id===h?.id)||h;
+ if(!latest)return;h=latest;
+ const life=N.life||{},own=!!h.occupiedByMe,vacant=!!h.vacant,locked=!!h.locked;
+ const canVisit=own||vacant||!locked,canRent=vacant&&(!life.homeId||life.homeId===h.id);
+ const daysLeft=Math.max(1,7-(own?Number(life.rentDays||0):0));
+ const days=Array.from({length:Math.min(7,daysLeft)},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+'</option>').join('');
+ const state=own?(locked?'LOCKED · OWNER ACCESS':'YOUR HOME · OPEN'):vacant?'VACANT · OPEN FOR VIEWING':locked?'LOCKED BY OWNER':'OCCUPIED · VISITORS ALLOWED';
+ const gate=own?'<button data-house-lock="'+h.id+'" data-house-lock-to="'+(!locked)+'">'+(locked?'🔓 Unlock house':'🔒 Lock house')+'</button>':'';
+ const visit=canVisit?'<button data-house-visit="'+h.id+'">🚪 Enter and inspect</button>':'<button disabled>🔒 House locked</button><p>Only the owner can unlock this house.</p>';
+ const rent=vacant?'<p><label>Rent duration <select id="houseRentDays">'+days+'</select></label></p><button data-house-rent="'+h.id+'" '+(canRent?'':'disabled')+'>🏠 Rent this house</button>'+(canRent?'':'<p>You already rent another house or have reached the prepaid-rent limit.</p>'):'';
+ panel('<div class="hm-head"><span class="hm-icon">⌂</span><div class="hm-title"><small>PROPERTY DETAILS</small><h2>'+(h.name||'House')+'</h2><p>'+String(h.zone||'Port Harcourt')+' · '+h.id+'</p></div><span class="hm-closehint">HOME</span></div><div class="hm-status '+(own?'is-owned':vacant?'is-vacant':'is-occupied')+'"><i></i>'+state+'</div><div class="hm-price"><div><small>DAILY RENT</small><strong>₦'+Number(h.rentPerDay||0).toLocaleString('en-NG')+'</strong></div><span>PER DAY</span></div><div class="hm-actions">'+visit+gate+rent+'</div>');
+ modal.classList.add('house-menu');
+}
+function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
+ if(b!==curPoi){curPoi=b;act2.style.display=b?'block':'none';if(b){
+  if(b.t==='apartment-room')act2.textContent='Enter Room '+b.roomNumber;
+  else if(b.t==='apartment-elevator')act2.textContent='Use Elevator';
+  else if(b.t==='apartment-building-exit')act2.textContent='Exit to Street';
+  else if(b.apartmentBuildingPoi)act2.textContent='Enter '+b.apartmentBuilding.buildingName;
+  else act2.textContent=b.k+' · '+b.name;
+ }}}
+function openWorkplaceReceptionMenu(workplaceId){
+ workplaceMenuOpen=false;
+ const places=window.NRS?.workplaceState?.workplaces||window.NRS?.workplaces||[];
+ const workplace=places.find(w=>w.id===workplaceId);
+ if(!workplace){openWorkplaceMenuFor(workplaceId);return;}
+ const name=safeText(workplace.name),kind=String(workplace.kind||'');
+ const guidance=kind==='hospital'?'For treatment, approach a real on-duty medical worker wearing this hospital uniform.':
+  ['police','frsc','fire','military'].includes(kind)?'For assistance, approach an on-duty uniformed officer or responder.':
+  kind==='school'?'For school enquiries, the secretary can direct visitors to available staff.':
+  'The secretary can direct visitors and staff requests to the right department.';
+ panel('<div class="wm-head"><span>🏢</span><div><small>FRONT DESK · RECEPTION</small><h2>'+name+'</h2><p>Secretary / Reception</p></div></div><p>Welcome. Please tell the reception desk what you need.</p><p class="wm-note">'+guidance+'</p><div class="wm-buttons"><button data-reception-career="'+workplaceId+'">Workplace & staff services</button></div>');
+ modal.classList.add('work-menu');modal.style.display='flex';
+}
+act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='forbes'){openForbesBoard();return;}if(p.t==='workplace'){window.NRS?.enterWorkplaceInterior(p.workplaceId);return;}if(p.t==='workplace-service'){openWorkplaceReceptionMenu(p.workplaceId);return;}if(p.t==='workplace-staff-room'){window.NRS?.enterStaffRoom(p.workplaceId);return;}if(p.t==='workplace-exit'){window.NRS?.exitWorkplaceInterior();return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.t==='apartment-elevator'){openApartmentElevatorMenu();return;}if(p.t==='apartment-room'){openApartmentRoomMenu(p);return;}if(p.t==='apartment-room-settings'){openApartmentRoomSettings();return;}if(p.t==='apartment-room-exit'){window.NRS?.exitApartmentRoom();return;}if(p.t==='apartment-building-exit'){window.NRS?.exitApartmentBuilding();return;}if(p.apartmentBuildingPoi){window.NRS?.enterApartmentBuilding(p.apartmentBuilding);return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
+ shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
+/* bank + ATM */
+function bankUI(){
+ panel('<div class="wm-head"><span>🏦</span><div><small>IN-GAME BANKING</small><h2>'+shopP.name+'</h2><p>Cash: ₦'+f(cash)+' · Bank: ₦'+f(bank)+'</p></div></div>'+
+  '<p>Deposit and withdraw game currency, or send money to another player by their username.</p>'+
+  '<div class="bank-actions">'+['d','w'].map(m=>[1000,5000,'all'].map(v=>'<button data-a="'+m+v+'">'+(m==='d'?'Deposit ':'Withdraw ')+(v==='all'?'all':'₦'+f(v))+'</button>').join(' ')).join('<br>')+'</div>'+
+  '<div class="bank-transfer"><h3>Transfer game currency</h3><p>In-game bank balance only. This feature does not send or accept real money.</p>'+
+  '<label>Player username<input id="moneyTransferUsername" maxlength="31" autocomplete="off" placeholder="Firstname_lastname"></label>'+
+  '<label>Amount to transfer (₦)<input id="moneyTransferAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 2500"></label>'+
+  '<button data-money-transfer="1">Transfer from bank</button></div>'+
+  (pMsg?'<p><i>'+pMsg+'</i></p>':''));
+ modal.classList.add('bank-menu');
+}
+/* job center */
+const JOBS=[['Parcel to Mile 1 Market',-6.5,95,6000],['Parcel to Rumuola',110,70,9000],['Parcel to Waterlines',90,150,12000]];
+function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.n+'</b></p><p>Deliver it, then come back for the next one.</p><button data-open-workplaces="1">🏢 Careers & factions</button>');
+ else{const j=JOBS[jobN%JOBS.length];panel('<b>💼 Job Center</b><p>“We need a rider for a delivery.”</p><p><b>'+j[0]+'</b><br>Pay: ₦'+f(j[3])+'</p><button data-j="1">Accept job</button><button data-open-workplaces="1">🏢 Careers & factions</button>');}}
+/* ---------- Stage 3: careers, work tasks and roleplay factions ---------- */
+let workplaceMenuOpen=false,workplaceRefreshTimer=null;
+const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let forbesBoardOpen=false;
+function openForbesBoard(){
+ forbesBoardOpen=true;
+ panel('<div class="wm-head"><span>🏆</span><div><small>RIVERS NEWS NETWORK · FORBES</small><h2>Top 10 Richest Players</h2><p>Live ranking by total cash plus bank balance.</p></div></div><p class="forbes-intro">This board displays in-game currency only; it does not include real money.</p><div id="forbesRanking" class="forbes-ranking"><p class="wm-loading">Loading the richest citizens…</p></div><button id="forbesRefresh" class="forbes-refresh" type="button">Refresh rankings</button>');
+ modal.classList.add('forbes-menu');
+ $('forbesRefresh').onclick=()=>window.NRS?.getRichestPlayers();
+ window.NRS?.getRichestPlayers();
+}
+window.addEventListener('nrs-richest-players',e=>{
+ const payload=e.detail||{},players=Array.isArray(payload.players)?payload.players:[];
+ drawForbesPhysicalSign(players);
+ if(!forbesBoardOpen)return;
+ const root=$('forbesRanking');if(!root)return;
+ if(!players.length){root.innerHTML='<p class="wm-note">'+safeText(payload.message||'No wealth records are available yet. Refresh in a moment.')+'</p>';return;}
+ root.innerHTML=players.map((p,i)=>'<div class="forbes-row tier-'+(i+1)+'"><span class="forbes-rank">'+String(i+1).padStart(2,'0')+'</span><span class="forbes-name">'+safeText(p.username||'Citizen')+'</span><strong class="forbes-wealth">₦'+Math.max(0,Math.floor(Number(p.totalWealth)||0)).toLocaleString('en-NG')+'</strong></div>').join('');
+});
+function openWorkplaceMenu(){openWorkplaceMenuFor(null);}
+function openWorkplaceMenuFor(workplaceId){governmentMenuOpen=false;workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');modal.style.display='flex';const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
+function openPlayerInteractionMenu(target){
+ const N=window.NRS||{},id=String(target?.playerId||'');if(!id||id===N.session?.id)return;
+ const username=safeText(target.name||'Player'),employment=N.workplaceState?.employment||N.life?.employment||null;
+ const workplace=(N.workplaceState?.workplaces||N.workplaces||[]).find(w=>w.id===employment?.workplaceId);
+ const ready=!!employment?.onDuty&&employment?.uniformWorkplaceId===employment?.workplaceId;
+ let actions='<button data-player-action="greet" data-player-id="'+safeText(id)+'">👋 Greet player</button>';
+ if(ready&&workplace?.kind==='hospital')actions+='<button data-hospital-open="'+safeText(workplace.id)+'">🩺 Open hospital services</button>';
+ if(ready&&['police','frsc'].includes(workplace?.kind))actions+='<button data-player-action="requestId" data-player-id="'+safeText(id)+'">🪪 Request identification</button>';
+ panel('<div class="wm-head"><span>🤝</span><div><small>NEARBY CITIZEN</small><h2>'+username+'</h2><p>Hold on a nearby player to open this contextual menu.</p></div></div><p class="wm-note">Choose an action appropriate to your role and situation. The server verifies range, duty status and uniform.</p><div class="wm-buttons">'+actions+'</div>');
+ modal.classList.add('work-menu');modal.style.display='flex';
+}
+function renderWorkplaceMenu(data){
+ if(!workplaceMenuOpen||!data)return;
+ const allPlaces=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;
+ // Building entrances show only the configured workplace; the Careers tab (no focus)
+ // remains the central directory. This is also reflected in the rendered card list.
+ const places=focus?allPlaces.filter(w=>w.id===focus):allPlaces;
+ const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
+ const workHistory=(data.workHistory||[]).slice(-5).reverse();
+ const historyPanel=workHistory.length?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4>'+workHistory.map(entry=>'<div class="wm-person"><span><b>'+safeText(entry.taskTitle||'Work task')+'</b><small>'+safeText(allPlaces.find(w=>w.id===entry.workplaceId)?.name||entry.workplaceId||'Workplace')+' · Rank '+Number(entry.rank||1)+' · '+new Date(Number(entry.paidAt)||0).toLocaleString('en-NG')+'</small></span><strong>+₦'+Number(entry.amount||0).toLocaleString('en-NG')+'</strong></div>').join('')+'</section>':employment?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4><p class="wm-note">Your completed task receipts will appear here after your first paid task.</p></section>':'';
+ let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
+ let cards=places.map(w=>{
+  const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
+  let actions='';
+  if(me){
+   actions+='<button data-staff-room="'+w.id+'" '+(employment.onDuty?'disabled':'')+'>'+(inside?.isWorkplaceInterior&&inside.workplaceId===w.id?'🚪 Enter staff changing room':'🏢 Enter workplace reception')+'</button>';
+   actions+='<div class="wm-buttons"><button data-work-duty="'+w.id+'" data-duty="'+(!employment.onDuty)+'">'+(employment.onDuty?'Clock out':'Clock in')+'</button><button class="subtle" data-work-leave="1">Leave job</button></div>';
+   if(employment.onDuty){
+    if(running){actions+='<div class="wm-task-running"><small>IN PROGRESS</small><b>'+safeText(w.tasks?.find(t=>t.id===task.taskId)?.title||'Work task')+'</b><span data-work-countdown="'+Math.ceil(remain/1000)+'">'+(remain>0?'Ready in '+Math.ceil(remain/1000)+'s':'Task ready to complete')+'</span><button data-work-task-complete="1" '+(remain>0?'disabled':'')+'>Complete task</button></div>';}
+    else if(Date.now()<(Number(data.taskReadyAt)||0)){actions+='<p class="wm-note">Next paid task available in '+Math.ceil((Number(data.taskReadyAt)-Date.now())/1000)+'s.</p>';}
+    else {actions+='<div class="wm-task-list">'+(w.tasks||[]).map(t=>'<button data-work-task-start="'+t.id+'"><span>'+safeText(t.title)+'</span><strong>₦'+Number(t.pay||t.basePay).toLocaleString('en-NG')+'</strong><small>10-second task</small></button>').join('')+'</div>';}
+   }
+  }else if(pending){actions+='<div class="wm-pending">Application awaiting approval</div>';}
+  else if(employment){actions+='<button class="subtle" disabled>Leave your current job first</button>';}
+  else {actions+='<button data-work-apply="'+w.id+'">'+(w.requiresApproval?'Apply to faction':'Join workplace')+'</button>';}
+  let management='';
+  if(data.isFactionAdmin){
+   const targets=online.map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+(p.workplaceId?' — '+safeText(places.find(q=>q.id===p.workplaceId)?.name||p.workplaceId):' — unemployed')+'</option>').join('');
+   const ranks=(w.rankTitles||[]).map((titles,i)=>'<option value="'+(i+1)+'">Rank '+(i+1)+' — '+safeText(titles?.[0]||('Rank '+(i+1)))+'</option>').join('');
+   const staff=(w.staff||[]).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>'+safeText(p.rankTitle)+' · Rank '+p.rank+(p.onDuty?' · On duty':'')+'</small></span><span class="wm-admin-tag">'+(p.boss?'BOSS':'STAFF')+'</span></div>').join('');
+   management='<div class="wm-management"><h4>GLOBAL ADMIN CONTROLS</h4><p class="wm-note">Full faction administration: assign any online player to this workplace and choose any rank from 1 to 6.</p><div class="wm-admin-controls">'+(targets?'<select data-admin-target aria-label="Choose player">'+targets+'</select>':'<p class="wm-note">No online players are available.</p>')+'<select data-admin-rank-value aria-label="Choose rank">'+ranks+'</select><div class="wm-admin-buttons"><button data-admin-set-rank="'+w.id+'" '+(!targets?'disabled':'')+'>Assign workplace & rank</button><button class="subtle" data-admin-dismiss="'+w.id+'" '+(!targets?'disabled':'')+'>Remove from workplace</button></div></div><button data-admin-set-rank="'+w.id+'" data-rank-fixed="6" '+(!targets?'disabled':'')+'>Appoint selected player as boss (Rank 6)</button><h4>ONLINE STAFF</h4>'+(staff||'<p class="wm-note">No online staff currently belong to this workplace.</p>')+'</div>';
+  }else if(ownBoss){
+   const staff=(w.staff||[]).filter(p=>p.id!==window.NRS?.session?.id && p.rank<6).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>'+safeText(p.rankTitle)+' · Rank '+p.rank+(p.onDuty?' · On duty':'')+'</small></span><div>'+(p.rank<5?'<button data-staff-rank="'+safeText(p.id)+'" data-rank="'+(p.rank+1)+'">Promote</button>':'')+(p.rank>1?'<button class="subtle" data-staff-rank="'+safeText(p.id)+'" data-rank="'+(p.rank-1)+'">Demote</button>':'')+'<button class="danger" data-staff-dismiss="'+safeText(p.id)+'">Dismiss</button></div></div>').join('');
+   const applications=(w.applications||[]).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>Application submitted</small></span><div><button data-app-review="'+safeText(p.id)+'" data-approve="1">Accept</button><button class="danger" data-app-review="'+safeText(p.id)+'" data-approve="0">Decline</button></div></div>').join('');
+   const free=online.filter(p=>!p.workplaceId&&p.id!==window.NRS?.session?.id).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+'</option>').join('');
+   management='<div class="wm-management"><h4>Staff management</h4>'+(staff||'<p class="wm-note">No other online staff yet.</p>')+(applications?'<h4>Applications</h4>'+applications:'')+(free?'<div class="wm-hire"><select id="wmHirePlayer">'+free+'</select><button data-staff-hire="1">Hire player</button></div>':'')+'</div>';
+  }
+  const faction=w.faction||{};
+  const rankLadder='<details class="wm-rank-ladder"><summary>View six-rank ladder & pay</summary><div class="wm-rank-list">'+(w.rankTitles||[]).map((titles,i)=>'<div class="wm-rank-row"><span>Rank '+(i+1)+'</span><b>'+safeText((titles||[]).join(' / ')||('Rank '+(i+1)))+'</b><small>'+Number(w.rankMultipliers?.[i]??1)+'× pay</small></div>').join('')+'</div></details>';
+  const stage4Shortcut=w.id==='transport-union' ? '<section class="s4-card"><h3>🚐 Public transport & haulage</h3><p class="s4-muted">Request passenger rides, operate the company fleet, validate route stops and complete delivery contracts.</p><button data-transport-open="1">Open transport terminal</button></section>' : w.id==='market-mile1'
+    ?'<section class="s4-card"><h3>🛒 Mile 1 Market</h3><p class="s4-muted">Shop from verified on-duty salespeople. Purchased goods are added to your backpack.</p><button data-market-open="1">Open market & product catalogue</button></section>'
+    :w.id==='bank-main'
+      ?'<section class="s4-card"><h3>🏦 Port Harcourt Bank</h3><p class="s4-muted">View your bank receipts or open the teller workstation when you are on duty in uniform.</p><button data-bank-open="1">Open banking services</button></section>'
+      :(w.id==='hospital-main'||w.id==='hospital-princess')
+        ?'<section class="s4-card"><h3>🩺 Hospital & patient services</h3><p class="s4-muted">Request care, meet available nurses and doctors, follow treatment requests, or help patients when you are on duty.</p><button data-hospital-open="'+w.id+'">Open hospital services</button></section>'
+        :w.id==='gov-rivers'
+       ?'<section class="s4-card"><h3>🏛 Rivers State Government</h3><p class="s4-muted">Official notices, transparent treasury receipts, daily payroll and Governor-authorized spending.</p><button data-government-open="1">Open government & civic finance</button></section>'
+       :w.id==='news-main'
+          ?'<section class="s4-card"><h3>📰 Rivers News Network</h3><p class="s4-muted">File event-based stories, approve editorial copy, broadcast approved reports and review content reports.</p><button data-news-open="newsroom">Open newsroom & broadcast desk</button><button class="subtle" data-news-open="feed">Read live news feed</button></section>'
+       :w.id==='park-main'
+          ?'<section class="s4-card"><h3>🌳 City Park visitor services</h3><p class="s4-muted">Buy a daily visitor pass from a ticket seller, ask for help, or respond to visitor requests as park staff.</p><button data-park-open="1">Open park services</button></section>'
+          :'';
+  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+stage4Shortcut+management+'</article>';
+ }).join('');
+ const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div><button data-stage7-open="1">🚨 Police, traffic, fire & public-safety incidents</button><button class="subtle" data-news-open="feed">📰 Read Rivers News Network</button><button class="subtle" data-transport-open="1">🚐 Public transport & haulage</button>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ modal.classList.add('work-menu');modal.style.display='flex';
+}
+
+
+/* Stage 7 — Public-safety incident and responder console */
+let stage7MenuOpen = false, stage7Feedback = null;
+const stage7IncidentTitle = k => ({crime:"Crime report","traffic-accident":"Traffic accident",fire:"Fire / rescue","public-safety":"Major public-safety event"}[k] || "Incident");
+const stage7UnitTitle = id => ({"police-rivers":"Police","army-rivers":"Army","frsc-rivers":"FRSC","fire-rivers":"Fire Service"}[id] || id || "Unassigned");
+const stage7Id = id => String(id || "").replace(/[^a-z0-9_-]/gi,"_");
+function openStage7Console() {
+  stage7MenuOpen=true; stage7Feedback=null; governmentMenuOpen=false; workplaceMenuOpen=false;
+  marketMenuOpen=false; bankMenuOpen=false; hospitalMenuOpen=false; parkMenuOpen=false;
+  panel('<div class="s4-head"><span class="s4-icon">🚨</span><div><small>PORT HARCOURT · PUBLIC SAFETY</small><h2>Emergency & law enforcement</h2><p>Report incidents, dispatch responders and keep an accountable audit trail.</p></div></div><div class="s4-empty">Loading incident board…</div>');
+  modal.classList.add("stage4-menu"); window.NRS?.getStage7State();
+}
+function renderStage7Console(d) {
+  if (!stage7MenuOpen) return; d=d || window.NRS?.stage7State || {};
+  const incidents=Array.isArray(d.incidents)?d.incidents:[], actions=Array.isArray(d.actions)?d.actions:[], citizens=Array.isArray(d.citizens)?d.citizens:[], checkpoints=Array.isArray(d.checkpoints)?d.checkpoints:[], appeals=Array.isArray(d.appeals)?d.appeals:[];
+  const feedback=stage7Feedback?'<div class="s4-notice '+(stage7Feedback.ok?"success":"error")+'">'+safeText(stage7Feedback.message||"")+'</div>':"";
+  const activeCount=incidents.filter(i=>i.status!=="resolved").length, detention=d.myDetention;
+  const responder=d.canRespond?'<div class="s4-notice success">Responder verified: '+safeText(d.unitName)+' · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">Citizen reporting is open. Response actions require the correct organisation, rank, duty status and uniform.</div>';
+  const reportForm='<section class="s4-card"><h3>📣 Report a public-safety incident</h3><p class="s4-muted">The server records your current location. False reports may be reviewed.</p><label class="s4-field">Incident type<select id="s7IncidentKind"><option value="crime">Crime / suspicious activity</option><option value="traffic-accident">Traffic accident</option><option value="fire">Fire / rescue</option><option value="public-safety">Major public-safety event</option></select></label><label class="s4-field">What happened?<textarea id="s7IncidentDescription" rows="3" maxlength="240" placeholder="Describe the event and any immediate danger"></textarea></label><button data-stage7-report="1">Submit incident report</button></section>';
+  const targetOptions='<option value="">Select online citizen</option>'+citizens.filter(p=>p.id!==d.selfId).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+'</option>').join("");
+  const incidentCards=incidents.length?'<div class="s4-list">'+incidents.map(i=>{
+    const id=stage7Id(i.id),done=i.status==="resolved",assigned=i.assignedWorkplaceId===d.workplaceId; let controls="";
+    if(d.canRespond&&!done&&!i.assignedWorkplaceId)controls+='<button data-stage7-dispatch="'+safeText(i.id)+'">Dispatch '+safeText(d.unitName||stage7UnitTitle(d.workplaceId))+'</button>';
+    if(!done&&assigned&&d.canInvestigate&&(i.kind==="crime"||i.kind==="public-safety")){
+      controls+='<label class="s4-field">Reason / investigation lead<input id="s7Reason_'+id+'" maxlength="500" placeholder="Reason for action"></label><label class="s4-field">Evidence / witness notes<textarea id="s7Evidence_'+id+'" maxlength="500" rows="2" placeholder="Record supporting evidence"></textarea></label><button data-stage7-investigate="'+safeText(i.id)+'">Save investigation note</button>';
+      controls+='<label class="s4-field">Suspect to arrest<select id="s7Target_'+id+'">'+targetOptions+'</select></label><button data-stage7-arrest="'+safeText(i.id)+'">Record arrest & temporary custody</button>';
+    }
+    if(!done&&assigned&&d.canFine&&(i.kind==="traffic-accident"||i.kind==="public-safety")){
+      controls+='<label class="s4-field">Fine recipient<select id="s7FineTarget_'+id+'">'+targetOptions+'</select></label><label class="s4-field">Offence<select id="s7Offence_'+id+'"><option value="speeding">Speeding</option><option value="illegal-parking">Illegal parking</option><option value="reckless-driving">Reckless driving</option><option value="dangerous-driving">Dangerous driving</option><option value="unsafe-load">Unsafe / unsecured load</option><option value="obstructing-emergency">Obstructing emergency response</option></select></label><label class="s4-field">Fine amount (₦)<input id="s7FineAmount_'+id+'" type="number" min="1" step="1" inputmode="numeric" placeholder="5000"></label><label class="s4-field">Fine reason<input id="s7FineReason_'+id+'" maxlength="500" placeholder="Reason for fine"></label><label class="s4-field">Evidence<textarea id="s7FineEvidence_'+id+'" maxlength="500" rows="2" placeholder="Observation / supporting evidence"></textarea></label><button data-stage7-fine="'+safeText(i.id)+'">Settle fine & credit state treasury</button>';
+    }
+    if(!done&&assigned&&d.canResolveFire&&i.kind==="fire")controls+='<label class="s4-field">Extinguishing & safety outcome<textarea id="s7Outcome_'+id+'" rows="2" maxlength="300" placeholder="Record extinguishing and scene safety"></textarea></label><button data-stage7-extinguish="'+safeText(i.id)+'">Record fire extinguished</button>';
+    if(!done&&assigned&&d.canClearTraffic&&i.kind==="traffic-accident")controls+='<label class="s4-field">Traffic response & road clearance<textarea id="s7Road_'+id+'" rows="2" maxlength="300" placeholder="Record actions and road condition"></textarea></label><button data-stage7-clear="'+safeText(i.id)+'">Record response & clear road</button>';
+    if(!done&&assigned&&d.canCloseCase&&(i.kind==="crime"||i.kind==="public-safety"))controls+='<label class="s4-field">Case closure reason<input id="s7CloseReason_'+id+'" maxlength="500" placeholder="Closure reason"></label><label class="s4-field">Final evidence / outcome<textarea id="s7CloseEvidence_'+id+'" maxlength="500" rows="2" placeholder="Outcome supporting closure"></textarea></label><button data-stage7-close="'+safeText(i.id)+'">Close Police case</button>';
+    return '<div class="s4-card"><h3>'+(done?"✅":"🟠")+' '+safeText(stage7IncidentTitle(i.kind))+' · '+safeText(String(i.status||"open").toUpperCase())+'</h3><p>'+safeText(i.description||"No description")+'</p><p class="s4-muted">Ref '+safeText(i.id)+' · Reporter '+safeText(i.reporterName)+' · '+stage5When(i.createdAt)+'</p><p class="s4-muted">Server location X '+Number(i.x).toFixed(1)+' · Z '+Number(i.z).toFixed(1)+' · Assigned '+safeText(stage7UnitTitle(i.assignedWorkplaceId))+'</p>'+(i.resolution?'<div class="s4-notice success">'+safeText(i.resolution)+'</div>':"")+controls+'</div>';
+  }).join("")+'</div>':'<div class="s4-empty">No incidents yet. Reports will appear here for the relevant response unit.</div>';
+  const activeCps=checkpoints.filter(c=>c.active);
+  const checkpointPanel=d.canActivateCheckpoint?'<section class="s4-card"><h3>🪖 Restricted checkpoint control</h3><p class="s4-muted">Army rank 2+; activation is location-checked and expires after 20 minutes.</p><label class="s4-field">Checkpoint<select id="s7Checkpoint">'+checkpoints.map(c=>'<option value="'+safeText(c.id)+'">'+safeText(c.name)+(c.active?" · ACTIVE":"")+'</option>').join("")+'</select></label><button data-stage7-activate="1">Activate checkpoint</button></section>':"";
+  const checkpointClose=activeCps.length&&(d.canReviewAppeals||(d.workplaceId==="army-rivers"&&Number(d.rank)>=4&&d.canRespond))?'<section class="s4-card"><h3>Checkpoint closure</h3>'+activeCps.map(c=>'<label class="s4-field">'+safeText(c.name)+' closure reason<input id="s7DeactivateReason_'+stage7Id(c.id)+'" maxlength="240" placeholder="Why close this checkpoint?"></label><button class="subtle" data-stage7-deactivate="'+safeText(c.id)+'">Deactivate checkpoint</button>').join("")+'</section>':"";
+  const detentionPanel=detention?'<section class="s4-card"><h3>⛓ Temporary custody</h3><p class="s4-muted">Incident '+safeText(detention.incidentId)+' · Arresting officer '+safeText(detention.arrestedByName)+' · Expires in '+Math.ceil(Number(detention.remainingMs||0)/1000)+' seconds.</p><p>'+safeText(detention.reason)+'</p>'+(detention.appealRequested?'<div class="s4-notice">Your appeal is awaiting independent review.</div>':'<label class="s4-field">Appeal reason<textarea id="s7AppealReason" maxlength="500" rows="3" placeholder="Explain why the detention should be reviewed"></textarea></label><button data-stage7-appeal="1">Request appeal review</button>')+'<button class="subtle" data-stage7-escape="1" '+(!detention.canAttemptEscape?"disabled":"")+'>Attempt escape'+(!detention.canAttemptEscape?" · not yet available":"")+'</button></section>':"";
+  const appealQueue=d.canReviewAppeals&&appeals.length?'<section class="s4-card"><h3>⚖ Independent detention appeals</h3>'+appeals.map(a=>'<div class="s4-row"><span><b>'+safeText(a.targetName)+'</b><small>Arrested by '+safeText(a.arrestedByName)+' · '+safeText(a.incidentId)+'</small><p>'+safeText(a.reason)+'</p></span></div><label class="s4-field">Review rationale<input id="s7AppealReview_'+stage7Id(a.targetId)+'" maxlength="500" placeholder="Record independent review"></label><div class="wm-buttons"><button data-stage7-review="release" data-target="'+safeText(a.targetId)+'">Accept & release</button><button class="subtle" data-stage7-review="deny" data-target="'+safeText(a.targetId)+'">Deny appeal</button></div>').join("")+'</section>':"";
+  const logs=actions.length?'<div class="s4-list">'+actions.map(a=>'<div class="s4-row"><span><b>'+safeText(a.type.replace(/-/g," "))+'</b><small>'+safeText(a.actorName)+' · '+stage5When(a.at)+'</small><small>'+safeText(a.details||a.reason||a.evidence||a.incidentId||"Action logged")+(a.targetName?" · target "+safeText(a.targetName):"")+'</small></span><strong>'+(a.amount?"₦"+Number(a.amount).toLocaleString("en-NG"):(a.success?"RECORDED":"BLOCKED"))+'</strong></div>').join("")+'</div>':'<div class="s4-empty">Response, dispatch, arrest, fine, appeal and checkpoint changes appear here.</div>';
+  panel('<div class="s4-head"><span class="s4-icon">🚨</span><div><small>STAGE 7 · PUBLIC SAFETY</small><h2>Emergency & law enforcement</h2><p>Police · Army · FRSC · Fire Service</p></div></div><div class="s4-kpis"><div class="s4-kpi"><small>Open incidents</small><strong>'+activeCount+'</strong></div><div class="s4-kpi"><small>State treasury</small><strong>'+stage5Money(d.treasuryBalance)+'</strong></div><div class="s4-kpi"><small>Your duty</small><strong>'+(d.canRespond?"ON DUTY":"CITIZEN")+'</strong></div></div>'+responder+feedback+reportForm+detentionPanel+incidentCards+checkpointPanel+checkpointClose+appealQueue+'<div class="s4-sectiontitle">Recent public-safety audit trail <small>'+actions.length+' ENTRIES</small></div>'+logs+'<button class="subtle" data-stage7-refresh="1">Refresh incident board</button>');
+  modal.classList.add("stage4-menu");
+}
+window.addEventListener("nrs-stage7-state",e=>{if(stage7MenuOpen)renderStage7Console(e.detail);});
+window.addEventListener("nrs-stage7-action-result",e=>{stage7Feedback=e.detail||null;if(stage7MenuOpen)renderStage7Console(window.NRS?.stage7State||{});});
+
+
+
+/* Stage 9 — passenger journeys, company fleet and haulage operations. */
+let stage9MenuOpen=false,stage9Feedback=null;
+const stage9Id=id=>String(id||"").replace(/[^a-z0-9_-]/gi,"_");
+const stage9Money=n=>"₦"+Math.max(0,Math.floor(Number(n)||0)).toLocaleString("en-NG");
+const stage9StopName=(id,d)=>((d.stops||[]).find(s=>s.id===id)?.name)||String(id||"Unknown stop");
+function syncStage9FleetVisual(d){
+ const own=d?.ownVehicle,selfId=d?.selfId;
+ for(const [id,c] of Object.entries(stage9FleetVisuals)){
+  if(!own||own.id!==id||own.ownerId!==selfId){if(driving!==c){c.g.visible=false;c.box.hw=0;c.box.hd=0;c._stage9SpawnedFor=null;}continue;}
+  if(c._stage9SpawnedFor!==selfId||!c.g.visible){c._stage9SpawnedFor=selfId;c.x=clamp(pos.x+Math.sin(face)*4.5,-230,230);c.z=clamp(pos.z+Math.cos(face)*4.5,-230,230);c.ry=face;c.v=c.vx=c.vz=0;c.on=false;c.starting=false;c.box.hw=c.stage9HalfWidth;c.box.hd=c.stage9HalfDepth;c.g.visible=true;setCar(c);}
+  c.fuel=Math.max(0,Number(own.fuelLitres)||0);
+ }
+}
+function openStage9Console(){
+ stage9MenuOpen=true;stage9Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ panel('<div class="s4-head"><span class="s4-icon">🚐</span><div><small>PORT HARCOURT · TRANSPORT UNION</small><h2>Transport terminal</h2><p>Passenger rides, fleet vehicles, route stops and haulage contracts.</p></div></div><div class="s4-empty">Loading routes and available vehicles…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage9State();
+}
+function renderStage9Console(d){
+ if(!stage9MenuOpen)return;d=d||window.NRS?.stage9State||{};syncStage9FleetVisual(d);
+ const stops=Array.isArray(d.stops)?d.stops:[],routes=Array.isArray(d.routes)?d.routes:[],fleet=Array.isArray(d.vehicles)?d.vehicles:[],rides=Array.isArray(d.rides)?d.rides:[],deliveries=Array.isArray(d.deliveries)?d.deliveries:[];
+ const feedback=stage9Feedback?'<div class="s4-notice '+(stage9Feedback.ok?'success':'error')+'">'+safeText(stage9Feedback.message||"")+'</div>':"";
+ const activeOwn=d.ownRide&&["waiting","assigned","onboard"].includes(d.ownRide.status)?d.ownRide:null,ownVehicle=d.ownVehicle||null,ownDelivery=d.ownDelivery&&d.ownDelivery.status==="active"?d.ownDelivery:null;
+ const stopOptions='<option value="">Choose stop</option>'+stops.map(s=>'<option value="'+safeText(s.id)+'">'+safeText(s.name)+'</option>').join("");
+ const pickupOptions='<option value="">Choose pickup</option>'+stops.map(s=>'<option value="'+safeText(s.id)+'" '+(d.nearestStop?.id===s.id?'selected':'')+'>'+safeText(s.name)+'</option>').join("");
+ const access=d.workplaceId?'<div class="s4-notice '+(d.onDuty&&d.uniform?'success':'error')+'">Transport Union · '+safeText(d.rankTitle||("Rank "+d.rank))+' · '+(d.onDuty?'ON DUTY':'OFF DUTY')+' · '+(d.uniform?'uniform verified':'uniform required')+'</div>':'<div class="s4-notice">Passengers can request rides from any listed stop. To drive, join Port Harcourt Transport Union, clock in and wear its uniform.</div>';
+ const rideForm='<section class="s4-card"><h3>🧍 Request a ride</h3><p class="s4-muted">Stand within 13 metres of your pickup. The fare is confirmed in the ride request and charged only after the trip reaches its destination.</p><label class="s4-field">Pickup stop<select id="s9Pickup">'+pickupOptions+'</select></label><label class="s4-field">Destination<select id="s9Destination">'+stopOptions+'</select></label><label class="s4-field">Vehicle type<select id="s9VehicleType"><option value="keke">Keke Napep</option><option value="okada">Okada</option><option value="taxi" selected>City Taxi</option><option value="danfo">Danfo Minibus</option><option value="bus">City Bus</option></select></label><button data-s9-request-ride="1">Request ride</button></section>';
+ const vehicleCards=fleet.map(v=>'<div class="s4-row"><span><b>'+safeText(v.label)+'</b><small>'+safeText(v.type.toUpperCase())+' · Rank '+v.minRank+'+ · Fuel '+Number(v.fuelLitres).toFixed(1)+' / '+v.tankLitres+' L · '+(v.ownerId?'Checked out'+(v.ownerName?' by '+safeText(v.ownerName):''):'Available')+'</small></span><strong>'+(v.ownerId?'IN USE':'AVAILABLE')+'</strong></div>').join("");
+ let fleetActions="";
+ if(ownVehicle){
+  fleetActions='<div class="s4-notice success">Checked out: '+safeText(ownVehicle.label)+' · '+Number(ownVehicle.fuelLitres).toFixed(1)+' / '+ownVehicle.tankLitres+' L</div><label class="s4-field">Fuel litres (₦1,150/L)<input id="s9FuelLitres" type="number" min="1" max="80" step="1" inputmode="numeric" value="5"></label><button data-s9-refuel="1" '+(d.nearFuelPoint?'':'disabled')+'>Buy fuel at terminal</button><button class="subtle" data-s9-return="1" '+(d.nearDepot&&!window.NRS?.currentStage9VehicleId&&!activeOwn&&!ownDelivery?'':'disabled')+'>Return vehicle to terminal</button><p class="s4-muted">Fuel is saved and consumed as the checked-out company vehicle moves. Return it at the terminal when your assignment is complete.</p>';
+ }else{
+  fleetActions='<p class="s4-muted">'+(d.nearDepot?'At terminal: qualified drivers can check out an available vehicle.':'Visit the Transport Union terminal to check out a company vehicle.')+'</p>'+fleet.map(v=>'<button data-s9-checkout="'+safeText(v.id)+'" '+(d.nearDepot&&d.onDuty&&d.uniform&&Number(d.rank)>=Number(v.minRank)&&!v.ownerId&&!activeOwn&&!ownDelivery?'':'disabled')+'>Check out '+safeText(v.label)+' · Rank '+v.minRank+'+</button>').join("");
+ }
+ let rideAction="";
+ if(activeOwn){
+  const r=activeOwn,isDriver=r.driverId===d.selfId,isPassenger=r.passengerId===d.selfId;
+  rideAction='<section class="s4-card"><h3>🎫 Your active ride</h3><p><b>'+safeText(stage9StopName(r.pickupStopId,d))+' → '+safeText(stage9StopName(r.destinationStopId,d))+'</b></p><p class="s4-muted">Vehicle: '+safeText(r.vehicleType)+' · Fare '+stage9Money(r.fare)+' · Status '+safeText(r.status.toUpperCase())+'</p>'+(r.driverName?'<p class="s4-muted">Driver: '+safeText(r.driverName)+'</p>':'')+
+   (r.status==="waiting"&&isPassenger?'<button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel request</button>':'')+
+   (r.status==="assigned"&&isDriver?'<p class="s4-muted">Reach '+safeText(stage9StopName(r.pickupStopId,d))+'</p>':'');
+  if(r.status==="assigned"&&isDriver)rideAction+='<button data-s9-pickup="'+safeText(r.id)+'">Confirm passenger pickup</button><button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel before boarding</button>';
+  if(r.status==="assigned"&&isPassenger)rideAction+='<p class="s4-muted">Your driver '+safeText(r.driverName||"")+' is assigned. Wait at the pickup stop.</p><button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel before boarding</button>';
+  if(r.status==="onboard"&&isDriver&&r.nextStopIndex<(r.routeStopIds||[]).length)rideAction+='<p class="s4-muted">Next checkpoint: '+safeText(stage9StopName(r.routeStopIds[r.nextStopIndex],d))+'</p><button data-s9-advance-ride="'+safeText(r.id)+'">Confirm reached next stop</button>';
+  if(r.status==="onboard"&&isDriver&&r.nextStopIndex>=(r.routeStopIds||[]).length)rideAction+='<p class="s4-muted">Destination reached.</p><button data-s9-complete-ride="'+safeText(r.id)+'">Complete trip & settle fare</button>';
+  if(r.status==="onboard"&&isPassenger)rideAction+='<div class="s4-notice success">You are onboard. Your position follows the driver until the destination is reached.</div>';
+  rideAction+='</section>';
+ }else if(d.ownRide&&d.ownRide.status==="completed")rideAction='<section class="s4-card"><h3>✅ Last trip completed</h3><p>'+safeText(stage9StopName(d.ownRide.pickupStopId,d))+' → '+safeText(stage9StopName(d.ownRide.destinationStopId,d))+' · '+stage9Money(d.ownRide.fare)+'</p></section>';
+ const waiting=rides.filter(r=>r.status==="waiting"&&r.passengerId!==d.selfId);
+ const rideQueue='<div class="s4-sectiontitle">Waiting passengers <small>'+waiting.length+' REQUEST'+(waiting.length===1?'':'S')+'</small></div>'+(waiting.length?waiting.map(r=>'<div class="s4-row"><span><b>'+safeText(r.passengerName)+' · '+safeText(r.vehicleType.toUpperCase())+'</b><small>'+safeText(stage9StopName(r.pickupStopId,d))+' → '+safeText(stage9StopName(r.destinationStopId,d))+' · Fare '+stage9Money(r.fare)+'</small></span>'+(d.canDrive&&ownVehicle&&ownVehicle.type===r.vehicleType?'<button data-s9-accept="'+safeText(r.id)+'">Accept</button>':'')+'</div>').join(""):'<div class="s4-empty">No one is waiting for a ride right now.</div>');
+ let haulage="";
+ const haulRoutes=routes.filter(r=>r.vehicleType==="haulage");
+ if(ownDelivery){const q=ownDelivery,next=(q.stopIds||[])[q.nextStopIndex];haulage='<section class="s4-card"><h3>🚚 Active haulage order</h3><p>'+safeText((routes.find(r=>r.id===q.routeId)||{}).name||q.routeId)+'</p><p class="s4-muted">Checkpoint '+Math.min(q.nextStopIndex+1,q.stopIds.length)+' / '+q.stopIds.length+' · Reward '+stage9Money(q.reward)+'</p>'+(next?'<p class="s4-muted">Next: '+safeText(stage9StopName(next,d))+'</p><button data-s9-advance-delivery="'+safeText(q.id)+'">Confirm reached checkpoint</button>':'<button data-s9-complete-delivery="'+safeText(q.id)+'">Submit delivery receipt</button>')+'</section>';
+ }else{haulage='<section class="s4-card"><h3>📦 Haulage contracts</h3><p class="s4-muted">Rank 5+ on-duty, uniformed supervisors can check out a truck at the terminal and confirm every checkpoint in order.</p>'+haulRoutes.map(r=>'<div class="s4-row"><span><b>'+safeText(r.name)+'</b><small>Payment '+stage9Money(r.reward)+' · '+r.stopIds.length+' checkpoints</small></span><button data-s9-start-delivery="'+safeText(r.id)+'" '+(d.nearDepot&&d.canHaul&&ownVehicle?.type==="haulage"&&!activeOwn?'':'disabled')+'>Accept delivery</button></div>').join("")+'</section>';}
+ const ownDeliveryNote=d.ownDelivery&&d.ownDelivery.status==="completed"?'<section class="s4-card"><h3>✅ Last haulage receipt</h3><p>'+safeText(d.ownDelivery.routeId)+' · '+stage9Money(d.ownDelivery.reward)+' credited</p></section>':'';
+ panel('<div class="s4-head"><span class="s4-icon">🚐</span><div><small>PORT HARCOURT · STAGE 9</small><h2>Transport & haulage</h2><p>Public trips, company vehicles, route validation and driver earnings.</p></div></div>'+feedback+access+'<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+stage9Money(d.cash)+'</strong></div><div class="s4-kpi"><small>Union treasury</small><strong>'+stage9Money(d.unionTreasury)+'</strong></div><div class="s4-kpi"><small>Your rank</small><strong>'+(d.rank?safeText(d.rankTitle||("Rank "+d.rank)):'CITIZEN')+'</strong></div></div>'+rideForm+rideAction+rideQueue+'<div class="s4-sectiontitle">Company fleet <small>'+fleet.length+' VEHICLES</small></div>'+fleetActions+'<div class="s4-list">'+vehicleCards+'</div>'+haulage+ownDeliveryNote+'<div class="s4-sectiontitle">Passenger & delivery stops</div><div class="s4-list">'+stops.map(q=>'<div class="s4-row"><span><b>'+safeText(q.name)+'</b><small>'+safeText(q.kind)+' · '+Math.round(Number(q.x))+', '+Math.round(Number(q.z))+'</small></span><strong>'+(d.nearestStop?.id===q.id?'NEARBY':'STOP')+'</strong></div>').join("")+'</div><button class="subtle" data-s9-refresh="1">Refresh transport board</button>');
+ modal.classList.add("stage4-menu");
+}
+window.addEventListener("nrs-stage9-state",e=>{const d=e.detail||window.NRS?.stage9State||{};syncStage9FleetVisual(d);if(stage9MenuOpen)renderStage9Console(d);});
+window.addEventListener("nrs-stage9-action-result",e=>{stage9Feedback=e.detail||null;if(stage9MenuOpen)renderStage9Console(window.NRS?.stage9State||{});});
+window.addEventListener("nrs-stage9-passenger-position",e=>{const p=e.detail||{};window.NRS.stage9PassengerPos={x:Number(p.x)||0,z:Number(p.z)||0,yaw:Number(p.yaw)||0};});
+window.addEventListener("nrs-stage9-fuel-empty",()=>{const id=window.NRS?.currentStage9VehicleId,c=id?stage9FleetVisuals[id]:null;if(c){c.on=false;c.fuel=0;engine(false);setIgn();}});
+
