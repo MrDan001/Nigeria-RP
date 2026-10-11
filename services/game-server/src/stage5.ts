@@ -7,8 +7,8 @@ export const AMBULANCE_HEAL_AMOUNT = 50;
 export const PARK_TICKET_PRICE = 500;
 // Keep these bounds and the gate approach aligned with the visible City Park fence
 // in services/web-client/index.html. The server remains authoritative for ticket access.
-export const PARK_GROUNDS_BOUNDS = { minX: -50, maxX: -26, minZ: 23, maxZ: 41 } as const;
-export const PARK_GATE_APPROACH = { x: -33, z: 21.5 } as const;
+export const PARK_GROUNDS_BOUNDS = { minX: -34, maxX: -10, minZ: 23, maxZ: 41 } as const;
+export const PARK_GATE_APPROACH = { x: -30, z: 21.5 } as const;
 export const MAX_STAGE5_HISTORY = 100;
 export const MAX_HOSPITAL_STOCK = 200;
 
