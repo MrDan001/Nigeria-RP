@@ -12,6 +12,7 @@ import {
   createParkHelpRequest,
   createStage5State,
   dispatchHospitalAmbulance,
+  hospitalRankCanDispatch,
   hospitalRankCanTreat,
   hospitalRankCanTriage,
   normalizeStage5State,
@@ -53,6 +54,8 @@ function careRequest(state = createStage5State(), overrides: Partial<Parameters<
 test("hospital rank permissions distinguish intake from clinical treatment", () => {
   assert.equal(hospitalRankCanTriage(1), false);
   assert.equal(hospitalRankCanTriage(2), true);
+  assert.equal(hospitalRankCanDispatch(2), false);
+  assert.equal(hospitalRankCanDispatch(3), true);
   assert.equal(hospitalRankCanTreat(2), false);
   assert.equal(hospitalRankCanTreat(3), true);
   assert.equal(hospitalRankCanTreat(6), true);
