@@ -4,6 +4,7 @@ import {
   STAGE11_SERVICES,
   STAGE11_FUEL_PRICE_PER_LITRE,
   createStage11State,
+  normalizeStage11State,
   registerStage11Property,
   registerStage11Vehicle,
   buyStage11Fuel,
@@ -92,6 +93,11 @@ const propertyFixture = (): Stage11Property => ({
     assignee: { actorId: "mechanic-1", workplaceId: workshop.id, rank: 2 },
   });
   assert.equal(assigned.ok, true);
+  assert.equal(completeStage11ServiceOrder({
+    state, orderId: opened.result.id, customerCash: 20000,
+    actor: actor(workshop.id, "mechanic-1", 2), now: 0,
+  }).ok, false);
+  assert.equal(state.vehicles["car-repair"].condition, 35);
   assert.equal(completeStage11ServiceOrder({
     state, orderId: opened.result.id, customerCash: 20000,
     actor: actor(workshop.id, "impostor", 2), now: now + 1,
@@ -196,6 +202,24 @@ const propertyFixture = (): Stage11Property => ({
   assert.equal(delivered.ok, true);
   assert.equal(state.deliveries[0].status, "delivered");
   assert.equal(state.ledger[0].kind, "courier");
+}
+
+{
+  const normalized = normalizeStage11State({
+    properties: {
+      flat: {
+        id: "flat", ownerId: "owner", residentIds: ["resident-alpha", "resident-beta"],
+        x: 4, z: 7,
+        bills: {
+          electricity: { amountDue: 100, paidAt: null },
+          water: { amountDue: 200, paidAt: null },
+          waste: { amountDue: 300, paidAt: null },
+        },
+        issues: [],
+      },
+    },
+  });
+  assert.deepEqual(normalized.properties.flat.residentIds, ["resident-alpha", "resident-beta"]);
 }
 
 console.log("Stage 11 tests passed: fuel, assigned vehicle service, property repairs, utility payment and courier delivery.");
