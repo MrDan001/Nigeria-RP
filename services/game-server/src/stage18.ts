@@ -114,7 +114,7 @@ export function stage18Fixtures(date: string): Stage18Fixture[] {
 }
 
 export function stage18ResultsForDate(date: string): Stage18Outcome[] {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) throw new Error("INVALID_STAGE18_DATE");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("INVALID_STAGE18_DATE");
   return stage18Fixtures(date).map((fixture) => {
     // Results are generated only at the server-side cutoff and persisted in PostgreSQL.
     // Cryptographic randomness prevents anyone from precomputing a ticket winner from source code.
