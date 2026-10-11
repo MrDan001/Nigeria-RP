@@ -137,7 +137,9 @@ export function hospitalRankCanTreat(rank: number): boolean {
 }
 
 export function hospitalRankCanDispatch(rank: number): boolean {
-  return Number.isInteger(rank) && rank >= 2 && rank <= 6;
+  // The assigned dispatcher becomes the field responder for this request,
+  // so dispatching requires a clinical rank capable of treating the patient.
+  return Number.isInteger(rank) && rank >= 3 && rank <= 6;
 }
 
 export function parkRankCanSellTickets(rank: number): boolean {
@@ -356,6 +358,9 @@ export function completeHospitalTreatment(args: {
   }
   if (request.status !== (request.kind === "ambulance" ? "dispatched" : "open")) {
     return { ok: false, reason: "request_unavailable" };
+  }
+  if (request.kind === "care" && !request.triagedAt) {
+    return { ok: false, reason: "triage_required" };
   }
   if (request.kind === "care" && (!args.atHospital || !args.patientAtHospital)) {
     return { ok: false, reason: "patient_not_at_hospital" };
