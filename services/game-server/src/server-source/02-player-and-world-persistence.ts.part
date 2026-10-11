@@ -1,0 +1,1386 @@
+// Settle one online player's life up to today's Nigeria-time day (rent days used, home lost).
+// Returns null when no midnight has passed since the last settle.
+function settleSession(session: Session) {
+  const result = settleLife(session.player.life, clock.dayKey());
+  if (result.midnights === 0) return null;
+  session.player.life = result.life;
+  if (result.homeLost && world.houseTenants[result.homeLost] === session.player.id) {
+    world.houseTenants[result.homeLost] = null;
+    world.houseLocks[result.homeLost] = false;
+    void saveWorld().catch((error) => console.error("save-world", error));
+  }
+  return result;
+}
+
+async function runMidnight() {
+  const today = clock.dayKey();
+  if (today === world.lastDay) return;
+  world.lastDay = today;
+  const expiredApartmentKeys = new Set<string>();
+  for (const [key, lease] of Object.entries(world.apartmentRooms)) {
+    const elapsed = daysBetween(lease.lastDay, today);
+    if (elapsed <= 0) continue;
+    if (elapsed >= lease.prepaidDays) {
+      delete world.apartmentRooms[key];
+      expiredApartmentKeys.add(key);
+    } else {
+      lease.prepaidDays -= elapsed;
+      lease.lastDay = today;
+    }
+  }
+  await saveWorld();
+
+  for (const session of players.values()) {
+    if (session.inApartmentInterior && session.apartmentMode === "room" && session.apartmentBuildingId && session.apartmentRoomNumber) {
+      const key = apartmentRoomKey(session.apartmentBuildingId, session.apartmentRoomNumber);
+      if (expiredApartmentKeys.has(key)) {
+        const expiredRoomNumber = session.apartmentRoomNumber;
+        session.apartmentMode = "hall";
+        session.apartmentRoomNumber = null;
+        session.apartmentFloor = apartmentRoomFloor(expiredRoomNumber);
+        session.player.x = APARTMENT_INTERIOR_POSITION.x;
+        session.player.z = APARTMENT_INTERIOR_POSITION.z;
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        session.lastInputAt = Date.now();
+        session.lastSyncAt = Date.now();
+        sendApartmentFloorState(session, "apartmentLeaseExpired",
+          "Your rent for Room " + expiredRoomNumber + " has expired. You have been returned to the floor corridor.");
+        await persistSession(session);
+      }
+    }
+  }
+
+  for (const session of players.values()) {
+    const result = settleSession(session);
+    if (!result) continue;
+    await persistSession(session);
+    send(session.socket, {
+      type: "lifeUpdate",
+      life: session.player.life,
+      today,
+      rentUsed: result.rentUsed,
+      homeLost: result.homeLost,
+    });
+    sendHousingState(session);
+  }
+  await saveWorld();
+}
+
+async function initStore() {
+  if (DATABASE_URL) {
+    pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_accounts (" +
+      "id TEXT PRIMARY KEY," +
+      "username TEXT NOT NULL," +
+      "username_lower TEXT NOT NULL UNIQUE," +
+      "email TEXT," +
+      "email_lower TEXT," +
+      "password_salt TEXT NOT NULL," +
+      "password_hash TEXT NOT NULL," +
+      "cash BIGINT NOT NULL DEFAULT 5000," +
+      "bank BIGINT NOT NULL DEFAULT 0," +
+      "x DOUBLE PRECISION NOT NULL DEFAULT 0," +
+      "z DOUBLE PRECISION NOT NULL DEFAULT 24," +
+      "yaw DOUBLE PRECISION NOT NULL DEFAULT 3.14159265359," +
+      "hp DOUBLE PRECISION NOT NULL DEFAULT 100," +
+      "hunger DOUBLE PRECISION NOT NULL DEFAULT 82," +
+      "level INTEGER NOT NULL DEFAULT 1," +
+      "xp INTEGER NOT NULL DEFAULT 0," +
+      "job JSONB," +
+      "inventory JSONB NOT NULL DEFAULT '{}'::jsonb," +
+      "created_at BIGINT NOT NULL," +
+      "updated_at BIGINT NOT NULL" +
+      ");" +
+      "CREATE TABLE IF NOT EXISTS nrs_sessions (" +
+      "token_hash TEXT PRIMARY KEY," +
+      "account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE," +
+      "expires_at BIGINT NOT NULL," +
+      "created_at BIGINT NOT NULL" +
+      ");" +
+      "CREATE INDEX IF NOT EXISTS nrs_sessions_account_idx ON nrs_sessions(account_id);",
+    );
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'port-harcourt'");
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
+    );
+    const worldRow = await pool.query("SELECT value FROM nrs_world WHERE key='world' LIMIT 1");
+    world = normalizeWorld(worldRow.rows[0]?.value, clock.dayKey());
+    await saveWorld();
+    const stage4Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage4' LIMIT 1");
+    stage4State = normalizeStage4State(stage4Row.rows[0]?.value);
+    await saveStage4State();
+    const stage5Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage5' LIMIT 1");
+    stage5State = normalizeStage5State(stage5Row.rows[0]?.value);
+    await saveStage5State();
+    const stage6Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage6' LIMIT 1");
+    stage6State = normalizeStage6State(stage6Row.rows[0]?.value);
+    await saveStage6State();
+    const stage7Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage7' LIMIT 1");
+    stage7State = normalizeStage7State(stage7Row.rows[0]?.value);
+    await saveStage7State();
+    const stage8Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage8' LIMIT 1");
+    stage8State = normalizeStage8State(stage8Row.rows[0]?.value);
+    await saveStage8State();
+    const stage9Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage9' LIMIT 1");
+    stage9State = normalizeStage9State(stage9Row.rows[0]?.value);
+    await saveStage9State();
+    const stage11Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage11' LIMIT 1");
+    stage11State = normalizeStage11State(stage11Row.rows[0]?.value);
+    await saveStage11State();
+    const stage15Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage15' LIMIT 1");
+    stage15State = normalizeStage15State(stage15Row.rows[0]?.value);
+    await saveStage15State();
+    const stage17Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage17' LIMIT 1");
+    stage17State = normalizeStage17State(stage17Row.rows[0]?.value);
+    await saveStage17State();
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
+    await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
+    await pool.query("UPDATE nrs_accounts SET email_lower=LOWER(email) WHERE email_lower IS NULL OR email_lower=''");
+    await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email SET NOT NULL");
+    await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email_lower SET NOT NULL");
+    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
+    await migrateLegacyAdminAllowlist();
+    console.log("NRS durable storage: PostgreSQL");
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  try {
+    fileStore = JSON.parse(fs.readFileSync(DATA_FILE, "utf8")) as FileStore;
+  } catch {
+    fileStore = { accounts: {}, sessions: {} };
+    writeFileStore();
+  }
+  world = normalizeWorld(fileStore.world, clock.dayKey());
+  await saveWorld();
+  stage4State = normalizeStage4State(fileStore.stage4);
+  await saveStage4State();
+  stage5State = normalizeStage5State(fileStore.stage5);
+  await saveStage5State();
+  stage6State = normalizeStage6State(fileStore.stage6);
+  await saveStage6State();
+  stage7State = normalizeStage7State(fileStore.stage7);
+  await saveStage7State();
+  stage8State = normalizeStage8State(fileStore.stage8);
+  await saveStage8State();
+  stage9State = normalizeStage9State(fileStore.stage9);
+  await saveStage9State();
+  stage11State = normalizeStage11State(fileStore.stage11);
+  await saveStage11State();
+  stage15State = normalizeStage15State(fileStore.stage15);
+  await saveStage15State();
+  stage17State = normalizeStage17State(fileStore.stage17);
+  await saveStage17State();
+  await migrateLegacyAdminAllowlist();
+  console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
+}
+
+function accountFromRow(row: any): Account {
+  return normalizeAccount({
+    id: String(row.id),
+    username: String(row.username),
+    usernameLower: String(row.username_lower),
+    email: String(row.email ?? ""),
+    emailLower: String(row.email_lower ?? ""),
+    passwordSalt: String(row.password_salt),
+    passwordHash: String(row.password_hash),
+    cash: Number(row.cash),
+    bank: Number(row.bank),
+    x: Number(row.x),
+    z: Number(row.z),
+    yaw: Number(row.yaw),
+    hp: Number(row.hp),
+    hunger: Number(row.hunger),
+    level: Number(row.level),
+    xp: Number(row.xp),
+    job: row.job ?? null,
+    inventory: row.inventory ?? {},
+    fuel: row.fuel ?? {},
+    life: row.life ?? {},
+    cityId: String(row.city_id ?? "port-harcourt"),
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
+  });
+}
+
+async function findAccountByEmail(emailLower: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE email_lower=$1 LIMIT 1", [emailLower]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  const found = Object.values(fileStore.accounts).find((item) => String(item.emailLower ?? "").toLowerCase() === emailLower);
+  return found ? normalizeAccount(found) : null;
+}
+
+async function findAccountByUsername(usernameLower: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE username_lower=$1 LIMIT 1", [usernameLower]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  return fileStore.accounts[usernameLower] ? normalizeAccount(fileStore.accounts[usernameLower]) : null;
+}
+
+async function findAccountById(accountId: string) {
+  if (pool) {
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE id=$1 LIMIT 1", [accountId]);
+    return result.rows[0] ? accountFromRow(result.rows[0]) : null;
+  }
+  const account = Object.values(fileStore.accounts).find((item) => item.id === accountId);
+  return account ? normalizeAccount(account) : null;
+}
+
+async function insertAccount(account: Account) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_accounts (" +
+      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,city_id" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21)",
+      [
+        account.id,
+        account.username,
+        account.usernameLower,
+        account.email,
+        account.emailLower,
+        account.passwordSalt,
+        account.passwordHash,
+        account.cash,
+        account.bank,
+        account.x,
+        account.z,
+        account.yaw,
+        account.hp,
+        account.hunger,
+        account.level,
+        account.xp,
+        JSON.stringify(account.job),
+        JSON.stringify(account.inventory),
+        account.createdAt,
+        account.updatedAt,
+        account.cityId,
+      ],
+    );
+    return;
+  }
+
+  fileStore.accounts[account.usernameLower] = account;
+  writeFileStore();
+}
+
+async function saveAccount(account: Account) {
+  account.updatedAt = Date.now();
+
+  if (pool) {
+    await pool.query(
+      "UPDATE nrs_accounts SET " +
+      "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb,city_id=$17 WHERE id=$1",
+      [
+        account.id,
+        account.username,
+        account.cash,
+        account.bank,
+        account.x,
+        account.z,
+        account.yaw,
+        account.hp,
+        account.hunger,
+        account.level,
+        account.xp,
+        JSON.stringify(account.job),
+        JSON.stringify(account.inventory),
+        account.updatedAt,
+        JSON.stringify(account.fuel),
+        JSON.stringify(account.life),
+        account.cityId,
+      ],
+    );
+    return;
+  }
+
+  fileStore.accounts[account.usernameLower] = account;
+  writeFileStore();
+}
+
+async function createAccount(email: string, username: string, password: string) {
+  email = sanitizeEmail(email);
+  const emailLower = email.toLowerCase();
+  if (!isValidEmail(email)) throw new Error("EMAIL_INVALID");
+  if (username.length < 3) throw new Error("USERNAME_TOO_SHORT");
+  if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) throw new Error("USERNAME_INVALID");
+  if (password.length < 6) throw new Error("PASSWORD_TOO_SHORT");
+
+  const usernameLower = username.toLowerCase();
+  if (usernameLower === MAIN_ADMIN_USERNAME && (!MAIN_ADMIN_EMAIL || emailLower !== MAIN_ADMIN_EMAIL)) {
+    // Never let a new public registration claim the fixed root-admin username.
+    // Configure NRS_MAIN_ADMIN_EMAIL before creating the owner's account if it does not exist.
+    throw new Error("USERNAME_RESERVED");
+  }
+  if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+  if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
+
+  const { salt, hash } = await hashPassword(password);
+  const now = Date.now();
+  const account: Account = {
+    id: randomUUID(),
+    username,
+    usernameLower,
+    email,
+    emailLower,
+    passwordSalt: salt,
+    passwordHash: hash,
+    cash: 5000,
+    bank: 0,
+    x: 0,
+    z: 24,
+    yaw: Math.PI,
+    hp: 100,
+    hunger: 82,
+    level: 1,
+    xp: 0,
+    job: null,
+    inventory: {},
+    fuel: {},
+    life: newLife(clock.dayKey()),
+    cityId: "port-harcourt",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await insertAccount(account);
+  } catch (error: any) {
+    if (error?.code === "23505") {
+      if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
+      if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+    }
+    throw error;
+  }
+
+  return account;
+}
+
+async function createSession(accountId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = hashToken(token);
+  const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+  if (pool) {
+    await pool.query("DELETE FROM nrs_sessions WHERE account_id=$1", [accountId]);
+    await pool.query(
+      "INSERT INTO nrs_sessions(token_hash,account_id,expires_at,created_at) VALUES ($1,$2,$3,$4)",
+      [tokenHash, accountId, expiresAt, Date.now()],
+    );
+  } else {
+    for (const [key, value] of Object.entries(fileStore.sessions)) {
+      if (value.accountId === accountId) delete fileStore.sessions[key];
+    }
+    fileStore.sessions[tokenHash] = { accountId, expiresAt };
+    writeFileStore();
+  }
+
+  return token;
+}
+
+async function resolveSession(token: string) {
+  const tokenHash = hashToken(token);
+  let session: { accountId: string; expiresAt: number } | null = null;
+
+  if (pool) {
+    const result = await pool.query(
+      "SELECT account_id,expires_at FROM nrs_sessions WHERE token_hash=$1 LIMIT 1",
+      [tokenHash],
+    );
+    if (result.rows[0]) {
+      session = {
+        accountId: String(result.rows[0].account_id),
+        expiresAt: Number(result.rows[0].expires_at),
+      };
+    }
+  } else {
+    session = fileStore.sessions[tokenHash] ?? null;
+  }
+  
+
+  if (!session || session.expiresAt < Date.now()) return null;
+  return findAccountById(session.accountId);
+}
+
+function makePlayer(account: Account): PlayerState {
+  return {
+    id: account.id,
+    name: account.username,
+    x: account.x,
+    z: account.z,
+    yaw: account.yaw,
+    hp: account.hp,
+    hunger: account.hunger,
+    level: account.level,
+    xp: account.xp,
+    cash: account.cash,
+    bank: account.bank,
+    job: account.job,
+    inventory: normalizeInventory(account.inventory),
+    fuel: normalizeFuel(account.fuel),
+    life: account.life,
+    cityId: findStage15City(String(account.cityId ?? ""))?.id ?? "port-harcourt",
+    lastSequence: -1,
+  };
+}
+
+async function persistSession(session: Session) {
+  const account = session.account;
+  account.username = session.player.name;
+  account.usernameLower = account.username.toLowerCase();
+  account.cityId = findStage15City(String(session.player.cityId ?? ""))?.id ?? "port-harcourt";
+  // If a player disconnects or the server restarts indoors, resume outside the room.
+  account.x = session.inHome && session.homeReturn
+    ? session.homeReturn.x
+    : session.inWorkplaceInterior && session.workplaceInteriorReturn
+      ? session.workplaceInteriorReturn.x
+      : session.inShopInterior && session.shopInteriorReturn
+        ? session.shopInteriorReturn.x
+        : session.inApartmentInterior && session.apartmentReturn
+          ? session.apartmentReturn.x
+          : session.inStaffRoom && session.staffRoomReturn
+            ? session.staffRoomReturn.x
+            : session.player.x;
+  account.z = session.inHome && session.homeReturn
+    ? session.homeReturn.z
+    : session.inWorkplaceInterior && session.workplaceInteriorReturn
+      ? session.workplaceInteriorReturn.z
+      : session.inShopInterior && session.shopInteriorReturn
+        ? session.shopInteriorReturn.z
+        : session.inApartmentInterior && session.apartmentReturn
+          ? session.apartmentReturn.z
+          : session.inStaffRoom && session.staffRoomReturn
+            ? session.staffRoomReturn.z
+            : session.player.z;
+  account.yaw = session.inWorkplaceInterior && session.workplaceInteriorReturn && Number.isFinite(session.workplaceInteriorReturn.yaw)
+    ? Number(session.workplaceInteriorReturn.yaw)
+    : session.inShopInterior && session.shopInteriorReturn && Number.isFinite(session.shopInteriorReturn.yaw)
+      ? Number(session.shopInteriorReturn.yaw)
+      : session.inApartmentInterior && session.apartmentReturn && Number.isFinite(session.apartmentReturn.yaw)
+        ? Number(session.apartmentReturn.yaw)
+        : session.inStaffRoom && session.staffRoomReturn && Number.isFinite(session.staffRoomReturn.yaw)
+          ? Number(session.staffRoomReturn.yaw)
+          : session.player.yaw;
+  account.hp = session.player.hp;
+  account.hunger = session.player.hunger;
+  account.level = session.player.level;
+  account.xp = session.player.xp;
+  account.cash = session.player.cash;
+  account.bank = session.player.bank;
+  account.job = normalizeJob(session.player.job);
+  account.inventory = normalizeInventory(session.player.inventory);
+  account.fuel = normalizeFuel(session.player.fuel);
+  account.life = session.player.life;
+  await saveAccount(account);
+}
+
+const webDirCandidates = [
+  path.resolve(__dirname, "../../web-client/dist"),
+  path.resolve(process.cwd(), "services/web-client/dist"),
+  path.resolve(process.cwd(), "../web-client/dist"),
+];
+
+const WEB_DIR = webDirCandidates.find((candidate) => fs.existsSync(candidate)) ?? webDirCandidates[0];
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+};
+
+const httpServer = http.createServer((request, response) => {
+  const url = new URL(request.url ?? "/", "http://" + (request.headers.host ?? "localhost"));
+
+  if (url.pathname === "/health") {
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({
+      ok: true,
+      service: "nigeria-rp-game-server",
+      players: players.size,
+      storage: pool ? "postgres" : "file-fallback",
+      day: clock.dayKey(),
+      debugClock: DEBUG_CLOCK,
+    }));
+    return;
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.writeHead(405, { allow: "GET, HEAD" });
+    response.end();
+    return;
+  }
+
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    response.writeHead(400);
+    response.end("Bad request");
+    return;
+  }
+
+  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const requested = path.resolve(WEB_DIR, relative);
+
+  if (requested !== WEB_DIR && !requested.startsWith(WEB_DIR + path.sep)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  let finalPath = requested;
+
+  if (!fs.existsSync(finalPath) || !fs.statSync(finalPath).isFile()) {
+    if (!path.extname(relative)) {
+      finalPath = path.join(WEB_DIR, "index.html");
+    } else {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+  }
+
+  try {
+    const stat = fs.statSync(finalPath);
+    response.writeHead(200, {
+      "content-type": MIME[path.extname(finalPath).toLowerCase()] ?? "application/octet-stream",
+      "content-length": stat.size,
+      "cache-control": path.basename(finalPath) === "index.html" || path.basename(finalPath) === "nrs-online.js"
+        ? "no-cache"
+        : "public, max-age=31536000, immutable",
+    });
+
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+
+    fs.createReadStream(finalPath).pipe(response);
+  } catch {
+    response.writeHead(500);
+    response.end("Static file error");
+  }
+});
+
+const wss = new WebSocketServer({ server: httpServer, maxPayload: 16 * 1024 });
+
+wss.on("connection", (socket) => {
+  let authenticated = false;
+  let accountId: string | null = null;
+
+  const authTimer = setTimeout(() => {
+    if (!authenticated) {
+      send(socket, {
+        type: "authError",
+        code: "AUTH_REQUIRED",
+        message: "Please log in or create an account.",
+      });
+      socket.close(4002, "Authentication required");
+    }
+  }, 12000);
+
+  const finishAuthentication = async (account: Account, token: string) => {
+    const previousSocket = activeAccounts.get(account.id);
+
+    if (previousSocket && previousSocket !== socket) {
+      send(previousSocket, {
+        type: "authError",
+        code: "ACCOUNT_OPENED_ELSEWHERE",
+        message: "This account was opened on another device.",
+      });
+      previousSocket.close(4001, "Account opened elsewhere");
+    }
+
+    authenticated = true;
+    accountId = account.id;
+    clearTimeout(authTimer);
+
+    const session: Session = {
+      socket,
+      account,
+      player: makePlayer(account),
+      input: { sequence: -1, forward: 0, strafe: 0 },
+      lastMessageAt: Date.now(),
+      lastInputAt: 0,
+      lastSyncAt: Date.now(),
+      rejectedSyncs: 0,
+      inHome: false,
+      inCarpark: false,
+      inStaffRoom: false,
+      inWorkplaceInterior: false,
+      inShopInterior: false,
+      inApartmentInterior: false,
+      apartmentMode: null,
+      apartmentBuildingId: null,
+      apartmentBuildingName: "",
+      apartmentFloors: 0,
+      apartmentFloor: 1,
+      apartmentRoomNumber: null,
+      apartmentReturn: null,
+      homeReturn: null,
+      staffRoomReturn: null,
+      workplaceInteriorReturn: null,
+      shopInteriorReturn: null,
+      currentStaffWorkplaceId: null,
+      currentWorkplaceId: null,
+      currentShopId: null,
+      displayId: allocateDisplayPlayerId(),
+      carparkVehicle: null,
+      workTask: null,
+    };
+
+    // A disconnect never leaves a player clocked in or with an unfinished task.
+    const resumedOnDuty = session.player.life.employment?.onDuty === true;
+    if (resumedOnDuty && session.player.life.employment) {
+      session.player.life = {
+        ...session.player.life,
+        employment: { ...session.player.life.employment, onDuty: false, uniformWorkplaceId: null },
+      };
+    }
+
+    // Offline players are settled here: any midnights that passed while they were away.
+    const settled = settleSession(session);
+    if (settled || resumedOnDuty) {
+      await persistSession(session);
+      if (settled?.homeLost) await saveWorld();
+    }
+
+    players.set(account.id, session);
+    activeAccounts.set(account.id, socket);
+
+    send(socket, {
+      type: "authOk",
+      protocolVersion: PROTOCOL_VERSION,
+      token,
+      player: accountPayload(session.player),
+      players: snapshot(session.player.cityId),
+      onlineCount: cityOnlineCount(session.player.cityId),
+      houses: housingSnapshot(session),
+      ...workplaceSnapshot(session),
+    });
+    if (settled?.homeLost) {
+      send(socket, {
+        type: "lifeUpdate", life: session.player.life, today: clock.dayKey(),
+        rentUsed: settled.rentUsed, homeLost: settled.homeLost,
+      });
+    }
+
+    broadcast({
+      type: "playerJoined",
+      player: publicPlayer(session.player),
+      onlineCount: players.size,
+    });
+  };
+
+  socket.on("message", (raw) => {
+    void (async () => {
+      let message: any;
+
+      try {
+        message = JSON.parse(raw.toString());
+      } catch {
+        send(socket, { type: "error", code: "INVALID_JSON" });
+        return;
+      }
+
+      if (!authenticated) {
+        try {
+          if (message.type === "authRegister") {
+            const email = sanitizeEmail(message.email);
+            const username = sanitizeUsername(message.username);
+            const password = String(message.password ?? "");
+            const account = await createAccount(email, username, password);
+            const token = await createSession(account.id);
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          if (message.type === "authLogin") {
+            const email = sanitizeEmail(message.email);
+            const account = await findAccountByEmail(email.toLowerCase());
+
+            if (!account || !(await verifyPassword(
+              String(message.password ?? ""),
+              account.passwordSalt,
+              account.passwordHash,
+            ))) {
+              throw new Error("INVALID_CREDENTIALS");
+            }
+
+            const token = await createSession(account.id);
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          if (message.type === "authResume") {
+            const token = String(message.token ?? "").trim();
+            const account = token ? await resolveSession(token) : null;
+
+            if (!account) throw new Error("INVALID_SESSION");
+
+            await finishAuthentication(account, token);
+            return;
+          }
+
+          send(socket, {
+            type: "authError",
+            code: "AUTH_REQUIRED",
+            message: "Please log in or create an account.",
+          });
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "AUTH_FAILED";
+          const messages: Record<string, string> = {
+            EMAIL_INVALID: "Enter a valid email address.",
+            EMAIL_TAKEN: "An account already exists with that email.",
+            PASSWORD_TOO_SHORT: "Password must be at least 6 characters.",
+            USERNAME_TOO_SHORT: "Username must be at least 3 characters.",
+            USERNAME_INVALID: "Username must be exactly Firstname_lastname, using letters only.",
+            USERNAME_TAKEN: "That username is already taken.",
+            USERNAME_RESERVED: "Dbase_Mccoll is reserved for the main administrator. The owner must use the configured NRS_MAIN_ADMIN_EMAIL.",
+            INVALID_CREDENTIALS: "Incorrect email or password.",
+            INVALID_SESSION: "Your session has expired. Please log in again.",
+            AUTH_REQUIRED: "Please log in or create an account.",
+          };
+
+          send(socket, {
+            type: "authError",
+            code,
+            message: messages[code] ?? "Could not complete the account request.",
+          });
+        }
+
+        return;
+      }
+
+      const session = accountId ? players.get(accountId) : null;
+      if (!session) return;
+
+      session.lastMessageAt = Date.now();
+
+      if (message.type === "input") {
+        const input = message.input;
+
+        if (
+          !input ||
+          !Number.isInteger(input.sequence) ||
+          input.sequence <= session.player.lastSequence ||
+          !Number.isFinite(input.forward) ||
+          !Number.isFinite(input.strafe) ||
+          Math.abs(input.forward) > 2 ||
+          Math.abs(input.strafe) > 2
+        ) {
+          send(socket, { type: "error", code: "INVALID_INPUT" });
+          return;
+        }
+
+        session.player.lastSequence = input.sequence;
+        session.lastInputAt = Date.now();
+        session.input = {
+          sequence: input.sequence,
+          forward: Math.max(-1, Math.min(1, Number(input.forward))),
+          strafe: Math.max(-1, Math.min(1, Number(input.strafe))),
+        };
+        return;
+      }
+
+      if (message.type === "posSync") {
+        if (session.inHome || session.inStaffRoom || session.inApartmentInterior) return;
+        const x = Number(message.x);
+        const z = Number(message.z);
+        const yaw = Number(message.yaw);
+
+        if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return;
+
+        const now = Date.now();
+        const detention = stage7State.detentions[session.player.id];
+        if (detention && detention.expiresAt > now) return;
+        const restricted = findBlockingStage7Checkpoint(stage7State, x, z, now);
+        if (restricted && !stage7CanPassCheckpoint(session)) return;
+        const employment = session.player.life.employment;
+        const authorisedParkWorker = employment?.workplaceId === PARK_WORKPLACE_ID &&
+          employment.onDuty === true && employment.uniformWorkplaceId === PARK_WORKPLACE_ID;
+        const validDailyPass = hasValidParkTicket(stage5State, session.player.id, clock.dayKey());
+        if (isInsideParkGrounds(x, z) && !validDailyPass && !authorisedParkWorker) {
+          // A ticket is required to enter the enclosed grounds, not to leave them.
+          // If this session is already inside without a current pass (for example after
+          // reconnecting after midnight), return it to the public gate approach.
+          const alreadyInside = isInsideParkGrounds(session.player.x, session.player.z);
+          if (alreadyInside) {
+            session.player.x = PARK_GATE_APPROACH.x;
+            session.player.z = PARK_GATE_APPROACH.z;
+          }
+          session.lastSyncAt = now;
+          session.rejectedSyncs = 0;
+          send(socket, { type: "posCorrect", x: session.player.x, z: session.player.z });
+          if (now - Number(session.parkGateNoticeAt ?? 0) >= 2500) {
+            session.parkGateNoticeAt = now;
+            send(socket, {
+              type: "parkGateResult",
+              ok: false,
+              message: "City Park entry requires a valid pass for today. Buy a daily pass from an on-duty Ticket Seller at the main entrance. Park employees on duty and in uniform may enter with their staff credentials.",
+            });
+            send(socket, parkStatePayload(session));
+          }
+          return;
+        }
+
+        const elapsed = Math.min(SYNC_MAX_ELAPSED, Math.max(0, (now - session.lastSyncAt) / 1000));
+        const allowed = SYNC_SLACK + SYNC_MAX_SPEED * elapsed;
+        const moved = Math.hypot(x - session.player.x, z - session.player.z);
+
+        if (moved <= allowed) {
+          session.player.x = x;
+          session.player.z = z;
+          if (Number.isFinite(yaw)) session.player.yaw = yaw;
+          session.lastSyncAt = now;
+          session.rejectedSyncs = 0;
+          const fleetId=String(message.vehicleId??"");
+          if(fleetId)await recordStage9VehicleMovement(session,fleetId,moved,now);
+          const onboard=stage9State.rides.find(item=>item.driverId===session.player.id&&item.status==="onboard");
+          if(onboard){const passenger=players.get(onboard.passengerId);if(passenger){
+            passenger.player.x=session.player.x;passenger.player.z=session.player.z;passenger.player.yaw=session.player.yaw;
+            send(passenger.socket,{type:"stage9PassengerPosition",x:session.player.x,z:session.player.z,yaw:session.player.yaw});
+          }}
+        } else {
+          session.rejectedSyncs += 1;
+          session.lastSyncAt = now;
+
+          // Client keeps disagreeing: snap it back to the server's position.
+          if (session.rejectedSyncs >= 3) {
+            session.rejectedSyncs = 0;
+            send(socket, { type: "posCorrect", x: session.player.x, z: session.player.z });
+          }
+        }
+        return;
+      }
+
+      if (message.type === "getStage15TravelState") {
+        send(socket, {
+          type: "stage15TravelState",
+          cities: stage15Cities(),
+          routes: stage15Routes(),
+          cityId: session.player.cityId,
+          currentCity: findStage15City(session.player.cityId) ?? findStage15City("port-harcourt"),
+          environments: stage16Environments(),
+          currentEnvironment: findStage16Environment(session.player.cityId) ?? findStage16Environment("port-harcourt"),
+          stage17Passport: stage17Passport(stage17State, session.player.id, session.player.cityId),
+          cash: session.player.cash,
+          recentTrips: stage15State.ledger.filter((entry) => entry.accountId === session.player.id).slice(-12).reverse(),
+        });
+        return;
+      }
+
+      if (message.type === "travelCity") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 128);
+          const routeId = String(message.routeId ?? "");
+          const passengers = Number(message.passengers);
+          const currentCityId = session.player.cityId;
+          const route = findStage15Route(routeId);
+          const fail = (messageText: string) => send(socket, {
+            type: "stage15TravelResult",
+            ok: false,
+            message: messageText,
+            cityId: session.player.cityId,
+            cash: session.player.cash,
+            requestId,
+          });
+
+          if (!requestId) { fail("Travel request ID is required. Please retry from the travel terminal."); return; }
+          if (session.inHome || session.inCarpark || session.inStaffRoom || session.inWorkplaceInterior ||
+              session.inShopInterior || session.inApartmentInterior) {
+            fail("Return to the street before using inter-city travel.");
+            return;
+          }
+          if (!route || route.fromCityId !== currentCityId) {
+            fail("That route does not depart from your current city. Refresh the travel terminal.");
+            return;
+          }
+          if (stage15State.usedRequestIds.includes(requestId)) {
+            fail("This travel request has already been processed. Refresh your travel terminal.");
+            return;
+          }
+
+          const validated = validateStage15Travel({
+            routeId,
+            passengers,
+            requestId,
+            balanceNaira: session.player.cash,
+          }, new Set(stage15State.usedRequestIds));
+          if (!validated) {
+            fail("Travel could not be approved. Check your fare, passenger count, available cash and route.");
+            return;
+          }
+
+          const fromCityId = session.player.cityId;
+          const previous = {
+            cash: session.player.cash,
+            cityId: session.player.cityId,
+            x: session.player.x,
+            z: session.player.z,
+            yaw: session.player.yaw,
+            input: session.input,
+          };
+          const destination = findStage15City(validated.toCityId);
+          const spawn = stage15CitySpawn(validated.toCityId);
+          if (!destination) { fail("The destination city is not available."); return; }
+
+          const now = Date.now();
+          const previousStage15State = stage15State;
+          const previousStage17State = stage17State;
+          let discovery: ReturnType<typeof recordStage17CityDiscovery>;
+          let nextStage17State: Stage17State;
+          try {
+            discovery = recordStage17CityDiscovery(previousStage17State, session.player.id, fromCityId, destination.id, requestId, now);
+            nextStage17State = discovery.state;
+          } catch {
+            fail("The city passport rejected this travel request. Please refresh and retry.");
+            return;
+          }
+          const nextCash = previous.cash - validated.fareNaira + discovery.rewardNaira;
+          let nextState: Stage15State;
+          try {
+            nextState = recordStage15Travel(previousStage15State, validated, session.player.id, now, nextCash);
+          } catch {
+            fail("The travel ledger rejected this request. Please retry.");
+            return;
+          }
+          session.player.cash = nextCash;
+          session.player.cityId = destination.id;
+          session.player.x = spawn.x;
+          session.player.z = spawn.z;
+          session.player.yaw = spawn.yaw;
+          session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+          session.lastInputAt = 0;
+          session.lastSyncAt = Date.now();
+          session.rejectedSyncs = 0;
+
+          try {
+            await persistSession(session);
+            stage15State = nextState;
+            await saveStage15State();
+            stage17State = nextStage17State;
+            await saveStage17State();
+          } catch (error) {
+            session.player.cash = previous.cash;
+            session.player.cityId = previous.cityId;
+            session.player.x = previous.x;
+            session.player.z = previous.z;
+            session.player.yaw = previous.yaw;
+            session.input = previous.input;
+            stage15State = previousStage15State;
+            stage17State = previousStage17State;
+            await saveStage15State().catch((stateError) => console.error("stage15-ledger-rollback", stateError));
+            await saveStage17State().catch((stateError) => console.error("stage17-passport-rollback", stateError));
+            await persistSession(session).catch((persistError) => console.error("stage15-travel-rollback", persistError));
+            fail("Travel could not be saved. Your previous city and cash have been restored.");
+            console.error("stage15-travel-commit", error);
+            return;
+          }
+
+          for (const recipient of players.values()) {
+            if (recipient.player.cityId === fromCityId) {
+              send(recipient.socket, { type: "playerLeft", playerId: session.player.id, onlineCount: cityOnlineCount(fromCityId) });
+            } else if (recipient.player.cityId === destination.id) {
+              send(recipient.socket, {
+                type: "playerJoined",
+                player: publicPlayer(session.player),
+                onlineCount: cityOnlineCount(destination.id),
+              });
+            }
+          }
+          send(socket, {
+            type: "stage15TravelResult",
+            ok: true,
+            requestId,
+            routeId: validated.routeId,
+            fromCityId,
+            cityId: destination.id,
+            cityName: destination.name,
+            environment: findStage16Environment(destination.id) ?? findStage16Environment("port-harcourt"),
+            fareNaira: validated.fareNaira,
+            durationMinutes: validated.durationMinutes,
+            passengers: validated.passengers,
+            cash: session.player.cash,
+            stage17Discovery: {
+              newlyDiscovered: discovery.newlyDiscovered,
+              rewardNaira: discovery.rewardNaira,
+              cityId: destination.id,
+              visitedCount: stage17Passport(stage17State, session.player.id, destination.id).visitedCount,
+              totalCities: stage17Passport(stage17State, session.player.id, destination.id).totalCities,
+            },
+            stage17Passport: stage17Passport(stage17State, session.player.id, destination.id),
+            x: session.player.x,
+            z: session.player.z,
+            yaw: session.player.yaw,
+            players: snapshot(destination.id),
+            onlineCount: cityOnlineCount(destination.id),
+            message: "Arrived in " + destination.name + ". Your fare of ₦" +
+              validated.fareNaira.toLocaleString("en-NG") + " has been charged and your destination has been saved." +
+              (discovery.rewardNaira > 0 ? " New city passport stamp earned with a ₦" +
+                discovery.rewardNaira.toLocaleString("en-NG") + " discovery reward." : ""),
+          });
+        });
+        return;
+      }
+
+      if (message.type === "buyFuel") {
+        await withMoneyMutation(async () => {
+        const carId = String(message.carId ?? "");
+        const price = FUEL_PRICES[String(message.brand ?? "")];
+        const litres = Math.floor(Number(message.litres));
+        const fail = (text: string) => send(socket, { type: "fuelResult", ok: false, message: text });
+
+        if (!price || !/^c\d{1,3}$/.test(carId) || !Number.isFinite(litres) || litres < 1 || litres > FUEL_TANK) {
+          fail("Invalid fuel request.");
+          return;
+        }
+
+        const current = session.player.fuel[carId] ?? FUEL_START;
+
+        if (litres > Math.floor(FUEL_TANK - current + 1e-6)) {
+          fail("The tank can't hold that much.");
+          return;
+        }
+
+        const cost = litres * price;
+
+        if (session.player.cash < cost) {
+          fail("Not enough cash.");
+          return;
+        }
+
+        session.player.cash -= cost;
+        session.player.fuel[carId] = Math.round((current + litres) * 100) / 100;
+        await persistSession(session);
+
+        send(socket, {
+          type: "fuelResult",
+          ok: true,
+          carId,
+          fuel: session.player.fuel[carId],
+          cash: session.player.cash,
+        });
+        return;
+        });
+        return;
+      }
+
+      if (message.type === "acceptJob") {
+        const jobName = String(message.name ?? "");
+        const known = JOBS.find((job) => job.n === jobName);
+
+        if (!known) {
+          send(socket, { type: "jobResult", ok: false, message: "Unknown job." });
+          return;
+        }
+
+        if (session.player.job) {
+          send(socket, { type: "jobResult", ok: false, message: "You already have an active job." });
+          return;
+        }
+
+        session.player.job = { ...known };
+        await persistSession(session);
+        send(socket, { type: "jobResult", ok: true, job: session.player.job });
+        return;
+      }
+
+      if (message.type === "setAdminRole") {
+        if (!isMainAdmin(session)) {
+          sendWorkplaceResult(session, "adminRole", false, "Only Dbase_Mccoll, the main administrator, can grant or remove administrator access.");
+          return;
+        }
+
+        const targetUsername = sanitizeUsername(message.targetUsername);
+        const targetUsernameLower = targetUsername.toLowerCase();
+        const requestedRole = String(message.role ?? "").toLowerCase();
+        if (!/^[a-z]+_[a-z]+$/.test(targetUsernameLower)) {
+          sendWorkplaceResult(session, "adminRole", false, "Enter a valid Firstname_lastname account username.");
+          return;
+        }
+        if (!["admin", "player", "none"].includes(requestedRole)) {
+          sendWorkplaceResult(session, "adminRole", false, "Choose either grant admin or remove admin access.");
+          return;
+        }
+        const targetAccount = await findAccountByUsername(targetUsernameLower);
+        if (!targetAccount) {
+          sendWorkplaceResult(session, "adminRole", false, "No account was found for " + targetUsername + ".");
+          return;
+        }
+        if (targetAccount.id === session.player.id || targetAccount.usernameLower === MAIN_ADMIN_USERNAME) {
+          sendWorkplaceResult(session, "adminRole", false, "The main administrator account is protected from role changes.");
+          return;
+        }
+
+        const wasAdmin = world.admins[targetAccount.id] === true;
+        const grant = requestedRole === "admin";
+        if (wasAdmin === grant) {
+          sendWorkplaceResult(session, "adminRole", true, grant
+            ? targetAccount.username + " already has administrator access."
+            : targetAccount.username + " already has no delegated administrator access.");
+          return;
+        }
+
+        if (grant) world.admins[targetAccount.id] = true;
+        else delete world.admins[targetAccount.id];
+        appendAdminAudit(
+          session,
+          targetAccount.id,
+          targetAccount.username,
+          grant ? "grant_admin" : "revoke_admin",
+          grant ? "Granted delegated administrator role" : "Removed delegated administrator role",
+        );
+        await saveWorld();
+
+        const outcome = grant
+          ? targetAccount.username + " is now an administrator. The main administrator role remains exclusive to Dbase_Mccoll."
+          : "Administrator access removed from " + targetAccount.username + ".";
+        sendWorkplaceResult(session, "adminRole", true, outcome);
+        const activeTarget = players.get(targetAccount.id);
+        if (activeTarget) sendWorkplaceResult(activeTarget, "adminRole", true, grant
+          ? "Dbase_Mccoll granted you administrator access."
+          : "Your delegated administrator access was removed by Dbase_Mccoll.");
+        broadcastWorkplaceStates();
+        return;
+      }
+
+      if (message.type === "getRichestPlayers") {
+        try {
+          let rankings: Array<{ username: string; totalWealth: number }>;
+          if (pool) {
+            const result = await pool.query(
+              "SELECT username, cash, bank FROM nrs_accounts ORDER BY (cash + bank) DESC, username_lower ASC LIMIT 10",
+            );
+            rankings = result.rows.map((row: { username: string; cash: string | number; bank: string | number }) => ({
+              username: String(row.username),
+              totalWealth: Math.max(0, Math.floor(Number(row.cash) || 0)) + Math.max(0, Math.floor(Number(row.bank) || 0)),
+            }));
+          } else {
+            rankings = Object.values(fileStore.accounts).map((account) => {
+              const normalized = normalizeAccount(account);
+              return { username: normalized.username, totalWealth: normalized.cash + normalized.bank };
+            }).sort((a, b) => b.totalWealth - a.totalWealth || a.username.localeCompare(b.username)).slice(0, 10);
+          }
+          rankings.sort((a, b) => b.totalWealth - a.totalWealth || a.username.localeCompare(b.username));
+          send(socket, {
+            type: "richestPlayers",
+            players: rankings.slice(0, 10).map((player, index) => ({ rank: index + 1, ...player })),
+          });
+        } catch (error) {
+          console.error("richest-players", error);
+          send(socket, { type: "richestPlayers", players: [], message: "Could not load the wealth rankings right now." });
+        }
+        return;
+      }
+
+      if (message.type === "getMarketState") {
+        send(socket, marketStatePayload(session));
+        return;
+      }
+
+      if (message.type === "marketSale") {
+        await withMoneyMutation(async () => {
+          const orderId = String(message.orderId ?? "").trim().slice(0, 100);
+          const sellerId = String(message.sellerId ?? "").trim().slice(0, 100);
+          const quantity = Math.floor(Number(message.quantity));
+          const seller = players.get(sellerId);
+          const workplace = findWorkplace(MARKET_WORKPLACE_ID);
+          const fail = (text: string) => send(socket, {
+            type: "marketSaleResult", requestId: orderId, ok: false, message: text,
+          });
+
+          if (!orderId || !sellerId || !seller || sellerId === session.player.id) {
+            fail("Choose an available market salesperson and try again.");
+            send(socket, marketStatePayload(session));
+            return;
+          }
+          const sellerEmployment = seller.player.life.employment;
+          if (
+            !workplace ||
+            sellerEmployment?.workplaceId !== MARKET_WORKPLACE_ID ||
+            !Number.isInteger(sellerEmployment.rank) ||
+            sellerEmployment.rank < 1 || sellerEmployment.rank > MARKET_RANKS.length ||
+            sellerEmployment.onDuty !== true ||
+            sellerEmployment.uniformWorkplaceId !== MARKET_WORKPLACE_ID
+          ) {
+            fail("That salesperson is not authorised and on duty at Mile 1 Market.");
+            return;
+          }
+          if (workplaceDistance(seller, workplace) > 24 || workplaceDistance(session, workplace) > 24) {
+            fail("The customer and salesperson must both be at Mile 1 Market.");
+            return;
+          }
+
+          const product = MARKET_PRODUCTS.find(item => item.id === String(message.productId ?? ""));
+          if (!product) {
+            fail("Choose a product from the market catalogue.");
+            return;
+          }
+          const requestedQuantity = Number(message.quantity);
+          const inventoryCount = Math.max(0, Math.floor(Number(session.player.inventory[product.inventoryItem] ?? 0)));
+          if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > 99) {
+            fail("Quantity must be between 1 and 99.");
+            return;
+          }
+          if (inventoryCount + requestedQuantity > 9999) {
+            fail("Your backpack cannot hold any more of this product.");
+            return;
+          }
+
+          const draft = normalizeStage4State(stage4State);
+          const customerMoney = { cash: session.player.cash, bank: session.player.bank };
+          const idempotencyKey = createHash("sha256")
+            .update("market|" + session.player.id + "|" + orderId)
+            .digest("hex");
+          const result = settleMarketSale({
+            state: draft.market,
+            orderId,
+            customer: customerMoney,
+            customerId: session.player.id,
+            sellerId: seller.player.id,
+            sellerRank: sellerEmployment.rank,
+            productId: product.id,
+            quantity: requestedQuantity,
+            idempotencyKey,
+            now: Date.now(),
+          });
+          if (!result.ok) {
+            const reasons: Record<string, string> = {
+              duplicate_order: "This order has already been processed.",
+              unauthorized_seller: "That salesperson is not authorised.",
+              unknown_product: "Choose a product from the market catalogue.",
+              invalid_quantity: "Quantity must be between 1 and 99.",
+              insufficient_stock: "There is not enough stock for this order.",
+              insufficient_cash: "The customer does not have enough cash.",
+              invalid_order_id: "The order reference is invalid.",
+              balance_limit: "The sale exceeds a safe balance limit and was rejected.",
+            };
+            fail(reasons[result.reason] ?? "The market sale was rejected.");
+            send(socket, marketStatePayload(session));
+            return;
+          }
+
+          const previousState = stage4State;
+          const previousCash = session.player.cash;
+          const previousInventory = { ...session.player.inventory };
+          session.player.cash = customerMoney.cash;
+          session.player.inventory[product.inventoryItem] = inventoryCount + requestedQuantity;
+          try {
+            await persistSession(session);
+            stage4State = draft;
+            await saveStage4State();
+          } catch (error) {
+            stage4State = previousState;
+            session.player.cash = previousCash;
+            session.player.inventory = previousInventory;
+            try { await persistSession(session); } catch (rollbackError) {
+              console.error("market-sale-rollback", rollbackError);
+            }
+            try { await saveStage4State(previousState); } catch (rollbackError) {
+              console.error("market-state-rollback", rollbackError);
+            }
+            console.error("market-sale-persist", error);
+            fail("The sale could not be saved. No order was confirmed; please retry.");
+            return;
+          }
+
+          const receipt = {
+            ...result.result,
+            productName: product?.name ?? result.result.productId,
+            customerId: session.player.id,
+            customerName: session.player.name,
+            sellerId: seller.player.id,
+            sellerName: seller.player.name,
+            createdAt: draft.market.history[draft.market.history.length - 1]?.createdAt ?? Date.now(),
+          };
+          send(socket, {
+            ...marketStatePayload(session),
+            type: "marketSaleResult", requestId: orderId, ok: true,
+            message: "Purchase completed. Receipt " + orderId + ".",
+            receipt, cash: session.player.cash, inventory: session.player.inventory,
+          });
+          send(seller.socket, {
+            type: "marketSaleNotice",
+            message: "Sale completed: " + receipt.productName + " × " + receipt.quantity +
+              ". Commission earned: ₦" + receipt.commission.toLocaleString("en-NG") + ".",
+            receipt,
+            commissionBalance: stage4State.market.commissions[seller.player.id] ?? 0,
+          });
+        });
+        return;
+      }
+
+      if (message.type === "claimMarketCommission") {
+        await withMoneyMutation(async () => {
+          const employment = session.player.life.employment;
+          const workplace = findWorkplace(MARKET_WORKPLACE_ID);
+          const fail = (text: string) => send(socket, {
+            type: "marketCommissionResult", ok: false, message: text,
+          });
+          if (employment?.workplaceId !== MARKET_WORKPLACE_ID || employment.onDuty !== true ||
+              employment.uniformWorkplaceId !== MARKET_WORKPLACE_ID || !workplace ||
+              workplaceDistance(session, workplace) > 24) {
+            fail("Clock in and wear your market uniform before collecting commission.");
+            return;
+          }
+          const draft = normalizeStage4State(stage4State);
+          const amount = Math.max(0, Math.floor(draft.market.commissions[session.player.id] ?? 0));
+          if (!amount) {
+            fail("You have no market commission ready to collect.");
+            return;
+          }
+          if (!Number.isSafeInteger(session.player.cash + amount)) {
+            fail("Your cash balance is at its limit. Spend or bank some cash before collecting commission.");
+            return;
+          }
+          const previousState = stage4State;
+          const previousCash = session.player.cash;
+          delete draft.market.commissions[session.player.id];
+          session.player.cash += amount;
+          try {
+            await persistSession(session);
+            stage4State = draft;
+            await saveStage4State();
+          } catch (error) {
+            stage4State = previousState;
+            session.player.cash = previousCash;
+            try { await persistSession(session); } catch (rollbackError) {
+              console.error("market-commission-rollback", rollbackError);
+            }
+            try { await saveStage4State(previousState); } catch (rollbackError) {
+              console.error("market-commission-state-rollback", rollbackError);
+            }
+            console.error("market-commission-persist", error);
+            fail("Commission could not be saved; please try again.");
+            return;
+          }
+          send(socket, {
+            type: "marketCommissionResult", ok: true, amount, cash: session.player.cash,
+            message: "Collected ₦" + amount.toLocaleString("en-NG") + " in market commission.",
+          });
+          send(socket, marketStatePayload(session));
+        });
+        return;
+      }
+
+      if (message.type === "marketRestock") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const productId = String(message.productId ?? "");
+          
