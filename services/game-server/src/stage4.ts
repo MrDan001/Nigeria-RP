@@ -63,6 +63,7 @@ export type MarketState = {
   completedOrderIds: Record<string, true>;
   completedRestockIds: Record<string, true>;
   history: MarketSale[];
+  restockHistory: MarketRestockResult[];
 };
 
 export type BankState = {
@@ -96,6 +97,8 @@ export type MarketSaleResult = {
 };
 
 export type MarketRestockResult = {
+  requestId: string;
+  managerId: string;
   productId: string;
   productName: string;
   quantity: number;
@@ -103,6 +106,7 @@ export type MarketRestockResult = {
   totalCost: number;
   remainingStock: number;
   remainingTill: number;
+  createdAt: number;
 };
 
 export type BankTransactionResult = {
@@ -140,6 +144,7 @@ export function createMarketState(): MarketState {
     completedOrderIds: {},
     completedRestockIds: {},
     history: [],
+    restockHistory: [],
   };
 }
 
@@ -148,14 +153,21 @@ export function restockMarketStock(args: {
   productId: string;
   quantity: number;
   managerRank: number;
+  managerId?: string;
   requestId?: string;
   idempotencyKey?: string;
+  now?: number;
 }): { ok: true; result: MarketRestockResult } | { ok: false; reason: string } {
   const { state, productId, quantity, managerRank } = args;
   const requestId = String(args.requestId ?? "");
+  const managerId = String(args.managerId ?? "manager");
+  const now = Number(args.now ?? Date.now());
   const idempotencyKey = String(args.idempotencyKey ?? requestId);
   if (!requestId || requestId.length > 100 || !idempotencyKey || idempotencyKey.length > 128) {
     return { ok: false, reason: "invalid_request_id" };
+  }
+  if (!managerId || managerId.length > 100 || !Number.isFinite(now) || now <= 0) {
+    return { ok: false, reason: "invalid_timestamp" };
   }
   if (state.completedRestockIds[idempotencyKey]) return { ok: false, reason: "duplicate_restock" };
   if (!Number.isInteger(managerRank) || managerRank < 5 || managerRank > MARKET_RANKS.length) {
@@ -176,18 +188,23 @@ export function restockMarketStock(args: {
   state.stock[productId] = stock + quantity;
   state.till = till - totalCost;
   state.completedRestockIds[idempotencyKey] = true;
-  return {
-    ok: true,
-    result: {
-      productId,
-      productName: product.name,
-      quantity,
-      unitCost,
-      totalCost,
-      remainingStock: state.stock[productId],
-      remainingTill: state.till,
-    },
+  const receipt: MarketRestockResult = {
+    requestId,
+    managerId,
+    productId,
+    productName: product.name,
+    quantity,
+    unitCost,
+    totalCost,
+    remainingStock: state.stock[productId],
+    remainingTill: state.till,
+    createdAt: Math.floor(now),
   };
+  state.restockHistory.push(receipt);
+  if (state.restockHistory.length > MAX_TRANSACTION_HISTORY) {
+    state.restockHistory.splice(0, state.restockHistory.length - MAX_TRANSACTION_HISTORY);
+  }
+  return { ok: true, result: receipt };
 }
 
 export function createBankState(): BankState {
@@ -346,7 +363,7 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
   const stock: Record<string, number> = {};
   for (const product of MARKET_PRODUCTS) {
     const value = Number((marketRaw.stock as Record<string, unknown> | undefined)?.[product.id] ?? product.startingStock);
-    stock[product.id] = Number.isFinite(value) ? Math.max(0, Math.min(999999, Math.floor(value))) : product.startingStock;
+    stock[product.id] = Number.isFinite(value) ? Math.max(0, Math.min(MAX_MARKET_STOCK, Math.floor(value))) : product.startingStock;
   }
   const commissions: Record<string, number> = {};
   if (marketRaw.commissions && typeof marketRaw.commissions === "object" && !Array.isArray(marketRaw.commissions)) {
@@ -412,6 +429,42 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
       });
     }
   }
+  const restockHistory: MarketRestockResult[] = [];
+  if (Array.isArray(marketRaw.restockHistory)) {
+    for (const entry of marketRaw.restockHistory) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const value = entry as Record<string, unknown>;
+      const product = findMarketProduct(String(value.productId ?? ""));
+      const quantity = Number(value.quantity);
+      const unitCost = Number(value.unitCost);
+      const totalCost = Number(value.totalCost);
+      const remainingStock = Number(value.remainingStock);
+      const remainingTill = Number(value.remainingTill);
+      const createdAt = Number(value.createdAt);
+      if (
+        !product || typeof value.requestId !== "string" || !value.requestId ||
+        typeof value.managerId !== "string" || !value.managerId ||
+        !positiveInteger(quantity) || quantity > 100 ||
+        unitCost !== Math.floor(product.unitPrice * MARKET_RESTOCK_RATE) ||
+        totalCost !== unitCost * quantity ||
+        !Number.isSafeInteger(remainingStock) || remainingStock < quantity || remainingStock > MAX_MARKET_STOCK ||
+        !Number.isSafeInteger(remainingTill) || remainingTill < 0 ||
+        !Number.isFinite(createdAt) || createdAt <= 0
+      ) continue;
+      restockHistory.push({
+        requestId: value.requestId.slice(0, 100),
+        managerId: value.managerId.slice(0, 100),
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        unitCost,
+        totalCost,
+        remainingStock,
+        remainingTill,
+        createdAt: Math.floor(createdAt),
+      });
+    }
+  }
   return {
     market: {
       stock,
@@ -422,6 +475,7 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
       history: marketHistory.filter(sale => sale.total === findMarketProduct(sale.productId)!.unitPrice * sale.quantity &&
         sale.commission === Math.floor(sale.total * MARKET_COMMISSION_RATE) &&
         sale.tillCredit === sale.total - sale.commission).slice(-MAX_TRANSACTION_HISTORY),
+      restockHistory: restockHistory.slice(-MAX_TRANSACTION_HISTORY),
     },
     bank: { completedTransactionIds, history: history.slice(-MAX_TRANSACTION_HISTORY) },
   };
