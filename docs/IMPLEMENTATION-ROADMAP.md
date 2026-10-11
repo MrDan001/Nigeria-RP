@@ -163,10 +163,11 @@ Acceptance: customers receive the right goods; cash, bank balances, stock and co
 
 Acceptance:
 - [x] Server domain and account-scoped hospital/park workflows are implemented.
-- [x] Stage 5 regression suite is registered in CI; latest check results are tracked by commit before claiming final acceptance.
-- [ ] Final full CI and Railway health verification on the final Stage 5 commit.
+- [x] Game Server CI passed on latest server commit `1736218ab944adeaa4b31af6b2c6da5122ffcbd8`, including Stage 1–5 regression, typecheck and builds.
+- [x] Browser Client Build and Android debug APK build passed on the latest client commit `96b956208aa7d50b3e8d64032542f64ef83caf8a`.
+- [x] Railway production deployed the latest server commit; the service is online and the configured `/` health check succeeded.
 - [ ] Solo Android visual check of patient status, triage-to-treatment flow, pharmacy receipt, park visitor-pass and help panels.
-- [ ] Implement or explicitly defer physical park-gate enforcement.
+- [ ] Implement and test physical park-gate enforcement for daily passes.
 - [ ] Verify homeless respawn routing to a designated public park/parking point without deleting property.
 - [ ] User accepts Stage 5.
 
