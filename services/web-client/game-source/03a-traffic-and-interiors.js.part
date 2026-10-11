@@ -396,7 +396,7 @@ function workplaceInterior(d){
   );
   mini(workplaceName.toUpperCase().slice(0,28),ix,3.12,iz-depth/2+.11,Math.min(7.8,w-.8),'#'+p.trim.toString(16).padStart(6,'0'));
   mini('RECEPTION',ix,2.70,iz-3.9,3.2,'#'+p.accent.toString(16).padStart(6,'0'));
-  const staffSign=mini('STAFF ONLY',ix+w/2-.16,2.55,iz+4.1,2.7,'#'+p.trim.toString(16).padStart(6,'0'));staffSign.rotation.y=Math.PI/2;
+  const staffSign=mini('STAFF ONLY',ix+w/2-.16,2.55,iz+4.1,2.7,'#'+p.trim.toString(16).padStart(6,'0'));staffSign.rotation.y=-Math.PI/2;
   const streetSign=mini('EXIT TO STREET',ix,2.75,iz+depth/2-.08,3.6,'#206f4a');streetSign.rotation.y=Math.PI;
   layout=WORKPLACE_INTERIOR_VISUALS[id]={id,name:workplaceName+' · Reception',workplaceId,kind,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix,z:iz-3.3,hw:2.1,hd:.5},isWorkplaceInterior:true};
  }

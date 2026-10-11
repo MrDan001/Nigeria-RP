@@ -451,7 +451,7 @@ modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.i;
 let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
-function mirrorSignTexture(texture){const back=texture.clone();back.wrapS=THREE.ClampToEdgeWrapping;back.center.set(0,0);back.repeat.set(-1,1);back.offset.set(1,0);back.needsUpdate=true;return back;}
+function mirrorSignTexture(texture){const back=texture.clone();back.wrapS=THREE.RepeatWrapping;back.center.set(0,0);back.repeat.set(-1,1);back.offset.set(1,0);back.needsUpdate=true;return back;}
 function readableTextBoard(parent,geometry,texture,x,y,z,rotationY=0){
  const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=rotationY;parent.add(board);
  const front=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({map:texture,side:THREE.FrontSide,fog:false}));
