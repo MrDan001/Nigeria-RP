@@ -1092,7 +1092,6 @@ wss.on("connection", (socket) => {
     }
   }, 12000);
 
-  const finishAuthentication = async (account: Account, token: string) => {
   const sendCharacterSelection = async (owner: Account, token: string, message = "") => {
     const ownerId = String(owner.ownerId || owner.id);
     const characters = await listCharacters(ownerId);
