@@ -4,7 +4,7 @@
 
 ## Implemented in the current source
 
-- Places → Homes has a 30-home catalogue with rental prices, district, vacancy/occupancy and rent actions.
+- Places → Homes has a 33-home catalogue with rental prices, district, vacancy/occupancy and rent actions.
 - Server-authoritative renting/extension uses player cash, limits players to one rented home, blocks occupied homes, caps prepaid rent at seven days and persists home/life state.
 - Rent is settled against the Nigeria-time day. Online life updates and offline settlement at reconnect are implemented; eviction releases a home.
 - The client creates separate class-specific home exteriors for hut, face-me-I-face-you compound, two-storey flat, estate house, mansion and palace rather than reusing a generic cube.
@@ -82,3 +82,12 @@ Both **Browser Client Build** and **Game Server CI** GitHub workflows must pass 
 - [ ] Both CI workflows pass and the user explicitly approves this stage.
 
 **Next stage after approval:** Stage 3 — shared workplace/job framework, rank 1–5 staff, rank 6 boss, authorized promotion/demotion/fire, clock-in/out, task completion and server-validated payout.
+
+
+## Follow-up: expanded housing catalogue and map navigation (2026-10-11)
+
+- Added three additional Face-Me-I-Face-You properties in Rumuola on a separate row; the original 30 house IDs and coordinates remain unchanged, for 33 total properties.
+- Kept server house definitions and client plot reservations synchronized.
+- Added an **All Places** navigation tab that aggregates registered points of interest, workplaces/organizations, services, shops/stalls, fuel stations, districts and every home without duplicating the same home entry.
+- The Homes tab lists every server-provided home and explicitly labels it YOUR HOME, AVAILABLE or OCCUPIED; occupancy and rent actions remain server-authoritative.
+- Stage 2 remains subject to CI and live-device verification. This update does not skip the Stage 3 acceptance gate or authorize Stage 4 before the required prior-stage approval.
