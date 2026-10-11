@@ -85,6 +85,9 @@ jobs:
       - name: Test live Stage 15 travel transaction, persistence and replay safety
         run: npm run test:stage15:live --workspace nigeria-rp-game-server
 
+      - name: Test Stage 19 remembered account and three-character selection
+        run: npm run test:stage19:live --workspace nigeria-rp-game-server
+
       - name: Test Stage 16 city environment catalogue
         run: npm run test:stage16 --workspace nigeria-rp-game-server
 

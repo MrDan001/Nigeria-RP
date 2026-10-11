@@ -26,7 +26,8 @@
     "test:stage15:live": "node scripts/assemble-server.mjs && tsx src/test-stage15-live.ts",
     "test:stage16": "node scripts/assemble-server.mjs && tsx src/test-stage16.ts",
     "test:stage17": "node scripts/assemble-server.mjs && tsx src/test-stage17.ts",
-    "test:stage18": "node scripts/assemble-server.mjs && tsx src/test-stage18.ts"
+    "test:stage18": "node scripts/assemble-server.mjs && tsx src/test-stage18.ts",
+    "test:stage19:live": "node scripts/assemble-server.mjs && tsx src/test-stage19-live.ts"
   },
   "engines": {
     "node": ">=20.9.0"
