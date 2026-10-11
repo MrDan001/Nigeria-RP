@@ -15,11 +15,22 @@ export type Stage15Route = {
   capacity: number;
 };
 
+export type Stage15TravelMode = "day-bus" | "night-bus" | "flight";
+export function isStage15TravelMode(value: unknown): value is Stage15TravelMode {
+  return value === "day-bus" || value === "night-bus" || value === "flight";
+}
+const STAGE15_MODE_MULTIPLIER: Record<Stage15TravelMode, number> = {
+  "day-bus": 1,
+  "night-bus": 1.2,
+  flight: 2.5,
+};
+
 export type Stage15TravelRequest = {
   routeId: string;
   passengers: number;
   requestId: string;
   balanceNaira: number;
+  travelMode?: Stage15TravelMode;
 };
 
 export type Stage15TravelResult = {
@@ -30,6 +41,7 @@ export type Stage15TravelResult = {
   fareNaira: number;
   durationMinutes: number;
   requestId: string;
+  travelMode: Stage15TravelMode;
 };
 
 export const STAGE15_CITIES: readonly Stage15City[] = [
@@ -84,10 +96,10 @@ export function findStage15Route(id: string): Stage15Route | undefined {
   return routeMap.get(id);
 }
 
-export function calculateStage15Fare(routeId: string, passengers: number): number {
+export function calculateStage15Fare(routeId: string, passengers: number, travelMode: Stage15TravelMode = "day-bus"): number {
   const route = findStage15Route(routeId);
-  if (!route || !Number.isSafeInteger(passengers) || passengers < 1 || passengers > route.capacity) return 0;
-  return route.baseFareNaira * passengers;
+  if (!route || !Number.isSafeInteger(passengers) || passengers < 1 || passengers > route.capacity || !isStage15TravelMode(travelMode)) return 0;
+  return Math.round(route.baseFareNaira * STAGE15_MODE_MULTIPLIER[travelMode]) * passengers;
 }
 
 export function validateStage15Travel(request: Stage15TravelRequest, usedRequestIds: ReadonlySet<string> = new Set()): Stage15TravelResult | null {
@@ -96,8 +108,10 @@ export function validateStage15Travel(request: Stage15TravelRequest, usedRequest
   if (!Number.isSafeInteger(request.passengers) || request.passengers < 1 || request.passengers > route.capacity) return null;
   if (!request.requestId || request.requestId.length > 128 || usedRequestIds.has(request.requestId)) return null;
   if (!Number.isFinite(request.balanceNaira) || request.balanceNaira < 0) return null;
+  const travelMode = request.travelMode ?? "day-bus";
+  if (!isStage15TravelMode(travelMode)) return null;
 
-  const fareNaira = calculateStage15Fare(route.id, request.passengers);
+  const fareNaira = calculateStage15Fare(route.id, request.passengers, travelMode);
   if (fareNaira <= 0 || request.balanceNaira < fareNaira) return null;
   if (!findStage15City(route.fromCityId) || !findStage15City(route.toCityId)) return null;
 
@@ -107,8 +121,9 @@ export function validateStage15Travel(request: Stage15TravelRequest, usedRequest
     toCityId: route.toCityId,
     passengers: request.passengers,
     fareNaira,
-    durationMinutes: route.durationMinutes,
+    durationMinutes: travelMode === "flight" ? Math.max(30, Math.round(route.durationMinutes / 4)) : travelMode === "night-bus" ? Math.round(route.durationMinutes * 1.08) : route.durationMinutes,
     requestId: request.requestId,
+    travelMode,
   };
 }
 
@@ -157,12 +172,17 @@ export function normalizeStage15State(value: unknown): Stage15State {
           Number.isSafeInteger(item.cashAfter) && Number(item.cashAfter) >= 0;
       }).slice(-MAX_STAGE15_LEDGER) as Stage15LedgerEntry[]
     : [];
+  // Older saved entries predate travel-mode selection; keep them as day-bus trips.
+  const normalizedLedger = ledger.map((entry) => ({
+    ...entry,
+    travelMode: isStage15TravelMode((entry as { travelMode?: unknown }).travelMode) ? entry.travelMode : "day-bus",
+  }));
   // Ledger entries are another durable replay source after a state is restored.
   const requestIds = new Set(usedRequestIds);
-  for (const entry of ledger) requestIds.add(entry.requestId);
+  for (const entry of normalizedLedger) requestIds.add(entry.requestId);
   return {
     usedRequestIds: [...requestIds].slice(-MAX_STAGE15_REQUEST_IDS),
-    ledger,
+    ledger: normalizedLedger,
   };
 }
 
@@ -176,7 +196,8 @@ export function recordStage15Travel(
   if (!accountId || !Number.isFinite(completedAt) || completedAt < 0 ||
       !Number.isSafeInteger(cashAfter) || cashAfter < 0 ||
       state.usedRequestIds.includes(result.requestId) ||
-      !findStage15Route(result.routeId)) {
+      !findStage15Route(result.routeId) ||
+      !isStage15TravelMode(result.travelMode)) {
     throw new Error("INVALID_STAGE15_LEDGER_ENTRY");
   }
   const entry: Stage15LedgerEntry = {

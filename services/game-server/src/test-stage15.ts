@@ -22,6 +22,9 @@ assert.ok(stage15Routes().every((route) => findStage15City(route.fromCityId) && 
 const route = findStage15Route("ph-aba");
 assert.ok(route);
 assert.equal(calculateStage15Fare("ph-aba", 2), route.baseFareNaira * 2);
+assert.equal(calculateStage15Fare("ph-aba", 2, "night-bus"), Math.round(route.baseFareNaira * 1.2) * 2);
+assert.equal(calculateStage15Fare("ph-aba", 2, "flight"), Math.round(route.baseFareNaira * 2.5) * 2);
+assert.equal(calculateStage15Fare("ph-aba", 2, "invalid" as any), 0);
 assert.equal(calculateStage15Fare("ph-aba", 0), 0);
 assert.equal(calculateStage15Fare("ph-aba", route.capacity + 1), 0);
 
@@ -32,7 +35,19 @@ const request = validateStage15Travel({
   balanceNaira: 20_000,
 });
 assert.ok(request);
+assert.equal(request?.travelMode, "day-bus");
 assert.equal(request?.fareNaira, route.baseFareNaira * 2);
+const nightRequest = validateStage15Travel({
+  routeId: "ph-aba", passengers: 2, requestId: "travel-night-bus", balanceNaira: 20_000, travelMode: "night-bus",
+});
+assert.equal(nightRequest?.fareNaira, Math.round(route.baseFareNaira * 1.2) * 2);
+assert.equal(nightRequest?.travelMode, "night-bus");
+const flightRequest = validateStage15Travel({
+  routeId: "ph-aba", passengers: 2, requestId: "travel-flight", balanceNaira: 50_000, travelMode: "flight",
+});
+assert.equal(flightRequest?.fareNaira, Math.round(route.baseFareNaira * 2.5) * 2);
+assert.equal(flightRequest?.durationMinutes, Math.max(30, Math.round(route.durationMinutes / 4)));
+assert.equal(validateStage15Travel({ routeId: "ph-aba", passengers: 1, requestId: "bad-mode", balanceNaira: 100_000, travelMode: "train" as any }), null);
 assert.equal(validateStage15Travel({ ...request!, balanceNaira: 0 }, new Set()), null);
 assert.equal(validateStage15Travel({ routeId: "ph-aba", passengers: route.capacity + 1, requestId: "travel-test-2", balanceNaira: 100_000 }), null);
 assert.equal(validateStage15Travel({ routeId: "ph-aba", passengers: 1, requestId: "travel-test-1", balanceNaira: 100_000 }, new Set(["travel-test-1"])), null);
@@ -46,4 +61,6 @@ assert.equal(committedState.ledger[0]?.accountId, "account-1");
 assert.equal(committedState.ledger[0]?.cashAfter, 11_000);
 assert.equal(validateStage15Travel({ ...request!, balanceNaira: 20_000 }, new Set(committedState.usedRequestIds)), null);
 assert.deepEqual(normalizeStage15State(committedState), committedState);
+const oldLedger = { ...committedState.ledger[0], travelMode: undefined };
+assert.equal(normalizeStage15State({ usedRequestIds: [], ledger: [oldLedger] }).ledger[0]?.travelMode, "day-bus");
 assert.equal(normalizeStage15State({ usedRequestIds: ["ok", 7, ""], ledger: [{ nope: true }] }).usedRequestIds.length, 1);
