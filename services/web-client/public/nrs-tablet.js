@@ -2,7 +2,7 @@
   "use strict";
   const $ = (id) => document.getElementById(id);
   const apps = [
-    { id: "travel", icon: "🚌", name: "Interstate", note: "Waterlines coach bookings", badge: "COMING SOON" },
+    { id: "travel", icon: "🚌", name: "Interstate", note: "Waterlines · day and night buses", badge: "COMING SOON" },
     { id: "flights", icon: "✈️", name: "NRS Air", note: "Book an in-game flight" },
     { id: "betting", icon: "🏟️", name: "Betting", note: "Daily sports fixtures and tickets" },
     { id: "wallet", icon: "💳", name: "Wallet", note: "Game cash and banking" },
