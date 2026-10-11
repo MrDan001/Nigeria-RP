@@ -860,7 +860,9 @@ function createHouseExterior(h){
 }
 function syncHouseExteriors(houses){
  if(!Array.isArray(houses))return;
- houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else if(Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});
+ // Always keep the player\u2019s own rented/occupied home visible, even when a respawn or
+ // route transition briefly places the street avatar outside the normal streaming radius.
+ houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else if(h.occupiedByMe||Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});
  for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
  // Every property has an entrance interaction. The old code only registered the
  // rented home for this player, leaving vacant and unlocked estate doors inert for visitors.
@@ -876,7 +878,7 @@ function syncHouseExteriors(houses){
  refreshApartmentPOIs();
 }
 let houseVisualCheckT=0;
-function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
+function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&(h.occupiedByMe||Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
 
 const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(512,Math.round(512*h/w),fn),frontMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map),fog:true,side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
@@ -1691,7 +1693,7 @@ function routeTransitionIn(){clearTimeout(routeFadeTimer);routeFade.style.opacit
 function routeTransitionOut(){clearTimeout(routeFadeTimer);routeFadeTimer=setTimeout(()=>{routeFade.style.opacity='0';},280);}
 function panel(h){modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu');modal.innerHTML='<button id="mx" class="modal-close" type="button" aria-label="Close menu">✕ Close</button>'+h;modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu');workplaceMenuOpen=false;forbesBoardOpen=false;};}
 
-function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!inside.home?.isOwner;panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave this building. Use the marked front entrance to return to the street.</p><button data-exit-route="street">🚶 Exit directly to the street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Go to your private car park<br><small>Spawn one of your cars and drive out.</small></button>':'')+'');}
+function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!(inside.home?.isOwner||inside.home?.occupiedByMe);panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave your home.</p><button data-exit-route="street">🚶 Exit to street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Exit to garage<br><small>Take a vehicle you own, then stop at the garage gate and hold the horn to exit to the street.</small></button>':'')+'');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}if(r.isApartmentRoom){window.NRS?.exitApartmentRoom();return;}if(r.isApartmentBuilding){window.NRS?.exitApartmentBuilding();return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
 function garageRoom(d){
  const existing=HOME_ROOMS.__privateGarage;
@@ -1798,7 +1800,7 @@ modal.addEventListener('click',e=>{
   N.exitCarparkOnFoot(garageRoute);return;
  }
  const route=e.target.closest('[data-exit-route]')?.dataset.exitRoute;
- if(route){if(route==='street')returnToStreetFromRoom();else{if(!inside?.isHome||!inside.home?.isOwner){sys('Only the owner can use this private car park.');return;}const N=window.NRS;if(N&&N.enterCarpark){routeTransitionIn();modal.style.display='none';modal.innerHTML='';N.enterCarpark();}}return;}
+ if(route){if(route==='street')returnToStreetFromRoom();else{if(!inside?.isHome||!(inside.home?.isOwner||inside.home?.occupiedByMe)){sys('Only the resident of this home can use its private car park.');return;}const N=window.NRS;if(N&&N.enterCarpark){routeTransitionIn();modal.style.display='none';modal.innerHTML='';N.enterCarpark();}}return;}
  const carId=e.target.closest('[data-garage-car]')?.dataset.garageCar;
  if(carId&&inside?.isCarpark){
   const c=cars.find(v=>v.id===carId&&v.kind!=='t');
