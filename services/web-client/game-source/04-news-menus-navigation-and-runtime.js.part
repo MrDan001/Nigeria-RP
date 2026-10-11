@@ -1,0 +1,951 @@
+/* Stage 8 — Rivers News Network: official broadcasts, line-safe notifications and staff editorial desk. */
+let stage8MenuOpen=false,stage8Mode="feed",stage8Feedback=null,stage8FeedInitialized=false,stage8NoticeTimer=0;
+const stage8SeenPublishedIds=new Set();
+const stage8Id=id=>String(id||"").replace(/[^a-z0-9_-]/gi,"_");
+const stage8CategoryTitle=value=>({community:"Community","public-safety":"Public safety",government:"Government",business:"Business",transport:"Transport",weather:"Weather",events:"Events"}[value]||"Local news");
+
+function ensureStage8Notification(){
+ if(document.getElementById("nrsStage8Notice"))return;
+ const style=document.createElement("style");
+ style.textContent=[
+  "#nrsStage8Notice[hidden]{display:none!important}",
+  "#nrsStage8Notice{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:100001;width:min(370px,calc(100vw - 24px));max-height:min(29vh,158px);box-sizing:border-box;display:grid;gap:5px;padding:10px 12px;border:1px solid rgba(255,255,255,.16);border-left:3px solid #d73b44;border-radius:14px;background:rgba(8,16,27,.96);box-shadow:0 12px 34px rgba(0,0,0,.42);color:#f4f8fc;font:12px/1.35 system-ui,sans-serif;text-align:left;overflow:hidden;cursor:pointer;pointer-events:auto}",
+  "#nrsStage8Notice .n8-notice-head{display:flex;align-items:center;gap:7px;min-width:0}",
+  "#nrsStage8Notice .n8-notice-live{flex:0 0 auto;padding:3px 5px;border-radius:5px;background:#d73b44;color:#fff;font-size:9px;font-weight:900;letter-spacing:.06em}",
+  "#nrsStage8Notice .n8-notice-brand{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:900;letter-spacing:.09em;color:#e3edf8}",
+  "#nrsStage8Notice .n8-notice-close{margin-left:auto;flex:0 0 auto;border:0;background:transparent;color:#aebed0;font-size:18px;line-height:1;padding:0 1px;cursor:pointer}",
+  "#nrsStage8Notice .n8-notice-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;margin:0;color:#fff;font-size:13px;font-weight:850;line-height:1.28}",
+  "#nrsStage8Notice .n8-notice-copy{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;margin:0;color:#b9cadb;font-size:11px;line-height:1.35}",
+  "#modal .s4-card .n8-feed-title,#modal .s4-card .n8-feed-copy,#modal .s4-card .n8-feed-context{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;box-sizing:border-box}",
+  "#modal .s4-card .n8-feed-title{line-height:1.3}",
+  "#modal .s4-card .n8-feed-copy{line-height:1.5}",
+  "@media(max-width:560px){#nrsStage8Notice{top:calc(env(safe-area-inset-top,0px) + 6px);width:calc(100vw - 20px);padding:9px 10px;gap:4px}}"
+ ].join("\n");
+ document.head.appendChild(style);
+ const notice=document.createElement("div");
+ notice.id="nrsStage8Notice";notice.hidden=true;notice.tabIndex=0;notice.setAttribute("role","button");notice.setAttribute("aria-live","polite");notice.setAttribute("aria-label","Read the latest Rivers News Network broadcast");
+ const head=document.createElement("div");head.className="n8-notice-head";
+ const live=document.createElement("span");live.className="n8-notice-live";live.textContent="LIVE";
+ const brand=document.createElement("strong");brand.className="n8-notice-brand";brand.textContent="RIVERS NEWS NETWORK · NEW BROADCAST";
+ const close=document.createElement("button");close.type="button";close.className="n8-notice-close";close.setAttribute("aria-label","Dismiss news notification");close.textContent="×";
+ head.append(live,brand,close);
+ const title=document.createElement("strong");title.className="n8-notice-title";
+ const copy=document.createElement("p");copy.className="n8-notice-copy";
+ notice.append(head,title,copy);document.body.appendChild(notice);
+ notice.addEventListener("click",event=>{if(event.target.closest(".n8-notice-close"))return;openStage8Feed();});
+ notice.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openStage8Feed();}});
+ close.addEventListener("click",event=>{event.stopPropagation();notice.hidden=true;window.clearTimeout(stage8NoticeTimer);});
+}
+
+function showStage8Notification(story){
+ ensureStage8Notification();
+ const notice=document.getElementById("nrsStage8Notice");if(!notice||!story)return;
+ const title=notice.querySelector(".n8-notice-title"),copy=notice.querySelector(".n8-notice-copy"),brand=notice.querySelector(".n8-notice-brand");
+ const category=stage8CategoryTitle(story.category).toUpperCase();
+ if(brand)brand.textContent="RIVERS NEWS NETWORK · "+category;
+ if(title)title.textContent=String(story.title||"Official local update");
+ const body=String(story.body||"").replace(/\s+/g," ").trim();
+ if(copy)copy.textContent=body.length>180?body.slice(0,177).trim()+"…":body;
+ notice.hidden=false;
+ window.clearTimeout(stage8NoticeTimer);
+ stage8NoticeTimer=window.setTimeout(()=>{notice.hidden=true;},8500);
+}
+
+function renderStage8Notification(d){
+ ensureStage8Notification();
+ if(!d||!Array.isArray(d.feed))return;
+ const published=d.feed.filter(s=>s&&s.status==="published"&&s.id);
+ if(!stage8FeedInitialized){
+  published.forEach(s=>stage8SeenPublishedIds.add(String(s.id)));
+  stage8FeedInitialized=true;
+  const now=Date.now(),recent=published.filter(s=>{const at=Number(s.publishedAt||0);return at>0&&at<=now+30000&&now-at<=180000;});
+  recent.sort((a,b)=>Number(b.publishedAt||b.createdAt||0)-Number(a.publishedAt||a.createdAt||0));
+  const hub=document.getElementById("nrsCityNewsHubModal");
+  if(recent.length&&!(hub&&!hub.hidden))showStage8Notification(recent[0]);
+  return;
+ }
+ const unseen=published.filter(s=>!stage8SeenPublishedIds.has(String(s.id)));
+ d.feed.forEach(s=>{if(s&&s.id)stage8SeenPublishedIds.add(String(s.id));});
+ const hub=document.getElementById("nrsCityNewsHubModal"),cityHubOpen=!!hub&&!hub.hidden;
+ if(!unseen.length||(stage8MenuOpen&&stage8Mode==="feed")||cityHubOpen)return;
+ unseen.sort((a,b)=>Number(b.publishedAt||b.createdAt||0)-Number(a.publishedAt||a.createdAt||0));
+ showStage8Notification(unseen[0]);
+}
+
+function openStage8Feed(){
+ stage8MenuOpen=true;stage8Mode="feed";stage8Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;window.clearTimeout(stage8NoticeTimer);
+ panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · OFFICIAL BULLETINS</small><h2>Latest news broadcasts</h2><p>Only reports submitted by authorised network staff, approved by an Editor and broadcast by an Anchor appear here.</p></div></div><div class="s4-empty">Loading official news updates…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage8State();
+}
+function openStage8Newsroom(){
+ stage8MenuOpen=true;stage8Mode="newsroom";stage8Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;window.clearTimeout(stage8NoticeTimer);
+ panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>RIVERS NEWS NETWORK · STAFF ACCESS</small><h2>Newsroom desk</h2><p>Story filing, editorial review and broadcasts are restricted to authorised network workers.</p></div></div><div class="s4-empty">Checking newsroom access…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage8State();
+}
+function renderStage8Console(d){
+ if(!stage8MenuOpen)return;
+ d=d||window.NRS?.stage8State||{};
+ const feedback=stage8Feedback?'<div class="s4-notice '+(stage8Feedback.ok?"success":"error")+'">'+safeText(stage8Feedback.message||"")+'</div>':"";
+ const meta=s=>'<p class="s4-muted n8-feed-context">'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(s.authorName)+' · '+stage5When(s.publishedAt||s.createdAt)+'</p>';
+ const feed=Array.isArray(d.feed)?d.feed:[];
+ if(stage8Mode==="feed"){
+  const cards=feed.length?feed.map(s=>'<article class="s4-card n8-feed-card"><span class="wm-kind">'+safeText(stage8CategoryTitle(s.category))+'</span><h3 class="n8-feed-title">'+safeText(s.title)+'</h3>'+meta(s)+'<p class="n8-feed-copy">'+safeText(s.body)+'</p><div class="s4-notice n8-feed-context">'+(s.eventRef?"Linked to an in-world event":"Local event coverage")+' · '+safeText(s.eventContext)+'</div><label class="s4-field">Report a concern<textarea id="n8-report-'+stage8Id(s.id)+'" maxlength="260" rows="2" placeholder="Explain the concern (minimum 8 characters)"></textarea></label><button class="subtle" data-news-report="'+safeText(s.id)+'">Report this story</button></article>').join(""):'<div class="s4-empty">No official news has been broadcast yet. Updates will appear after newsroom staff file, approve and broadcast a report.</div>';
+  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · PUBLIC NEWS</small><h2>Official broadcasts</h2><p>Newsroom updates from authorised staff. New broadcasts also appear as in-game notifications.</p></div></div>'+feedback+'<div class="s4-list">'+cards+'</div><div class="wm-buttons"><button class="subtle" data-news-refresh="1">Refresh news</button></div>');
+  modal.classList.add("stage4-menu");return;
+ }
+
+ const hasNewsroomAccess=!!(d.canSubmit||d.canApprove||d.canPublish||d.canReviewReports);
+ if(!hasNewsroomAccess){
+  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · COMMUNITY DESK</small><h2>Suggest a story</h2><p>Citizens can share ideas with the newsroom, but cannot publish directly.</p></div></div>'+feedback+'<section class="s4-card"><h3>Speak to newsroom staff</h3><p class="s4-muted">Visit Rivers News Network reception and tell a staff member what you would like the network to cover. The newsroom will review your suggestion and decide whether to prepare a report.</p><div class="s4-notice">Only authorised Rivers News Network workers can file stories. A Rank 5+ Editor must approve each story before a Rank 4+ Anchor can broadcast it.</div></section><div class="wm-buttons"><button data-news-open="feed">View official broadcasts</button><button class="subtle" data-news-refresh="1">Refresh access</button></div>');
+  modal.classList.add("stage4-menu");return;
+ }
+ const events='<option value="local">Local community event (describe below)</option>'+(Array.isArray(d.eventOptions)?d.eventOptions:[]).map(e=>'<option value="'+safeText(e.id)+'">'+safeText(e.title)+'</option>').join("");
+ const cap=d.canSubmit?'<div class="s4-notice success">Newsroom access verified · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">For newsroom tools, enter reception, wear the authorised uniform and clock in. Rank 3+ submits, Rank 5+ approves and Rank 4+ broadcasts approved copy.</div>';
+ const form=d.canSubmit?'<section class="s4-card"><h3>✍️ File an event-based story</h3><p class="s4-muted">Keep reports factual and respectful. Content is validated on the server.</p><label class="s4-field">Headline<input id="n8-title" maxlength="120" placeholder="What happened?"></label><label class="s4-field">Category<select id="n8-category"><option value="community">Community</option><option value="public-safety">Public safety</option><option value="government">Government</option><option value="business">Business</option><option value="transport">Transport</option><option value="weather">Weather</option><option value="events">Events</option></select></label><label class="s4-field">Related in-world event<select id="n8-event-ref">'+events+'</select></label><label class="s4-field">Event / location context<input id="n8-event-context" maxlength="220" placeholder="Mile One Market, Aba Road or a current city event"></label><label class="s4-field">Story<textarea id="n8-body" rows="5" maxlength="1600" placeholder="Write a report with at least 50 characters."></textarea></label><button data-news-submit="1">Submit for editorial review</button></section>':'';
+ const mine=Array.isArray(d.mySubmissions)?d.mySubmissions:[],my=mine.length?'<section class="s4-card"><h3>My submissions</h3>'+mine.map(s=>'<div class="s4-row"><span><b>'+safeText(s.title)+'</b><small>'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(String(s.status).toUpperCase())+'</small>'+(s.reviewNote?'<small>'+safeText(s.reviewNote)+'</small>':"")+'</span></div>').join("")+'</section>':'<div class="s4-empty">Your submitted stories and review status appear here.</div>';
+ const queue=Array.isArray(d.editorialStories)?d.editorialStories:[],q=queue.length?'<section class="s4-card"><h3>Editorial queue</h3>'+queue.map(s=>{const k=stage8Id(s.id),notes='<label class="s4-field">Editor note / moderation reason<input id="n8-note-'+k+'" maxlength="260" placeholder="Record a review note"></label>';let buttons="";if(s.status==="submitted"&&d.canApprove)buttons=notes+'<div class="wm-buttons"><button data-news-approve="'+safeText(s.id)+'">Approve story</button><button class="danger" data-news-reject="'+safeText(s.id)+'">Reject story</button></div>';if(s.status==="approved"&&d.canPublish)buttons=notes+'<button data-news-publish="'+safeText(s.id)+'">Broadcast approved story</button>';return '<div class="s4-card"><div class="s4-row"><span><b>'+safeText(s.title)+'</b><small>'+safeText(s.authorName)+' · '+safeText(String(s.status).toUpperCase())+'</small><small>'+safeText(s.eventContext)+'</small></span></div><p>'+safeText(s.body)+'</p>'+buttons+'</div>';}).join("")+'</section>':'<div class="s4-empty">No stories are waiting for editorial action.</div>';
+ const reports=Array.isArray(d.reports)?d.reports:[],reportHtml=d.canReviewReports?'<section class="s4-card"><h3>🚩 Reported content</h3>'+(reports.length?reports.map(r=>'<div class="s4-card"><h4>'+safeText(r.storyTitle)+'</h4><p>'+safeText(r.reporterName)+' reported: '+safeText(r.reason)+'</p><label class="s4-field">Moderation note<input id="n8-mod-'+stage8Id(r.id)+'" maxlength="260" placeholder="Explain the decision (minimum 8 characters)"></label><div class="wm-buttons"><button class="danger" data-news-moderate="remove" data-report="'+safeText(r.id)+'">Remove story</button><button class="subtle" data-news-moderate="dismiss" data-report="'+safeText(r.id)+'">Dismiss report</button></div></div>').join(""):'<div class="s4-empty">No content reports are waiting for review.</div>')+'</section>':"";
+ const audit=d.canReviewReports&&Array.isArray(d.actions)?'<section class="s4-card"><h3>Editorial audit log</h3>'+d.actions.map(a=>'<div class="s4-row"><span><b>'+safeText(a.type.replace(/-/g," "))+'</b><small>'+safeText(a.actorName)+' · '+stage5When(a.at)+'</small><small>'+safeText(a.targetName)+' · '+safeText(a.reason||a.result)+'</small></span></div>').join("")+'</section>':"";
+ panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>RIVERS NEWS NETWORK · STAFF OPERATIONS</small><h2>Editorial desk</h2><p>Every story needs editor approval before an Anchor can broadcast it.</p></div></div>'+feedback+cap+form+my+q+reportHtml+audit+'<div class="wm-buttons"><button data-news-open="feed">View public broadcasts</button><button class="subtle" data-news-refresh="1">Refresh newsroom</button></div>');modal.classList.add("stage4-menu");
+}
+window.NRS=window.NRS||{};
+window.NRS.openStage8Feed=openStage8Feed;
+window.NRS.openStage8Newsroom=openStage8Newsroom;
+window.addEventListener("nrs-open-stage8-feed",openStage8Feed);
+window.addEventListener("nrs-stage8-state",e=>{const d=e.detail||window.NRS?.stage8State||{};renderStage8Notification(d);if(stage8MenuOpen)renderStage8Console(d);});
+window.addEventListener("nrs-stage8-action-result",e=>{stage8Feedback=e.detail||null;if(stage8MenuOpen)renderStage8Console(window.NRS?.stage8State||{});});
+ensureStage8Notification();setInterval(()=>{if(window.NRS?.session&&window.NRS?.getStage8State)window.NRS.getStage8State();},30000);
+
+/* ---------- Stage 4: market counter and bank teller services ---------- */
+let marketMenuOpen=false,bankMenuOpen=false,marketFeedback=null,bankFeedback=null;
+const s4Money=value=>'₦'+Math.max(0,Math.floor(Number(value)||0)).toLocaleString('en-NG');
+const s4Time=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'}):'Just now';};
+function openMarketConsole(){
+  governmentMenuOpen=false;
+ marketMenuOpen=true;bankMenuOpen=false;workplaceMenuOpen=false;marketFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Live stock, verified salespeople, receipts and commissions.</p></div></div><div class="s4-empty">Connecting to the market inventory…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getMarketState();
+}
+function renderMarketConsole(data){
+ if(!marketMenuOpen)return;
+ data=data||window.NRS?.marketState||{};
+ const products=Array.isArray(data.products)?data.products:[];
+ const sellers=Array.isArray(data.availableSellers)?data.availableSellers:[];
+ const history=Array.isArray(data.salesHistory)?data.salesHistory:[];
+ const canCollect=!!data.canCollectCommission&&Number(data.commissionBalance)>0;
+ const feedback=marketFeedback?'<div class="s4-notice '+(marketFeedback.ok?'success':'error')+'">'+safeText(marketFeedback.message||'')+'</div>':'';
+ const receipt=marketFeedback?.ok&&marketFeedback.receipt
+  ?(marketFeedback.receipt.totalCost!==undefined
+    ?'<div class="s4-receipt"><h3>✓ Inventory restock receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Quantity added: '+Number(marketFeedback.receipt.quantity||0)+' · '+Number(marketFeedback.receipt.remainingStock||0)+' now in stock</small></span><strong>'+s4Money(marketFeedback.receipt.totalCost)+'</strong></div><p class="s4-muted">Paid from the market till. Remaining till: '+s4Money(marketFeedback.receipt.remainingTill)+'</p></div>'
+    :'<div class="s4-receipt"><h3>✓ Purchase receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Reference '+safeText(marketFeedback.receipt.orderId||marketFeedback.requestId||'')+' · Quantity '+Number(marketFeedback.receipt.quantity||0)+'</small></span><strong>'+s4Money(marketFeedback.receipt.total)+'</strong></div><p class="s4-muted">Goods added to your backpack. Current cash: '+s4Money(window.NRS?.cash)+'</p></div>'):'';
+
+ const sellerOptions=sellers.map(seller=>'<option value="'+safeText(seller.id)+'">'+safeText(seller.name)+' · '+safeText(seller.rankTitle||'Salesperson')+'</option>').join('');
+ const productsHtml=products.map(product=>{
+   const available=Math.max(0,Math.floor(Number(product.stock)||0));
+   return '<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(product.name)+'</h3><p class="s4-muted">Sold by unit · Fixed market price</p><span class="s4-stock">'+available+' in stock</span></div><div class="s4-price">'+s4Money(product.unitPrice)+'</div></div><label class="s4-field">Quantity<input data-market-qty="'+safeText(product.id)+'" type="number" min="1" max="99" step="1" inputmode="numeric" value="1" '+(available<1?'disabled':'')+'></label><button data-market-order="'+safeText(product.id)+'" '+(!data.atMarket||!sellers.length||available<1?'disabled':'')+'>Buy from selected salesperson</button></article>';
+ }).join('');
+ const restockPanel=data.canRestock
+  ?'<section class="s4-card"><h3>📦 Manager stock controls</h3><p class="s4-muted">Market Supervisors and the Market Chairman can replenish stock using the market till. Wholesale cost is '+Math.round(Number(data.restockRate||.6)*100)+'% of the fixed retail price; maximum stock is '+Number(data.maxStock||500)+' units per product.</p><div class="s4-inline"><label class="s4-field">Product<select id="s4RestockProduct">'+products.map(product=>'<option value="'+safeText(product.id)+'">'+safeText(product.name)+' · '+s4Money(Math.floor(Number(product.unitPrice)*Number(data.restockRate||.6)))+' per unit</option>').join('')+'</select></label><label class="s4-field">Quantity<input id="s4RestockQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="10"></label></div><button data-market-restock="1">Purchase stock for the market</button></section>'
+  :'';
+ const restockHistory=Array.isArray(data.restockHistory)?data.restockHistory:[];
+ const restockHistoryHtml=restockHistory.length?'<div class="s4-list">'+restockHistory.map(entry=>'<div class="s4-row"><span><b>'+safeText(entry.productName||entry.productId)+' × '+Number(entry.quantity||0)+' restocked</b><small>Manager '+safeText(entry.managerName||entry.managerId||'Manager')+' · '+s4Time(entry.createdAt)+'</small><small>Receipt '+safeText(entry.requestId||'')+' · '+Number(entry.remainingStock||0)+' now in stock</small></span><strong>'+s4Money(entry.totalCost)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Manager stock purchases and their receipts will be recorded here.</div>';
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(sale=>'<div class="s4-row"><span><b>'+safeText(sale.productName||sale.productId)+' × '+Number(sale.quantity||0)+'</b><small>'+safeText(sale.customerName||'Customer')+' · Salesperson '+safeText(sale.sellerName||'Staff')+' · '+s4Time(sale.createdAt)+'</small><small>Receipt '+safeText(sale.orderId||'')+'</small></span><strong>'+s4Money(sale.total)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed market receipts will appear here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Shop local goods with on-duty market staff.</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+s4Money(window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Commission</small><strong>'+s4Money(data.commissionBalance)+'</strong></div><div class="s4-kpi"><small>Market till</small><strong>'+(data.till===null||data.till===undefined?'Staff only':s4Money(data.till))+'</strong></div></div>'+
+  (data.atMarket?'':'<div class="s4-notice error">You are not at Mile 1 Market. Walk to the market entrance before purchasing.</div>')+
+  (sellers.length?'<label class="s4-field">Available salesperson<select id="s4MarketSeller">'+sellerOptions+'</select></label>':'<div class="s4-notice '+(data.atMarket?'error':'')+'">'+(data.atMarket?'No salesperson is available right now. A market employee must clock in and wear the market uniform.':'On-duty salespeople will appear here when you are at the market.')+'</div>')+
+  (canCollect?'<button data-market-commission="1">Collect commission · '+s4Money(data.commissionBalance)+'</button>':'')+
+  feedback+receipt+
+  '<div class="s4-sectiontitle">Market catalogue <small>PRICES SET BY THE SERVER</small></div>'+
+  (productsHtml?'<div class="s4-grid">'+productsHtml+'</div>':'<div class="s4-empty">The market catalogue is not available yet.</div>')+
+  restockPanel+
+  (data.canViewRestockHistory?'<div class="s4-sectiontitle">Recent stock purchases <small>'+restockHistory.length+' SHOWN</small></div>'+restockHistoryHtml:'')+
+  '<div class="s4-sectiontitle">Recent receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
+  '<button class="subtle" data-market-refresh="1">Refresh market data</button>');
+ modal.classList.add('stage4-menu');
+}
+function openBankConsole(){
+  governmentMenuOpen=false;
+ bankMenuOpen=true;marketMenuOpen=false;workplaceMenuOpen=false;bankFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🏦</span><div><small>FINANCIAL SERVICES · PORT HARCOURT</small><h2>Port Harcourt Bank</h2><p>Customer banking, teller transactions and receipts.</p></div></div><div class="s4-empty">Connecting to the branch ledger…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getBankState();
+}
+function renderBankConsole(data){
+ if(!bankMenuOpen)return;
+ data=data||window.NRS?.bankState||{};
+ const tellers=Array.isArray(data.availableTellers)?data.availableTellers:[];
+ const customers=Array.isArray(data.nearbyCustomers)?data.nearbyCustomers:[];
+ const history=Array.isArray(data.transactions)?data.transactions:[];
+ const feedback=bankFeedback?'<div class="s4-notice '+(bankFeedback.ok?'success':'error')+'">'+safeText(bankFeedback.message||'')+'</div>':'';
+ const receipt=bankFeedback?.ok&&bankFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Transaction receipt</h3><div class="s4-row"><span><b>'+safeText(String(bankFeedback.receipt.type||'').toUpperCase())+' · '+s4Money(bankFeedback.receipt.amount)+'</b><small>Receipt '+safeText(bankFeedback.receipt.receiptNumber||bankFeedback.receipt.id||'')+'</small><small>'+safeText(bankFeedback.receipt.customerName||'Customer')+' · Teller '+safeText(bankFeedback.receipt.tellerName||'Staff')+'</small></span><strong>'+s4Time(bankFeedback.receipt.createdAt)+'</strong></div></div>':'';
+ const tellerList=tellers.length?'<div class="s4-list">'+tellers.map(teller=>'<div class="s4-row"><span><b>'+safeText(teller.name)+'</b><small>'+safeText(teller.rankTitle||'Bank Teller')+' · On duty and in uniform</small></span><strong>AVAILABLE</strong></div>').join('')+'</div>':'<div class="s4-empty">'+(data.atBank?'No teller is available right now. An authorised teller must be on duty and in uniform.':'Walk to Port Harcourt Bank to see tellers currently serving customers.')+'</div>';
+ const customerOptions=customers.map(customer=>'<option value="'+safeText(customer.id)+'">'+safeText(customer.name)+' · Cash '+s4Money(customer.cash)+' · Bank '+s4Money(customer.bank)+'</option>').join('');
+ const tellerConsole=data.canProcessTransactions
+  ?'<section class="s4-card"><h3>🧾 Teller workstation</h3><p class="s4-muted">Select a player physically present at the branch. Balances are settled by the game server and cannot be edited by the client.</p>'+
+   (customers.length?'<label class="s4-field">Customer<select id="s4BankCustomer">'+customerOptions+'</select></label>':'<div class="s4-empty">No other customers are currently in the branch. Ask the customer to enter the bank and refresh.</div>')+
+   '<div class="s4-inline"><label class="s4-field">Transaction<select id="s4BankType"><option value="deposit">Cash deposit</option><option value="withdrawal">Cash withdrawal</option></select></label><label class="s4-field">Amount (₦)<input id="s4BankAmount" type="number" min="1" max="10000000" step="1" inputmode="numeric" placeholder="e.g. 5000"></label></div>'+
+   '<button data-bank-process="1" '+(!customers.length?'disabled':'')+'>Process transaction & issue receipt</button></section>'
+  :'<section class="s4-card"><h3>Customer counter</h3><p class="s4-muted">Deposits and withdrawals at the teller counter require a rank 2 or higher bank employee who is clocked in, wearing the bank uniform, and physically present at the branch.</p>'+tellerList+'</section>';
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(entry=>'<div class="s4-row"><span><b>'+safeText(entry.type==='deposit'?'Deposit':'Withdrawal')+' · '+s4Money(entry.amount)+'</b><small>Customer '+safeText(entry.customerName||entry.customerId||'Customer')+' · Teller '+safeText(entry.tellerName||entry.tellerId||'Staff')+'</small><small>Receipt '+safeText(entry.id||'')+' · '+s4Time(entry.createdAt)+'</small></span><strong>RECORDED</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed deposit and withdrawal receipts will appear here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🏦</span><div><small>FINANCIAL SERVICES · PORT HARCOURT</small><h2>Port Harcourt Bank</h2><p>'+safeText(data.rankTitle||'Customer banking')+(data.onDuty?' · ON DUTY':'')+'</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Available cash</small><strong>'+s4Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Bank balance</small><strong>'+s4Money(data.bank??window.NRS?.bank)+'</strong></div><div class="s4-kpi"><small>Branch status</small><strong>'+(data.atBank?'ON SITE':'OFF SITE')+'</strong></div></div>'+
+  (data.atBank?'':'<div class="s4-notice error">You are not at Port Harcourt Bank. Walk to the branch to access teller services.</div>')+
+  feedback+receipt+tellerConsole+
+  '<div class="s4-sectiontitle">Recent transactions & receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
+  '<button class="subtle" data-bank-refresh="1">Refresh balances & receipts</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-market-state',e=>{if(marketMenuOpen)renderMarketConsole(e.detail);});
+window.addEventListener('nrs-market-sale-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
+window.addEventListener('nrs-market-commission-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen){renderMarketConsole(window.NRS?.marketState||{});if(e.detail?.ok)window.NRS?.getMarketState();}});
+window.addEventListener('nrs-market-restock-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
+window.addEventListener('nrs-market-sale-notice',()=>{if(marketMenuOpen)window.NRS?.getMarketState();});
+window.addEventListener('nrs-bank-state',e=>{if(bankMenuOpen)renderBankConsole(e.detail);});
+window.addEventListener('nrs-bank-transaction-result',e=>{bankFeedback=e.detail||null;if(bankMenuOpen)renderBankConsole(window.NRS?.bankState||{});});
+window.addEventListener('nrs-bank-receipt',e=>{bankFeedback=e.detail||null;if(bankMenuOpen){renderBankConsole(window.NRS?.bankState||{});window.NRS?.getBankState();}});
+
+/* ---------- Stage 5: friendly hospital and park services ---------- */
+let hospitalMenuOpen=false,parkMenuOpen=false;
+let stage5HospitalId="hospital-main",hospitalFeedback=null,parkFeedback=null;
+const stage5Money=value=>'₦'+Math.max(0,Math.floor(Number(value)||0)).toLocaleString('en-NG');
+const stage5When=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'}):'Just now';};
+const stage5HospitalTitle=id=>id==='hospital-princess'?'Princess Hospital':'Mile One General Hospital';
+function openHospitalConsole(hospitalId){
+  governmentMenuOpen=false;
+ stage5HospitalId=hospitalId==='hospital-princess'?'hospital-princess':'hospital-main';
+ hospitalMenuOpen=true;parkMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;workplaceMenuOpen=false;hospitalFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🩺</span><div><small>HEALTHCARE NETWORK · PORT HARCOURT</small><h2>Hospital services</h2><p>Request care, meet real staff and follow treatment.</p></div></div><div class="s4-empty">Loading patient and staff services…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getHospitalState(stage5HospitalId);
+}
+function renderHospitalConsole(data){
+ if(!hospitalMenuOpen)return;
+ data=data||window.NRS?.hospitalState||{};
+ if(data.hospitalId)stage5HospitalId=data.hospitalId;
+ const hospitalId=stage5HospitalId;
+ const atHospital=!!data.atHospital;
+ const feedback=hospitalFeedback?'<div class="s4-notice '+(hospitalFeedback.ok?'success':'error')+'">'+safeText(hospitalFeedback.message||'')+'</div>':'';
+ const receipt=hospitalFeedback?.ok&&hospitalFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Service receipt</h3><div class="s4-row"><span><b>'+safeText(hospitalFeedback.receipt.detail||hospitalFeedback.receipt.medicineName||'Hospital service')+'</b><small>Reference '+safeText(hospitalFeedback.receipt.id||hospitalFeedback.receipt.requestId||hospitalFeedback.requestId||'')+' · '+stage5When(hospitalFeedback.receipt.createdAt)+'</small></span><strong>'+stage5Money(hospitalFeedback.receipt.total??hospitalFeedback.receipt.amount??0)+'</strong></div>'+(hospitalFeedback.receipt.healthRestored!==undefined?'<p class="s4-muted">Health restored: '+Number(hospitalFeedback.receipt.healthRestored)+' · Current health: '+Number(hospitalFeedback.receipt.healthNow??data.hp??0)+'%</p>':'')+'</div>':'';
+ const hospitalOptions=(data.hospitalOptions||[{id:'hospital-main',name:'Mile One General Hospital'},{id:'hospital-princess',name:'Princess Hospital'}]).map(h=>'<option value="'+safeText(h.id)+'" '+(h.id===hospitalId?'selected':'')+'>'+safeText(h.name)+'</option>').join('');
+ const workers=Array.isArray(data.availableWorkers)?data.availableWorkers:[];
+ const onSiteWorkers=workers.filter(w=>w.atHospital);
+ const pharmacyWorkers=onSiteWorkers.filter(w=>Number(w.rank)>=2);
+ const workerOptions=pharmacyWorkers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Medical worker')+'</option>').join('');
+ const workersHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Hospital worker')+' · '+(w.atHospital?'At this hospital':'On duty · away from this hospital')+'</small></span><strong>'+(w.atHospital?'AVAILABLE':'RESPONDER')+'</strong></div>').join('')+'</div>':'<div class="s4-empty">No hospital workers are currently available. Staff must clock in and wear the hospital uniform to appear here.</div>';
+ const ownRequests=Array.isArray(data.patientRequests)?data.patientRequests:[];
+ const ownRequestsHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>{
+  const nextStep=r.kind==='ambulance'
+   ?(r.status==='dispatched'?'Ambulance assigned · '+safeText(r.workerName||'Responder on route'):'Waiting for an authorised dispatcher')
+   :(r.triagedAt?'Triage completed by '+safeText(r.triageWorkerName||'medical staff')+' · awaiting Nurse or Doctor':'Waiting for patient triage');
+  return '<div class="s4-row"><span><b>'+(r.kind==='ambulance'?'🚑 Ambulance request':'🩺 Care request')+'</b><small>'+safeText(r.hospitalName||stage5HospitalTitle(r.hospitalId))+' · Reference '+safeText(r.id)+'</small><small>'+nextStep+'</small></span><strong>'+safeText(r.status.toUpperCase())+'</strong></div>';
+ }).join('')+'</div>':'<div class="s4-empty">You have no open care or ambulance requests. Ask for help when you need it.</div>';
+ const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
+ const staffRequestsHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>{
+  let actions='';
+  if(r.canTriage)actions+='<button data-hospital-triage="'+safeText(r.id)+'">Record triage</button>';
+  if(r.canDispatch)actions+='<button data-hospital-dispatch="'+safeText(r.id)+'">Assign ambulance</button>';
+  if(r.canTreat)actions+='<button data-hospital-treat="'+safeText(r.id)+'">Complete treatment · '+stage5Money(500)+'</button>';
+  if(r.canFieldTreat)actions+='<button data-hospital-treat="'+safeText(r.id)+'">Treat patient here · '+stage5Money(1200)+'</button>';
+  return '<div class="s4-card"><h3>'+(r.kind==='ambulance'?'🚑 Emergency request':'🩺 Patient care request')+' · '+safeText(r.patientName)+'</h3><p class="s4-muted">Health: '+(r.patientHp===null?'Not available':Number(r.patientHp)+'%')+' · '+(r.patientAtHospital?'Patient at hospital':r.kind==='ambulance'?'Field response · '+(r.distanceToPatient===null?'location unavailable':Number(r.distanceToPatient)+' m away'):'Patient not at hospital')+'</p><p class="s4-muted">Status: '+safeText(r.status)+(r.assignedWorkerName?' · Assigned to '+safeText(r.assignedWorkerName):'')+(r.triagedAt?' · Triage recorded':'')+'</p>'+(actions||'<p class="s4-muted">This action is not available yet. Confirm your rank, duty, uniform and location.</p>')+'</div>';
+ }).join('')+'</div>':'<div class="s4-empty">No active requests are waiting at this hospital. Patient requests appear here automatically when submitted.</div>';
+ const medicines=Array.isArray(data.medicines)?data.medicines:[];
+ const pharmacyHtml=data.canUsePharmacy
+  ?'<section class="s4-card"><h3>💊 Pharmacy counter</h3><p class="s4-muted">Choose an on-duty medical worker who is physically present at this hospital. Prices and stock are set by the hospital; medicine is added to your backpack after payment.</p>'+
+   (pharmacyWorkers.length?'<label class="s4-field">Pharmacy worker<select id="s5HospitalWorker">'+workerOptions+'</select></label>':'<div class="s4-empty">No pharmacy worker is currently available. You need another on-duty hospital worker at this location.</div>')+
+   (medicines.length?'<div class="s4-grid">'+medicines.map(m=>'<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(m.name)+'</h3><span class="s4-stock">'+Number(m.stock||0)+' in stock</span></div><div class="s4-price">'+stage5Money(m.unitPrice)+'</div></div><button data-hospital-buy="'+safeText(m.id)+'" '+(!pharmacyWorkers.length||Number(m.stock)<1?'disabled':'')+'>Buy medicine from worker</button></article>').join('')+'</div>':'<div class="s4-empty">No medicines are available.</div>')+
+   '<label class="s4-field">Quantity<input id="s5HospitalQuantity" type="number" min="1" max="10" step="1" inputmode="numeric" value="1"></label></section>'
+  :'';
+ const history=Array.isArray(data.history)?data.history:[];
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(r=>'<div class="s4-row"><span><b>'+safeText(r.detail||r.kind)+'</b><small>Patient '+safeText(r.patientName||r.patientId)+' · Worker '+safeText(r.workerName||r.workerId)+'</small><small>'+stage5When(r.createdAt)+' · Reference '+safeText(r.requestId)+'</small></span><strong>'+stage5Money(r.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your care and service receipts will appear here after a request is completed.</div>';
+ const pharmacyHistory=Array.isArray(data.pharmacyHistory)?data.pharmacyHistory:[];
+ const pharmacyHistoryHtml=pharmacyHistory.length?'<div class="s4-list">'+pharmacyHistory.map(r=>'<div class="s4-row"><span><b>'+safeText(r.medicineName||r.medicineId)+' × '+Number(r.quantity||0)+'</b><small>Customer '+safeText(r.customerName||r.customerId)+' · Worker '+safeText(r.workerName||r.workerId)+'</small><small>Receipt '+safeText(r.id)+' · '+stage5When(r.createdAt)+'</small></span><strong>'+stage5Money(r.total)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Pharmacy purchase receipts will appear here.</div>';
+ const requestButtons='<div class="s4-grid"><section class="s4-card"><h3>🩺 Regular care</h3><p class="s4-muted">For injuries that need hospital attention. You must be at the selected hospital and have at least ₦500 cash.</p><button data-hospital-request-care="1" '+(!data.canRequestCare?'disabled':'')+'>Request treatment at hospital</button></section><section class="s4-card"><h3>🚑 Ambulance assistance</h3><p class="s4-muted">For serious injuries of 80% health or below. A responder is assigned and must reach you in a public area.</p><button data-hospital-request-ambulance="1" '+(!data.canRequestAmbulance?'disabled':'')+'>Request an ambulance</button></section></div>';
+ panel('<div class="s4-head"><span class="s4-icon">🩺</span><div><small>HEALTHCARE NETWORK · PORT HARCOURT</small><h2>'+safeText(data.hospitalName||stage5HospitalTitle(hospitalId))+'</h2><p>'+(data.rankTitle?'Your role: '+safeText(data.rankTitle)+(data.onDuty?' · ON DUTY':' · OFF DUTY'):'Patient services & hospital reception')+'</p></div></div>'+
+  '<label class="s4-field">Choose hospital<select id="s5HospitalChoice">'+hospitalOptions+'</select></label>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your health</small><strong>'+Math.max(0,Math.min(100,Number(data.hp)||0))+'%</strong></div><div class="s4-kpi"><small>Your cash</small><strong>'+stage5Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Your location</small><strong>'+(atHospital?'AT HOSPITAL':(data.canRequestAmbulance?'PUBLIC AREA':'OFF SITE'))+'</strong></div></div>'+
+  (atHospital?'':'<div class="s4-notice '+(data.canRequestAmbulance?'':'error')+'">'+(data.canRequestAmbulance?'You are away from this hospital. You can still request an ambulance for a serious injury.':'Walk to the hospital entrance or reception for regular treatment and pharmacy services.')+'</div>')+
+  feedback+receipt+
+  '<div class="s4-sectiontitle">Get help <small>REAL STAFF · SERVER-VALIDATED</small></div>'+requestButtons+
+  '<div class="s4-sectiontitle">Your active requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestsHtml+
+  '<div class="s4-sectiontitle">Medical staff <small>'+onSiteWorkers.length+' AT THIS HOSPITAL</small></div>'+workersHtml+
+  (data.canTriage||data.canDispatch||data.canTreat?'<div class="s4-sectiontitle">Staff patient queue <small>'+staffRequests.length+' REQUESTS</small></div>'+staffRequestsHtml:'')+
+  pharmacyHtml+
+  (data.canViewHospitalLedger?'<div class="s4-kpi"><small>Hospital pharmacy till</small><strong>'+stage5Money(data.pharmacyTill)+'</strong></div>':'')+
+  '<div class="s4-sectiontitle">Your recent care history <small>'+history.length+' RECORDS</small></div>'+historyHtml+
+  '<div class="s4-sectiontitle">Pharmacy receipts <small>'+pharmacyHistory.length+' RECORDS</small></div>'+pharmacyHistoryHtml+
+  '<button class="subtle" data-hospital-refresh="1">Refresh hospital services</button>');
+ modal.classList.add('stage4-menu');
+}
+function openParkConsole(){
+  governmentMenuOpen=false;
+ hospitalMenuOpen=false;parkMenuOpen=true;marketMenuOpen=false;bankMenuOpen=false;workplaceMenuOpen=false;parkFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🌳</span><div><small>CITY PARK · VISITOR SERVICES</small><h2>City Park</h2><p>Get a daily pass, talk to park staff or ask for assistance.</p></div></div><div class="s4-empty">Loading park services…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getParkState();
+}
+function renderParkConsole(data){
+ if(!parkMenuOpen)return;
+ data=data||window.NRS?.parkState||{};
+ const workers=Array.isArray(data.availableWorkers)?data.availableWorkers:[];
+ const ticketSellers=workers.filter(w=>Number(w.rank)>=3);
+ const ownRequests=Array.isArray(data.visitorRequests)?data.visitorRequests:[];
+ const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
+ const tickets=Array.isArray(data.tickets)?data.tickets:[];
+ const history=Array.isArray(data.history)?data.history:[];
+ const feedback=parkFeedback?'<div class="s4-notice '+(parkFeedback.ok?'success':'error')+'">'+safeText(parkFeedback.message||'')+'</div>':'';
+ const receipt=parkFeedback?.ok&&parkFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Daily visitor pass</h3><div class="s4-row"><span><b>City Park entry · '+safeText(parkFeedback.receipt.visitorName||'You')+'</b><small>Pass '+safeText(parkFeedback.receipt.id||'')+' · Valid for '+safeText(parkFeedback.receipt.dayKey||'today')+'</small></span><strong>'+stage5Money(parkFeedback.receipt.amount)+'</strong></div><p class="s4-muted">Cash remaining: '+stage5Money(parkFeedback.receipt.cashRemaining)+'</p></div>':'';
+ const sellerOptions=ticketSellers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Ticket Seller')+'</option>').join('');
+ const workerHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Park worker')+' · On duty and at City Park</small></span><strong>AVAILABLE</strong></div>').join('')+'</div>':'<div class="s4-empty">No park staff are currently on duty at the park.</div>';
+ const requestButtons=(data.helpCategories||[]).map(c=>'<button data-park-help="'+safeText(c.id)+'" '+(!data.canRequestHelp?'disabled':'')+'>'+safeText(c.title)+'</button>').join('');
+ const ownRequestHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===r.kind)?.title||'Visitor request')+'</b><small>Reference '+safeText(r.id)+' · Sent '+stage5When(r.createdAt)+'</small><small>Waiting for park staff</small></span><strong>OPEN</strong></div>').join('')+'</div>':'<div class="s4-empty">No visitor requests are open for you.</div>';
+ const staffRequestHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===r.kind)?.title||'Visitor request')+'</b><small>'+safeText(r.visitorName||'Visitor')+' · '+Number(r.distanceToVisitor||0)+' m away</small><small>Reference '+safeText(r.id)+' · '+stage5When(r.createdAt)+'</small></span><button data-park-resolve="'+safeText(r.id)+'">Handle request</button></div>').join('')+'</div>':'<div class="s4-empty">No visitor requests are waiting. Requests from guests at the park will appear here.</div>';
+ const ticketHistory=tickets.length?'<div class="s4-list">'+tickets.map(t=>'<div class="s4-row"><span><b>Daily pass · '+safeText(t.visitorName||t.visitorId)+'</b><small>Ticket seller '+safeText(t.sellerName||t.sellerId)+' · '+stage5When(t.createdAt)+'</small><small>Pass '+safeText(t.id)+' · '+safeText(t.dayKey)+'</small></span><strong>'+stage5Money(t.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Issued ticket receipts will appear here.</div>';
+ const helpHistory=history.length?'<div class="s4-list">'+history.map(h=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===h.kind)?.title||'Visitor assistance')+'</b><small>Visitor '+safeText(h.visitorName||h.visitorId)+' · Worker '+safeText(h.workerName||h.workerId)+'</small><small>'+stage5When(h.createdAt)+'</small></span><strong>DONE</strong></div>').join('')+'</div>':'<div class="s4-empty">Completed park assistance will be listed here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🌳</span><div><small>CITY PARK · VISITOR SERVICES</small><h2>City Park</h2><p>'+(data.rankTitle?'Your role: '+safeText(data.rankTitle)+(data.onDuty?' · ON DUTY':' · OFF DUTY'):'Visitor services for residents and families')+'</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+stage5Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Entry pass</small><strong>'+(data.ticket?'VALID TODAY':'NOT PURCHASED')+'</strong></div><div class="s4-kpi"><small>Location</small><strong>'+(data.atPark?'AT THE PARK':'OFF SITE')+'</strong></div></div>'+
+  (data.ticket?'<div class="s4-notice success">Your daily visitor pass is valid until the end of today ('+safeText(data.ticket.dayKey)+'). Pass '+safeText(data.ticket.id)+'.</div>':'')+
+  (data.atPark?'':'<div class="s4-notice error">Walk to City Park to purchase a pass or request on-site visitor assistance.</div>')+
+  feedback+receipt+
+  '<section class="s4-card"><h3>🎟 Daily visitor pass</h3><p class="s4-muted">Entry pass costs '+stage5Money(data.ticketPrice||500)+'. Choose a real on-duty Ticket Seller who is present at the park.</p>'+
+  (ticketSellers.length?'<label class="s4-field">Ticket seller<select id="s5ParkSeller">'+sellerOptions+'</select></label>':'<div class="s4-empty">No Ticket Seller is available at the park right now.</div>')+
+  '<button data-park-ticket="1" '+(!data.atPark||!ticketSellers.length||!!data.ticket?'disabled':'')+'>'+(data.ticket?'Pass already valid today':'Buy today’s visitor pass')+'</button>'+
+  '<p class="s4-muted">Your pass opens the main entrance gate for today. Entry is checked by the game server. Park employees on duty and in uniform can enter using their staff access.</p></section>'+
+  '<div class="s4-sectiontitle">Ask park staff for help <small>VISITOR SUPPORT</small></div>'+
+  '<div class="s4-card"><p class="s4-muted">Select the closest option. Your request is visible to on-duty staff at the park and stays open until handled.</p>'+requestButtons+
+  '<div class="s4-sectiontitle">Your requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestHtml+'</div>'+
+  '<div class="s4-sectiontitle">Available park staff <small>'+workers.length+' ON DUTY</small></div>'+workerHtml+
+  (data.canHelpVisitors?'<div class="s4-sectiontitle">Visitor request queue <small>'+staffRequests.length+' WAITING</small></div>'+staffRequestHtml:'')+
+  (data.canViewParkLedger?'<div class="s4-kpi"><small>Park till</small><strong>'+stage5Money(data.till)+'</strong></div><div class="s4-sectiontitle">Ticket sales ledger <small>'+tickets.length+' SHOWN</small></div>'+ticketHistory:'')+
+  '<div class="s4-sectiontitle">Completed visitor support <small>'+history.length+' RECORDS</small></div>'+helpHistory+
+  '<button class="subtle" data-park-refresh="1">Refresh park services</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-hospital-state',e=>{if(hospitalMenuOpen)renderHospitalConsole(e.detail);});
+window.addEventListener('nrs-hospital-action-result',e=>{hospitalFeedback=e.detail||null;if(hospitalMenuOpen){renderHospitalConsole(window.NRS?.hospitalState||{});window.NRS?.getHospitalState(stage5HospitalId);}});
+window.addEventListener('nrs-hospital-request-notice',()=>{if(hospitalMenuOpen)window.NRS?.getHospitalState(stage5HospitalId);});
+window.addEventListener('nrs-hospital-pharmacy-notice',()=>{if(hospitalMenuOpen)window.NRS?.getHospitalState(stage5HospitalId);});
+window.addEventListener('nrs-park-state',e=>{if(parkMenuOpen)renderParkConsole(e.detail);});
+window.addEventListener('nrs-park-action-result',e=>{parkFeedback=e.detail||null;if(parkMenuOpen){renderParkConsole(window.NRS?.parkState||{});window.NRS?.getParkState();}});
+window.addEventListener('nrs-park-request-notice',()=>{if(parkMenuOpen)window.NRS?.getParkState();});
+window.addEventListener('nrs-park-ticket-sale-notice',()=>{if(parkMenuOpen)window.NRS?.getParkState();});
+
+/* Stage 6 — Rivers State Government & Civic Finance */
+let governmentMenuOpen=false,governmentFeedback=null;
+function openGovernmentConsole(){
+ governmentMenuOpen=true;workplaceMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;governmentFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🏛</span><div><small>RIVERS STATE · CIVIC FINANCE</small><h2>Government & public treasury</h2><p>Official announcements, payroll and auditable expenditure.</p></div></div><div class="s4-empty">Loading treasury ledger…</div>');
+ modal.classList.add('stage4-menu');window.NRS?.getGovernmentState();
+}
+function renderGovernmentConsole(d){
+ if(!governmentMenuOpen)return;d=d||window.NRS?.governmentState||{};
+ const tx=Array.isArray(d.ledger)?d.ledger:[],notes=Array.isArray(d.announcements)?d.announcements:[];
+ const feedback=governmentFeedback?'<div class="s4-notice '+(governmentFeedback.ok?'success':'error')+'">'+safeText(governmentFeedback.message||'')+'</div>':'';
+ const ledger=tx.length?'<div class="s4-list">'+tx.map(t=>'<div class="s4-row"><span><b>'+safeText(t.memo||t.kind||'Treasury transaction')+'</b><small>'+safeText(t.actorName||'Official')+' · '+safeText(t.kind||'entry')+' · '+stage5When(t.at)+'</small><small>Receipt '+safeText(t.requestId||t.id||'')+' · Balance after: '+stage5Money(t.balanceAfter)+'</small></span><strong class="'+(t.direction==='credit'?'on':'off')+'">'+(t.direction==='credit'?'+':'−')+stage5Money(t.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">No recent treasury entries.</div>';
+ const notices=notes.length?'<div class="s4-list">'+notes.map(a=>'<div class="s4-row"><span><b>Official notice</b><small>'+safeText(a.authorName||'Government PRO')+' · '+stage5When(a.createdAt)+'</small><p>'+safeText(a.text||'')+'</p></span></div>').join('')+'</div>':'<div class="s4-empty">No official announcements yet.</div>';
+ const access=d.member?'<div class="s4-notice '+(d.onDuty&&d.uniform?'success':'error')+'">Role: '+safeText(d.rankTitle||('Rank '+d.rank))+' · '+(d.onDuty?'ON DUTY':'OFF DUTY')+' · '+(d.atGovernment?'At government building':'Away from government building')+'</div>':'<div class="s4-notice">Public view. Join Rivers State Government through Careers & Factions to access official duties.</div>';
+ let actions='';
+ if(d.canClaimPayroll)actions+='<section class="s4-card"><h3>💼 Daily government payroll</h3><p class="s4-muted">Rank-calculated payroll; debited once per Nigeria-time game day.</p><button data-government-payroll="1">Collect '+stage5Money(d.payrollAmount)+' payroll</button></section>';
+ else if(d.member)actions+='<section class="s4-card"><h3>💼 Daily government payroll</h3><p class="s4-muted">'+(d.claimedPayrollToday?'Payroll already collected today.':(!d.onDuty?'Clock in to qualify.':(!d.uniform?'Wear the government uniform.':(!d.atGovernment?'Return to the government workplace.':'Payroll is unavailable for this rank.'))))+'</p></section>';
+ if(d.canPublishAnnouncement)actions+='<section class="s4-card"><h3>📢 Official public announcement</h3><p class="s4-muted">Rank 2 only; server rate limit applies.</p><label class="s4-field">Notice (maximum 240 characters)<textarea id="s6GovernmentAnnouncement" maxlength="240" rows="3" placeholder="Write a public-service announcement"></textarea></label><button data-government-announce="1">Publish official notice</button></section>';
+ else if(d.member&&Number(d.rank)===2)actions+='<section class="s4-card"><h3>📢 Official public announcement</h3><p class="s4-muted">'+(Number(d.announcementReadyAt)>Date.now()?'Wait '+Math.ceil((Number(d.announcementReadyAt)-Date.now())/1000)+' seconds before the next notice.':'Clock in, wear the government uniform and return to the government workplace.')+'</p></section>';
+ if(d.canApproveSpending)actions+='<section class="s4-card"><h3>✅ Authorize state expenditure</h3><p class="s4-muted">Governor-only. Limit ₦1,000,000 per transaction. Each expenditure and purpose is logged.</p><label class="s4-field">Amount (₦)<input id="s6GovernmentSpendAmount" type="number" min="1" max="1000000" step="1" inputmode="numeric" placeholder="150000"></label><label class="s4-field">Purpose<input id="s6GovernmentSpendMemo" maxlength="180" placeholder="Repair drainage by the market"></label><button data-government-spend="1">Record authorized expenditure</button></section>';
+ panel('<div class="s4-head"><span class="s4-icon">🏛</span><div><small>RIVERS STATE · OFFICIAL SERVICES</small><h2>Government & civic finance</h2><p>Public treasury, notices and government payments.</p></div></div>'+
+ '<div class="s4-kpis"><div class="s4-kpi"><small>State treasury</small><strong>'+stage5Money(d.treasuryBalance)+'</strong></div><div class="s4-kpi"><small>Your role</small><strong>'+(d.member?safeText(d.rankTitle||('Rank '+d.rank)):'CITIZEN')+'</strong></div><div class="s4-kpi"><small>Nigeria-time day</small><strong>'+safeText(d.dayKey||'—')+'</strong></div></div>'+
+ access+feedback+'<p class="s4-muted">Citizen cash and bank balances are separate. Public-housing rent is credited here; government daily payroll and duty pay are debited. The opening budget is a fixed allocation.</p>'+actions+
+ '<div class="s4-sectiontitle">Official announcements <small>'+notes.length+' RECENT</small></div>'+notices+
+ '<div class="s4-sectiontitle">Treasury transaction ledger <small>'+tx.length+' RECENT</small></div>'+ledger+
+ '<button class="subtle" data-government-refresh="1">Refresh treasury & announcements</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-government-state',e=>{if(governmentMenuOpen)renderGovernmentConsole(e.detail);});
+window.addEventListener('nrs-government-action-result',e=>{governmentFeedback=e.detail||null;if(governmentMenuOpen)renderGovernmentConsole(window.NRS?.governmentState||{});});
+
+modal.addEventListener('change',e=>{
+ const t=e.target;
+ if(t?.id==='s5HospitalChoice'){stage5HospitalId=t.value==='hospital-princess'?'hospital-princess':'hospital-main';hospitalFeedback=null;window.NRS?.getHospitalState(stage5HospitalId);}
+});
+
+window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});
+const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
+modal.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
+ if(d.governmentOpen){openGovernmentConsole();return;}
+
+  if(d.transportOpen){openStage9Console();return;}
+  if(d.s9Refresh){N.getStage9State();return;}
+  if(d.s9RequestRide){const p=modal.querySelector("#s9Pickup")?.value||"",dst=modal.querySelector("#s9Destination")?.value||"",type=modal.querySelector("#s9VehicleType")?.value||"taxi";if(!p||!dst||p===dst){stage9Feedback={ok:false,message:"Choose two different stops."};renderStage9Console();return;}stage9Feedback=null;N.requestStage9Ride(p,dst,type);return;}
+  if(d.s9Checkout){stage9Feedback=null;N.checkoutStage9Vehicle(d.s9Checkout);return;}
+  if(d.s9Return){stage9Feedback=null;N.returnStage9Vehicle();return;}
+  if(d.s9Refuel){const litres=Number(modal.querySelector("#s9FuelLitres")?.value);if(!Number.isInteger(litres)||litres<1||litres>80){stage9Feedback={ok:false,message:"Enter whole litres from 1 to 80."};renderStage9Console();return;}stage9Feedback=null;N.refuelStage9Vehicle(litres);return;}
+  if(d.s9Accept){stage9Feedback=null;N.acceptStage9Ride(d.s9Accept);return;}
+  if(d.s9Pickup){stage9Feedback=null;N.pickupStage9Ride(d.s9Pickup);return;}
+  if(d.s9AdvanceRide){stage9Feedback=null;N.advanceStage9Ride(d.s9AdvanceRide);return;}
+  if(d.s9CompleteRide){stage9Feedback=null;N.completeStage9Ride(d.s9CompleteRide);return;}
+  if(d.s9CancelRide){stage9Feedback=null;N.cancelStage9Ride(d.s9CancelRide);return;}
+  if(d.s9StartDelivery){stage9Feedback=null;N.startStage9Delivery(d.s9StartDelivery);return;}
+  if(d.s9AdvanceDelivery){stage9Feedback=null;N.advanceStage9Delivery(d.s9AdvanceDelivery);return;}
+  if(d.s9CompleteDelivery){stage9Feedback=null;N.completeStage9Delivery(d.s9CompleteDelivery);return;}
+  if(d.newsOpen){if(d.newsOpen==="feed")openStage8Feed();else openStage8Newsroom();return;}
+if(d.newsRefresh){window.NRS?.getStage8State();return;}
+if(d.newsSubmit){const title=modal.querySelector("#n8-title")?.value||"",category=modal.querySelector("#n8-category")?.value||"community",body=modal.querySelector("#n8-body")?.value||"",eventContext=modal.querySelector("#n8-event-context")?.value||"",eventRef=modal.querySelector("#n8-event-ref")?.value||"local";if(title.trim().length<8||body.trim().length<50||eventContext.trim().length<5){stage8Feedback={ok:false,message:"Add a clear headline, a story of at least 50 characters, and the in-world event/location."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.submitStage8Story(title,category,body,eventContext,eventRef);return;}
+if(d.newsApprove||d.newsReject||d.newsPublish){const id=d.newsApprove||d.newsReject||d.newsPublish,note=modal.querySelector("#n8-note-"+stage8Id(id))?.value||"";if(d.newsReject&&note.trim().length<8){stage8Feedback={ok:false,message:"Add a moderation reason of at least 8 characters."};renderStage8Console();return;}stage8Feedback=null;if(d.newsApprove)window.NRS?.approveStage8Story(id,note);else if(d.newsReject)window.NRS?.rejectStage8Story(id,note);else window.NRS?.publishStage8Story(id,note);return;}
+if(d.newsReport){const id=d.newsReport,reason=modal.querySelector("#n8-report-"+stage8Id(id))?.value||"";if(reason.trim().length<8){stage8Feedback={ok:false,message:"Please explain the content concern in at least 8 characters."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.reportStage8Story(id,reason);return;}
+if(d.newsModerate){const reportId=d.report||"",reason=modal.querySelector("#n8-mod-"+stage8Id(reportId))?.value||"";if(reason.trim().length<8){stage8Feedback={ok:false,message:"Enter a moderation note of at least 8 characters."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.moderateStage8Report(reportId,d.newsModerate,reason);return;}
+if(d.stage7Open){openStage7Console();return;}
+  if(d.stage7Refresh){N.getStage7State();return;}
+  if(d.stage7Report){
+    const kind=modal.querySelector("#s7IncidentKind")?.value||"",description=modal.querySelector("#s7IncidentDescription")?.value||"";
+    if(description.trim().length<8){stage7Feedback={ok:false,message:"Describe what happened in at least 8 characters."};renderStage7Console();return;}
+    stage7Feedback=null;N.reportStage7Incident(kind,description);return;
+  }
+  if(d.stage7Dispatch){stage7Feedback=null;N.dispatchStage7Incident(d.stage7Dispatch);return;}
+  if(d.stage7Investigate||d.stage7Arrest){
+    const incidentId=d.stage7Investigate||d.stage7Arrest,k=stage7Id(incidentId),reason=modal.querySelector("#s7Reason_"+k)?.value||"",evidence=modal.querySelector("#s7Evidence_"+k)?.value||"";
+    if(reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Record a reason and evidence note of at least 8 characters each."};renderStage7Console();return;}
+    if(d.stage7Investigate){stage7Feedback=null;N.investigateStage7Incident(incidentId,reason,evidence);return;}
+    const targetId=modal.querySelector("#s7Target_"+k)?.value||"";if(!targetId){stage7Feedback={ok:false,message:"Choose an online suspect."};renderStage7Console();return;}
+    stage7Feedback=null;N.arrestStage7Suspect(incidentId,targetId,reason,evidence);return;
+  }
+  if(d.stage7Fine){
+    const k=stage7Id(d.stage7Fine),target=modal.querySelector("#s7FineTarget_"+k)?.value||"",offence=modal.querySelector("#s7Offence_"+k)?.value||"",amount=Number(modal.querySelector("#s7FineAmount_"+k)?.value),reason=modal.querySelector("#s7FineReason_"+k)?.value||"",evidence=modal.querySelector("#s7FineEvidence_"+k)?.value||"";
+    if(!target||!Number.isSafeInteger(amount)||amount<1||reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Choose a citizen, whole-naira amount, reason and evidence."};renderStage7Console();return;}
+    stage7Feedback=null;N.issueStage7Fine(d.stage7Fine,target,offence,amount,reason,evidence);return;
+  }
+  if(d.stage7Extinguish||d.stage7Clear){
+    const isFire=!!d.stage7Extinguish,incidentId=d.stage7Extinguish||d.stage7Clear,k=stage7Id(incidentId),outcome=modal.querySelector((isFire?"#s7Outcome_":"#s7Road_")+k)?.value||"";
+    if(outcome.trim().length<8){stage7Feedback={ok:false,message:"Record the response outcome in at least 8 characters."};renderStage7Console();return;}
+    stage7Feedback=null;if(isFire)N.resolveStage7Fire(incidentId,outcome);else N.resolveStage7TrafficIncident(incidentId,outcome);return;
+  }
+  if(d.stage7Close){
+    const k=stage7Id(d.stage7Close),reason=modal.querySelector("#s7CloseReason_"+k)?.value||"",evidence=modal.querySelector("#s7CloseEvidence_"+k)?.value||"";
+    if(reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Case closure needs a reason and final evidence/outcome note."};renderStage7Console();return;}
+    stage7Feedback=null;N.closeStage7Incident(d.stage7Close,reason,evidence);return;
+  }
+  if(d.stage7Activate){const id=modal.querySelector("#s7Checkpoint")?.value||"";if(!id){stage7Feedback={ok:false,message:"Choose a checkpoint."};renderStage7Console();return;}stage7Feedback=null;N.activateStage7Checkpoint(id);return;}
+  if(d.stage7Deactivate){const reason=modal.querySelector("#s7DeactivateReason_"+stage7Id(d.stage7Deactivate))?.value||"";if(!N.stage7State?.isAdmin&&reason.trim().length<8){stage7Feedback={ok:false,message:"Enter a closure reason of at least 8 characters."};renderStage7Console();return;}stage7Feedback=null;N.deactivateStage7Checkpoint(d.stage7Deactivate,reason);return;}
+  if(d.stage7Appeal){const reason=modal.querySelector("#s7AppealReason")?.value||"";if(reason.trim().length<10){stage7Feedback={ok:false,message:"Explain your appeal in at least 10 characters."};renderStage7Console();return;}stage7Feedback=null;N.requestStage7Appeal(reason);return;}
+  if(d.stage7Escape){stage7Feedback=null;N.attemptStage7Escape();return;}
+  if(d.stage7Review){const target=d.target||"",reason=modal.querySelector("#s7AppealReview_"+stage7Id(target))?.value||"";if(reason.trim().length<8){stage7Feedback={ok:false,message:"Record an independent review rationale."};renderStage7Console();return;}stage7Feedback=null;N.reviewStage7Appeal(target,d.stage7Review,reason);return;}
+
+  if(d.governmentRefresh){N.getGovernmentState();return;}
+  if(d.governmentPayroll){governmentFeedback=null;N.claimGovernmentPayroll();return;}
+  if(d.governmentAnnounce){const text=modal.querySelector('#s6GovernmentAnnouncement')?.value||'';if(!text.trim()){governmentFeedback={ok:false,message:'Write a notice first.'};renderGovernmentConsole();return;}governmentFeedback=null;N.publishGovernmentAnnouncement(text);return;}
+  if(d.governmentSpend){const amount=Number(modal.querySelector('#s6GovernmentSpendAmount')?.value),memo=modal.querySelector('#s6GovernmentSpendMemo')?.value||'';if(!Number.isSafeInteger(amount)||amount<1||amount>1000000){governmentFeedback={ok:false,message:'Enter a whole-naira amount from ₦1 to ₦1,000,000.'};renderGovernmentConsole();return;}if(memo.trim().length<3){governmentFeedback={ok:false,message:'Enter a clear spending purpose.'};renderGovernmentConsole();return;}governmentFeedback=null;N.approveGovernmentSpending(amount,memo);return;}
+  if(d.openWorkplaces){openWorkplaceMenu();return;}
+ if(d.marketOpen){openMarketConsole();return;}
+ if(d.bankOpen){openBankConsole();return;}
+ if(d.hospitalOpen){openHospitalConsole(d.hospitalOpen);return;}
+ if(d.parkOpen){openParkConsole();return;}
+ if(d.hospitalRefresh){window.NRS?.getHospitalState(stage5HospitalId);return;}
+ if(d.parkRefresh){window.NRS?.getParkState();return;}
+ if(d.hospitalRequestCare){hospitalFeedback=null;N.requestHospitalCare(stage5HospitalId);return;}
+ if(d.hospitalRequestAmbulance){hospitalFeedback=null;N.requestAmbulance(stage5HospitalId);return;}
+ if(d.hospitalTriage){hospitalFeedback=null;N.triageHospitalRequest(stage5HospitalId,d.hospitalTriage);return;}
+ if(d.hospitalDispatch){hospitalFeedback=null;N.dispatchHospitalAmbulance(stage5HospitalId,d.hospitalDispatch);return;}
+ if(d.hospitalTreat){hospitalFeedback=null;N.completeHospitalTreatment(stage5HospitalId,d.hospitalTreat);return;}
+ if(d.hospitalBuy){
+  const workerId=modal.querySelector('#s5HospitalWorker')?.value||'';
+  const quantity=Number(modal.querySelector('#s5HospitalQuantity')?.value);
+  if(!workerId){hospitalFeedback={ok:false,message:'Choose a medical worker who is at this hospital.'};renderHospitalConsole();return;}
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>10){hospitalFeedback={ok:false,message:'Enter a whole medicine quantity between 1 and 10.'};renderHospitalConsole();return;}
+  hospitalFeedback=null;N.purchaseHospitalMedicine(stage5HospitalId,workerId,d.hospitalBuy,quantity);return;
+ }
+ if(d.parkTicket){
+  const sellerId=modal.querySelector('#s5ParkSeller')?.value||'';
+  if(!sellerId){parkFeedback={ok:false,message:'Choose an on-duty ticket seller at City Park.'};renderParkConsole();return;}
+  parkFeedback=null;N.buyParkTicket(sellerId);return;
+ }
+ if(d.parkHelp){parkFeedback=null;N.requestParkHelp(d.parkHelp);return;}
+ if(d.parkResolve){parkFeedback=null;N.resolveParkHelpRequest(d.parkResolve);return;}
+ if(d.marketRefresh){N.getMarketState();return;}
+ if(d.bankRefresh){N.getBankState();return;}
+ if(d.marketCommission){marketFeedback=null;N.claimMarketCommission();return;}
+ if(d.marketRestock){
+  const productId=modal.querySelector('#s4RestockProduct')?.value||'';
+  const quantity=Math.floor(Number(modal.querySelector('#s4RestockQuantity')?.value));
+  if(!productId||!Number.isInteger(quantity)||quantity<1||quantity>100){marketFeedback={ok:false,message:'Choose a product and a whole restock quantity between 1 and 100.'};renderMarketConsole();return;}
+  marketFeedback=null;N.restockMarket(productId,quantity);return;
+ }
+ if(d.marketOrder){
+  const sellerId=modal.querySelector('#s4MarketSeller')?.value||'';
+  const quantity=Math.floor(Number(modal.querySelector('[data-market-qty="'+d.marketOrder+'"]')?.value));
+  if(!sellerId){marketFeedback={ok:false,message:'Choose an on-duty salesperson before ordering.'};renderMarketConsole();return;}
+  if(!Number.isInteger(quantity)||quantity<1||quantity>99){marketFeedback={ok:false,message:'Enter a whole quantity between 1 and 99.'};renderMarketConsole();return;}
+  marketFeedback=null;N.placeMarketOrder(sellerId,d.marketOrder,quantity);return;
+ }
+ if(d.bankProcess){
+  const customerId=modal.querySelector('#s4BankCustomer')?.value||'';
+  const transactionType=modal.querySelector('#s4BankType')?.value||'';
+  const amount=Math.floor(Number(modal.querySelector('#s4BankAmount')?.value));
+  if(!customerId){bankFeedback={ok:false,message:'Choose a customer who is present at the branch.'};renderBankConsole();return;}
+  if(!Number.isSafeInteger(amount)||amount<1||amount>10000000){bankFeedback={ok:false,message:'Enter a whole amount between ₦1 and ₦10,000,000.'};renderBankConsole();return;}
+  bankFeedback=null;N.processBankTransaction(customerId,transactionType,amount);return;
+ }
+  if(d.receptionCareer){modal.style.display='none';modal.innerHTML='';openWorkplaceMenuFor(d.receptionCareer);return;}
+  if(d.staffRoom){workplaceMenuOpen=false;modal.style.display='none';modal.innerHTML='';if(inside?.isWorkplaceInterior&&inside.workplaceId===d.staffRoom)N.enterStaffRoom(d.staffRoom);else N.enterWorkplaceInterior(d.staffRoom);return;}
+  if(d.playerAction){modal.style.display='none';modal.innerHTML='';N.interactWithPlayer(d.playerId,d.playerAction);return;}
+ if(d.adminRole){const username=$('nrsAdminTarget')?.value.trim();if(!username){sys('Enter the account username in Firstname_lastname format.');return;}N.setAdminRole(username,d.adminRole);return;}
+ if(d.workApply){N.applyWorkplace(d.workApply);return;}
+ if(d.workDuty){N.setWorkplaceDuty(d.workDuty,d.duty==='true');return;}
+ if(d.workLeave){N.leaveWorkplace();return;}
+ if(d.workTaskStart){N.startWorkTask(d.workTaskStart);return;}
+ if(d.workTaskComplete){N.completeWorkTask();return;}
+ if(d.appReview){const card=b.closest('.wm-card'),workplace=placesFromCard(card);if(workplace)N.approveWorkplaceApplication(workplace,d.appReview,d.approve==='1');return;}
+ if(d.adminSetRank){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value,rank=d.rankFixed?Number(d.rankFixed):Number(card?.querySelector('[data-admin-rank-value]')?.value);if(target)N.setStaffRank(d.adminSetRank,target,rank);return;}
+ if(d.adminDismiss){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value;if(target)N.dismissWorkplaceStaff(d.adminDismiss,target);return;}
+ if(d.staffHire){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);const select=$('wmHirePlayer');if(workplace&&select?.value)N.hireWorkplaceStaff(workplace.id,select.value);return;}
+ if(d.staffDismiss){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);if(workplace)N.dismissWorkplaceStaff(workplace.id,d.staffDismiss);return;}
+ if(d.staffRank){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);if(workplace)N.setStaffRank(workplace.id,d.staffRank,Number(d.rank));return;}
+ if(d.appointBoss){const select=$('wmBossPlayer');if(select?.value)N.appointWorkplaceBoss(d.appointBoss,select.value);return;}
+});
+function placesFromCard(card){const name=card?.querySelector('h3')?.textContent;return window.NRS?.workplaceState?.workplaces?.find(w=>w.name===name)||null;}
+let workCountdownHandle=0;
+setInterval(()=>{if(!workplaceMenuOpen)return;const s=window.NRS?.workplaceState,task=s?.activeTask;if(!task)return;const sec=Math.max(0,Math.ceil(((task.durationMs||10000)-(Date.now()-task.startedAt))/1000));const span=modal.querySelector('[data-work-countdown]'),btn=modal.querySelector('[data-work-task-complete]');if(span)span.textContent=sec?'Ready in '+sec+'s':'Task ready to complete';if(btn)btn.disabled=sec>0;},500);
+
+/* backpack */
+const FX={'Jollof Rice & Chicken':[35,0],'Pounded Yam & Egusi':[40,0],'Bole & Fish':[35,0],'Zobo Drink':[8,0],'Bread':[15,0],'Garri (1 bag)':[22,0],'Indomie Carton':[30,0],'Sachet Water':[5,0],'Bottle Water':[8,0],'Soft Drink':[10,0],'Roasted Corn':[12,0],'Corn & Ube':[18,0],'Suya (small)':[20,0],'Suya (large)':[35,0],'Gala':[10,0],'Biscuit':[6,0],'Groundnut':[6,0],'Pineapple':[12,0],'Oranges (bag)':[15,0],'Watermelon':[15,0],'Chapman':[10,0],'Malt':[8,0],'Coke':[10,0],'Paracetamol':[0,10],'Bandage Kit':[0,30],'Vitamin C':[0,10]};
+function bagUI(){bagK=Object.keys(inv).filter(n=>inv[n]>0);panel('<b>🎒 Backpack</b><p>📱 Phone</p>'+(bagK.length?bagK.map((n,i)=>'<p>'+n+' ×'+inv[n]+' '+(FX[n]?'<button data-u="'+i+'">Use</button> ':'')+(n==='Parcel'?'<i>(job item)</i>':'<button data-d="'+i+'">Drop</button>')+'</p>').join(''):'<p><i>Empty. Buy something first.</i></p>')+'<p>Cash: ₦'+f(cash)+'</p>'+(bagMsg?'<p><i>'+bagMsg+'</i></p>':''));}
+$('ib2').onclick=()=>{bagMsg='';bagUI();};
+$('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><button data-open-workplaces="1">💼 Careers & factions</button><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
+modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
+ if(d.moneyTransfer!==undefined){
+  const username=String(modal.querySelector('#moneyTransferUsername')?.value||'').trim();
+  const amount=Math.floor(Number(modal.querySelector('#moneyTransferAmount')?.value));
+  if(!/^[A-Za-z]+_[A-Za-z]+$/.test(username)){pMsg='Enter the recipient username as Firstname_lastname.';bankUI();return;}
+  if(!Number.isSafeInteger(amount)||amount<1){pMsg='Enter a positive whole amount in game currency.';bankUI();return;}
+  pMsg='Sending game currency…';bankUI();
+  window.NRS?.transferFunds(username,amount,(result)=>{
+   pMsg=result?.ok?'Transferred ₦'+f(amount)+' to '+(result.recipientUsername||username)+'.':(result?.message||'Transfer failed.');
+   money();bankUI();
+  });
+  return;
+ }
+ if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
+  if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();},'bank');return;}bankUI();}
+ else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];NRS.acceptJob(j[0],(r)=>{if(r.ok){job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
+ else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
+ else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
+function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
+ const H=Math.round(hunger),P=Math.round(hp);if(H!==lh){lh=H;$('hgv').textContent=H;$('hgb').style.width=H+'%';}if(P!==lp){lp=P;$('hpv').textContent=P;$('hpb').style.width=P+'%';}
+ beacon.visible=!!job&&!inside;
+ if(job){beacon.position.set(job.x,20,job.z);const d=Math.hypot(pos.x-job.x,pos.z-job.z);
+  if(!inside&&d<5&&job&&!job._claimed){job._claimed=true;NRS.walletChange(job.pay,0,(r)=>{if(r.ok){delete inv.Parcel;sys('Delivered! You earned ₦'+f(job.pay));jobN++;job=null;mis('<i>JOB DONE</i><b>Return to the Job Center for the next job</b>');}else{job._claimed=false;sys(r.message||'Reward failed.');}money();},'job');}
+  else mis('<i>DELIVERY</i><b>'+job.n+'</b>'+Math.round(d/5)*5+' m away');}}
+
+/* ---------- Expanded 3D map: tap the minimap or 🗺 ---------- */
+const MP={open:false,x:0,z:0,yaw:0,pitch:.85,dist:220,pan:false,fog:null},mapCam=new THREE.PerspectiveCamera(50,1,1,2500);
+const bl=$('bml'),bc=bl.getContext('2d'),V3=new THREE.Vector3(),mpt=new Map();let mp0=0;
+const mkMat=c=>new THREE.MeshBasicMaterial({color:c,fog:false,depthTest:false,transparent:true,opacity:.95});
+const pin=new THREE.Group();pin.visible=false;pin.renderOrder=20;scene.add(pin);
+const pc=new THREE.Mesh(new THREE.ConeGeometry(1,3,12),mkMat(0x4ade80));pc.rotation.x=Math.PI;pc.position.y=5;pc.renderOrder=20;pin.add(pc);
+const pr=new THREE.Mesh(new THREE.RingGeometry(1.6,2.4,24),mkMat(0xffffff));pr.rotation.x=-Math.PI/2;pr.position.y=.3;pr.renderOrder=20;pin.add(pr);
+const pa=new THREE.Mesh(new THREE.ConeGeometry(.9,2.4,3),mkMat(0x4ade80));pa.rotation.x=-Math.PI/2;pa.position.y=.4;pa.renderOrder=20;pin.add(pa);
+const myPos=()=>inside?inside.ret:pos;
+function openMap(){const p=myPos();MP.open=true;MP.x=p.x;MP.z=p.z;MP.yaw=camYaw;MP.pitch=.85;MP.dist=220;MP.pan=false;$('bmp').classList.remove('on');MP.fog=scene.fog;scene.fog=null;pin.visible=true;$('bigmap').style.display='block';document.body.classList.add('mo');modal.style.display='none';plShow(true);}
+function closeMap(){document.body.classList.remove('mo');MP.open=false;scene.fog=MP.fog;pin.visible=false;$('bigmap').style.display='none';mpt.clear();}
+$('ib3').onclick=openMap;$('mm').onclick=openMap;$('bmx').onclick=closeMap;
+$('bmm').onclick=()=>{const p=myPos();MP.x=p.x;MP.z=p.z;MP.yaw=camYaw;MP.pitch=.85;MP.dist=220;};
+$('bmp').onclick=()=>{MP.pan=!MP.pan;$('bmp').classList.toggle('on',MP.pan);};
+addEventListener('keydown',e=>{if(e.code==='KeyM'&&e.target.tagName!=='INPUT')MP.open?closeMap():openMap();});
+const pd=()=>{if(mpt.size<2)return 0;const a=[...mpt.values()];return Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);};
+bl.addEventListener('pointerdown',e=>{bl.setPointerCapture(e.pointerId);mpt.set(e.pointerId,[e.clientX,e.clientY]);mp0=pd();});
+bl.addEventListener('pointermove',e=>{const o=mpt.get(e.pointerId);if(!o)return;const dx=e.clientX-o[0],dy=e.clientY-o[1];mpt.set(e.pointerId,[e.clientX,e.clientY]);
+ if(mpt.size===2){const d=pd();if(mp0&&d)MP.dist=clamp(MP.dist*mp0/d,40,520);mp0=d;return;}
+ if(MP.pan){const k=MP.dist*.0016,s=Math.sin(MP.yaw),c=Math.cos(MP.yaw);MP.x=clamp(MP.x-dx*k*c-dy*k*s,-250,250);MP.z=clamp(MP.z+dx*k*s-dy*k*c,-250,250);}
+ else{MP.yaw-=dx*.006;MP.pitch=clamp(MP.pitch+dy*.005,.4,1.5);}});
+const mend=e=>{mpt.delete(e.pointerId);mp0=pd();};bl.addEventListener('pointerup',mend);bl.addEventListener('pointercancel',mend);
+bl.addEventListener('wheel',e=>{MP.dist=clamp(MP.dist*(1+Math.sign(e.deltaY)*.1),40,520);e.preventDefault();},{passive:false});
+function mlab(t,x,y,z,bg,fs,d){V3.set(x,y,z).project(mapCam);if(V3.z>1||Math.abs(V3.x)>1.15||Math.abs(V3.y)>1.15)return;
+ const sx=(V3.x+1)/2*bl.width,sy=(1-V3.y)/2*bl.height;bc.font='bold '+fs*d+'px system-ui';const w=bc.measureText(t).width+10*d,h=fs*d+8*d;
+ bc.fillStyle=bg;bc.fillRect(sx-w/2,sy-h/2,w,h);bc.fillStyle='#fff';bc.textAlign='center';bc.textBaseline='middle';bc.fillText(t,sx,sy+d);}
+function mapFrame(){const d=Math.min(devicePixelRatio||1,2),W=Math.round(innerWidth*d),H=Math.round(innerHeight*d);
+ if(bl.width!==W||bl.height!==H){bl.width=W;bl.height=H;}
+ const cp=Math.cos(MP.pitch);mapCam.aspect=innerWidth/innerHeight;mapCam.updateProjectionMatrix();
+ mapCam.position.set(MP.x+Math.sin(MP.yaw)*cp*MP.dist,Math.sin(MP.pitch)*MP.dist,MP.z+Math.cos(MP.yaw)*cp*MP.dist);mapCam.lookAt(MP.x,0,MP.z);
+ const p=myPos(),s=MP.dist/110;pin.position.set(p.x,0,p.z);pin.scale.setScalar(s);pa.rotation.z=inside?0:face+Math.PI;pa.visible=!inside;
+ beacon.visible=!!job;if(rtDirty){rtBuild();rtDirty=false;}rtG.visible=true;renderer.render(scene,mapCam);rtG.visible=false;
+ bc.clearRect(0,0,W,H);
+ ZN.forEach(a=>mlab(a.n,(a.x1+a.x2)/2,10,(a.z1+a.z2)/2,'rgba(15,91,58,.85)',15,d));
+ HR.forEach(r=>mlab(r[1],-150,2,r[0],'rgba(29,74,138,.85)',12,d));VR.forEach(r=>mlab(r[1],r[0],2,(r[2]+r[3])/2,'rgba(29,74,138,.85)',12,d));
+ if(MP.dist<150)for(const q of POI)mlab(q.name,q.x,4,q.z,'rgba(190,100,20,.9)',11,d);
+ for(const s of FS)mlab('⛽ '+s.brand+' · '+s.road,s.x,8,s.z,s.bg,12,d);
+ if(job)mlab('📦 Drop-off',job.x,30,job.z,'rgba(190,150,0,.95)',14,d);
+ if(NAV)mlab('🏁 '+NAV.name,NAV.x,34,NAV.z,'rgba(210,30,45,.95)',14,d);plTick();
+ mlab('YOU',p.x,9*s+2,p.z,'rgba(20,120,60,.95)',14,d);}
+
+/* ---------- v11: route to task, ✉ chat, driving HUD ---------- */
+let ROUTE=null,rtT=0,rtDirty=false;
+function buildRoute(sx,sz,ex,ez){
+ const rs=[];HR.forEach(r=>rs.push({h:1,c:r[0],a:r[2],b:r[3],p:[]}));VR.forEach(r=>rs.push({h:0,c:r[0],a:r[2],b:r[3],p:[]}));
+ const N={},nd=(x,z)=>{const k=Math.round(x*4)+'_'+Math.round(z*4);return N[k]||(N[k]={x,z,e:[],d:1e9,pv:null});};
+ rs.forEach(a=>{if(a.h)rs.forEach(b=>{if(!b.h&&b.c>=a.a&&b.c<=a.b&&a.c>=b.a&&a.c<=b.b){const n=nd(b.c,a.c);a.p.push(n);b.p.push(n);}});});
+ const snap=(x,z)=>{let bd=1e9,br=null,bp=null;rs.forEach(r=>{const al=clamp(r.h?x:z,r.a,r.b),px=r.h?al:r.c,pz=r.h?r.c:al,d=Math.hypot(x-px,z-pz);if(d<bd){bd=d;br=r;bp=[px,pz];}});const n=nd(bp[0],bp[1]);br.p.push(n);return n;};
+ const s=snap(sx,sz),e=snap(ex,ez);
+ rs.forEach(r=>{const u=[...new Set(r.p)].sort((m,n)=>r.h?m.x-n.x:m.z-n.z);for(let i=1;i<u.length;i++){const w=Math.hypot(u[i].x-u[i-1].x,u[i].z-u[i-1].z);u[i].e.push([u[i-1],w]);u[i-1].e.push([u[i],w]);}});
+ s.d=0;const open=new Set(Object.values(N));
+ while(open.size){let c=null;open.forEach(n=>{if(!c||n.d<c.d)c=n;});if(c.d>=1e9||c===e)break;open.delete(c);c.e.forEach(([n,w])=>{if(c.d+w<n.d){n.d=c.d+w;n.pv=c;}});}
+ const pth=[];for(let n=e;n;n=n.pv)pth.push([n.x,n.z]);pth.reverse();
+ return [[sx,sz]].concat(pth,[[ex,ez]]);}
+let NAV=null;
+function routeTick(dt){const T=NAV||job;nbc.visible=!!NAV&&!inside;
+ if(!T||(inside&&!NAV)){if(ROUTE){ROUTE=null;rtDirty=true;}return;}
+ rtT-=dt;if(rtT>0)return;rtT=.35;const p=myPos();
+ if(NAV&&((!inside&&Math.hypot(p.x-NAV.x,p.z-NAV.z)<NAV.r)||(inside&&inside.name===NAV.name))){navStop('📍 You have arrived: '+NAV.name);return;}
+ ROUTE=buildRoute(p.x,p.z,T.x,T.z);rtDirty=true;
+ if(NAV){let L=0;for(let i=1;i<ROUTE.length;i++)L+=Math.hypot(ROUTE[i][0]-ROUTE[i-1][0],ROUTE[i][1]-ROUTE[i-1][1]);NAV.dist=L;navUI();}}
+const rtG=new THREE.Group();rtG.visible=false;scene.add(rtG);
+const rtM=new THREE.MeshBasicMaterial({color:0xff2a3a,fog:false,side:THREE.DoubleSide}),rtPl=new THREE.PlaneGeometry(1,1),rtDc=new THREE.CircleGeometry(1,14);
+function rtBuild(){while(rtG.children.length)rtG.remove(rtG.children[0]);if(!ROUTE)return;
+ for(let i=1;i<ROUTE.length;i++){const a=ROUTE[i-1],b=ROUTE[i],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz);if(L<.1)continue;
+  const m=new THREE.Mesh(rtPl,rtM);m.rotation.order='YXZ';m.rotation.set(-Math.PI/2,-Math.atan2(dz,dx),0);m.scale.set(L,3.6,1);m.position.set((a[0]+b[0])/2,.2,(a[1]+b[1])/2);rtG.add(m);}
+ ROUTE.forEach(q=>{const m=new THREE.Mesh(rtDc,rtM);m.rotation.x=-Math.PI/2;m.scale.set(1.8,1.8,1);m.position.set(q[0],.2,q[1]);rtG.add(m);});}
+
+/* ---------- v12: Places & navigation ---------- */
+const nbc=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,40,16,1,true),new THREE.MeshBasicMaterial({color:0xff2a3a,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false,fog:false}));nbc.visible=false;scene.add(nbc);
+const nvB=$('navb'),plc=$('plc'),pll=$('pll');let plTab='shop',plSel=-1,plItems=[],plT=0;
+const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const fmtD=d=>d<1000?Math.round(d)+' m':(d/1000).toFixed(1)+' km';
+const rdName=(x,z)=>{let b=null,bd=1e9;HR.forEach(r=>{const d=Math.abs(z-r[0]);if(x>=r[2]-10&&x<=r[3]+10&&d<bd){bd=d;b=r[1];}});VR.forEach(r=>{const d=Math.abs(x-r[0]);if(z>=r[2]-10&&z<=r[3]+10&&d<bd){bd=d;b=r[1];}});return b||'Port Harcourt';};
+const ico=n=>/hospital|medical|clinic|health/i.test(n)?'🏥':/school|college|university/i.test(n)?'🎓':/police|security/i.test(n)?'🚓':/fire|rescue/i.test(n)?'🚒':/frsc|transport|union/i.test(n)?'🚦':/army|garrison/i.test(n)?'🪖':/government|state/i.test(n)?'🏛️':/news|network/i.test(n)?'📰':/park/i.test(n)?'🌳':/bank/i.test(n)?'🏦':/atm/i.test(n)?'🏧':/job/i.test(n)?'💼':/pharm/i.test(n)?'💊':/phone|gadget/i.test(n)?'📱':/fashion|cloth|wear/i.test(n)?'👕':/super|mart/i.test(n)?'🛒':/water/i.test(n)?'💧':/corn|ube/i.test(n)?'🌽':/yam|plantain|garri|pepper|veg|fruit/i.test(n)?'🍠':/kitchen|put|food|rice|suya|bole|eatery/i.test(n)?'🍲':'🏪';
+const hex=c=>typeof c==='number'?'#'+c.toString(16).padStart(6,'0'):(c||'#c2761c');
+function plData(tab){const o=[],seen={};
+ if(tab==='all'){
+  const add=(q,key)=>{if(seen[key])return;seen[key]=1;o.push(q);};
+  POI.forEach(q=>{const key=q.housePoi?('home|'+q.houseId):[q.t||q.k,q.workplaceId||q.houseId||q.name,Math.round(q.x),Math.round(q.z)].join('|');add({n:q.name||q.k,sub:(q.t==='workplace'||q.k==='Work'?'Workplace / organization':q.t==='job'||q.t==='bank'||q.t==='atm'?'Service':q.housePoi?'Residential home':q.apartmentBuildingPoi?'Apartment building':q.t==='shop'||q.k==='Talk'?'Shop / street stall':'Location')+' · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name||q.k),c:hex(q.col),r:q.r||7,houseId:q.houseId,house:q.house,home:!!q.housePoi},key);});
+  FS.forEach(q=>add({n:q.brand+' · '+q.road,sub:'Fuel station · ₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11},['fuel',q.brand,q.x,q.z].join('|')));
+  (window.NRS?.houses||[]).forEach(h=>add({n:(h.name||'Home')+' · '+h.id,sub:(h.zone||'Residential area')+' · ₦'+f(h.rentPerDay)+'/day · '+(h.occupiedByMe?'YOUR HOME':h.vacant?'AVAILABLE':'OCCUPIED'),x:Number(h.x),z:Number(h.z),ico:({hut:'🛖',faceme:'🏘️',flat:'🏢',estate:'🏡',mansion:'🏰',palace:'👑'})[h.cls]||'🏠',c:h.occupiedByMe?'#087f5b':h.vacant?'#245c8e':'#4b5563',r:8,houseId:h.id,house:h,home:true},'home|'+h.id));
+  ZN.forEach(a=>add({n:a[0],sub:'District',x:(a[1]+a[2])/2,z:(a[3]+a[4])/2,ico:'🏙',c:'#0f5b3a',r:Math.min(30,Math.min(a[2]-a[1],a[4]-a[3])/3)},'district|'+a[0]));
+  add({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25},'district|Port Harcourt Centre');
+ }
+ else if(tab==='shop')POI.forEach(q=>{if(((q.k==='Enter'&&q.t==='shop')||q.k==='Talk')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:q.k==='Enter'?'Shop · '+rdName(q.x,q.z):'Street stall · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:hex(q.col),r:7});}});
+ else if(tab==='svc'){POI.forEach(q=>{if((q.t==='job'||q.t==='bank'||q.t==='atm')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:'Service · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:q.t==='atm'?'#0a4d8c':hex(q.col),r:7});}});if(job)o.push({n:'Drop-off · '+job.n,sub:'Current job · ₦'+f(job.pay),x:job.x,z:job.z,ico:'📦',c:'#b8860b',r:6});}
+ else if(tab==='work'){
+  POI.forEach(q=>{
+   if(q.t!=='workplace'&&q.k!=='Work')return;
+   const key=q.workplaceId||q.name;if(seen[key])return;seen[key]=1;
+   const n=q.name||key;
+   const kind=/hospital|medical|clinic|health/i.test(n)?'Healthcare':/school|college|university/i.test(n)?'Education':/police|fire|frsc|army|rescue/i.test(n)?'Public safety':/government|state/i.test(n)?'Government':/news|network/i.test(n)?'Media':/park/i.test(n)?'Public services':'Workplace / organization';
+   const color=/hospital|medical|clinic|health/i.test(n)?'#b33b45':/school|college|university/i.test(n)?'#28784b':/police|fire|frsc|army|rescue/i.test(n)?'#245c8e':'#52616b';
+   o.push({n,sub:kind+' · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(n),c:color,r:q.r||8,workplaceId:q.workplaceId});
+  });
+ }
+ else if(tab==='fuel')FS.forEach(q=>o.push({n:q.brand+' · '+q.road,sub:'₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11}));
+ else if(tab==='apartments'){
+  const seenApartments=new Set();
+  POI.filter(q=>q.apartmentBuildingPoi&&q.apartmentBuilding).forEach(q=>{
+   const b=q.apartmentBuilding,key=b.id||q.name;if(seenApartments.has(key))return;seenApartments.add(key);
+   const label=b.buildingName||q.name||'Apartment building';
+   o.push({n:label,sub:'Apartment building · '+rdName(q.x,q.z)+' · Enter to view numbered rooms',x:q.x,z:q.z,ico:'🏢',c:'#365b83',r:9,apartmentBuildingPoi:true,apartmentBuilding:b});
+  });
+ }
+ else if(tab==='homes'){
+  const N=window.NRS||{},life=N.life||{};
+  (N.houses||[]).forEach(h=>{const mine=!!h.occupiedByMe,free=!!h.vacant;
+   o.push({n:(h.name||'Home')+' · '+h.id,sub:h.zone+' · ₦'+f(h.rentPerDay)+'/day · '+(mine?'YOUR HOME':free?'AVAILABLE':'OCCUPIED')+(mine?' · '+(life.rentDays||0)+' day(s) prepaid':''),x:h.x,z:h.z,ico:({hut:'🛖',faceme:'🏘️',flat:'🏢',estate:'🏡',mansion:'🏰',palace:'👑'})[h.cls]||'🏠',c:mine?'#087f5b':free?'#245c8e':'#4b5563',r:8,houseId:h.id,house:h,home:true});});
+ }
+ else{ZN.forEach(a=>o.push({n:a.n,sub:'District',x:(a.x1+a.x2)/2,z:(a.z1+a.z2)/2,ico:'🏙',c:'#0f5b3a',r:Math.min(30,Math.min(a.x2-a.x1,a.z2-a.z1)/3)}));o.push({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25});}
+ const p=myPos();o.forEach(q=>q.d=Math.hypot(q.x-p.x,q.z-p.z));return o.sort((a,b)=>a.d-b.d);}
+function plRender(){plItems=plData(plTab);plSel=-1;
+ const tools=plTab==='homes'?'<div class="hometools"><button data-housing-action="enter">🏠 Enter my home</button><button data-housing-action="park">🚗 Park all cars</button><button data-housing-action="retrieve">🔑 Retrieve cars</button><button data-housing-action="respawn">↪ Respawn</button></div>':'';
+ const rows=plItems.map((q,i)=>{if(q.home){const life=(window.NRS||{}).life||{},own=life.homeId===q.houseId,daysLeft=Math.max(0,7-(own?(life.rentDays||0):0));const canRent=(q.house.vacant||q.house.occupiedByMe)&&(!life.homeId||own)&&daysLeft>0;
+  const opts=Array.from({length:Math.max(1,daysLeft)},(_,j)=>'<option value="'+(j+1)+'">'+(j+1)+'d</option>').join('');
+  return '<div class="pr home-row" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><select class="home-days" aria-label="Prepaid days" '+(!canRent?'disabled':'')+'>'+opts+'</select><button class="hrent" data-house-action="rent" data-house-id="'+q.houseId+'" '+(!canRent?'disabled':'')+'>'+(own?'Add rent':q.house.vacant?'Rent':'Taken')+'</button><button class="pg">GO</button></div>';
+ }
+ return '<div class="pr" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><span class="pd">'+fmtD(q.d)+'</span><button class="pg">GO</button></div>';
+ }).join('');
+ pll.innerHTML=tools+(rows||'<div style="padding:1rem;opacity:.7;font-size:.8rem">'+(plTab==='homes'?'Loading homes…':'Nothing here yet.')+'</div>');
+ pll.scrollTop=0;document.querySelectorAll('#plt button').forEach(b=>b.classList.toggle('on',b.dataset.t===plTab));}
+function plShow(on){plc.style.display=on?'flex':'none';$('bigmap').classList.toggle('pl',on);$('bmpl').classList.toggle('on',on);if(on){if(plTab==='homes'&&window.NRS)window.NRS.getHousing();plRender();}}
+function plTick(){const n=performance.now();if(n-plT<700||plc.style.display==='none')return;plT=n;const p=myPos();
+ plItems.forEach((q,i)=>{q.d=Math.hypot(q.x-p.x,q.z-p.z);const e=pll.querySelector('.pr[data-i="'+i+'"]');if(e&&e.firstChild){const d=e.querySelector('.pd');if(d)d.textContent=fmtD(q.d);}});}
+function navUI(){nvB.style.display=NAV?'block':'none';if(!NAV)return;const p=myPos(),d=NAV.dist||Math.hypot(NAV.x-p.x,NAV.z-p.z);
+ nvB.querySelector('b').textContent=NAV.ico+' '+NAV.name;nvB.querySelector('small').textContent=fmtD(d)+' · follow the red route';}
+function navStart(q){NAV={name:q.n,x:q.x,z:q.z,ico:q.ico,r:q.r||7,dist:0};nbc.position.set(q.x,20,q.z);rtT=0;
+ const p=myPos(),dd=Math.hypot(q.x-p.x,q.z-p.z);if(MP.open){MP.x=(p.x+q.x)/2;MP.z=(p.z+q.z)/2;MP.dist=clamp(dd*1.5+70,120,420);}
+ ROUTE=buildRoute(p.x,p.z,q.x,q.z);rtDirty=true;let L=0;for(let i=1;i<ROUTE.length;i++)L+=Math.hypot(ROUTE[i][0]-ROUTE[i-1][0],ROUTE[i][1]-ROUTE[i-1][1]);NAV.dist=L;navUI();sys('🧭 Navigation started: '+q.n);}
+function navStop(msg){NAV=null;nbc.visible=false;ROUTE=null;rtDirty=true;navUI();if(msg)sys(msg);}
+pll.addEventListener('click',e=>{
+ const action=e.target.closest('[data-housing-action],[data-house-action]');
+ if(action){const N=window.NRS;if(!N)return;
+  if(action.dataset.housingAction==='enter')N.enterHome();
+  else if(action.dataset.housingAction==='park')N.parkCars();
+  else if(action.dataset.housingAction==='retrieve')N.retrieveCars();
+  else if(action.dataset.housingAction==='respawn')N.respawn();
+  else if(action.dataset.houseAction==='rent'){const row=action.closest('.pr'),days=Number(row?.querySelector('.home-days')?.value||1);N.rentHouse(action.dataset.houseId,days);}
+  return;
+ }
+ const r=e.target.closest('.pr');if(!r)return;const i=+r.dataset.i,q=plItems[i];if(!q)return;
+ if(e.target.closest('.pg')){navStart(q);return;}
+ plSel=i;pll.querySelectorAll('.pr').forEach((c,k)=>c.classList.toggle('sel',k===i));MP.x=q.x;MP.z=q.z;MP.dist=Math.min(MP.dist,160);
+});
+document.querySelectorAll('#plt button').forEach(b=>b.onclick=()=>{plTab=b.dataset.t;plRender();if(plTab==='homes'&&window.NRS)window.NRS.getHousing();});
+
+function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.forEach(c=>{if(!c.id||!c.g||!c.box)return;if(!c._parkingBox)c._parkingBox={hw:c.box.hw,hd:c.box.hd};const stored=parked.has(c.id);c.g.visible=!stored;c.box.hw=stored?0:c._parkingBox.hw;c.box.hd=stored?0:c._parkingBox.hd;});}
+window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;syncHouseExteriors(N.houses);}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
+window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
+window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
+window.addEventListener('nrs-apartment-building-enter',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ const ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face,camYaw,camPitch};
+ routeTransitionOut();renderApartmentHall(d,ret);sys(d.message||'Apartment building entered.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-floor',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||('Floor '+d.floor));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-enter',e=>{
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-enter]').forEach(button=>button.disabled=false);return;}
+ if(!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('Welcome to Room '+d.roomNumber+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-rent',e=>{
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-rent]').forEach(button=>button.disabled=false);return;}
+ if(!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ if(d.cash!==undefined){cash=Number(d.cash)||0;money();}
+ const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('You rented Room '+d.roomNumber+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-lock',e=>{
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-lock]').forEach(button=>button.disabled=false);return;}
+ if(inside?.isApartmentBuilding&&inside.apartmentBuildingId===d.buildingId){
+  const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'Apartment room access updated.');routeTransitionOut();return;
+ }
+ if(inside?.isApartmentRoom&&inside.apartmentBuildingId===d.buildingId&&inside.apartmentRoomNumber===Number(d.roomNumber)){
+  inside.apartmentRoomLocked=d.locked===true;
+  sys(d.message||'Apartment room access updated.');
+  if(modal.querySelector('#apartmentRoomSettingsPanel'))openApartmentRoomSettings();
+ }
+});
+window.addEventListener('nrs-apartment-room-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentRoom||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'You returned to the apartment corridor.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-building-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding)return;
+ const ret=inside.ret;clearApartmentInteriorVisual();inside=null;
+ pos.set(Number(d.x)||0,0,Number(d.z)||24);vel.set(0,0,0);jv=0;
+ face=Number.isFinite(d.yaw)?Number(d.yaw):(Number.isFinite(ret?.face)?ret.face:0);
+ camYaw=Number.isFinite(ret?.camYaw)?Number(ret.camYaw):Math.PI;camPitch=Number.isFinite(ret?.camPitch)?Number(ret.camPitch):.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+ sys(d.message||'You are back outside the apartment building.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-lease-expired',e=>{
+ const d=e.detail||{};if(!inside?.isApartmentRoom||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'Your apartment rent expired.');routeTransitionOut();
+});
+window.addEventListener('nrs-shop-interior-enter',e=>{
+ const d=e.detail||{};if(!d.ok)return;const p=POI.find(q=>q.shopId===d.shopId);
+ if(!p){sys('Storefront details were not found.');window.NRS?.exitShopInterior();return;}
+ const r=room(p,d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face:Number.isFinite(Number(d.returnYaw))?Number(d.returnYaw):face,camYaw,camPitch};
+ inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??r.z+3.2));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.3;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||('Welcome inside '+r.name+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-shop-interior-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isShopInterior)return;const r=inside;inside=null;
+ pos.set(Number(d.x??r.ret?.x??0),0,Number(d.z??r.ret?.z??24));vel.set(0,0,0);jv=0;
+ face=Number.isFinite(d.yaw)?Number(d.yaw):(Number.isFinite(r.ret?.face)?r.ret.face:0);
+ camYaw=Number.isFinite(r.ret?.camYaw)?Number(r.ret.camYaw):Math.PI;camPitch=Number.isFinite(r.ret?.camPitch)?Number(r.ret.camPitch):.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+ sys(d.message||'You are back outside the shop.');routeTransitionOut();
+});
+window.addEventListener('nrs-workplace-interior-enter',e=>{const d=e.detail||{};if(!d.ok)return;workplaceMenuOpen=false;routeTransitionOut();const r=workplaceInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??(r.z+4.2)));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||('Welcome to '+r.workplaceName+'. Approach reception to speak to the secretary.'));routeTransitionOut();});
+window.addEventListener('nrs-workplace-interior-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isWorkplaceInterior)return;workplaceMenuOpen=false;inside=null;
+ pos.set(Number(d.x??0),0,Number(d.z??24));vel.set(0,0,0);jv=0;face=Number.isFinite(d.yaw)?Number(d.yaw):0;camYaw=Math.PI;camPitch=.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back outside the workplace.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-enter',e=>{const d=e.detail||{};if(!d.ok)return;workplaceMenuOpen=false;routeTransitionOut();const r=staffRoomInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??(r.z+1.7)));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||'Staff changing room opened.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isStaffRoom)return;workplaceMenuOpen=false;const previous=inside,returnState=previous.ret;
+ const r=workplaceInterior({workplaceId:d.workplaceId||previous.workplaceId,workplaceName:d.workplaceName||previous.workplaceName,workplaceKind:d.workplaceKind||previous.kind,roomX:d.workplaceRoomX??previous.x,roomZ:d.workplaceRoomZ??previous.z});
+ r.ret=returnState||{x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face:Math.PI,camYaw:0,camPitch:.08};inside=r;
+ pos.set(Number(d.x??r.x),0,Number(d.z??r.z+4.2));vel.set(0,0,0);jv=0;face=Number.isFinite(returnState?.face)?returnState.face:Math.PI;camYaw=Number.isFinite(returnState?.camYaw)?returnState.camYaw:0;camPitch=Number.isFinite(returnState?.camPitch)?returnState.camPitch:.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back inside the reception area.');routeTransitionOut();});
+window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;carparkExitAttemptAt=0;sys(d.message||'Private car park entered.');openGarageSpawnMenu();routeTransitionOut();});
+window.addEventListener('nrs-carpark-foot-exit',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';curPoi=null;vel.set(0,0,0);jv=0;
+ if(d.route==='home'&&d.home){
+  const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:Math.PI,face:Math.PI,camYaw:0,camPitch:.08};
+  inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);face=Math.PI;camYaw=0;camPitch=.08;
+  player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  if(MP.open)closeMap();plShow(false);sys(d.message||'You are back inside your home.');
+ }else{
+  inside=null;pos.set(Number(d.x)||0,0,Number(d.z)||0);face=0;player.position.copy(pos);model.rotation.y=face;
+  shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;camYaw=Math.PI;camPitch=.28;
+  sys(d.message||'You are on the street.');
+ }
+ focus.set(pos.x,1.4,pos.z);routeTransitionOut();
+});
+window.addEventListener('nrs-carpark-exit',e=>{const d=e.detail||{},c=cars.find(v=>v.id===d.carId&&v.kind!=='t');carparkExitPending=false;if(!c)return;inside=null;c.x=Number(d.x)||0;c.z=Number(d.z)||0;c.ry=Number(d.yaw)||0;c.v=c.vx=c.vz=0;c.starting=false;c.box.hw=1.05;c.box.hd=2.3;c.g.visible=true;setCar(c);pos.set(c.x,0,c.z);face=c.ry;camYaw=c.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();vel.set(0,0,0);focus.set(pos.x,1.4,pos.z);model.rotation.y=0;shadow.visible=false;driving=c;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();setHl(c);modal.style.display='none';modal.innerHTML='';sys(d.message||'Horn heard. You are on the street—drive safely.');routeTransitionOut();});
+window.addEventListener('nrs-route-error',()=>{carparkExitPending=false;routeTransitionOut();});
+window.addEventListener('nrs-home-exit',e=>{const d=e.detail||{};if(!inside?.isHome)return;const r=inside;inside=null;pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);curPoi=null;act2.style.display='none';sys(d.message||'You are back outside.');routeTransitionOut();});
+
+window.addEventListener('nrs-respawn',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ routeTransitionIn();vel.set(0,0,0);jv=0;carparkExitPending=false;
+ if(driving){
+  const c=driving;c.v=c.vx=c.vz=0;c.starting=false;c.on=false;c.box.hw=1.05;c.box.hd=2.3;
+  driving=null;engine(false);document.body.classList.remove('drv');$('act').classList.remove('dr');hornBtn=false;hornKey=false;
+  standUp();setIgn();setHl(c);
+ }
+ if(d.atHome&&d.home){
+  const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:Math.PI,face:Math.PI,camYaw:0,camPitch:.08};
+  inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);face=Math.PI;camYaw=0;camPitch=.08;
+  standUp();player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+  if(MP.open)closeMap();plShow(false);sys('🏠 You respawned inside your home. Walk to EXIT whenever you are ready.');
+ }else{
+  inside=null;pos.set(Number(d.x)||0,0,Number(d.z)||0);face=0;camYaw=Math.PI;camPitch=.28;
+  standUp();player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  modal.style.display='none';modal.innerHTML='';
+ }
+ focus.set(pos.x,1.4,pos.z);routeTransitionOut();
+});
+$('bmpl').onclick=()=>plShow(plc.style.display==='none');
+$('navx').onclick=()=>navStop('Navigation cancelled.');
+
+/* ✉ chat: hidden at the top until you tap the envelope */
+const chatEl=$('chat');let unread=1;
+function badge(){const b=$('chatBadge');b.textContent=unread>9?'9+':unread;b.style.display=unread?'grid':'none';}
+function chatToggle(o){const op=o===undefined?!chatEl.classList.contains('open'):o;chatEl.classList.toggle('open',op);if(op){unread=0;$('log').scrollTop=1e5;}badge();}
+$('chatB').onclick=()=>chatToggle();$('cx').onclick=()=>chatToggle(false);
+new MutationObserver(m=>{if(!chatEl.classList.contains('open')){unread+=m.reduce((n,r)=>n+r.addedNodes.length,0);badge();}else $('log').scrollTop=1e5;}).observe($('log'),{childList:true});
+badge();
+
+/* driving HUD: indicators, hazards, headlights, camera, speedo */
+const CAMD=[8,5.2,12],AMO=0x8a5208,AMN=0xffd24a;let camMode=0,sig=0,hz=false,sgT=0,sgCar=null,sgLast=false,spT='';
+$('camB').onclick=()=>{camMode=(camMode+1)%CAMD.length;};
+$('sigL').onclick=()=>{if(!driving)return;sig=sig<0?0:-1;hz=false;sgT=0;};
+$('sigR').onclick=()=>{if(!driving)return;sig=sig>0?0:1;hz=false;sgT=0;};
+$('hzd').onclick=()=>{if(!driving)return;hz=!hz;if(hz){sig=0;sgT=0;}};
+$('lite').onclick=()=>{const c=driving;if(!c)return;c.hlOn=!c.hlOn;setHl(c);};
+function sigTick(t){const c=driving,B=['sigL','hzd','sigR'];
+ if(sgCar&&sgCar!==c){sgCar.amL.color.setHex(AMO);sgCar.amR.color.setHex(AMO);sgCar=null;}
+ if(!c){sig=0;hz=false;sgT=0;B.forEach(i=>$(i).classList.remove('bl'));return;}
+ sgCar=c;if(sig&&Math.abs(wheelA)>70)sgT=1;if(sgT&&Math.abs(wheelA)<15){sig=0;sgT=0;}
+ const on=Math.floor(t*2.6)%2===0,L=hz||sig<0,R=hz||sig>0;
+ if((L||R)&&on!==sgLast){sgLast=on;try{if(on)tone(1500,ctx().currentTime,.025,'square',.03);}catch(e){}}
+ c.amL.color.setHex(L&&on?AMN:AMO);c.amR.color.setHex(R&&on?AMN:AMO);
+ $('sigL').classList.toggle('bl',L&&!hz&&on);$('sigR').classList.toggle('bl',R&&!hz&&on);$('hzd').classList.toggle('bl',hz&&on);}
+function drvHud(){const c=driving,k=Math.round(Math.abs(c.v)*3.6),s=String(k).padStart(3,'0'),z=Math.min(s.match(/^0*/)[0].length,2);
+ const gt=c.fuel<=0&&!c.on?'OUT OF FUEL':c.starting?'STARTING…':c.on?'KM/H · '+(c.v<-.5?'R':'G'+(c.gear||1)):'ENGINE OFF · TAP ⏻',zz=zn(),key=s+gt+zz;
+ if(key!==spT){spT=key;$('spv').innerHTML='<i>'+s.slice(0,z)+'</i>'+s.slice(z);$('spk').textContent=gt;$('spz').textContent=zz;}
+ $('lite').classList.toggle('on',!!c.hlOn);
+ fuelHud(c);}
+let fgT='';
+function fuelHud(c){const p=Math.max(0,Math.min(1,c.fuel/TANK)),l=Math.ceil(c.fuel),key=l+'|'+Math.round(p*100);if(key===fgT)return;fgT=key;
+ $('fgr').setAttribute('stroke-dashoffset',String(100*(1-p)));$('fgl').textContent=l+' L';const g=$('fg');g.classList.toggle('lo',p<=.25&&p>.1);g.classList.toggle('em',p<=.1);}
+
+
+/* ---------- Fuel stations: 8 roadside forecourts, buy petrol at ₦1,250/L ---------- */
+/* naira per litre: NNPC is cheapest, then Restopark, then DBase, Hydropet is dearest (keep in sync with the server) */
+const FBR={NNPC:{p:1250,c:'#0b7d3e',a:'#ffd21f',bg:'rgba(11,125,62,.92)'},Restopark:{p:1350,c:'#d9701a',a:'#ffffff',bg:'rgba(217,112,26,.92)'},DBase:{p:1450,c:'#4b2a8a',a:'#ffb020',bg:'rgba(75,42,138,.92)'},Hydropet:{p:1550,c:'#c0272d',a:'#ffffff',bg:'rgba(192,39,45,.92)'}};
+/* [brand, axis (H = runs east-west, V = north-south), road, side (+1/-1), start position along the road] */
+const FSPOTS=[['NNPC','V',VR[0],1,-75],['DBase','V',VR[1],1,-35],['Hydropet','H',HR[1],-1,-50],['Restopark','H',HR[0],1,45],
+ ['DBase','H',HR[2],1,-160],['NNPC','H',HR[2],1,160],['Restopark','H',HR[1],-1,170],['Hydropet','V',VR[2],-1,135]];
+function fsFree(x1,x2,z1,z2,own){
+ if(x1<-232||x2>232||z1<-232||z2>186)return false;
+ if(RB.some(b=>b[0]>x1-22&&b[0]<x2+22&&b[1]>z1-22&&b[1]<z2+22))return false;
+ for(const r of HR)if(r!==own&&z2>r[0]-7&&z1<r[0]+7&&x2>r[2]-10&&x1<r[3]+10)return false;
+ for(const r of VR)if(r!==own&&x2>r[0]-7&&x1<r[0]+7&&z2>r[2]-10&&z1<r[3]+10)return false;
+ const cx=(x1+x2)/2,cz=(z1+z2)/2,hx=(x2-x1)/2,hz=(z2-z1)/2;
+ return!boxes.some(b=>Math.abs(cx-b.x)<hx+b.hw+1.5&&Math.abs(cz-b.z)<hz+b.hd+1.5);}
+function fsBuild(brand,axis,road,side,cx,cz){
+ const B=FBR[brand],col=parseInt(B.c.slice(1),16),th=axis==='V'?side*Math.PI/2:(side>0?0:Math.PI),sn=Math.sin(th),cs=Math.cos(th);
+ const g=new THREE.Group();g.position.set(cx,0,cz);g.rotation.y=th;scene.add(g);
+ const W=(lx,lz)=>[cx+lx*cs+lz*sn,cz-lx*sn+lz*cs];
+ const wb=(lx,lz,hx,hz)=>{const p=W(lx,lz),sw=Math.abs(sn)>.5;boxes.push({x:p[0],z:p[1],hw:sw?hz:hx,hd:sw?hx:hz});};
+ const pl=(w,d,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,d),m,x,y,z,g);o.rotation.x=-Math.PI/2;return o;};
+ const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;g.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(tw,th2,fn)});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
+ pl(18,14,M(0x9a9a96),0,.03,1);pl(14,3,M(0x8d8d88),0,.035,-7.5);
+ pl(.25,12,M(0xf2c230),-8.6,.04,1);pl(.25,12,M(0xf2c230),8.6,.04,1);
+ /* canopy */
+ add(new THREE.BoxGeometry(12,.5,7),M(0xe9e9e4),0,5.2,.5,g);
+ add(new THREE.BoxGeometry(12.2,.95,.3),M(col),0,5.1,-3.1,g);add(new THREE.BoxGeometry(12.2,.12,.32),M(parseInt(B.a.slice(1),16)),0,4.58,-3.1,g);
+ add(new THREE.BoxGeometry(11.2,.08,6.2),new THREE.MeshBasicMaterial({color:0xfff4d0}),0,4.93,.5,g);
+ [[-5,-2.5],[5,-2.5],[-5,3.5],[5,3.5]].forEach(p=>{add(new THREE.CylinderGeometry(.22,.22,5,10),M(0xd8d8d2),p[0],2.5,p[1],g);wb(p[0],p[1],.3,.3);});
+ lab(9,.8,512,46,(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle='#fff';c.textAlign='center';fit(c,brand.toUpperCase(),44,w-20);c.fillText(brand.toUpperCase(),w/2,h*.8);},0,5.1,-3.27,Math.PI);
+ /* pumps */
+ const pumps=[];
+ [-3,3].forEach(px=>{add(new THREE.BoxGeometry(1.3,.25,4.4),M(0x777772),px,.125,.5,g);
+  add(new THREE.BoxGeometry(.8,1.7,1.1),M(col),px,1.1,.5,g);add(new THREE.BoxGeometry(.82,.45,1.12),M(0x151a20),px,1.55,.5,g);
+  add(new THREE.BoxGeometry(.5,.12,.6),M(parseInt(B.a.slice(1),16)),px,2.0,.5,g);
+  [-1,1].forEach(sd=>{add(new THREE.CylinderGeometry(.05,.05,.9,6),M(0x222222),px+sd*.46,.9,.5,g);});
+  wb(px,.5,.5,.7);const p=W(px,.5);pumps.push({x:p[0],z:p[1]});});
+ /* shop kiosk */
+ add(new THREE.BoxGeometry(9,3.2,3),M(0xf1efe8),0,1.6,6.3,g);add(new THREE.BoxGeometry(9.2,.5,3.2),M(col),0,3.3,6.3,g);wb(0,6.3,4.5,1.5);
+ add(new THREE.PlaneGeometry(6,1.7),new THREE.MeshBasicMaterial({color:0x2a3c48,side:THREE.DoubleSide}),0,1.7,4.78,g).rotation.y=Math.PI;
+ lab(7,1.3,512,96,(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle=B.a;c.fillRect(0,h-9,w,9);c.fillStyle='#fff';c.textAlign='center';fit(c,brand+' Fuel Station',46,w-30);c.fillText(brand+' Fuel Station',w/2,h*.6);},0,3.35,4.68,Math.PI);
+ /* roadside price pylon */
+ add(new THREE.CylinderGeometry(.16,.16,9,8),M(0x888888),-8,4.5,-5.5,g);wb(-8,-5.5,.3,.3);
+ const pyl=(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle=B.a;c.fillRect(0,0,w,14);c.fillRect(0,h-14,w,14);c.fillStyle='#fff';c.textAlign='center';fit(c,brand.toUpperCase(),64,w-24);c.fillText(brand.toUpperCase(),w/2,100);
+  c.font='84px system-ui';c.fillText('⛽',w/2,205);c.fillStyle=B.a;c.font='bold 30px system-ui';c.fillText('PETROL',w/2,255);c.fillStyle='#fff';c.font='bold 40px system-ui';c.fillText('₦'+B.p.toLocaleString()+'/L',w/2,310);};
+ lab(3.6,4.6,288,368,pyl,-7.9,7.6,-5.5,Math.PI/2);lab(3.6,4.6,288,368,pyl,-8.1,7.6,-5.5,-Math.PI/2);
+ FS.push({brand,price:B.p,name:brand+' Fuel Station',road:road[1],x:cx,z:cz,col:B.c,bg:B.bg,pumps});}
+FSPOTS.forEach(sp=>{const brand=sp[0],axis=sp[1],road=sp[2],side=sp[3],a0=sp[4];
+ for(let k=0;k<=30;k++){const along=a0+(k%2?1:-1)*Math.ceil(k/2)*4;let x1,x2,z1,z2,cx,cz;
+  if(axis==='V'){const a=road[0]+side*6,b=road[0]+side*22;x1=Math.min(a,b);x2=Math.max(a,b);z1=along-9;z2=along+9;cx=road[0]+side*14;cz=along;if(along<road[2]+12||along>road[3]-12)continue;}
+  else{const a=road[0]+side*6,b=road[0]+side*22;z1=Math.min(a,b);z2=Math.max(a,b);x1=along-9;x2=along+9;cz=road[0]+side*14;cx=along;if(along<road[2]+12||along>road[3]-12)continue;}
+  if(fsFree(x1,x2,z1,z2,road)){fsBuild(brand,axis,road,side,cx,cz);return;}}
+ console.warn('No free spot for fuel station',brand,road[1]);});
+const fbtn=document.createElement('button');fbtn.id='fbtn';document.body.appendChild(fbtn);
+let curFS=null,fsOpen=null,fuelBusy=false,fuelMsg='';
+function fsNear(){if(inside)return null;const c=driving;if(c&&Math.abs(c.v)>3)return null;const R=c?7:4.5;let best=null,bd=R;
+ for(const s of FS)for(const p of s.pumps){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd){bd=d;best=s;}}return best;}
+function fuelAct(){const s=fsNear();if(s!==curFS){curFS=s;fbtn.style.display=s?'block':'none';if(s)fbtn.textContent='⛽ Buy fuel · '+s.brand;}}
+function fuelCar(){if(driving)return driving;let b=null,bd=7;for(const c of cars){if(c.kind==='t'||!c.id)continue;const d=Math.hypot(c.x-pos.x,c.z-pos.z);if(d<bd){bd=d;b=c;}}return b;}
+function fuelUI(s){fsOpen=s;const c=fuelCar(),head='<b>⛽ '+s.name+'</b><p>Petrol: ₦'+f(s.price)+' per litre<br>Your cash: ₦'+f(cash)+'</p>';
+ if(!c){panel(head+'<p><i>Bring a car next to the pump to buy fuel.</i></p>');return;}
+ const space=Math.max(0,Math.floor(TANK-c.fuel+1e-6)),opts=[1,5,10].filter(n=>n<space);if(space>0)opts.push(space);
+ panel(head+'<p>Fuel: <b>'+c.fuel.toFixed(1)+'</b> / '+TANK+' L</p>'+(space<1?'<p><i>Tank is full.</i></p>':opts.map(n=>'<button data-fl="'+n+'">'+(n===space&&n>1?'Fill ('+n+' L)':n+' L')+' · ₦'+f(n*s.price)+'</button>').join('<br>'))+(fuelMsg?'<p><i>'+fuelMsg+'</i></p>':''));}
+fbtn.onclick=()=>{if(!curFS)return;fuelMsg='';fuelUI(curFS);};
+modal.addEventListener('click',e=>{const n=e.target.dataset&&e.target.dataset.fl;if(!n||!fsOpen||fuelBusy)return;const c=fuelCar();if(!c)return;
+ const L=Math.floor(+n),cost=L*fsOpen.price;if(L<1)return;
+ if(cash<cost){fuelMsg='Not enough cash. You need ₦'+f(cost)+'.';fuelUI(fsOpen);return;}
+ fuelBusy=true;NRS.buyFuel(c.id,L,fsOpen.brand,(r)=>{fuelBusy=false;if(r.ok){c.fuel=r.fuel;fuelMsg='Bought '+L+' L for ₦'+f(cost)+'.';sys('⛽ Bought '+L+' L of petrol for ₦'+f(cost)+'.');}else fuelMsg=r.message||'Purchase failed.';money();fuelUI(fsOpen);});});
+
+// Provide an in-game installation button for Chrome, plus clear menu instructions on platforms
+// where the browser does not expose beforeinstallprompt.
+(function setupInstallButton(){
+ const btn=$('installAppBtn');
+ if(!btn)return;
+ const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true||window.nrsAppInstalled===true;
+ const sync=()=>{
+  btn.hidden=standalone();
+  btn.textContent=window.nrsInstallPrompt?'⬇ Install Nigeria RP':'⬇ Install App';
+ };
+ btn.onclick=async()=>{
+  const promptEvent=window.nrsInstallPrompt;
+  if(promptEvent){
+   window.nrsInstallPrompt=null;
+   try{
+    await promptEvent.prompt();
+    const choice=await promptEvent.userChoice;
+    if(choice?.outcome==='accepted'){btn.hidden=true;return;}
+   }catch(_){}
+   sync();
+   return;
+  }
+  panel('<b>📲 Install Nigeria RP</b><p>In Chrome, open the <b>⋮ menu</b> and choose <b>Install app</b>, then confirm. Launch Nigeria RP from its new app icon, not from the Chrome tab.</p><p><b>Important:</b> a normal “Add to Home screen” shortcut can still open inside Chrome and show the Chrome icon in Recent apps. Remove the old shortcut and install the app instead.</p><p>The game needs an internet connection for accounts, saved progress and multiplayer.</p>');
+ };
+ window.addEventListener('nrs-install-ready',sync);
+ window.addEventListener('appinstalled',sync);
+ sync();
+})();
+let last=performance.now(),t=0;
+function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
+ update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
+requestAnimationFrame(loop);
