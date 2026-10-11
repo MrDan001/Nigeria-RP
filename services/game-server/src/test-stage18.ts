@@ -43,4 +43,4 @@ const closeTime = stage18NigeriaClock(new Date("2026-10-11T21:00:00.000Z"));
 assert.equal(closeTime.date, "2026-10-11");
 assert.equal(closeTime.hour, 22);
 assert.equal(closeTime.isClosed, true);
-console.log("Stage 18 tests passed: Nigeria-time cutoff, 9 deterministic daily fixtures, odds and consistent settled outcomes.");
+console.log("Stage 18 tests passed: Nigeria-time cutoff, 9 daily fixtures, odds and consistent score/outcome results.");
