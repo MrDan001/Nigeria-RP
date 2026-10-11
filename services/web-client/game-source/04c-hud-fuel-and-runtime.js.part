@@ -1,0 +1,342 @@
+/* ---------- v12: Places & navigation ---------- */
+const nbc=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,40,16,1,true),new THREE.MeshBasicMaterial({color:0xff2a3a,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false,fog:false}));nbc.visible=false;scene.add(nbc);
+const nvB=$('navb'),plc=$('plc'),pll=$('pll');let plTab='shop',plSel=-1,plItems=[],plT=0;
+const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const fmtD=d=>d<1000?Math.round(d)+' m':(d/1000).toFixed(1)+' km';
+const rdName=(x,z)=>{let b=null,bd=1e9;HR.forEach(r=>{const d=Math.abs(z-r[0]);if(x>=r[2]-10&&x<=r[3]+10&&d<bd){bd=d;b=r[1];}});VR.forEach(r=>{const d=Math.abs(x-r[0]);if(z>=r[2]-10&&z<=r[3]+10&&d<bd){bd=d;b=r[1];}});return b||'Port Harcourt';};
+const ico=n=>/hospital|medical|clinic|health/i.test(n)?'🏥':/school|college|university/i.test(n)?'🎓':/police|security/i.test(n)?'🚓':/fire|rescue/i.test(n)?'🚒':/frsc|transport|union/i.test(n)?'🚦':/army|garrison/i.test(n)?'🪖':/government|state/i.test(n)?'🏛️':/news|network/i.test(n)?'📰':/park/i.test(n)?'🌳':/bank/i.test(n)?'🏦':/atm/i.test(n)?'🏧':/job/i.test(n)?'💼':/pharm/i.test(n)?'💊':/phone|gadget/i.test(n)?'📱':/fashion|cloth|wear/i.test(n)?'👕':/super|mart/i.test(n)?'🛒':/water/i.test(n)?'💧':/corn|ube/i.test(n)?'🌽':/yam|plantain|garri|pepper|veg|fruit/i.test(n)?'🍠':/kitchen|put|food|rice|suya|bole|eatery/i.test(n)?'🍲':'🏪';
+const hex=c=>typeof c==='number'?'#'+c.toString(16).padStart(6,'0'):(c||'#c2761c');
+function plData(tab){const o=[],seen={};
+ if(tab==='all'){
+  const add=(q,key)=>{if(seen[key])return;seen[key]=1;o.push(q);};
+  POI.forEach(q=>{const key=q.housePoi?('home|'+q.houseId):[q.t||q.k,q.workplaceId||q.houseId||q.name,Math.round(q.x),Math.round(q.z)].join('|');add({n:q.name||q.k,sub:(q.t==='workplace'||q.k==='Work'?'Workplace / organization':q.t==='job'||q.t==='bank'||q.t==='atm'?'Service':q.housePoi?'Residential home':q.apartmentBuildingPoi?'Apartment building':q.t==='shop'||q.k==='Talk'?'Shop / street stall':'Location')+' · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name||q.k),c:hex(q.col),r:q.r||7,houseId:q.houseId,house:q.house,home:!!q.housePoi},key);});
+  FS.forEach(q=>add({n:q.brand+' · '+q.road,sub:'Fuel station · ₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11},['fuel',q.brand,q.x,q.z].join('|')));
+  (window.NRS?.houses||[]).forEach(h=>add({n:(h.name||'Home')+' · '+h.id,sub:(h.zone||'Residential area')+' · ₦'+f(h.rentPerDay)+'/day · '+(h.occupiedByMe?'YOUR HOME':h.vacant?'AVAILABLE':'OCCUPIED'),x:Number(h.x),z:Number(h.z),ico:({hut:'🛖',faceme:'🏘️',flat:'🏢',estate:'🏡',mansion:'🏰',palace:'👑'})[h.cls]||'🏠',c:h.occupiedByMe?'#087f5b':h.vacant?'#245c8e':'#4b5563',r:8,houseId:h.id,house:h,home:true},'home|'+h.id));
+  ZN.forEach(a=>add({n:a[0],sub:'District',x:(a[1]+a[2])/2,z:(a[3]+a[4])/2,ico:'🏙',c:'#0f5b3a',r:Math.min(30,Math.min(a[2]-a[1],a[4]-a[3])/3)},'district|'+a[0]));
+  add({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25},'district|Port Harcourt Centre');
+ }
+ else if(tab==='shop')POI.forEach(q=>{if(((q.k==='Enter'&&q.t==='shop')||q.k==='Talk')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:q.k==='Enter'?'Shop · '+rdName(q.x,q.z):'Street stall · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:hex(q.col),r:7});}});
+ else if(tab==='svc'){POI.forEach(q=>{if((q.t==='job'||q.t==='bank'||q.t==='atm')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:'Service · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:q.t==='atm'?'#0a4d8c':hex(q.col),r:7});}});if(job)o.push({n:'Drop-off · '+job.n,sub:'Current job · ₦'+f(job.pay),x:job.x,z:job.z,ico:'📦',c:'#b8860b',r:6});}
+ else if(tab==='work'){
+  POI.forEach(q=>{
+   if(q.t!=='workplace'&&q.k!=='Work')return;
+   const key=q.workplaceId||q.name;if(seen[key])return;seen[key]=1;
+   const n=q.name||key;
+   const kind=/hospital|medical|clinic|health/i.test(n)?'Healthcare':/school|college|university/i.test(n)?'Education':/police|fire|frsc|army|rescue/i.test(n)?'Public safety':/government|state/i.test(n)?'Government':/news|network/i.test(n)?'Media':/park/i.test(n)?'Public services':'Workplace / organization';
+   const color=/hospital|medical|clinic|health/i.test(n)?'#b33b45':/school|college|university/i.test(n)?'#28784b':/police|fire|frsc|army|rescue/i.test(n)?'#245c8e':'#52616b';
+   o.push({n,sub:kind+' · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(n),c:color,r:q.r||8,workplaceId:q.workplaceId});
+  });
+ }
+ else if(tab==='fuel')FS.forEach(q=>o.push({n:q.brand+' · '+q.road,sub:'₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11}));
+ else if(tab==='apartments'){
+  const seenApartments=new Set();
+  POI.filter(q=>q.apartmentBuildingPoi&&q.apartmentBuilding).forEach(q=>{
+   const b=q.apartmentBuilding,key=b.id||q.name;if(seenApartments.has(key))return;seenApartments.add(key);
+   const label=b.buildingName||q.name||'Apartment building';
+   o.push({n:label,sub:'Apartment building · '+rdName(q.x,q.z)+' · Enter to view numbered rooms',x:q.x,z:q.z,ico:'🏢',c:'#365b83',r:9,apartmentBuildingPoi:true,apartmentBuilding:b});
+  });
+ }
+ else if(tab==='homes'){
+  const N=window.NRS||{},life=N.life||{};
+  (N.houses||[]).forEach(h=>{const mine=!!h.occupiedByMe,free=!!h.vacant;
+   o.push({n:(h.name||'Home')+' · '+h.id,sub:h.zone+' · ₦'+f(h.rentPerDay)+'/day · '+(mine?'YOUR HOME':free?'AVAILABLE':'OCCUPIED')+(mine?' · '+(life.rentDays||0)+' day(s) prepaid':''),x:h.x,z:h.z,ico:({hut:'🛖',faceme:'🏘️',flat:'🏢',estate:'🏡',mansion:'🏰',palace:'👑'})[h.cls]||'🏠',c:mine?'#087f5b':free?'#245c8e':'#4b5563',r:8,houseId:h.id,house:h,home:true});});
+ }
+ else{ZN.forEach(a=>o.push({n:a.n,sub:'District',x:(a.x1+a.x2)/2,z:(a.z1+a.z2)/2,ico:'🏙',c:'#0f5b3a',r:Math.min(30,Math.min(a.x2-a.x1,a.z2-a.z1)/3)}));o.push({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25});}
+ const p=myPos();o.forEach(q=>q.d=Math.hypot(q.x-p.x,q.z-p.z));return o.sort((a,b)=>a.d-b.d);}
+function plRender(){plItems=plData(plTab);plSel=-1;
+ const tools=plTab==='homes'?'<div class="hometools"><button data-housing-action="enter">🏠 Enter my home</button><button data-housing-action="park">🚗 Park all cars</button><button data-housing-action="retrieve">🔑 Retrieve cars</button><button data-housing-action="respawn">↪ Respawn</button></div>':'';
+ const rows=plItems.map((q,i)=>{if(q.home){const life=(window.NRS||{}).life||{},own=life.homeId===q.houseId,daysLeft=Math.max(0,7-(own?(life.rentDays||0):0));const canRent=(q.house.vacant||q.house.occupiedByMe)&&(!life.homeId||own)&&daysLeft>0;
+  const opts=Array.from({length:Math.max(1,daysLeft)},(_,j)=>'<option value="'+(j+1)+'">'+(j+1)+'d</option>').join('');
+  return '<div class="pr home-row" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><select class="home-days" aria-label="Prepaid days" '+(!canRent?'disabled':'')+'>'+opts+'</select><button class="hrent" data-house-action="rent" data-house-id="'+q.houseId+'" '+(!canRent?'disabled':'')+'>'+(own?'Add rent':q.house.vacant?'Rent':'Taken')+'</button><button class="pg">GO</button></div>';
+ }
+ return '<div class="pr" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><span class="pd">'+fmtD(q.d)+'</span><button class="pg">GO</button></div>';
+ }).join('');
+ pll.innerHTML=tools+(rows||'<div style="padding:1rem;opacity:.7;font-size:.8rem">'+(plTab==='homes'?'Loading homes…':'Nothing here yet.')+'</div>');
+ pll.scrollTop=0;document.querySelectorAll('#plt button').forEach(b=>b.classList.toggle('on',b.dataset.t===plTab));}
+function plShow(on){plc.style.display=on?'flex':'none';$('bigmap').classList.toggle('pl',on);$('bmpl').classList.toggle('on',on);if(on){if(plTab==='homes'&&window.NRS)window.NRS.getHousing();plRender();}}
+function plTick(){const n=performance.now();if(n-plT<700||plc.style.display==='none')return;plT=n;const p=myPos();
+ plItems.forEach((q,i)=>{q.d=Math.hypot(q.x-p.x,q.z-p.z);const e=pll.querySelector('.pr[data-i="'+i+'"]');if(e&&e.firstChild){const d=e.querySelector('.pd');if(d)d.textContent=fmtD(q.d);}});}
+function navUI(){nvB.style.display=NAV?'block':'none';if(!NAV)return;const p=myPos(),d=NAV.dist||Math.hypot(NAV.x-p.x,NAV.z-p.z);
+ nvB.querySelector('b').textContent=NAV.ico+' '+NAV.name;nvB.querySelector('small').textContent=fmtD(d)+' · follow the red route';}
+function navStart(q){NAV={name:q.n,x:q.x,z:q.z,ico:q.ico,r:q.r||7,dist:0};nbc.position.set(q.x,20,q.z);rtT=0;
+ const p=myPos(),dd=Math.hypot(q.x-p.x,q.z-p.z);if(MP.open){MP.x=(p.x+q.x)/2;MP.z=(p.z+q.z)/2;MP.dist=clamp(dd*1.5+70,120,420);}
+ ROUTE=buildRoute(p.x,p.z,q.x,q.z);rtDirty=true;let L=0;for(let i=1;i<ROUTE.length;i++)L+=Math.hypot(ROUTE[i][0]-ROUTE[i-1][0],ROUTE[i][1]-ROUTE[i-1][1]);NAV.dist=L;navUI();sys('🧭 Navigation started: '+q.n);}
+function navStop(msg){NAV=null;nbc.visible=false;ROUTE=null;rtDirty=true;navUI();if(msg)sys(msg);}
+pll.addEventListener('click',e=>{
+ const action=e.target.closest('[data-housing-action],[data-house-action]');
+ if(action){const N=window.NRS;if(!N)return;
+  if(action.dataset.housingAction==='enter')N.enterHome();
+  else if(action.dataset.housingAction==='park')N.parkCars();
+  else if(action.dataset.housingAction==='retrieve')N.retrieveCars();
+  else if(action.dataset.housingAction==='respawn')N.respawn();
+  else if(action.dataset.houseAction==='rent'){const row=action.closest('.pr'),days=Number(row?.querySelector('.home-days')?.value||1);N.rentHouse(action.dataset.houseId,days);}
+  return;
+ }
+ const r=e.target.closest('.pr');if(!r)return;const i=+r.dataset.i,q=plItems[i];if(!q)return;
+ if(e.target.closest('.pg')){navStart(q);return;}
+ plSel=i;pll.querySelectorAll('.pr').forEach((c,k)=>c.classList.toggle('sel',k===i));MP.x=q.x;MP.z=q.z;MP.dist=Math.min(MP.dist,160);
+});
+document.querySelectorAll('#plt button').forEach(b=>b.onclick=()=>{plTab=b.dataset.t;plRender();if(plTab==='homes'&&window.NRS)window.NRS.getHousing();});
+
+function applyParkedCars(life){const parked=new Set(life?.parkedCars||[]);cars.forEach(c=>{if(!c.id||!c.g||!c.box)return;if(!c._parkingBox)c._parkingBox={hw:c.box.hw,hd:c.box.hd};const stored=parked.has(c.id);c.g.visible=!stored;c.box.hw=stored?0:c._parkingBox.hw;c.box.hd=stored?0:c._parkingBox.hd;});}
+window.addEventListener('nrs-housing',e=>{const d=e.detail||{},N=window.NRS;if(N){N.houses=d.houses||N.houses||[];N.life=d.life||N.life;syncHouseExteriors(N.houses);}applyParkedCars(d.life||(N&&N.life));if(plTab==='homes')plRender();});
+window.addEventListener('nrs-life',e=>{const N=window.NRS,life=e.detail?.life;if(N&&life)N.life=life;applyParkedCars(life);if(plTab==='homes')plRender();});
+window.addEventListener('nrs-home-interior',e=>{const d=e.detail||{};if(!d.ok)return;routeTransitionOut();const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys('🏠 Welcome inside '+(d.home?.name||'your home')+'. Use the EXIT sign to choose street or private car park.');});
+window.addEventListener('nrs-apartment-building-enter',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ const ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face,camYaw,camPitch};
+ routeTransitionOut();renderApartmentHall(d,ret);sys(d.message||'Apartment building entered.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-floor',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||('Floor '+d.floor));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-enter',e=>{
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-enter]').forEach(button=>button.disabled=false);return;}
+ if(!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('Welcome to Room '+d.roomNumber+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-rent',e=>{
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-rent]').forEach(button=>button.disabled=false);return;}
+ if(!inside?.isApartmentBuilding||inside.apartmentBuildingId!==d.buildingId)return;
+ if(d.cash!==undefined){cash=Number(d.cash)||0;money();}
+ const ret=inside.ret;renderApartmentRoom(d,ret);sys(d.message||('You rented Room '+d.roomNumber+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-room-lock',e=>{
+ const d=e.detail||{};
+ if(!d.ok){modal.querySelectorAll('[data-apartment-lock]').forEach(button=>button.disabled=false);return;}
+ if(inside?.isApartmentBuilding&&inside.apartmentBuildingId===d.buildingId){
+  const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'Apartment room access updated.');routeTransitionOut();return;
+ }
+ if(inside?.isApartmentRoom&&inside.apartmentBuildingId===d.buildingId&&inside.apartmentRoomNumber===Number(d.roomNumber)){
+  inside.apartmentRoomLocked=d.locked===true;
+  sys(d.message||'Apartment room access updated.');
+  if(modal.querySelector('#apartmentRoomSettingsPanel'))openApartmentRoomSettings();
+ }
+});
+window.addEventListener('nrs-apartment-room-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentRoom||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'You returned to the apartment corridor.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-building-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isApartmentBuilding)return;
+ const ret=inside.ret;clearApartmentInteriorVisual();inside=null;
+ pos.set(Number(d.x)||0,0,Number(d.z)||24);vel.set(0,0,0);jv=0;
+ face=Number.isFinite(d.yaw)?Number(d.yaw):(Number.isFinite(ret?.face)?ret.face:0);
+ camYaw=Number.isFinite(ret?.camYaw)?Number(ret.camYaw):Math.PI;camPitch=Number.isFinite(ret?.camPitch)?Number(ret.camPitch):.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+ sys(d.message||'You are back outside the apartment building.');routeTransitionOut();
+});
+window.addEventListener('nrs-apartment-lease-expired',e=>{
+ const d=e.detail||{};if(!inside?.isApartmentRoom||inside.apartmentBuildingId!==d.buildingId)return;
+ const ret=inside.ret;renderApartmentHall(d,ret);sys(d.message||'Your apartment rent expired.');routeTransitionOut();
+});
+window.addEventListener('nrs-shop-interior-enter',e=>{
+ const d=e.detail||{};if(!d.ok)return;const p=POI.find(q=>q.shopId===d.shopId);
+ if(!p){sys('Storefront details were not found.');window.NRS?.exitShopInterior();return;}
+ const r=room(p,d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face:Number.isFinite(Number(d.returnYaw))?Number(d.returnYaw):face,camYaw,camPitch};
+ inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??r.z+3.2));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.3;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||('Welcome inside '+r.name+'.'));routeTransitionOut();
+});
+window.addEventListener('nrs-shop-interior-exit',e=>{
+ const d=e.detail||{};if(!d.ok||!inside?.isShopInterior)return;const r=inside;inside=null;
+ pos.set(Number(d.x??r.ret?.x??0),0,Number(d.z??r.ret?.z??24));vel.set(0,0,0);jv=0;
+ face=Number.isFinite(d.yaw)?Number(d.yaw):(Number.isFinite(r.ret?.face)?r.ret.face:0);
+ camYaw=Number.isFinite(r.ret?.camYaw)?Number(r.ret.camYaw):Math.PI;camPitch=Number.isFinite(r.ret?.camPitch)?Number(r.ret.camPitch):.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+ sys(d.message||'You are back outside the shop.');routeTransitionOut();
+});
+window.addEventListener('nrs-workplace-interior-enter',e=>{const d=e.detail||{};if(!d.ok)return;workplaceMenuOpen=false;routeTransitionOut();const r=workplaceInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??(r.z+4.2)));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||('Welcome to '+r.workplaceName+'. Approach reception to speak to the secretary.'));routeTransitionOut();});
+window.addEventListener('nrs-workplace-interior-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isWorkplaceInterior)return;workplaceMenuOpen=false;inside=null;
+ pos.set(Number(d.x??0),0,Number(d.z??24));vel.set(0,0,0);jv=0;face=Number.isFinite(d.yaw)?Number(d.yaw):0;camYaw=Math.PI;camPitch=.28;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back outside the workplace.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-enter',e=>{const d=e.detail||{};if(!d.ok)return;workplaceMenuOpen=false;routeTransitionOut();const r=staffRoomInterior(d);
+ r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:face,face,camYaw,camPitch};inside=r;pos.set(Number(d.x??r.x),0,Number(d.z??(r.z+1.7)));vel.set(0,0,0);jv=0;face=Math.PI;camYaw=0;camPitch=.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);sys(d.message||'Staff changing room opened.');routeTransitionOut();});
+window.addEventListener('nrs-staff-room-exit',e=>{const d=e.detail||{};if(!d.ok||!inside?.isStaffRoom)return;workplaceMenuOpen=false;const previous=inside,returnState=previous.ret;
+ const r=workplaceInterior({workplaceId:d.workplaceId||previous.workplaceId,workplaceName:d.workplaceName||previous.workplaceName,workplaceKind:d.workplaceKind||previous.kind,roomX:d.workplaceRoomX??previous.x,roomZ:d.workplaceRoomZ??previous.z});
+ r.ret=returnState||{x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),face:Math.PI,camYaw:0,camPitch:.08};inside=r;
+ pos.set(Number(d.x??r.x),0,Number(d.z??r.z+4.2));vel.set(0,0,0);jv=0;face=Number.isFinite(returnState?.face)?returnState.face:Math.PI;camYaw=Number.isFinite(returnState?.camYaw)?returnState.camYaw:0;camPitch=Number.isFinite(returnState?.camPitch)?returnState.camPitch:.08;
+ focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';sys(d.message||'You are back inside the reception area.');routeTransitionOut();});
+window.addEventListener('nrs-carpark-enter',e=>{const d=e.detail||{};if(!d.ok)return;const r=garageRoom(d);inside=r;pos.set(Number(d.x)||455,0,Number(d.z)||443);vel.set(0,0,0);jv=0;face=0;camYaw=0;camPitch=.15;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';if(MP.open)closeMap();plShow(false);cars.filter(c=>c.kind!=='t'&&c.id).forEach(c=>{c.g.visible=false;c.box.hw=0;c.box.hd=0;c.v=c.vx=c.vz=0;});carparkExitPending=false;carparkExitAttemptAt=0;sys(d.message||'Private car park entered.');openGarageSpawnMenu();routeTransitionOut();});
+window.addEventListener('nrs-carpark-foot-exit',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';curPoi=null;vel.set(0,0,0);jv=0;
+ if(d.route==='home'&&d.home){
+  const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:Math.PI,face:Math.PI,camYaw:0,camPitch:.08};
+  inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);face=Math.PI;camYaw=0;camPitch=.08;
+  player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  if(MP.open)closeMap();plShow(false);sys(d.message||'You are back inside your home.');
+ }else{
+  inside=null;pos.set(Number(d.x)||0,0,Number(d.z)||0);face=0;player.position.copy(pos);model.rotation.y=face;
+  shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;camYaw=Math.PI;camPitch=.28;
+  sys(d.message||'You are on the street.');
+ }
+ focus.set(pos.x,1.4,pos.z);routeTransitionOut();
+});
+window.addEventListener('nrs-carpark-exit',e=>{const d=e.detail||{},c=cars.find(v=>v.id===d.carId&&v.kind!=='t');carparkExitPending=false;if(!c)return;inside=null;c.x=Number(d.x)||0;c.z=Number(d.z)||0;c.ry=Number(d.yaw)||0;c.v=c.vx=c.vz=0;c.starting=false;c.box.hw=1.05;c.box.hd=2.3;c.g.visible=true;setCar(c);pos.set(c.x,0,c.z);face=c.ry;camYaw=c.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();vel.set(0,0,0);focus.set(pos.x,1.4,pos.z);model.rotation.y=0;shadow.visible=false;driving=c;document.body.classList.add('drv');$('act').classList.add('dr');setIgn();setHl(c);modal.style.display='none';modal.innerHTML='';sys(d.message||'Horn heard. You are on the street—drive safely.');routeTransitionOut();});
+window.addEventListener('nrs-route-error',()=>{carparkExitPending=false;routeTransitionOut();});
+window.addEventListener('nrs-home-exit',e=>{const d=e.detail||{};if(!inside?.isHome)return;const r=inside;inside=null;pos.set(Number(d.x??r.ret.x),0,Number(d.z??r.ret.z));vel.set(0,0,0);jv=0;face=Number.isFinite(r.ret.face)?r.ret.face:(r.ret.sx||Math.PI);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);curPoi=null;act2.style.display='none';sys(d.message||'You are back outside.');routeTransitionOut();});
+
+window.addEventListener('nrs-respawn',e=>{
+ const d=e.detail||{};if(!d.ok)return;
+ routeTransitionIn();vel.set(0,0,0);jv=0;carparkExitPending=false;
+ if(driving){
+  const c=driving;c.v=c.vx=c.vz=0;c.starting=false;c.on=false;c.box.hw=1.05;c.box.hd=2.3;
+  driving=null;engine(false);document.body.classList.remove('drv');$('act').classList.remove('dr');hornBtn=false;hornKey=false;
+  standUp();setIgn();setHl(c);
+ }
+ if(d.atHome&&d.home){
+  const r=homeRoom(d);r.ret={x:Number(d.returnX??pos.x),z:Number(d.returnZ??pos.z),sx:Math.PI,face:Math.PI,camYaw:0,camPitch:.08};
+  inside=r;pos.set(Number(d.x)||r.x,0,Number(d.z)||r.z+1.4);face=Math.PI;camYaw=0;camPitch=.08;
+  standUp();player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  curPoi=null;act2.style.display='none';modal.style.display='none';modal.innerHTML='';
+  if(MP.open)closeMap();plShow(false);sys('🏠 You respawned inside your home. Walk to EXIT whenever you are ready.');
+ }else{
+  inside=null;pos.set(Number(d.x)||0,0,Number(d.z)||0);face=0;camYaw=Math.PI;camPitch=.28;
+  standUp();player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+  modal.style.display='none';modal.innerHTML='';
+ }
+ focus.set(pos.x,1.4,pos.z);routeTransitionOut();
+});
+$('bmpl').onclick=()=>plShow(plc.style.display==='none');
+$('navx').onclick=()=>navStop('Navigation cancelled.');
+
+/* ✉ chat: hidden at the top until you tap the envelope */
+const chatEl=$('chat');let unread=1;
+function badge(){const b=$('chatBadge');b.textContent=unread>9?'9+':unread;b.style.display=unread?'grid':'none';}
+function chatToggle(o){const op=o===undefined?!chatEl.classList.contains('open'):o;chatEl.classList.toggle('open',op);if(op){unread=0;$('log').scrollTop=1e5;}badge();}
+$('chatB').onclick=()=>chatToggle();$('cx').onclick=()=>chatToggle(false);
+new MutationObserver(m=>{if(!chatEl.classList.contains('open')){unread+=m.reduce((n,r)=>n+r.addedNodes.length,0);badge();}else $('log').scrollTop=1e5;}).observe($('log'),{childList:true});
+badge();
+
+/* driving HUD: indicators, hazards, headlights, camera, speedo */
+const CAMD=[8,5.2,12],AMO=0x8a5208,AMN=0xffd24a;let camMode=0,sig=0,hz=false,sgT=0,sgCar=null,sgLast=false,spT='';
+$('camB').onclick=()=>{camMode=(camMode+1)%CAMD.length;};
+$('sigL').onclick=()=>{if(!driving)return;sig=sig<0?0:-1;hz=false;sgT=0;};
+$('sigR').onclick=()=>{if(!driving)return;sig=sig>0?0:1;hz=false;sgT=0;};
+$('hzd').onclick=()=>{if(!driving)return;hz=!hz;if(hz){sig=0;sgT=0;}};
+$('lite').onclick=()=>{const c=driving;if(!c)return;c.hlOn=!c.hlOn;setHl(c);};
+function sigTick(t){const c=driving,B=['sigL','hzd','sigR'];
+ if(sgCar&&sgCar!==c){sgCar.amL.color.setHex(AMO);sgCar.amR.color.setHex(AMO);sgCar=null;}
+ if(!c){sig=0;hz=false;sgT=0;B.forEach(i=>$(i).classList.remove('bl'));return;}
+ sgCar=c;if(sig&&Math.abs(wheelA)>70)sgT=1;if(sgT&&Math.abs(wheelA)<15){sig=0;sgT=0;}
+ const on=Math.floor(t*2.6)%2===0,L=hz||sig<0,R=hz||sig>0;
+ if((L||R)&&on!==sgLast){sgLast=on;try{if(on)tone(1500,ctx().currentTime,.025,'square',.03);}catch(e){}}
+ c.amL.color.setHex(L&&on?AMN:AMO);c.amR.color.setHex(R&&on?AMN:AMO);
+ $('sigL').classList.toggle('bl',L&&!hz&&on);$('sigR').classList.toggle('bl',R&&!hz&&on);$('hzd').classList.toggle('bl',hz&&on);}
+function drvHud(){const c=driving,k=Math.round(Math.abs(c.v)*3.6),s=String(k).padStart(3,'0'),z=Math.min(s.match(/^0*/)[0].length,2);
+ const gt=c.fuel<=0&&!c.on?'OUT OF FUEL':c.starting?'STARTING…':c.on?'KM/H · '+(c.v<-.5?'R':'G'+(c.gear||1)):'ENGINE OFF · TAP ⏻',zz=zn(),key=s+gt+zz;
+ if(key!==spT){spT=key;$('spv').innerHTML='<i>'+s.slice(0,z)+'</i>'+s.slice(z);$('spk').textContent=gt;$('spz').textContent=zz;}
+ $('lite').classList.toggle('on',!!c.hlOn);
+ fuelHud(c);}
+let fgT='';
+function fuelHud(c){const p=Math.max(0,Math.min(1,c.fuel/TANK)),l=Math.ceil(c.fuel),key=l+'|'+Math.round(p*100);if(key===fgT)return;fgT=key;
+ $('fgr').setAttribute('stroke-dashoffset',String(100*(1-p)));$('fgl').textContent=l+' L';const g=$('fg');g.classList.toggle('lo',p<=.25&&p>.1);g.classList.toggle('em',p<=.1);}
+
+
+/* ---------- Fuel stations: 8 roadside forecourts, buy petrol at ₦1,250/L ---------- */
+/* naira per litre: NNPC is cheapest, then Restopark, then DBase, Hydropet is dearest (keep in sync with the server) */
+const FBR={NNPC:{p:1250,c:'#0b7d3e',a:'#ffd21f',bg:'rgba(11,125,62,.92)'},Restopark:{p:1350,c:'#d9701a',a:'#ffffff',bg:'rgba(217,112,26,.92)'},DBase:{p:1450,c:'#4b2a8a',a:'#ffb020',bg:'rgba(75,42,138,.92)'},Hydropet:{p:1550,c:'#c0272d',a:'#ffffff',bg:'rgba(192,39,45,.92)'}};
+/* [brand, axis (H = runs east-west, V = north-south), road, side (+1/-1), start position along the road] */
+const FSPOTS=[['NNPC','V',VR[0],1,-75],['DBase','V',VR[1],1,-35],['Hydropet','H',HR[1],-1,-50],['Restopark','H',HR[0],1,45],
+ ['DBase','H',HR[2],1,-160],['NNPC','H',HR[2],1,160],['Restopark','H',HR[1],-1,170],['Hydropet','V',VR[2],-1,135]];
+function fsFree(x1,x2,z1,z2,own){
+ if(x1<-232||x2>232||z1<-232||z2>186)return false;
+ if(RB.some(b=>b[0]>x1-22&&b[0]<x2+22&&b[1]>z1-22&&b[1]<z2+22))return false;
+ for(const r of HR)if(r!==own&&z2>r[0]-7&&z1<r[0]+7&&x2>r[2]-10&&x1<r[3]+10)return false;
+ for(const r of VR)if(r!==own&&x2>r[0]-7&&x1<r[0]+7&&z2>r[2]-10&&z1<r[3]+10)return false;
+ const cx=(x1+x2)/2,cz=(z1+z2)/2,hx=(x2-x1)/2,hz=(z2-z1)/2;
+ return!boxes.some(b=>Math.abs(cx-b.x)<hx+b.hw+1.5&&Math.abs(cz-b.z)<hz+b.hd+1.5);}
+function fsBuild(brand,axis,road,side,cx,cz){
+ const B=FBR[brand],col=parseInt(B.c.slice(1),16),th=axis==='V'?side*Math.PI/2:(side>0?0:Math.PI),sn=Math.sin(th),cs=Math.cos(th);
+ const g=new THREE.Group();g.position.set(cx,0,cz);g.rotation.y=th;scene.add(g);
+ const W=(lx,lz)=>[cx+lx*cs+lz*sn,cz-lx*sn+lz*cs];
+ const wb=(lx,lz,hx,hz)=>{const p=W(lx,lz),sw=Math.abs(sn)>.5;boxes.push({x:p[0],z:p[1],hw:sw?hz:hx,hd:sw?hx:hz});};
+ const pl=(w,d,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,d),m,x,y,z,g);o.rotation.x=-Math.PI/2;return o;};
+ const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;g.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(tw,th2,fn)});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
+ pl(18,14,M(0x9a9a96),0,.03,1);pl(14,3,M(0x8d8d88),0,.035,-7.5);
+ pl(.25,12,M(0xf2c230),-8.6,.04,1);pl(.25,12,M(0xf2c230),8.6,.04,1);
+ /* canopy */
+ add(new THREE.BoxGeometry(12,.5,7),M(0xe9e9e4),0,5.2,.5,g);
+ add(new THREE.BoxGeometry(12.2,.95,.3),M(col),0,5.1,-3.1,g);add(new THREE.BoxGeometry(12.2,.12,.32),M(parseInt(B.a.slice(1),16)),0,4.58,-3.1,g);
+ add(new THREE.BoxGeometry(11.2,.08,6.2),new THREE.MeshBasicMaterial({color:0xfff4d0}),0,4.93,.5,g);
+ [[-5,-2.5],[5,-2.5],[-5,3.5],[5,3.5]].forEach(p=>{add(new THREE.CylinderGeometry(.22,.22,5,10),M(0xd8d8d2),p[0],2.5,p[1],g);wb(p[0],p[1],.3,.3);});
+ lab(9,.8,512,46,(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle='#fff';c.textAlign='center';fit(c,brand.toUpperCase(),44,w-20);c.fillText(brand.toUpperCase(),w/2,h*.8);},0,5.1,-3.27,Math.PI);
+ /* pumps */
+ const pumps=[];
+ [-3,3].forEach(px=>{add(new THREE.BoxGeometry(1.3,.25,4.4),M(0x777772),px,.125,.5,g);
+  add(new THREE.BoxGeometry(.8,1.7,1.1),M(col),px,1.1,.5,g);add(new THREE.BoxGeometry(.82,.45,1.12),M(0x151a20),px,1.55,.5,g);
+  add(new THREE.BoxGeometry(.5,.12,.6),M(parseInt(B.a.slice(1),16)),px,2.0,.5,g);
+  [-1,1].forEach(sd=>{add(new THREE.CylinderGeometry(.05,.05,.9,6),M(0x222222),px+sd*.46,.9,.5,g);});
+  wb(px,.5,.5,.7);const p=W(px,.5);pumps.push({x:p[0],z:p[1]});});
+ /* shop kiosk */
+ add(new THREE.BoxGeometry(9,3.2,3),M(0xf1efe8),0,1.6,6.3,g);add(new THREE.BoxGeometry(9.2,.5,3.2),M(col),0,3.3,6.3,g);wb(0,6.3,4.5,1.5);
+ add(new THREE.PlaneGeometry(6,1.7),new THREE.MeshBasicMaterial({color:0x2a3c48,side:THREE.DoubleSide}),0,1.7,4.78,g).rotation.y=Math.PI;
+ lab(7,1.3,512,96,(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle=B.a;c.fillRect(0,h-9,w,9);c.fillStyle='#fff';c.textAlign='center';fit(c,brand+' Fuel Station',46,w-30);c.fillText(brand+' Fuel Station',w/2,h*.6);},0,3.35,4.68,Math.PI);
+ /* roadside price pylon */
+ add(new THREE.CylinderGeometry(.16,.16,9,8),M(0x888888),-8,4.5,-5.5,g);wb(-8,-5.5,.3,.3);
+ const pyl=(c,w,h)=>{c.fillStyle=B.c;c.fillRect(0,0,w,h);c.fillStyle=B.a;c.fillRect(0,0,w,14);c.fillRect(0,h-14,w,14);c.fillStyle='#fff';c.textAlign='center';fit(c,brand.toUpperCase(),64,w-24);c.fillText(brand.toUpperCase(),w/2,100);
+  c.font='84px system-ui';c.fillText('⛽',w/2,205);c.fillStyle=B.a;c.font='bold 30px system-ui';c.fillText('PETROL',w/2,255);c.fillStyle='#fff';c.font='bold 40px system-ui';c.fillText('₦'+B.p.toLocaleString()+'/L',w/2,310);};
+ lab(3.6,4.6,288,368,pyl,-7.9,7.6,-5.5,Math.PI/2);lab(3.6,4.6,288,368,pyl,-8.1,7.6,-5.5,-Math.PI/2);
+ FS.push({brand,price:B.p,name:brand+' Fuel Station',road:road[1],x:cx,z:cz,col:B.c,bg:B.bg,pumps});}
+FSPOTS.forEach(sp=>{const brand=sp[0],axis=sp[1],road=sp[2],side=sp[3],a0=sp[4];
+ for(let k=0;k<=30;k++){const along=a0+(k%2?1:-1)*Math.ceil(k/2)*4;let x1,x2,z1,z2,cx,cz;
+  if(axis==='V'){const a=road[0]+side*6,b=road[0]+side*22;x1=Math.min(a,b);x2=Math.max(a,b);z1=along-9;z2=along+9;cx=road[0]+side*14;cz=along;if(along<road[2]+12||along>road[3]-12)continue;}
+  else{const a=road[0]+side*6,b=road[0]+side*22;z1=Math.min(a,b);z2=Math.max(a,b);x1=along-9;x2=along+9;cz=road[0]+side*14;cx=along;if(along<road[2]+12||along>road[3]-12)continue;}
+  if(fsFree(x1,x2,z1,z2,road)){fsBuild(brand,axis,road,side,cx,cz);return;}}
+ console.warn('No free spot for fuel station',brand,road[1]);});
+const fbtn=document.createElement('button');fbtn.id='fbtn';document.body.appendChild(fbtn);
+let curFS=null,fsOpen=null,fuelBusy=false,fuelMsg='';
+function fsNear(){if(inside)return null;const c=driving;if(c&&Math.abs(c.v)>3)return null;const R=c?7:4.5;let best=null,bd=R;
+ for(const s of FS)for(const p of s.pumps){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd){bd=d;best=s;}}return best;}
+function fuelAct(){const s=fsNear();if(s!==curFS){curFS=s;fbtn.style.display=s?'block':'none';if(s)fbtn.textContent='⛽ Buy fuel · '+s.brand;}}
+function fuelCar(){if(driving)return driving;let b=null,bd=7;for(const c of cars){if(c.kind==='t'||!c.id)continue;const d=Math.hypot(c.x-pos.x,c.z-pos.z);if(d<bd){bd=d;b=c;}}return b;}
+function fuelUI(s){fsOpen=s;const c=fuelCar(),head='<b>⛽ '+s.name+'</b><p>Petrol: ₦'+f(s.price)+' per litre<br>Your cash: ₦'+f(cash)+'</p>';
+ if(!c){panel(head+'<p><i>Bring a car next to the pump to buy fuel.</i></p>');return;}
+ const space=Math.max(0,Math.floor(TANK-c.fuel+1e-6)),opts=[1,5,10].filter(n=>n<space);if(space>0)opts.push(space);
+ panel(head+'<p>Fuel: <b>'+c.fuel.toFixed(1)+'</b> / '+TANK+' L</p>'+(space<1?'<p><i>Tank is full.</i></p>':opts.map(n=>'<button data-fl="'+n+'">'+(n===space&&n>1?'Fill ('+n+' L)':n+' L')+' · ₦'+f(n*s.price)+'</button>').join('<br>'))+(fuelMsg?'<p><i>'+fuelMsg+'</i></p>':''));}
+fbtn.onclick=()=>{if(!curFS)return;fuelMsg='';fuelUI(curFS);};
+modal.addEventListener('click',e=>{const n=e.target.dataset&&e.target.dataset.fl;if(!n||!fsOpen||fuelBusy)return;const c=fuelCar();if(!c)return;
+ const L=Math.floor(+n),cost=L*fsOpen.price;if(L<1)return;
+ if(cash<cost){fuelMsg='Not enough cash. You need ₦'+f(cost)+'.';fuelUI(fsOpen);return;}
+ fuelBusy=true;NRS.buyFuel(c.id,L,fsOpen.brand,(r)=>{fuelBusy=false;if(r.ok){c.fuel=r.fuel;fuelMsg='Bought '+L+' L for ₦'+f(cost)+'.';sys('⛽ Bought '+L+' L of petrol for ₦'+f(cost)+'.');}else fuelMsg=r.message||'Purchase failed.';money();fuelUI(fsOpen);});});
+
+// Provide an in-game installation button for Chrome, plus clear menu instructions on platforms
+// where the browser does not expose beforeinstallprompt.
+(function setupInstallButton(){
+ const btn=$('installAppBtn');
+ if(!btn)return;
+ const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true||window.nrsAppInstalled===true;
+ const sync=()=>{
+  btn.hidden=standalone();
+  btn.textContent=window.nrsInstallPrompt?'⬇ Install Nigeria RP':'⬇ Install App';
+ };
+ btn.onclick=async()=>{
+  const promptEvent=window.nrsInstallPrompt;
+  if(promptEvent){
+   window.nrsInstallPrompt=null;
+   try{
+    await promptEvent.prompt();
+    const choice=await promptEvent.userChoice;
+    if(choice?.outcome==='accepted'){btn.hidden=true;return;}
+   }catch(_){}
+   sync();
+   return;
+  }
+  panel('<b>📲 Install Nigeria RP</b><p>In Chrome, open the <b>⋮ menu</b> and choose <b>Install app</b>, then confirm. Launch Nigeria RP from its new app icon, not from the Chrome tab.</p><p><b>Important:</b> a normal “Add to Home screen” shortcut can still open inside Chrome and show the Chrome icon in Recent apps. Remove the old shortcut and install the app instead.</p><p>The game needs an internet connection for accounts, saved progress and multiplayer.</p>');
+ };
+ window.addEventListener('nrs-install-ready',sync);
+ window.addEventListener('appinstalled',sync);
+ sync();
+})();
+let last=performance.now(),t=0;
+function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
+ update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
+requestAnimationFrame(loop);
