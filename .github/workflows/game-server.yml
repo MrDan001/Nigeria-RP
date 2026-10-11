@@ -76,6 +76,9 @@ jobs:
       - name: Test Stage 13 economy safety rules
         run: npm run test:stage13 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 14 release, load and recovery validation
+        run: npm run test:stage14 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
