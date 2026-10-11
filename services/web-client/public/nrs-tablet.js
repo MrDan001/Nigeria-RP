@@ -199,7 +199,7 @@
         const button=el("button","pick"+(selected.fixtureId===fixture.id&&selected.pick===key?" on":""),"");
         button.type="button";button.dataset.fixture=fixture.id;button.dataset.pick=key;
         button.append(el("span","",choiceName[key]),el("small","",fixture.odds[key].toFixed(2)+"x"));
-        button.onclick=()=>{selected={fixtureId:fixture.id,pick:key};renderBetting();};
+        button.onclick=()=>{const priorStake=$("nrsBetStake")?.value||"500";selected={fixtureId:fixture.id,pick:key};renderBetting();const nextStake=$("nrsBetStake");if(nextStake)nextStake.value=priorStake;};
         picks.appendChild(button);
       }
       card.appendChild(picks);body.appendChild(card);
