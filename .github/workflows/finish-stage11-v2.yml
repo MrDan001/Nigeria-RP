@@ -44,7 +44,7 @@ jobs:
       - name: Test and build
         working-directory: services/game-server
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run test:stage11
           npm run build
       - name: Commit integration
