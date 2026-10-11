@@ -1302,7 +1302,7 @@ wss.on("connection", (socket) => {
           if (!requestId) { fail("Travel request ID is required. Please retry from the travel terminal."); return; }
           if (session.inHome || session.inCarpark || session.inStaffRoom || session.inWorkplaceInterior ||
               session.inShopInterior || session.inApartmentInterior) {
-            fail("Return to the street before using inter-city travel.");
+            fail("Return to the street before using interstate travel.");
             return;
           }
           if (!route || route.fromCityId !== currentCityId) {
