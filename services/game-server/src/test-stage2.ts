@@ -25,9 +25,9 @@ function test(name: string, fn: () => void) {
   }
 }
 
-test("housing catalogue has 30 unique homes in the planned districts", () => {
-  assert.equal(HOUSES.length, 30);
-  assert.equal(new Set(HOUSES.map((h) => h.id)).size, 30);
+test("housing catalogue has 33 unique homes in the planned districts", () => {
+  assert.equal(HOUSES.length, 33);
+  assert.equal(new Set(HOUSES.map((h) => h.id)).size, 33);
   assert.ok(HOUSES.every((h) => h.zone && Number.isFinite(h.x) && Number.isFinite(h.z)));
   for (const zone of ["Mile 1 Market", "Rumuola", "D-Line", "Waterlines", "Trans Amadi", "Old GRA"]) {
     assert.ok(HOUSES.some((h) => h.zone === zone), zone);

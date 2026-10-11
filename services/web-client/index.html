@@ -260,6 +260,13 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-count b{font-size:.9rem}
 #modal.work-menu .wm-count small{color:#9cb1c1;font-size:.52rem}
 #modal.work-menu .wm-meta{display:flex;justify-content:space-between;gap:.35rem;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08);padding:.5rem 0;margin-top:.45rem;color:#96aebe;font-size:.59rem}
+#modal.work-menu .wm-rank-ladder{margin:.25rem 0 .45rem;border:1px solid rgba(132,177,210,.16);border-radius:.45rem;background:rgba(7,20,32,.28)}
+#modal.work-menu .wm-rank-ladder summary{cursor:pointer;padding:.4rem .5rem;color:#a9cce3;font-size:.61rem;font-weight:800}
+#modal.work-menu .wm-rank-list{display:grid;gap:.22rem;padding:.05rem .5rem .5rem}
+#modal.work-menu .wm-rank-row{display:grid;grid-template-columns:2.65rem minmax(0,1fr) auto;align-items:center;gap:.3rem;font-size:.58rem}
+#modal.work-menu .wm-rank-row>span{color:#8ba9bd}
+#modal.work-menu .wm-rank-row>b{min-width:0;overflow-wrap:anywhere;color:#d5e1ea;font-weight:700}
+#modal.work-menu .wm-rank-row>small{white-space:nowrap;color:#8df0b9;font-weight:800}
 #modal.work-menu .wm-card button{border:1px solid rgba(255,255,255,.13);border-radius:.45rem;padding:.5rem .6rem;background:#197fc9;color:#fff;font-weight:800;font-size:.7rem;line-height:1.2}
 #modal.work-menu .wm-card button.subtle{background:rgba(255,255,255,.065);color:#d0dbe4}
 #modal.work-menu .wm-card button.danger{background:rgba(175,56,56,.22);color:#ffb9b9}
@@ -280,6 +287,7 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-person b{font-size:.7rem;overflow-wrap:anywhere}
 #modal.work-menu .wm-person small{color:#9eb4c4;font-size:.58rem}
 #modal.work-menu .wm-person>div{display:flex;gap:.2rem;flex-wrap:wrap;justify-content:flex-end}
+#modal.work-menu .wm-work-history .wm-person>strong{color:#8df0b9;font-size:.68rem;white-space:nowrap}
 #modal.work-menu .wm-person button{padding:.3rem .4rem;font-size:.58rem}
 #modal.work-menu .wm-hire{display:flex;gap:.35rem;margin-top:.4rem}
 #modal.work-menu .wm-hire select{min-width:0;flex:1;border:1px solid rgba(255,255,255,.16);border-radius:.4rem;background:#1a2d3f;color:#fff;padding:.4rem;font-size:.65rem}
@@ -3278,6 +3286,8 @@ function renderWorkplaceMenu(data){
  // remains the central directory. This is also reflected in the rendered card list.
  const places=focus?allPlaces.filter(w=>w.id===focus):allPlaces;
  const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
+ const workHistory=(data.workHistory||[]).slice(-5).reverse();
+ const historyPanel=workHistory.length?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4>'+workHistory.map(entry=>'<div class="wm-person"><span><b>'+safeText(entry.taskTitle||'Work task')+'</b><small>'+safeText(allPlaces.find(w=>w.id===entry.workplaceId)?.name||entry.workplaceId||'Workplace')+' · Rank '+Number(entry.rank||1)+' · '+new Date(Number(entry.paidAt)||0).toLocaleString('en-NG')+'</small></span><strong>+₦'+Number(entry.amount||0).toLocaleString('en-NG')+'</strong></div>').join('')+'</section>':employment?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4><p class="wm-note">Your completed task receipts will appear here after your first paid task.</p></section>':'';
  let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
  let cards=places.map(w=>{
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
@@ -3306,10 +3316,11 @@ function renderWorkplaceMenu(data){
    management='<div class="wm-management"><h4>Staff management</h4>'+(staff||'<p class="wm-note">No other online staff yet.</p>')+(applications?'<h4>Applications</h4>'+applications:'')+(free?'<div class="wm-hire"><select id="wmHirePlayer">'+free+'</select><button data-staff-hire="1">Hire player</button></div>':'')+'</div>';
   }
   const faction=w.faction||{};
-  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
+  const rankLadder='<details class="wm-rank-ladder"><summary>View six-rank ladder & pay</summary><div class="wm-rank-list">'+(w.rankTitles||[]).map((titles,i)=>'<div class="wm-rank-row"><span>Rank '+(i+1)+'</span><b>'+safeText((titles||[]).join(' / ')||('Rank '+(i+1)))+'</b><small>'+Number(w.rankMultipliers?.[i]??1)+'× pay</small></div>').join('')+'</div></details>';
+  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
- panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');modal.style.display='flex';
 }
 window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});

@@ -43,6 +43,9 @@ jobs:
       - name: Test Stage 2 housing rules
         run: npm run test:stage2 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 3 workplace rules and payout history
+        run: npm run test:stage3 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 

@@ -90,7 +90,7 @@ Acceptance:
 **Status as of 11 October 2026: Deployed; the Face-Me-I-Face-You visibility defect is fixed and the user confirmed it now appears on the live Railway game. The specific visual defect is closed. The full Stage 2 checklist remains partially unverified (especially the rental catalogue/client preview alignment and garage/respawn flows). Stage 2 should be kept as a regression/closeout checklist while the already-approved Stage 3 continues.**
 
 Scope and intended behavior:
-- The server-authoritative Places → Homes catalogue currently defines 30 rentable homes across Mile 1 Market, Rumuola, D-Line, Waterlines, Trans Amadi and Old GRA. The client visual plot layout currently contains extra preview slots (33 exterior plot definitions); do not describe those extra client previews as server-backed rentable properties until the server catalogue and tests are deliberately brought into sync.
+- The server-authoritative Places → Homes catalogue and Stage 2 regression test define 33 rentable homes across Mile 1 Market, Rumuola, D-Line, Waterlines, Trans Amadi and Old GRA. The browser map has 33 residential exterior slots. Automated count alignment does not certify the physical entrance/collision route for every home; those checks remain part of Stage 2 live acceptance.
 - Daily rent: Local Hut ₦1,000; Face-Me-I-Face-You ₦2,500; Flat ₦4,000; Estate House ₦7,500; Mansion ₦10,000; Palace ₦20,000.
 - One home per player; occupied homes cannot be rented; up to seven prepaid days; rent settles at Nigeria-time midnight; unpaid homes become vacant.
 - Distinct class-specific 3D architecture: local hut; shared compound; two-storey flat with balcony; modern estate bungalow/garage wing; mansion with portico; palace with columns/dome.
