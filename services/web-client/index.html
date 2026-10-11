@@ -892,10 +892,19 @@ function syncHouseExteriors(houses){
 // the nrs-housing event later refreshes every plaque with authoritative tenant data.
 const HOUSE_PREVIEW_RENT={hut:1000,faceme:2500,flat:4000,estate:7500,mansion:10000,palace:20000};
 function seedHouseExteriors(){
- HOUSE_PLOTS.forEach(plot=>{
-  if(HOUSE_VISUALS[plot.id])return;
-  createHouseExterior({...plot,name:HOUSE_LABELS[plot.cls]||"Home",rentPerDay:HOUSE_PREVIEW_RENT[plot.cls]||0,vacant:true,occupiedByMe:false,locked:false});
- });
+ // Defer decorative preview meshes until the login UI has had time to render.
+ // Build a few per batch so lower-powered phones remain responsive.
+ let index=0;
+ const batch=()=>{
+  const stop=Math.min(index+4,HOUSE_PLOTS.length);
+  for(;index<stop;index++){
+   const plot=HOUSE_PLOTS[index];
+   if(HOUSE_VISUALS[plot.id])continue;
+   createHouseExterior({...plot,name:HOUSE_LABELS[plot.cls]||"Home",rentPerDay:HOUSE_PREVIEW_RENT[plot.cls]||0,vacant:true,occupiedByMe:false,locked:false});
+  }
+  if(index<HOUSE_PLOTS.length)window.setTimeout(batch,32);
+ };
+ window.setTimeout(batch,1800);
 }
 seedHouseExteriors();
 let houseVisualCheckT=0;
