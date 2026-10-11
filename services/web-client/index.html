@@ -649,7 +649,7 @@ function paintHousePlaque(ctx,ww,hh,h){
  ctx.fillStyle="#cfe3d8";ctx.font="bold 21px system-ui";ctx.fillText(String(h.id||"").toUpperCase()+" · ₦"+Number(h.rentPerDay||0).toLocaleString()+"/DAY",ww/2,96);
  ctx.font="bold 18px system-ui";ctx.fillStyle=h.occupiedByMe?"#8fd3ff":h.vacant?"#84efb1":"#f0b4a6";ctx.fillText(h.occupiedByMe?"YOUR HOME":h.vacant?"AVAILABLE":"OCCUPIED",ww/2,118);
 }
-function refreshHousePlaque(v,h){const image=v?.plaque?.material?.map?.image,ctx=image?.getContext?.("2d");if(!ctx)return;paintHousePlaque(ctx,image.width,image.height,h);v.plaque.material.map.needsUpdate=true;}
+function refreshHousePlaque(v,h){const texture=v?.plaque,image=texture?.image,ctx=image?.getContext?.("2d");if(!ctx)return;paintHousePlaque(ctx,image.width,image.height,h);texture.needsUpdate=true;}
 /* ---------- House exteriors: one builder per class. Each returns where the nameplate hangs. ---------- */
 const HOUSE_BUILDERS={
 /* 1. VILLAGE HUT: round mud-plastered hut under a layered palm-thatch cone, timber porch, woven-stake yard */
@@ -875,7 +875,7 @@ function createHouseExterior(h){
   // not dependent on the geometry-merging/culling path.
   g.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.visible=true;}});
  }else houseMerge(g,recs);
- HOUSE_VISUALS[h.id]={group:g,home:h,plaque,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
+ HOUSE_VISUALS[h.id]={group:g,home:h,plaque:plaqueTex,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
  return HOUSE_VISUALS[h.id];
 }
 function syncHouseExteriors(houses){
