@@ -2,7 +2,7 @@
 
 A browser-native, mobile-first multiplayer roleplay game set in Port Harcourt, Rivers State, Nigeria.
 
-> **Current status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance checks pass. The Face-Me-I-Face-You exterior visibility defect was fixed in commit `6ccc856`; the user confirmed those buildings now appear on the live game. That confirms the visual fix only, not every Stage 2 or Stage 3 acceptance check.
+> **Current status — 11 October 2026:** Stage 7 (Police, Army, FRSC and Fire Service) is implemented on `main`, passed its 13 Stage 7 domain tests alongside Stage 1–6 regression, typecheck and builds, and deployed to Railway successfully. Real-device and two-account gameplay checks remain a separate manual limitation. Stage 8 (Rivers News Network) is implemented on `main`; its automated verification and Railway release follow this commit.
 
 ## Production and deployment
 
@@ -35,7 +35,7 @@ This is a browser-native client. Do not treat Unity or another engine as the cur
 
 ## Roadmap and handoff
 
-Read [the full implementation roadmap](docs/IMPLEMENTATION-ROADMAP.md) before changing gameplay. Use [the quick roadmap](docs/ROADMAP.md) to confirm the current stage, [Stage 2 status](docs/STAGE-2-STATUS.md) for housing/garage regression checks, and [Stage 3 status](docs/STAGE-3-STATUS.md) for the active workplace framework and its acceptance gate. See [technical architecture](docs/ARCHITECTURE.md), [browser client architecture](docs/BROWSER-CLIENT-ARCHITECTURE.md), [Railway deployment](docs/RAILWAY-DEPLOYMENT.md) and [contributing rules](docs/CONTRIBUTING.md).
+Read [the full implementation roadmap](docs/IMPLEMENTATION-ROADMAP.md) before changing gameplay. Use [the quick roadmap](docs/ROADMAP.md) to confirm the current stage, [Stage 2 status](docs/STAGE-2-STATUS.md) for housing/garage regression checks, and [Stage 3 status](docs/STAGE-3-STATUS.md) for the active workplace framework and its acceptance gate. See [technical architecture](docs/ARCHITECTURE.md), [browser client architecture](docs/BROWSER-CLIENT-ARCHITECTURE.md), [Railway deployment](docs/RAILWAY-DEPLOYMENT.md), [Stage 7 status](docs/STAGE-7-STATUS.md), [Stage 8 status](docs/STAGE-8-STATUS.md) and [contributing rules](docs/CONTRIBUTING.md).
 
 ## First multiplayer foundation milestone
 
