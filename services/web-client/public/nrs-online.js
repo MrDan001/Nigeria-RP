@@ -584,6 +584,7 @@
             vel.set(0, 0, 0);
             face = Number(message.yaw) || Math.PI;
           }
+          applyCityEnvironment(message.environment);
           snapshot(message.players || [], message.onlineCount);
           window.dispatchEvent(new CustomEvent("nrs-city-changed", { detail: message }));
           send({ type: "getStage15TravelState" });
@@ -1323,6 +1324,9 @@
     #nrsTravelModal .close{border:1px solid #33465d;border-radius:10px;background:#17283b;color:#fff;padding:7px 11px}
     #nrsTravelModal .wallet{display:flex;justify-content:space-between;gap:10px;margin:12px 0;padding:11px 12px;border-radius:12px;
       background:rgba(60,139,190,.12);border:1px solid rgba(103,181,235,.17);font-size:12px}
+    #nrsTravelLandmarks{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+    #nrsTravelLandmarks .landmark{display:inline-flex;max-width:100%;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.055);
+      border:1px solid rgba(255,255,255,.09);color:#c5d7e8;font-size:10px;line-height:1.3}
     #nrsTravelRoutes{display:grid;gap:8px}
     #nrsTravelRoutes .route{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
       padding:12px;border-radius:13px;border:1px solid #263d55;background:#0d1b2b;color:#edf6ff;touch-action:manipulation}
@@ -1360,6 +1364,7 @@
     <section class="card" role="dialog" aria-modal="true" aria-labelledby="nrsTravelTitle">
       <div class="head"><div><h2 id="nrsTravelTitle">Inter-city travel</h2><p class="sub">Book a verified route. Fares and destination changes are confirmed by the server.</p></div><button class="close" id="nrsTravelClose" type="button">Close</button></div>
       <div class="wallet"><span>Current city<br><strong id="nrsTravelCity">Port Harcourt</strong></span><span>Available cash<br><strong id="nrsTravelCash">₦0</strong></span></div>
+      <div id="nrsTravelLandmarks" aria-label="Regional landmarks"></div>
       <div class="controls"><label for="nrsTravelPassengers">Passengers</label><select id="nrsTravelPassengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div>
       <div id="nrsTravelRoutes" aria-live="polite"><p class="sub">Loading routes…</p></div>
       <div id="nrsTravelStatus" role="status"></div>
@@ -1374,16 +1379,45 @@
 
   const formatNaira = (amount) => "₦" + Math.max(0, Number(amount) || 0).toLocaleString("en-NG");
   const cityName = (id, cities) => (cities || []).find((city) => city.id === id)?.name || (id === "port-harcourt" ? "Port Harcourt" : String(id || "Port Harcourt"));
+  function applyCityEnvironment(environment) {
+    if (!environment) return;
+    N.cityEnvironment = environment;
+    const accent = /^#[0-9a-f]{6}$/i.test(String(environment.accentCss || "")) ? environment.accentCss : "#31b8e8";
+    cityBadge.style.borderColor = accent;
+    cityBadge.style.boxShadow = "0 8px 22px " + accent + "25";
+    travelOpen.style.borderColor = accent;
+    travelOpen.style.background = "linear-gradient(135deg," + accent + ",#124a77)";
+    travelArrival.style.background = "radial-gradient(ellipse at center," + accent + "55,rgba(2,8,17,.98))";
+    try {
+      if (typeof scene !== "undefined" && scene.background && typeof scene.background.setHex === "function") {
+        scene.background.setHex(Number(environment.skyHex));
+      }
+      if (typeof scene !== "undefined" && scene.fog && scene.fog.color && typeof scene.fog.color.setHex === "function") {
+        scene.fog.color.setHex(Number(environment.fogHex));
+      }
+    } catch (_) {}
+    const landmarks = $("nrsTravelLandmarks");
+    landmarks.replaceChildren();
+    for (const name of Array.isArray(environment.landmarks) ? environment.landmarks : []) {
+      const chip = document.createElement("span");
+      chip.className = "landmark";
+      chip.textContent = "✦ " + String(name);
+      landmarks.appendChild(chip);
+    }
+  }
+
   function renderTravelState(data = N.stage15TravelState || {}) {
     const cities = Array.isArray(data.cities) ? data.cities : [];
     const routes = Array.isArray(data.routes) ? data.routes : [];
     const currentCityId = String(data.cityId || N.cityId || "port-harcourt");
     const currentCityName = data.currentCity?.name || cityName(currentCityId, cities);
+    const environment = data.currentEnvironment || (data.environments || []).find((profile) => profile.cityId === currentCityId);
     N.cityId = currentCityId;
     S.cityId = currentCityId;
     cityBadge.textContent = "CITY · " + currentCityName.toUpperCase();
     $("nrsTravelCity").textContent = currentCityName;
     $("nrsTravelCash").textContent = formatNaira(data.cash ?? N.cash);
+    applyCityEnvironment(environment);
     const passengers = Math.max(1, Math.min(6, Number($("nrsTravelPassengers").value) || 1));
     const routesBox = $("nrsTravelRoutes");
     routesBox.replaceChildren();
@@ -1453,6 +1487,7 @@
   window.addEventListener("nrs-city-changed", (event) => {
     const result = event.detail || {};
     cityBadge.textContent = "CITY · " + String(result.cityName || cityName(result.cityId, (N.stage15TravelState || {}).cities)).toUpperCase();
+    applyCityEnvironment(result.environment);
   });
 
   setVisible(false);
