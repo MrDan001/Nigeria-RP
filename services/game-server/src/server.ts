@@ -2491,6 +2491,447 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "getHospitalState") {
+        const hospitalId = isHospitalId(String(message.hospitalId ?? "")) ? String(message.hospitalId) : undefined;
+        send(socket, hospitalStatePayload(session, hospitalId));
+        return;
+      }
+
+      if (message.type === "requestHospitalCare" || message.type === "requestAmbulance") {
+        await withMoneyMutation(async () => {
+          const ambulance = message.type === "requestAmbulance";
+          const hospitalId = String(message.hospitalId ?? "");
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const fail = (messageText: string) => send(socket, {
+            type: "hospitalActionResult", action: ambulance ? "requestAmbulance" : "requestCare",
+            hospitalId, ok: false, message: messageText,
+          });
+          if (!isHospitalId(hospitalId)) {
+            fail("Choose Mile One General Hospital or Princess Hospital.");
+            return;
+          }
+          if (ambulance) {
+            if (stage5PrivateContext(session) || session.inWorkplaceInterior) {
+              fail("Step outside private rooms and workplace lobbies before requesting an ambulance.");
+              return;
+            }
+            if (session.player.hp >= 100) {
+              fail("Your health is full. You do not need an ambulance right now.");
+              return;
+            }
+            if (session.player.hp > 80) {
+              fail("You are not critically injured. Visit a hospital for regular treatment instead.");
+              return;
+            }
+          } else if (!stage5PlayerAtHospital(session, hospitalId)) {
+            fail("Walk to the hospital entrance or reception before requesting care.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const idempotencyKey = createHash("sha256")
+            .update("hospital-request|" + session.player.id + "|" + (ambulance ? "ambulance|" : "care|") + requestId)
+            .digest("hex");
+          const created = createHospitalRequest({
+            state: draft,
+            requestId,
+            idempotencyKey,
+            hospitalId,
+            kind: ambulance ? "ambulance" : "care",
+            patientId: session.player.id,
+            patientX: session.player.x,
+            patientZ: session.player.z,
+            patientHp: session.player.hp,
+            now: Date.now(),
+          });
+          if (!created.ok) {
+            const reasons: Record<string, string> = {
+              invalid_request_id: "The request reference is invalid. Refresh and try again.",
+              duplicate_request: "This request has already been received.",
+              unknown_hospital: "Choose one of the listed hospitals.",
+              invalid_request_kind: "Choose hospital treatment or ambulance assistance.",
+              invalid_patient: "Your player session could not be verified. Reconnect and try again.",
+              no_treatment_needed: "Your health is already full or unavailable for treatment.",
+              ambulance_not_needed: "Ambulance dispatch is reserved for serious injuries.",
+              invalid_timestamp: "The request could not be timestamped. Please retry.",
+              request_already_open: "You already have an open request. A worker can see it in the hospital queue.",
+            };
+            fail(reasons[created.reason] ?? "The hospital request was rejected.");
+            return;
+          }
+          try {
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            console.error("stage5-hospital-request-persist", error);
+            fail("Your request could not be saved. No request was added; please try again.");
+            return;
+          }
+          send(socket, {
+            type: "hospitalActionResult",
+            action: ambulance ? "requestAmbulance" : "requestCare",
+            hospitalId,
+            ok: true,
+            request: created.request,
+            message: ambulance
+              ? "Ambulance request sent. A hospital responder will be assigned; keep the game open and stay in a public area."
+              : "Your care request is in the patient queue. An authorised nurse or doctor can now triage and treat you.",
+          });
+          send(socket, hospitalStatePayload(session, hospitalId));
+          for (const worker of players.values()) {
+            if (worker.player.id !== session.player.id &&
+                worker.player.life.employment?.workplaceId === hospitalId &&
+                worker.player.life.employment.onDuty === true &&
+                worker.player.life.employment.uniformWorkplaceId === hospitalId) {
+              send(worker.socket, hospitalStatePayload(worker, hospitalId));
+              send(worker.socket, {
+                type: "hospitalRequestNotice",
+                message: ambulance
+                  ? "🚑 New ambulance request from " + session.player.name + ". Check the emergency queue."
+                  : "🩺 New patient care request from " + session.player.name + ". Check the patient queue.",
+              });
+            }
+          }
+        });
+        return;
+      }
+
+      if (message.type === "triageHospitalRequest") {
+        await withMoneyMutation(async () => {
+          const hospitalId = String(message.hospitalId ?? "");
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const employment = session.player.life.employment;
+          const fail = (messageText: string) => send(socket, {
+            type: "hospitalActionResult", action: "triage", hospitalId, requestId, ok: false, message: messageText,
+          });
+          if (!isHospitalId(hospitalId) || employment?.workplaceId !== hospitalId) {
+            fail("You must belong to the hospital assigned to this request.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const request = draft.hospital.requests.find(item => item.id === requestId);
+          const patient = request ? players.get(request.patientId) : undefined;
+          const triaged = triageHospitalRequest({
+            state: draft,
+            requestId,
+            workerId: session.player.id,
+            workerRank: Number(employment.rank),
+            hospitalId,
+            onDuty: employment.onDuty === true,
+            uniform: employment.uniformWorkplaceId === hospitalId,
+            atHospital: stage5PlayerAtHospital(session, hospitalId),
+            patientAtHospital: !!patient && stage5PlayerAtHospital(patient, hospitalId),
+            now: Date.now(),
+          });
+          if (!triaged.ok) {
+            const reasons: Record<string, string> = {
+              unknown_hospital: "Choose a valid hospital.",
+              unauthorized_clinician: "Triage requires a rank 2 or higher hospital worker who is on duty, in uniform and at the hospital.",
+              request_unavailable: "That patient request is no longer available.",
+              patient_not_at_hospital: "The patient must be present at this hospital before triage.",
+              already_triaged: "This patient has already been triaged. A nurse or doctor can continue with treatment.",
+              invalid_timestamp: "The triage action could not be recorded. Please retry.",
+            };
+            fail(reasons[triaged.reason] ?? "Triage was rejected.");
+            return;
+          }
+          try {
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            console.error("stage5-triage-persist", error);
+            fail("Triage could not be saved. No triage record was issued.");
+            return;
+          }
+          const patientName = patient?.player.name ?? request!.patientId.slice(0, 8);
+          const messageText = "Triage recorded for " + patientName + ". A Nurse or higher rank can complete treatment.";
+          send(socket, { type: "hospitalActionResult", action: "triage", hospitalId, requestId, ok: true, message: messageText });
+          if (patient) {
+            send(patient.socket, {
+              type: "hospitalActionResult", action: "triaged", hospitalId, requestId, ok: true,
+              message: session.player.name + " completed your triage. A nurse or doctor can continue your treatment.",
+            });
+            send(patient.socket, hospitalStatePayload(patient, hospitalId));
+          }
+          send(socket, hospitalStatePayload(session, hospitalId));
+        });
+        return;
+      }
+
+      if (message.type === "dispatchHospitalAmbulance") {
+        await withMoneyMutation(async () => {
+          const hospitalId = String(message.hospitalId ?? "");
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const employment = session.player.life.employment;
+          const fail = (messageText: string) => send(socket, {
+            type: "hospitalActionResult", action: "dispatchAmbulance", hospitalId, requestId, ok: false, message: messageText,
+          });
+          if (!isHospitalId(hospitalId) || employment?.workplaceId !== hospitalId) {
+            fail("You must be rostered at the hospital handling this emergency.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const request = draft.hospital.requests.find(item => item.id === requestId);
+          const patient = request ? players.get(request.patientId) : undefined;
+          const dispatched = dispatchHospitalAmbulance({
+            state: draft,
+            requestId,
+            workerId: session.player.id,
+            workerRank: Number(employment.rank),
+            hospitalId,
+            onDuty: employment.onDuty === true,
+            uniform: employment.uniformWorkplaceId === hospitalId,
+            atHospital: stage5PlayerAtHospital(session, hospitalId),
+            now: Date.now(),
+          });
+          if (!dispatched.ok) {
+            const reasons: Record<string, string> = {
+              unknown_hospital: "Choose a valid hospital.",
+              unauthorized_dispatcher: "Ambulance dispatch requires a rank 2 or higher worker on duty, in uniform and at the hospital.",
+              request_unavailable: "This emergency is no longer available for dispatch.",
+              invalid_timestamp: "The dispatch could not be recorded. Please retry.",
+            };
+            fail(reasons[dispatched.reason] ?? "Ambulance dispatch was rejected.");
+            return;
+          }
+          try {
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            console.error("stage5-ambulance-dispatch-persist", error);
+            fail("Ambulance dispatch could not be saved. Please retry.");
+            return;
+          }
+          const patientName = patient?.player.name ?? request!.patientId.slice(0, 8);
+          const messageText = "Ambulance dispatched to " + patientName + ". Proceed to the patient's live location, then complete field treatment when close enough.";
+          send(socket, { type: "hospitalActionResult", action: "dispatchAmbulance", hospitalId, requestId, ok: true, message: messageText });
+          if (patient) {
+            send(patient.socket, {
+              type: "hospitalActionResult", action: "ambulanceDispatched", hospitalId, requestId, ok: true,
+              message: session.player.name + " has been assigned to your ambulance request.",
+              workerName: session.player.name,
+            });
+            send(patient.socket, hospitalStatePayload(patient, hospitalId));
+          }
+          send(socket, hospitalStatePayload(session, hospitalId));
+        });
+        return;
+      }
+
+      if (message.type === "completeHospitalTreatment") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const storedRequest = stage5State.hospital.requests.find(item => item.id === requestId);
+          const hospitalId = String(storedRequest?.hospitalId ?? message.hospitalId ?? "");
+          const employment = session.player.life.employment;
+          const fail = (messageText: string) => send(socket, {
+            type: "hospitalActionResult", action: "treatment", hospitalId, requestId, ok: false, message: messageText,
+          });
+          if (!isHospitalId(hospitalId) || employment?.workplaceId !== hospitalId) {
+            fail("You must belong to the hospital assigned to this patient request.");
+            return;
+          }
+          const initialRequest = stage5State.hospital.requests.find(item => item.id === requestId);
+          const patient = initialRequest ? players.get(initialRequest.patientId) : undefined;
+          if (!patient || patient.player.id === session.player.id) {
+            fail("The patient must be online and different from the treating worker.");
+            return;
+          }
+          const careAtHospital = initialRequest?.kind === "care";
+          const ambulanceProximityValid = !!patient &&
+            !stage5PrivateContext(patient) && !patient.inWorkplaceInterior &&
+            !stage5PrivateContext(session) && !session.inWorkplaceInterior &&
+            Math.hypot(session.player.x - patient.player.x, session.player.z - patient.player.z) <= 8;
+          const draft = normalizeStage5State(stage5State);
+          const condition = { hp: patient.player.hp, cash: patient.player.cash };
+          const treated = completeHospitalTreatment({
+            state: draft,
+            requestId,
+            patientId: patient.player.id,
+            workerId: session.player.id,
+            workerRank: Number(employment.rank),
+            hospitalId,
+            onDuty: employment.onDuty === true,
+            uniform: employment.uniformWorkplaceId === hospitalId,
+            atHospital: stage5PlayerAtHospital(session, hospitalId),
+            patientAtHospital: stage5PlayerAtHospital(patient, hospitalId),
+            ambulanceProximityValid,
+            patient: condition,
+            now: Date.now(),
+          });
+          if (!treated.ok) {
+            const reasons: Record<string, string> = {
+              unknown_hospital: "Choose a valid hospital.",
+              unauthorized_clinician: "Treatment requires a Nurse or higher rank who is on duty and in the authorised uniform.",
+              request_unavailable: "This request is already completed, cancelled or assigned to another worker.",
+              patient_not_at_hospital: "The patient and clinician must both be at the selected hospital for regular treatment.",
+              ambulance_not_at_patient: "Reach the assigned patient in a public area and come within 8 metres before completing field treatment.",
+              no_treatment_needed: "The patient's health is already full. No fee was charged.",
+              insufficient_cash: "The patient needs ₦" + (careAtHospital ? "500" : "1,200") + " cash for this treatment.",
+              invalid_timestamp: "The treatment could not be recorded. Please retry.",
+            };
+            fail(reasons[treated.reason] ?? "Treatment was rejected.");
+            send(socket, hospitalStatePayload(session, hospitalId));
+            return;
+          }
+          const previousState = stage5State;
+          const previousHp = patient.player.hp;
+          const previousCash = patient.player.cash;
+          patient.player.hp = treated.newHp;
+          patient.player.cash = treated.newCash;
+          try {
+            await persistSession(patient);
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            patient.player.hp = previousHp;
+            patient.player.cash = previousCash;
+            stage5State = previousState;
+            try { await persistSession(patient); } catch (rollbackError) {
+              console.error("stage5-treatment-account-rollback", rollbackError);
+            }
+            try { await saveStage5State(previousState); } catch (rollbackError) {
+              console.error("stage5-treatment-state-rollback", rollbackError);
+            }
+            console.error("stage5-treatment-persist", error);
+            fail("Treatment could not be saved. No receipt was issued; please retry.");
+            return;
+          }
+          const record = draft.hospital.history[draft.hospital.history.length - 1];
+          const receipt = {
+            ...record,
+            patientName: patient.player.name,
+            workerName: session.player.name,
+            cashRemaining: patient.player.cash,
+            healthNow: patient.player.hp,
+          };
+          const textResult = (record.kind === "ambulance-treatment" ? "Emergency field treatment" : "Hospital treatment") +
+            " completed for " + patient.player.name + ". ₦" + treated.amount.toLocaleString("en-NG") +
+            " paid; health restored by " + treated.healthRestored + ".";
+          send(socket, { type: "hospitalActionResult", action: "treatment", hospitalId, requestId, ok: true, message: textResult, receipt });
+          send(patient.socket, {
+            type: "hospitalActionResult", action: "treated", hospitalId, requestId, ok: true,
+            message: session.player.name + " treated you. ₦" + treated.amount.toLocaleString("en-NG") +
+              " paid; health restored by " + treated.healthRestored + ".",
+            receipt,
+            hp: patient.player.hp,
+            cash: patient.player.cash,
+          });
+          send(socket, hospitalStatePayload(session, hospitalId));
+          send(patient.socket, hospitalStatePayload(patient, hospitalId));
+        });
+        return;
+      }
+
+      if (message.type === "purchaseHospitalMedicine") {
+        await withMoneyMutation(async () => {
+          const hospitalId = String(message.hospitalId ?? "");
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const workerId = String(message.workerId ?? "").trim().slice(0, 160);
+          const quantity = Number(message.quantity);
+          const medicineId = String(message.medicineId ?? "");
+          const worker = players.get(workerId);
+          const employment = worker?.player.life.employment;
+          const fail = (messageText: string) => send(socket, {
+            type: "hospitalActionResult", action: "pharmacy", hospitalId, requestId, ok: false, message: messageText,
+          });
+          if (!isHospitalId(hospitalId) || !requestId || !worker || workerId === session.player.id) {
+            fail("Choose an available hospital pharmacy worker.");
+            return;
+          }
+          if (!stage5PlayerAtHospital(session, hospitalId) || !stage5PlayerAtHospital(worker, hospitalId)) {
+            fail("You and the pharmacy worker must both be at the same hospital.");
+            return;
+          }
+          if (employment?.workplaceId !== hospitalId || employment.onDuty !== true ||
+              employment.uniformWorkplaceId !== hospitalId) {
+            fail("That pharmacy worker is not rostered, clocked in and wearing the hospital uniform.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const inventory = { ...session.player.inventory };
+          const idempotencyKey = createHash("sha256")
+            .update("hospital-pharmacy|" + session.player.id + "|" + requestId)
+            .digest("hex");
+          const purchase = purchaseHospitalMedicine({
+            state: draft,
+            requestId,
+            idempotencyKey,
+            hospitalId,
+            customerId: session.player.id,
+            workerId,
+            workerRank: Number(employment.rank),
+            onDuty: employment.onDuty === true,
+            uniform: employment.uniformWorkplaceId === hospitalId,
+            medicineId,
+            quantity,
+            customerCash: session.player.cash,
+            inventory,
+            now: Date.now(),
+          });
+          if (!purchase.ok) {
+            const reasons: Record<string, string> = {
+              unknown_hospital: "Choose a valid hospital.",
+              unauthorized_pharmacy_worker: "Pharmacy sales require another on-duty hospital worker of rank 2 or higher.",
+              invalid_request_id: "The purchase reference is invalid. Refresh and try again.",
+              duplicate_order: "This pharmacy order has already been processed.",
+              unknown_medicine: "Choose a medicine from the hospital pharmacy list.",
+              invalid_quantity: "Choose a whole quantity between 1 and 10.",
+              invalid_balance: "Your balance or inventory is invalid. Reconnect and try again.",
+              insufficient_stock: "The pharmacy does not have enough stock for this purchase.",
+              inventory_limit: "Your backpack cannot hold any more of this medicine.",
+              insufficient_cash: "You do not have enough cash for this medicine.",
+              invalid_timestamp: "The pharmacy could not record the purchase time.",
+            };
+            fail(reasons[purchase.reason] ?? "The pharmacy purchase was rejected.");
+            send(socket, hospitalStatePayload(session, hospitalId));
+            return;
+          }
+          const previousState = stage5State;
+          const previousCash = session.player.cash;
+          const previousInventory = { ...session.player.inventory };
+          session.player.cash = purchase.newCash;
+          session.player.inventory = purchase.inventory;
+          try {
+            await persistSession(session);
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            session.player.cash = previousCash;
+            session.player.inventory = previousInventory;
+            stage5State = previousState;
+            try { await persistSession(session); } catch (rollbackError) {
+              console.error("stage5-pharmacy-account-rollback", rollbackError);
+            }
+            try { await saveStage5State(previousState); } catch (rollbackError) {
+              console.error("stage5-pharmacy-state-rollback", rollbackError);
+            }
+            console.error("stage5-pharmacy-persist", error);
+            fail("The pharmacy purchase could not be saved. No purchase was confirmed.");
+            return;
+          }
+          const receipt = {
+            ...purchase.receipt,
+            customerName: session.player.name,
+            workerName: worker.player.name,
+            cashRemaining: session.player.cash,
+          };
+          send(socket, {
+            type: "hospitalActionResult", action: "pharmacy", hospitalId, requestId, ok: true,
+            message: "Purchased " + purchase.receipt.medicineName + " × " + purchase.receipt.quantity +
+              " for ₦" + purchase.receipt.total.toLocaleString("en-NG") + ". Added to your backpack.",
+            receipt, cash: session.player.cash, inventory: session.player.inventory,
+          });
+          send(worker.socket, {
+            type: "hospitalPharmacySaleNotice",
+            message: "Pharmacy sale: " + purchase.receipt.medicineName + " × " + purchase.receipt.quantity +
+              " sold to " + session.player.name + ". Receipt " + purchase.receipt.id + ".",
+          });
+          send(socket, hospitalStatePayload(session, hospitalId));
+          send(worker.socket, hospitalStatePayload(worker, hospitalId));
+        });
+        return;
+      }
+
       if (message.type === "getWorkplaces") {
         sendWorkplaceState(session);
         return;
