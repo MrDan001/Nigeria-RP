@@ -169,7 +169,10 @@ async function main(): Promise<void> {
     assert.equal(trip.fromCityId, "port-harcourt");
     assert.equal(trip.cityId, "aba");
     assert.equal(trip.fareNaira, 4500);
-    assert.equal(trip.cash, 500);
+    assert.equal(trip.stage17Discovery?.newlyDiscovered, true, "first destination should be recorded in the city passport");
+    assert.equal(trip.stage17Discovery?.rewardNaira, 1500, "first destination discovery should award once");
+    assert.equal(trip.stage17Passport?.visitedCount, 2);
+    assert.equal(trip.cash, 2000, "fare is deducted and first-city discovery bonus is credited");
     assert.equal(trip.environment?.cityId, "aba");
 
     const insufficient = await sendAndWait(socket, {
@@ -180,7 +183,7 @@ async function main(): Promise<void> {
     }, "stage15TravelResult");
     assert.equal(insufficient.ok, false, "low balance must block travel");
     assert.equal(insufficient.cityId, "aba");
-    assert.equal(insufficient.cash, 500);
+    assert.equal(insufficient.cash, 2000);
 
     socket.close();
     socket = null;
@@ -191,12 +194,14 @@ async function main(): Promise<void> {
     socket = await openSocket(active.port);
     const resumed = await sendAndWait(socket, { type: "authResume", token }, "authOk");
     assert.equal(resumed.player?.cityId, "aba");
-    assert.equal(resumed.player?.cash, 500);
+    assert.equal(resumed.player?.cash, 2000);
 
     const restored = await sendAndWait(socket, { type: "getStage15TravelState" }, "stage15TravelState");
     assert.equal(restored.cityId, "aba");
-    assert.equal(restored.cash, 500);
+    assert.equal(restored.cash, 2000);
     assert.equal(restored.recentTrips?.[0]?.requestId, "stage15-live-trip-once");
+    assert.equal(restored.stage17Passport?.visitedCount, 2, "city passport stamps survive server restart");
+    assert.equal(restored.stage17Passport?.totalRewardsNaira, 1500, "discovery reward total survives server restart");
 
     const replay = await sendAndWait(socket, {
       type: "travelCity",
@@ -206,7 +211,7 @@ async function main(): Promise<void> {
     }, "stage15TravelResult");
     assert.equal(replay.ok, false, "a committed trip request must remain replay-protected after restart");
     assert.equal(replay.cityId, "aba");
-    assert.equal(replay.cash, 500);
+    assert.equal(replay.cash, 2000);
 
     console.log("Stage 15 live integration passed: fare transaction, city transition, insufficient-balance rejection, restart persistence and replay protection.");
   } finally {
