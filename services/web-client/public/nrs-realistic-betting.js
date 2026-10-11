@@ -17,6 +17,7 @@
     pending: false,
     feedback: "",
     feedbackError: false,
+    lastTicketRequestId: "",
   };
 
   function element(tag, className, text) {
@@ -312,8 +313,10 @@
       state.results = Array.isArray(message.results) ? message.results : [];
       state.closed = Boolean(message.isClosed);
       state.cash = Math.max(0, Math.floor(Number(message.cash) || 0));
-      state.feedback = "";
-      state.feedbackError = false;
+      if (!message.requestId || message.requestId !== state.lastTicketRequestId) {
+        state.feedback = "";
+        state.feedbackError = false;
+      }
       if (isOpen()) render();
       return;
     }
@@ -324,6 +327,10 @@
       if (message.ok) {
         state.picks = {};
         state.stake = MIN_STAKE;
+        state.lastTicketRequestId = String(message.requestId || "");
+        if (message.ticket) {
+          state.tickets = [message.ticket, ...state.tickets.filter((ticket) => ticket.id !== message.ticket.id)].slice(0, 30);
+        }
         showMessage(message.message || "Ticket placed successfully.", false);
       } else {
         showMessage(message.message || "The ticket could not be placed.", true);
