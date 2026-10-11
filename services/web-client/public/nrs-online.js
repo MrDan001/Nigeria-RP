@@ -1307,10 +1307,6 @@
   // balance checks, replay protection and the persisted destination city.
   const cityTravelStyle = document.createElement("style");
   cityTravelStyle.textContent = `
-    #nrsCityBadge{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:12px;z-index:8000;
-      max-width:45vw;padding:7px 10px;border:1px solid rgba(108,190,255,.35);border-radius:999px;
-      background:rgba(6,17,31,.9);color:#e7f4ff;font:700 11px/1.2 system-ui,sans-serif;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.22)}
     #nrsTravelOpen{position:fixed;top:calc(env(safe-area-inset-top,0px) + 54px);right:12px;z-index:8001;
       border:1px solid rgba(111,205,255,.5);border-radius:13px;padding:10px 13px;background:linear-gradient(135deg,#0b6ea8,#124a77);
       color:#fff;font:800 12px system-ui,sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.32);touch-action:manipulation}
@@ -1347,11 +1343,6 @@
     @media(max-width:480px){#nrsTravelModal .card{padding:16px;border-radius:18px}#nrsTravelOpen{top:calc(env(safe-area-inset-top,0px) + 52px);padding:9px 11px}}
   `;
   document.head.appendChild(cityTravelStyle);
-
-  const cityBadge = document.createElement("div");
-  cityBadge.id = "nrsCityBadge";
-  cityBadge.textContent = "CITY · PORT HARCOURT";
-  document.body.appendChild(cityBadge);
 
   const travelOpen = document.createElement("button");
   travelOpen.id = "nrsTravelOpen";
@@ -1504,8 +1495,6 @@
     N.cityEnvironment = environment;
     // Stage 16 city experience layer owns landmark scene rendering.
     const accent = /^#[0-9a-f]{6}$/i.test(String(environment.accentCss || "")) ? environment.accentCss : "#31b8e8";
-    cityBadge.style.borderColor = accent;
-    cityBadge.style.boxShadow = "0 8px 22px " + accent + "25";
     travelOpen.style.borderColor = accent;
     travelOpen.style.background = "linear-gradient(135deg," + accent + ",#124a77)";
     travelArrival.style.background = "radial-gradient(ellipse at center," + accent + "55,rgba(2,8,17,.98))";
@@ -1539,7 +1528,6 @@
     const environment = data.currentEnvironment || (data.environments || []).find((profile) => profile.cityId === currentCityId);
     N.cityId = currentCityId;
     S.cityId = currentCityId;
-    cityBadge.textContent = "CITY · " + currentCityName.toUpperCase();
     $("nrsTravelCity").textContent = currentCityName;
     $("nrsTravelCash").textContent = formatNaira(data.cash ?? N.cash);
     applyCityEnvironment(environment);
@@ -1612,11 +1600,9 @@
       (reward > 0 ? " · First-visit passport reward +" + formatNaira(reward) : " · Passport " + visitedCount + "/" + totalCities);
     travelArrival.hidden = false;
     window.setTimeout(() => { travelArrival.hidden = true; }, 1700);
-    cityBadge.textContent = "CITY · " + String(result.cityName || result.cityId || "").toUpperCase();
   });
   window.addEventListener("nrs-city-changed", (event) => {
     const result = event.detail || {};
-    cityBadge.textContent = "CITY · " + String(result.cityName || cityName(result.cityId, (N.stage15TravelState || {}).cities)).toUpperCase();
     applyCityEnvironment(result.environment);
   });
 
