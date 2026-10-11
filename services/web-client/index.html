@@ -113,13 +113,18 @@ button,input,#joy{pointer-events:auto;font:inherit}
 #act.dr{right:.6rem;bottom:auto;top:17.2rem}
 #wheel{position:fixed;left:1rem;bottom:.65rem;width:min(17rem,78vh);height:min(17rem,78vh);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.05) 55%,rgba(255,255,255,.12) 100%);touch-action:none;display:none;z-index:2}
 #wsv{width:100%;height:100%;display:block;pointer-events:none}
-.ped{position:fixed;bottom:1rem;display:none;border-radius:.8rem;border:2px solid rgba(255,255,255,.4);color:#fff;font-weight:700;font-size:.75rem;touch-action:none;z-index:2;pointer-events:auto}
-#brk{left:10rem;width:4rem;height:5rem;background:rgba(170,35,35,.85)}#gas{left:14.8rem;width:4.2rem;height:7rem;background:rgba(30,130,70,.85)}
-.ped.on{filter:brightness(1.6)}
+#wsv .wheel-leather{stroke:#18191b;stroke-width:12}#wsv .wheel-stitch{stroke:#b6a27b;stroke-width:.7;stroke-dasharray:1.2 2.1}
+#speedo{position:fixed;right:1rem;top:4.3rem;width:7.6rem;height:7.6rem;display:none;z-index:3;border-radius:50%;background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.22),rgba(10,19,29,.94) 55%,rgba(0,0,0,.98));border:2px solid #a9b5bf;box-shadow:inset 0 0 0 3px #26333c,0 0 1rem #0009;color:#f4f8fb}
+#speedo svg{width:100%;height:100%;display:block}#speedo .spd-num{font:900 19px system-ui;fill:#fff;text-anchor:middle}#speedo .spd-unit{font:700 6px system-ui;fill:#b7c8d6;text-anchor:middle;letter-spacing:1px}
+#speedo .spd-tick{stroke:#d6e0e8;stroke-width:1.3;stroke-linecap:round}#speedo .spd-arc{stroke:#2be4a7;stroke-width:3.2;stroke-linecap:round;fill:none;stroke-dasharray:113;stroke-dashoffset:113}
+#speedo .spd-needle{stroke:#ffcf5a;stroke-width:1.7;stroke-linecap:round;transform-origin:50px 48px}
+.ped{position:fixed;bottom:1rem;display:none;border-radius:.55rem;border:2px solid #aab3bb;color:#f4f6f8;font-weight:900;font-size:.68rem;letter-spacing:.08em;touch-action:none;z-index:2;pointer-events:auto;background:linear-gradient(135deg,#6d7881,#252b31 52%,#59636b);box-shadow:inset 0 1px 2px #fff7,inset 0 -3px 4px #000b,0 3px 8px #0009}
+#brk{left:10rem;width:4rem;height:5rem;background:repeating-linear-gradient(0deg,#4a1e22 0 5px,#773036 5px 7px);border-color:#c5a7a9}#gas{left:14.8rem;width:4.2rem;height:7rem;background:repeating-linear-gradient(0deg,#1f3f33 0 5px,#376a53 5px 7px);border-color:#a8c7b7}
+.ped.on{filter:brightness(1.65);box-shadow:0 0 1.1rem #70ffd4,inset 0 0 1rem #fff7,0 0 0 2px #74f6c2}
 #hb,#radio,#hn,#jump{position:fixed;width:3.2rem;height:3.2rem;font-size:1.1rem;z-index:2}
 #hb,#radio,#hn{right:15.8rem;display:none}#hb{bottom:1.2rem}#radio{bottom:4.8rem}#hn{bottom:8.4rem}
 #jump{right:2rem;bottom:9.4rem;font-size:1.3rem}
-body.drv #wheel{display:block}body.drv .ped{display:block}body.drv #hb,body.drv #radio,body.drv #hn{display:grid}
+body.drv #wheel{display:block}body.drv #speedo{display:block}body.drv .ped{display:block}body.drv #hb,body.drv #radio,body.drv #hn{display:grid}
 #ign{position:fixed;right:15.8rem;bottom:12rem;width:3.8rem;height:3.8rem;font-size:1.6rem;display:none;z-index:2;border:2px solid #e23b3b}
 #ign.on{background:#1fa35a;border-color:#6dffb0}#ign.st{background:#c98a10;border-color:#ffd36b}
 body.drv #ign{display:grid}body.drv #mis{display:none}
@@ -318,7 +323,8 @@ body.drv #camB{display:grid}
 <div id="fg"><svg viewBox="0 0 40 40"><circle class="t" cx="20" cy="20" r="16"/><circle id="fgr" class="r" cx="20" cy="20" r="16" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" transform="rotate(-90 20 20)"/><path class="ic" d="M14 27V14.5a1.5 1.5 0 0 1 1.5-1.5h6a1.5 1.5 0 0 1 1.5 1.5V27M12.5 27h12M14 16.5h9M23 18h2a1.3 1.3 0 0 1 1.3 1.3v4.4a1.4 1.4 0 0 0 2.8 0V17l-2.6-2.6"/></svg><span id="fgl">20 L</span></div>
 <div id="spd"><div id="spv"><i>00</i>0</div><span id="spk">ENGINE OFF · TAP ⏻</span><span id="spz"></span></div>
 <button class="dbtn" id="ign"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.8 6.8a7.5 7.5 0 1 0 10.4 0"/></svg></button><button class="dbtn" id="lite"><svg viewBox="0 0 24 24"><path d="M10 6C6 6 3 8.5 3 12s3 6 7 6c1 0 2-.4 2-1.2V7.2C12 6.4 11 6 10 6z"/><path d="M15.5 8H21M15.5 12H21M15.5 16H21"/></svg></button></div>
-<div id="wheel"><svg id="wsv" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#161616" stroke-width="11"/><circle cx="50" cy="50" r="44" fill="none" stroke="#3a3a3a" stroke-width="8" stroke-dasharray="1.6 2.4"/><circle cx="50" cy="50" r="49.3" fill="none" stroke="#7d7d7d" stroke-width="1"/><circle cx="50" cy="50" r="38.7" fill="none" stroke="#6a6a6a" stroke-width="1"/><path d="M6 53Q28 47 38 52M94 53Q72 47 62 52M44 62L42 93H58L56 62" fill="#1d1d1d" stroke="#555" stroke-width="1.2" stroke-linejoin="round"/><rect x="46" y="1" width="8" height="12" rx="2" fill="#ffc928"/><circle cx="50" cy="50" r="15" fill="#262626" stroke="#8a8a8a" stroke-width="2"/><circle cx="50" cy="50" r="9" fill="#333" stroke="#555" stroke-width="1"/><path d="M45 52h10M50 46v3" stroke="#bbb" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+<div id="wheel"><svg id="wsv" viewBox="0 0 100 100"><circle class="wheel-leather" cx="50" cy="50" r="44" fill="none"/><circle class="wheel-stitch" cx="50" cy="50" r="44" fill="none"/><circle cx="50" cy="50" r="49.3" fill="none" stroke="#a9b1b7" stroke-width="1.2"/><circle cx="50" cy="50" r="38.7" fill="none" stroke="#555d64" stroke-width="1"/><path d="M6 53Q28 47 38 52M94 53Q72 47 62 52M44 62L42 93H58L56 62" fill="#22272b" stroke="#777f86" stroke-width="1.2" stroke-linejoin="round"/><rect x="46" y="1" width="8" height="12" rx="2" fill="#d9bd79"/><circle cx="50" cy="50" r="15" fill="#252b30" stroke="#b7c0c6" stroke-width="2"/><circle cx="50" cy="50" r="9" fill="#16202a" stroke="#d0b46e" stroke-width="1"/><text x="50" y="53.3" font-size="7" font-weight="900" text-anchor="middle" fill="#f5f0e5">NRS</text></svg></div>
+<div id="speedo" aria-label="Vehicle speedometer"><svg viewBox="0 0 100 100" role="img"><circle cx="50" cy="48" r="37" fill="none" stroke="#53616c" stroke-width="2"/><path d="M21 70A36 36 0 1 1 79 70" fill="none" stroke="#16232d" stroke-width="5"/><path id="spdArc" class="spd-arc" d="M21 70A36 36 0 1 1 79 70" pathLength="113"/><g class="spd-tick"><path d="M20 67l5 -2M23 39l5 2M40 17l2 6M60 17l-2 6M77 39l-5 2M80 67l-5 -2"/></g><path id="spdNeedle" class="spd-needle" d="M50 48L50 20"/><circle cx="50" cy="48" r="3.5" fill="#ffcf5a"/><text id="spdValue" class="spd-num" x="50" y="65">0</text><text class="spd-unit" x="50" y="74">KM/H</text><text x="50" y="88" font-size="5.5" text-anchor="middle" fill="#a8bac8">NIGERIA RP</text></svg></div>
 <button class="ped" id="brk" data-l="BRAKE" aria-label="Brake"></button><button class="ped" id="gas" data-l="GAS" aria-label="Gas"></button>
 <button class="dbtn" id="hb">HB</button><button class="dbtn" id="radio">📻</button><button class="dbtn" id="hn"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5c1.6 1.2 1.6 3.8 0 5"/></svg></button><button class="dbtn" id="camB"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></button><button class="rb" id="jump">⤴</button>
 <input type="file" id="mf" accept="audio/*" style="display:none">
@@ -1630,6 +1636,7 @@ function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLock
  }else{c.x=clamp(c.x,-240,240);c.z=clamp(c.z,-240,240);}c.v=fv;
  const k=1-Math.exp(-dt*6);c.pitch+=(clamp(-a*.004,-.06,.06)-c.pitch)*k;c.roll+=(clamp(yaw*fv*.003,-.07,.07)-c.roll)*k;
  c.tail.color.setHex(br>.05||hb?0xff2020:0x701010);c.rev.color.setHex(fv<-.5?0xffffff:0x555555);c.sw.rotation.z=wheelA*.0174533;
+  const spd=Math.min(220,Math.round(kmh)),arc=$('spdArc'),needle=$('spdNeedle'),value=$('spdValue');if(arc)arc.style.strokeDashoffset=String(113-(spd/220)*113);if(needle)needle.style.transform='rotate('+(-135+(spd/220)*270)+'deg)';if(value)value.textContent=String(Math.round(kmh));
  c.wh.forEach(w=>{w.sp.rotation.x+=fv*dt/.38;if(w.f)w.pv.rotation.y=-c.steer;});
  if(eng){eng.o.frequency.value=38+c.rpm*95;eng.g.gain.value=.02+.03*th;}
  setCar(c);pos.set(c.x,0,c.z);face=c.ry;
