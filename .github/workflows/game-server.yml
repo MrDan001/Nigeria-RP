@@ -46,6 +46,9 @@ jobs:
       - name: Test Stage 3 workplace rules and payout history
         run: npm run test:stage3 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 4 market and bank rules
+        run: npm run test:stage4 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
