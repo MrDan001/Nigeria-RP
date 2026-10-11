@@ -781,6 +781,31 @@ function stage5PlayerAtHospital(session: Session, hospitalId: string) {
   return stage5AtWorkplace(session, hospitalId);
 }
 
+function broadcastHospitalStaffState(hospitalId: string, excludeIds: readonly string[] = []) {
+  const excluded = new Set(excludeIds);
+  for (const recipient of players.values()) {
+    if (excluded.has(recipient.player.id) || stage5PrivateContext(recipient)) continue;
+    const employment = recipient.player.life.employment;
+    if (employment?.workplaceId !== hospitalId) continue;
+    // Each recipient gets a role-filtered payload. This refreshes the live queue
+    // without granting new permissions or exposing another patient's private history.
+    send(recipient.socket, hospitalStatePayload(recipient, hospitalId));
+  }
+}
+
+function broadcastParkStaffState(excludeIds: readonly string[] = []) {
+  const excluded = new Set(excludeIds);
+  for (const recipient of players.values()) {
+    if (excluded.has(recipient.player.id)) continue;
+    const employment = recipient.player.life.employment;
+    if (employment?.workplaceId !== PARK_WORKPLACE_ID) continue;
+    // Park management can see its authorised ledger while off duty; ordinary
+    // staff receive only the queue permitted by parkStatePayload.
+    if (stage5PrivateContext(recipient) && Number(employment.rank) < 5) continue;
+    send(recipient.socket, parkStatePayload(recipient));
+  }
+}
+
 function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
   const employment = session.player.life.employment ?? null;
   const preferred = isHospitalId(String(requestedHospitalId ?? "")) ? String(requestedHospitalId) :
@@ -2659,6 +2684,7 @@ wss.on("connection", (socket) => {
             send(patient.socket, hospitalStatePayload(patient, hospitalId));
           }
           send(socket, hospitalStatePayload(session, hospitalId));
+          broadcastHospitalStaffState(hospitalId, [session.player.id, ...(patient ? [patient.player.id] : [])]);
         });
         return;
       }
@@ -2719,6 +2745,7 @@ wss.on("connection", (socket) => {
             send(patient.socket, hospitalStatePayload(patient, hospitalId));
           }
           send(socket, hospitalStatePayload(session, hospitalId));
+          broadcastHospitalStaffState(hospitalId, [session.player.id, ...(patient ? [patient.player.id] : [])]);
         });
         return;
       }
@@ -2825,6 +2852,7 @@ wss.on("connection", (socket) => {
           });
           send(socket, hospitalStatePayload(session, hospitalId));
           send(patient.socket, hospitalStatePayload(patient, hospitalId));
+          broadcastHospitalStaffState(hospitalId, [session.player.id, patient.player.id]);
         });
         return;
       }
@@ -2935,6 +2963,7 @@ wss.on("connection", (socket) => {
           });
           send(socket, hospitalStatePayload(session, hospitalId));
           send(worker.socket, hospitalStatePayload(worker, hospitalId));
+          broadcastHospitalStaffState(hospitalId, [session.player.id, worker.player.id]);
         });
         return;
       }
@@ -3042,6 +3071,7 @@ wss.on("connection", (socket) => {
           });
           send(socket, parkStatePayload(session));
           send(seller.socket, parkStatePayload(seller));
+          broadcastParkStaffState([session.player.id, seller.player.id]);
         });
         return;
       }
@@ -3176,6 +3206,7 @@ wss.on("connection", (socket) => {
           });
           send(socket, parkStatePayload(session));
           send(visitor.socket, parkStatePayload(visitor));
+          broadcastParkStaffState([session.player.id, visitor.player.id]);
         });
         return;
       }
