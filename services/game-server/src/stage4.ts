@@ -149,13 +149,16 @@ export function settleMarketSale(args: {
   productId: string;
   quantity: number;
   customerId?: string;
+  idempotencyKey?: string;
   now?: number;
 }): { ok: true; result: MarketSaleResult } | { ok: false; reason: string } {
   const { state, orderId, customer, sellerId, sellerRank, productId, quantity } = args;
   const customerId = String(args.customerId ?? "");
   const now = Number(args.now ?? Date.now());
+  const idempotencyKey = String(args.idempotencyKey ?? orderId);
   if (!orderId || orderId.length > 100) return { ok: false, reason: "invalid_order_id" };
-  if (state.completedOrderIds[orderId]) return { ok: false, reason: "duplicate_order" };
+  if (!idempotencyKey || idempotencyKey.length > 128) return { ok: false, reason: "invalid_order_id" };
+  if (state.completedOrderIds[idempotencyKey]) return { ok: false, reason: "duplicate_order" };
   if (!sellerId || !canExecuteMarketSale(sellerRank)) return { ok: false, reason: "unauthorized_seller" };
   const product = findMarketProduct(productId);
   if (!product) return { ok: false, reason: "unknown_product" };
@@ -163,14 +166,29 @@ export function settleMarketSale(args: {
   const available = Math.max(0, Math.floor(Number(state.stock[productId] ?? 0)));
   if (available < quantity) return { ok: false, reason: "insufficient_stock" };
   const total = product.unitPrice * quantity;
-  if (!positiveMoney(total) || customer.cash < total) return { ok: false, reason: "insufficient_cash" };
+  const currentTill = Number(state.till);
+  const currentCommission = Number(state.commissions[sellerId] ?? 0);
+  if (
+    !Number.isSafeInteger(customer.cash) || customer.cash < 0 ||
+    !Number.isSafeInteger(customer.bank) || customer.bank < 0 ||
+    !Number.isSafeInteger(total) || total <= 0 || customer.cash < total
+  ) return { ok: false, reason: "insufficient_cash" };
 
   const commission = Math.floor(total * MARKET_COMMISSION_RATE);
   const tillCredit = total - commission;
+  const nextTill = currentTill + tillCredit;
+  const nextCommission = currentCommission + commission;
+  if (
+    !Number.isSafeInteger(currentTill) || currentTill < 0 ||
+    !Number.isSafeInteger(currentCommission) || currentCommission < 0 ||
+    !Number.isSafeInteger(nextTill) || !Number.isSafeInteger(nextCommission) ||
+    !Number.isSafeInteger(customer.cash - total)
+  ) return { ok: false, reason: "balance_limit" };
+
   state.stock[productId] = available - quantity;
-  state.till += tillCredit;
-  state.commissions[sellerId] = Math.max(0, Math.floor(state.commissions[sellerId] ?? 0)) + commission;
-  state.completedOrderIds[orderId] = true;
+  state.till = nextTill;
+  state.commissions[sellerId] = nextCommission;
+  state.completedOrderIds[idempotencyKey] = true;
   customer.cash -= total;
   state.history.push({
     orderId,
@@ -197,6 +215,7 @@ export function settleMarketSale(args: {
 export function settleBankTransaction(args: {
   state: BankState;
   requestId: string;
+  idempotencyKey?: string;
   customerId: string;
   tellerId: string;
   tellerRank: number;
@@ -206,8 +225,10 @@ export function settleBankTransaction(args: {
   now: number;
 }): { ok: true; result: BankTransactionResult } | { ok: false; reason: string } {
   const { state, requestId, customerId, tellerId, tellerRank, customer, type, amount, now } = args;
+  const idempotencyKey = String(args.idempotencyKey ?? requestId);
   if (!requestId || requestId.length > 100) return { ok: false, reason: "invalid_request_id" };
-  if (state.completedTransactionIds[requestId]) return { ok: false, reason: "duplicate_transaction" };
+  if (!idempotencyKey || idempotencyKey.length > 128) return { ok: false, reason: "invalid_request_id" };
+  if (state.completedTransactionIds[idempotencyKey]) return { ok: false, reason: "duplicate_transaction" };
   if (!customerId || !tellerId || customerId === tellerId) return { ok: false, reason: "invalid_participants" };
   if (!canExecuteBankTransaction(tellerRank)) return { ok: false, reason: "unauthorized_teller" };
   if (type !== "deposit" && type !== "withdrawal") return { ok: false, reason: "invalid_transaction_type" };
@@ -215,18 +236,32 @@ export function settleBankTransaction(args: {
   if (!Number.isFinite(now) || now <= 0) return { ok: false, reason: "invalid_timestamp" };
 
   const fee = BANK_TRANSACTION_FEE;
+  if (
+    !Number.isSafeInteger(customer.cash) || customer.cash < 0 ||
+    !Number.isSafeInteger(customer.bank) || customer.bank < 0 ||
+    !Number.isSafeInteger(amount + fee)
+  ) return { ok: false, reason: "invalid_amount" };
+
   if (type === "deposit") {
+    const nextBank = customer.bank + amount;
     if (customer.cash < amount + fee) return { ok: false, reason: "insufficient_cash" };
+    if (!Number.isSafeInteger(nextBank) || !Number.isSafeInteger(customer.cash - amount - fee)) {
+      return { ok: false, reason: "balance_limit" };
+    }
     customer.cash -= amount + fee;
-    customer.bank += amount;
+    customer.bank = nextBank;
   } else {
+    const nextCash = customer.cash + amount;
     if (customer.bank < amount + fee) return { ok: false, reason: "insufficient_bank_balance" };
+    if (!Number.isSafeInteger(nextCash) || !Number.isSafeInteger(customer.bank - amount - fee)) {
+      return { ok: false, reason: "balance_limit" };
+    }
     customer.bank -= amount + fee;
-    customer.cash += amount;
+    customer.cash = nextCash;
   }
 
   const transaction: BankTransaction = {
-    id: `${type}-${requestId}`,
+    id: `${type}-${tellerId.slice(0, 8)}-${requestId}`,
     requestId,
     type,
     customerId,
@@ -235,7 +270,7 @@ export function settleBankTransaction(args: {
     fee,
     createdAt: now,
   };
-  state.completedTransactionIds[requestId] = true;
+  state.completedTransactionIds[idempotencyKey] = true;
   state.history.push(transaction);
   if (state.history.length > MAX_TRANSACTION_HISTORY) state.history.splice(0, state.history.length - MAX_TRANSACTION_HISTORY);
 
@@ -312,7 +347,15 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
     }
   }
   return {
-    market: { stock, till: Math.max(0, Math.floor(Number(marketRaw.till) || 0)), commissions, completedOrderIds, history: marketHistory.slice(-MAX_TRANSACTION_HISTORY) },
+    market: {
+      stock,
+      till: Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(Number(marketRaw.till) || 0))),
+      commissions: Object.fromEntries(Object.entries(commissions).map(([id, amount]) => [id, Math.min(Number.MAX_SAFE_INTEGER, amount)])),
+      completedOrderIds,
+      history: marketHistory.filter(sale => sale.total === findMarketProduct(sale.productId)!.unitPrice * sale.quantity &&
+        sale.commission === Math.floor(sale.total * MARKET_COMMISSION_RATE) &&
+        sale.tillCredit === sale.total - sale.commission).slice(-MAX_TRANSACTION_HISTORY),
+    },
     bank: { completedTransactionIds, history: history.slice(-MAX_TRANSACTION_HISTORY) },
   };
 }
