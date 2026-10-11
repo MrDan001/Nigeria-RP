@@ -1803,7 +1803,7 @@ const routeFade=document.createElement('div');routeFade.id='routeFade';routeFade
 let routeFadeTimer=0;
 function routeTransitionIn(){clearTimeout(routeFadeTimer);routeFade.style.opacity='1';}
 function routeTransitionOut(){clearTimeout(routeFadeTimer);routeFadeTimer=setTimeout(()=>{routeFade.style.opacity='0';},280);}
-function panel(h){modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu','stage4-menu');modal.innerHTML='<button id="mx" class="modal-close" type="button" aria-label="Close menu">✕ Close</button>'+h;modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu','stage4-menu');workplaceMenuOpen=false;forbesBoardOpen=false;if(typeof marketMenuOpen!=='undefined')marketMenuOpen=false;if(typeof bankMenuOpen!=='undefined')bankMenuOpen=false;};}
+function panel(h){modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu','stage4-menu');modal.innerHTML='<button id="mx" class="modal-close" type="button" aria-label="Close menu">✕ Close</button>'+h;modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu','stage4-menu');workplaceMenuOpen=false;forbesBoardOpen=false;if(typeof marketMenuOpen!=='undefined')marketMenuOpen=false;if(typeof bankMenuOpen!=='undefined')bankMenuOpen=false;if(typeof hospitalMenuOpen!=='undefined')hospitalMenuOpen=false;if(typeof parkMenuOpen!=='undefined')parkMenuOpen=false;};}
 
 function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!(inside.home?.isOwner||inside.home?.occupiedByMe);panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave your home.</p><button data-exit-route="street">🚶 Exit to street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Exit to garage<br><small>Take a vehicle you own, then stop at the garage gate and hold the horn to exit to the street.</small></button>':'')+'');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}if(r.isApartmentRoom){window.NRS?.exitApartmentRoom();return;}if(r.isApartmentBuilding){window.NRS?.exitApartmentBuilding();return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
@@ -3316,7 +3316,7 @@ function openPlayerInteractionMenu(target){
  const workplace=(N.workplaceState?.workplaces||N.workplaces||[]).find(w=>w.id===employment?.workplaceId);
  const ready=!!employment?.onDuty&&employment?.uniformWorkplaceId===employment?.workplaceId;
  let actions='<button data-player-action="greet" data-player-id="'+safeText(id)+'">👋 Greet player</button>';
- if(ready&&workplace?.kind==='hospital')actions+='<button data-player-action="medicalTreat" data-player-id="'+safeText(id)+'">🩺 Treat patient · ₦500</button>';
+ if(ready&&workplace?.kind==='hospital')actions+='<button data-hospital-open="'+safeText(workplace.id)+'">🩺 Open hospital services</button>';
  if(ready&&['police','frsc'].includes(workplace?.kind))actions+='<button data-player-action="requestId" data-player-id="'+safeText(id)+'">🪪 Request identification</button>';
  panel('<div class="wm-head"><span>🤝</span><div><small>NEARBY CITIZEN</small><h2>'+username+'</h2><p>Hold on a nearby player to open this contextual menu.</p></div></div><p class="wm-note">Choose an action appropriate to your role and situation. The server verifies range, duty status and uniform.</p><div class="wm-buttons">'+actions+'</div>');
  modal.classList.add('work-menu');modal.style.display='flex';
@@ -3363,7 +3363,11 @@ function renderWorkplaceMenu(data){
     ?'<section class="s4-card"><h3>🛒 Mile 1 Market</h3><p class="s4-muted">Shop from verified on-duty salespeople. Purchased goods are added to your backpack.</p><button data-market-open="1">Open market & product catalogue</button></section>'
     :w.id==='bank-main'
       ?'<section class="s4-card"><h3>🏦 Port Harcourt Bank</h3><p class="s4-muted">View your bank receipts or open the teller workstation when you are on duty in uniform.</p><button data-bank-open="1">Open banking services</button></section>'
-      :'';
+      :(w.id==='hospital-main'||w.id==='hospital-princess')
+        ?'<section class="s4-card"><h3>🩺 Hospital & patient services</h3><p class="s4-muted">Request care, meet available nurses and doctors, follow treatment requests, or help patients when you are on duty.</p><button data-hospital-open="'+w.id+'">Open hospital services</button></section>'
+        :w.id==='park-main'
+          ?'<section class="s4-card"><h3>🌳 City Park visitor services</h3><p class="s4-muted">Buy a daily visitor pass from a ticket seller, ask for help, or respond to visitor requests as park staff.</p><button data-park-open="1">Open park services</button></section>'
+          :'';
   return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+stage4Shortcut+management+'</article>';
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
@@ -3460,6 +3464,127 @@ window.addEventListener('nrs-bank-state',e=>{if(bankMenuOpen)renderBankConsole(e
 window.addEventListener('nrs-bank-transaction-result',e=>{bankFeedback=e.detail||null;if(bankMenuOpen)renderBankConsole(window.NRS?.bankState||{});});
 window.addEventListener('nrs-bank-receipt',e=>{bankFeedback=e.detail||null;if(bankMenuOpen){renderBankConsole(window.NRS?.bankState||{});window.NRS?.getBankState();}});
 
+/* ---------- Stage 5: friendly hospital and park services ---------- */
+let hospitalMenuOpen=false,parkMenuOpen=false;
+let stage5HospitalId="hospital-main",hospitalFeedback=null,parkFeedback=null;
+const stage5Money=value=>'₦'+Math.max(0,Math.floor(Number(value)||0)).toLocaleString('en-NG');
+const stage5When=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'}):'Just now';};
+const stage5HospitalTitle=id=>id==='hospital-princess'?'Princess Hospital':'Mile One General Hospital';
+function openHospitalConsole(hospitalId){
+ stage5HospitalId=hospitalId==='hospital-princess'?'hospital-princess':'hospital-main';
+ hospitalMenuOpen=true;parkMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;workplaceMenuOpen=false;hospitalFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🩺</span><div><small>HEALTHCARE NETWORK · PORT HARCOURT</small><h2>Hospital services</h2><p>Request care, meet real staff and follow treatment.</p></div></div><div class="s4-empty">Loading patient and staff services…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getHospitalState(stage5HospitalId);
+}
+function renderHospitalConsole(data){
+ if(!hospitalMenuOpen)return;
+ data=data||window.NRS?.hospitalState||{};
+ if(data.hospitalId)stage5HospitalId=data.hospitalId;
+ const hospitalId=stage5HospitalId;
+ const atHospital=!!data.atHospital;
+ const feedback=hospitalFeedback?'<div class="s4-notice '+(hospitalFeedback.ok?'success':'error')+'">'+safeText(hospitalFeedback.message||'')+'</div>':'';
+ const receipt=hospitalFeedback?.ok&&hospitalFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Service receipt</h3><div class="s4-row"><span><b>'+safeText(hospitalFeedback.receipt.detail||hospitalFeedback.receipt.medicineName||'Hospital service')+'</b><small>Reference '+safeText(hospitalFeedback.receipt.id||hospitalFeedback.receipt.requestId||hospitalFeedback.requestId||'')+' · '+stage5When(hospitalFeedback.receipt.createdAt)+'</small></span><strong>'+stage5Money(hospitalFeedback.receipt.total??hospitalFeedback.receipt.amount??0)+'</strong></div>'+(hospitalFeedback.receipt.healthRestored!==undefined?'<p class="s4-muted">Health restored: '+Number(hospitalFeedback.receipt.healthRestored)+' · Current health: '+Number(hospitalFeedback.receipt.healthNow??data.hp??0)+'%</p>':'')+'</div>':'';
+ const hospitalOptions=(data.hospitalOptions||[{id:'hospital-main',name:'Mile One General Hospital'},{id:'hospital-princess',name:'Princess Hospital'}]).map(h=>'<option value="'+safeText(h.id)+'" '+(h.id===hospitalId?'selected':'')+'>'+safeText(h.name)+'</option>').join('');
+ const workers=Array.isArray(data.availableWorkers)?data.availableWorkers:[];
+ const onSiteWorkers=workers.filter(w=>w.atHospital);
+ const pharmacyWorkers=onSiteWorkers.filter(w=>Number(w.rank)>=2);
+ const workerOptions=pharmacyWorkers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Medical worker')+'</option>').join('');
+ const workersHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Hospital worker')+' · '+(w.atHospital?'At this hospital':'On duty · away from this hospital')+'</small></span><strong>'+(w.atHospital?'AVAILABLE':'RESPONDER')+'</strong></div>').join('')+'</div>':'<div class="s4-empty">No hospital workers are currently available. Staff must clock in and wear the hospital uniform to appear here.</div>';
+ const ownRequests=Array.isArray(data.patientRequests)?data.patientRequests:[];
+ const ownRequestsHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>'<div class="s4-row"><span><b>'+(r.kind==='ambulance'?'🚑 Ambulance request':'🩺 Care request')+'</b><small>'+safeText(r.hospitalName||stage5HospitalTitle(r.hospitalId))+' · Reference '+safeText(r.id)+'</small><small>Status: '+safeText(r.status)+(r.workerName?' · Assigned to '+safeText(r.workerName):' · Waiting for a worker')+'</small></span><strong>'+safeText(r.status.toUpperCase())+'</strong></div>').join('')+'</div>':'<div class="s4-empty">You have no open care or ambulance requests. Ask for help when you need it.</div>';
+ const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
+ const staffRequestsHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>{
+  let actions='';
+  if(r.canTriage)actions+='<button data-hospital-triage="'+safeText(r.id)+'">Record triage</button>';
+  if(r.canDispatch)actions+='<button data-hospital-dispatch="'+safeText(r.id)+'">Assign ambulance</button>';
+  if(r.canTreat)actions+='<button data-hospital-treat="'+safeText(r.id)+'">Complete treatment · '+stage5Money(500)+'</button>';
+  if(r.canFieldTreat)actions+='<button data-hospital-treat="'+safeText(r.id)+'">Treat patient here · '+stage5Money(1200)+'</button>';
+  return '<div class="s4-card"><h3>'+(r.kind==='ambulance'?'🚑 Emergency request':'🩺 Patient care request')+' · '+safeText(r.patientName)+'</h3><p class="s4-muted">Health: '+(r.patientHp===null?'Not available':Number(r.patientHp)+'%')+' · '+(r.patientAtHospital?'Patient at hospital':r.kind==='ambulance'?'Field response · '+(r.distanceToPatient===null?'location unavailable':Number(r.distanceToPatient)+' m away'):'Patient not at hospital')+'</p><p class="s4-muted">Status: '+safeText(r.status)+(r.assignedWorkerName?' · Assigned to '+safeText(r.assignedWorkerName):'')+(r.triagedAt?' · Triage recorded':'')+'</p>'+(actions||'<p class="s4-muted">This action is not available yet. Confirm your rank, duty, uniform and location.</p>')+'</div>';
+ }).join('')+'</div>':'<div class="s4-empty">No active requests are waiting at this hospital. Patient requests appear here automatically when submitted.</div>';
+ const medicines=Array.isArray(data.medicines)?data.medicines:[];
+ const pharmacyHtml=data.canWorkPharmacy
+  ?'<section class="s4-card"><h3>💊 Pharmacy counter</h3><p class="s4-muted">Choose a customer-facing pharmacy worker who is present here. Stock, price and payment are confirmed by the server.</p>'+
+   (pharmacyWorkers.length?'<label class="s4-field">Pharmacy worker<select id="s5HospitalWorker">'+workerOptions+'</select></label>':'<div class="s4-empty">No pharmacy worker is currently available. You need another on-duty hospital worker at this location.</div>')+
+   (medicines.length?'<div class="s4-grid">'+medicines.map(m=>'<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(m.name)+'</h3><span class="s4-stock">'+Number(m.stock||0)+' in stock</span></div><div class="s4-price">'+stage5Money(m.unitPrice)+'</div></div><button data-hospital-buy="'+safeText(m.id)+'" '+(!pharmacyWorkers.length||Number(m.stock)<1?'disabled':'')+'>Buy medicine from worker</button></article>').join('')+'</div>':'<div class="s4-empty">No medicines are available.</div>')+
+   '<label class="s4-field">Quantity<input id="s5HospitalQuantity" type="number" min="1" max="10" step="1" inputmode="numeric" value="1"></label></section>'
+  :'';
+ const history=Array.isArray(data.history)?data.history:[];
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(r=>'<div class="s4-row"><span><b>'+safeText(r.detail||r.kind)+'</b><small>Patient '+safeText(r.patientName||r.patientId)+' · Worker '+safeText(r.workerName||r.workerId)+'</small><small>'+stage5When(r.createdAt)+' · Reference '+safeText(r.requestId)+'</small></span><strong>'+stage5Money(r.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your care and service receipts will appear here after a request is completed.</div>';
+ const requestButtons='<div class="s4-grid"><section class="s4-card"><h3>🩺 Regular care</h3><p class="s4-muted">For injuries that need hospital attention. You must be at the selected hospital and have at least ₦500 cash.</p><button data-hospital-request-care="1" '+(!data.canRequestCare?'disabled':'')+'>Request treatment at hospital</button></section><section class="s4-card"><h3>🚑 Ambulance assistance</h3><p class="s4-muted">For serious injuries of 80% health or below. A responder is assigned and must reach you in a public area.</p><button data-hospital-request-ambulance="1" '+(!data.canRequestAmbulance?'disabled':'')+'>Request an ambulance</button></section></div>';
+ panel('<div class="s4-head"><span class="s4-icon">🩺</span><div><small>HEALTHCARE NETWORK · PORT HARCOURT</small><h2>'+safeText(data.hospitalName||stage5HospitalTitle(hospitalId))+'</h2><p>'+(data.rankTitle?'Your role: '+safeText(data.rankTitle)+(data.onDuty?' · ON DUTY':' · OFF DUTY'):'Patient services & hospital reception')+'</p></div></div>'+
+  '<label class="s4-field">Choose hospital<select id="s5HospitalChoice">'+hospitalOptions+'</select></label>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your health</small><strong>'+Math.max(0,Math.min(100,Number(data.hp)||0))+'%</strong></div><div class="s4-kpi"><small>Your cash</small><strong>'+stage5Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Your location</small><strong>'+(atHospital?'AT HOSPITAL':(data.canRequestAmbulance?'PUBLIC AREA':'OFF SITE'))+'</strong></div></div>'+
+  (atHospital?'':'<div class="s4-notice '+(data.canRequestAmbulance?'':'error')+'">'+(data.canRequestAmbulance?'You are away from this hospital. You can still request an ambulance for a serious injury.':'Walk to the hospital entrance or reception for regular treatment and pharmacy services.')+'</div>')+
+  feedback+receipt+
+  '<div class="s4-sectiontitle">Get help <small>REAL STAFF · SERVER-VALIDATED</small></div>'+requestButtons+
+  '<div class="s4-sectiontitle">Your active requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestsHtml+
+  '<div class="s4-sectiontitle">Medical staff <small>'+onSiteWorkers.length+' AT THIS HOSPITAL</small></div>'+workersHtml+
+  (data.canTriage||data.canDispatch||data.canTreat?'<div class="s4-sectiontitle">Staff patient queue <small>'+staffRequests.length+' REQUESTS</small></div>'+staffRequestsHtml:'')+
+  pharmacyHtml+
+  (data.canViewHospitalLedger?'<div class="s4-kpi"><small>Hospital pharmacy till</small><strong>'+stage5Money(data.pharmacyTill)+'</strong></div>':'')+
+  '<div class="s4-sectiontitle">Your recent care history <small>'+history.length+' RECORDS</small></div>'+historyHtml+
+  '<button class="subtle" data-hospital-refresh="1">Refresh hospital services</button>');
+ modal.classList.add('stage4-menu');
+}
+function openParkConsole(){
+ hospitalMenuOpen=false;parkMenuOpen=true;marketMenuOpen=false;bankMenuOpen=false;workplaceMenuOpen=false;parkFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🌳</span><div><small>CITY PARK · VISITOR SERVICES</small><h2>City Park</h2><p>Get a daily pass, talk to park staff or ask for assistance.</p></div></div><div class="s4-empty">Loading park services…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getParkState();
+}
+function renderParkConsole(data){
+ if(!parkMenuOpen)return;
+ data=data||window.NRS?.parkState||{};
+ const workers=Array.isArray(data.availableWorkers)?data.availableWorkers:[];
+ const ticketSellers=workers.filter(w=>Number(w.rank)>=3);
+ const ownRequests=Array.isArray(data.visitorRequests)?data.visitorRequests:[];
+ const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
+ const tickets=Array.isArray(data.tickets)?data.tickets:[];
+ const history=Array.isArray(data.history)?data.history:[];
+ const feedback=parkFeedback?'<div class="s4-notice '+(parkFeedback.ok?'success':'error')+'">'+safeText(parkFeedback.message||'')+'</div>':'';
+ const receipt=parkFeedback?.ok&&parkFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Daily visitor pass</h3><div class="s4-row"><span><b>City Park entry · '+safeText(parkFeedback.receipt.visitorName||'You')+'</b><small>Pass '+safeText(parkFeedback.receipt.id||'')+' · Valid for '+safeText(parkFeedback.receipt.dayKey||'today')+'</small></span><strong>'+stage5Money(parkFeedback.receipt.amount)+'</strong></div><p class="s4-muted">Cash remaining: '+stage5Money(parkFeedback.receipt.cashRemaining)+'</p></div>':'';
+ const sellerOptions=ticketSellers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Ticket Seller')+'</option>').join('');
+ const workerHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Park worker')+' · On duty and at City Park</small></span><strong>AVAILABLE</strong></div>').join('')+'</div>':'<div class="s4-empty">No park staff are currently on duty at the park.</div>';
+ const requestButtons=(data.helpCategories||[]).map(c=>'<button data-park-help="'+safeText(c.id)+'" '+(!data.canRequestHelp?'disabled':'')+'>'+safeText(c.title)+'</button>').join('');
+ const ownRequestHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===r.kind)?.title||'Visitor request')+'</b><small>Reference '+safeText(r.id)+' · Sent '+stage5When(r.createdAt)+'</small><small>Waiting for park staff</small></span><strong>OPEN</strong></div>').join('')+'</div>':'<div class="s4-empty">No visitor requests are open for you.</div>';
+ const staffRequestHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===r.kind)?.title||'Visitor request')+'</b><small>'+safeText(r.visitorName||'Visitor')+' · '+Number(r.distanceToVisitor||0)+' m away</small><small>Reference '+safeText(r.id)+' · '+stage5When(r.createdAt)+'</small></span><button data-park-resolve="'+safeText(r.id)+'">Handle request</button></div>').join('')+'</div>':'<div class="s4-empty">No visitor requests are waiting. Requests from guests at the park will appear here.</div>';
+ const ticketHistory=tickets.length?'<div class="s4-list">'+tickets.map(t=>'<div class="s4-row"><span><b>Daily pass · '+safeText(t.visitorName||t.visitorId)+'</b><small>Ticket seller '+safeText(t.sellerName||t.sellerId)+' · '+stage5When(t.createdAt)+'</small><small>Pass '+safeText(t.id)+' · '+safeText(t.dayKey)+'</small></span><strong>'+stage5Money(t.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Issued ticket receipts will appear here.</div>';
+ const helpHistory=history.length?'<div class="s4-list">'+history.map(h=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===h.kind)?.title||'Visitor assistance')+'</b><small>Visitor '+safeText(h.visitorName||h.visitorId)+' · Worker '+safeText(h.workerName||h.workerId)+'</small><small>'+stage5When(h.createdAt)+'</small></span><strong>DONE</strong></div>').join('')+'</div>':'<div class="s4-empty">Completed park assistance will be listed here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🌳</span><div><small>CITY PARK · VISITOR SERVICES</small><h2>City Park</h2><p>'+(data.rankTitle?'Your role: '+safeText(data.rankTitle)+(data.onDuty?' · ON DUTY':' · OFF DUTY'):'Visitor services for residents and families')+'</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+stage5Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Entry pass</small><strong>'+(data.ticket?'VALID TODAY':'NOT PURCHASED')+'</strong></div><div class="s4-kpi"><small>Location</small><strong>'+(data.atPark?'AT THE PARK':'OFF SITE')+'</strong></div></div>'+
+  (data.ticket?'<div class="s4-notice success">Your daily visitor pass is valid until the end of today ('+safeText(data.ticket.dayKey)+'). Pass '+safeText(data.ticket.id)+'.</div>':'')+
+  (data.atPark?'':'<div class="s4-notice error">Walk to City Park to purchase a pass or request on-site visitor assistance.</div>')+
+  feedback+receipt+
+  '<section class="s4-card"><h3>🎟 Daily visitor pass</h3><p class="s4-muted">Entry pass costs '+stage5Money(data.ticketPrice||500)+'. Choose a real on-duty Ticket Seller who is present at the park.</p>'+
+  (ticketSellers.length?'<label class="s4-field">Ticket seller<select id="s5ParkSeller">'+sellerOptions+'</select></label>':'<div class="s4-empty">No Ticket Seller is available at the park right now.</div>')+
+  '<button data-park-ticket="1" '+(!data.atPark||!ticketSellers.length||!!data.ticket?'disabled':'')+'>'+(data.ticket?'Pass already valid today':'Buy today’s visitor pass')+'</button>'+
+  '<p class="s4-muted">This feature issues a daily pass and receipt. Physical entry-gate enforcement is not yet part of this stage.</p></section>'+
+  '<div class="s4-sectiontitle">Ask park staff for help <small>VISITOR SUPPORT</small></div>'+
+  '<div class="s4-card"><p class="s4-muted">Select the closest option. Your request is visible to on-duty staff at the park and stays open until handled.</p>'+requestButtons+
+  '<div class="s4-sectiontitle">Your requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestHtml+'</div>'+
+  '<div class="s4-sectiontitle">Available park staff <small>'+workers.length+' ON DUTY</small></div>'+workerHtml+
+  (data.canHelpVisitors?'<div class="s4-sectiontitle">Visitor request queue <small>'+staffRequests.length+' WAITING</small></div>'+staffRequestHtml:'')+
+  (data.canViewParkLedger?'<div class="s4-kpi"><small>Park till</small><strong>'+stage5Money(data.till)+'</strong></div><div class="s4-sectiontitle">Ticket sales ledger <small>'+tickets.length+' SHOWN</small></div>'+ticketHistory:'')+
+  '<div class="s4-sectiontitle">Completed visitor support <small>'+history.length+' RECORDS</small></div>'+helpHistory+
+  '<button class="subtle" data-park-refresh="1">Refresh park services</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-hospital-state',e=>{if(hospitalMenuOpen)renderHospitalConsole(e.detail);});
+window.addEventListener('nrs-hospital-action-result',e=>{hospitalFeedback=e.detail||null;if(hospitalMenuOpen){renderHospitalConsole(window.NRS?.hospitalState||{});window.NRS?.getHospitalState(stage5HospitalId);}});
+window.addEventListener('nrs-hospital-request-notice',()=>{if(hospitalMenuOpen)window.NRS?.getHospitalState(stage5HospitalId);});
+window.addEventListener('nrs-hospital-pharmacy-notice',()=>{if(hospitalMenuOpen)window.NRS?.getHospitalState(stage5HospitalId);});
+window.addEventListener('nrs-park-state',e=>{if(parkMenuOpen)renderParkConsole(e.detail);});
+window.addEventListener('nrs-park-action-result',e=>{parkFeedback=e.detail||null;if(parkMenuOpen){renderParkConsole(window.NRS?.parkState||{});window.NRS?.getParkState();}});
+window.addEventListener('nrs-park-request-notice',()=>{if(parkMenuOpen)window.NRS?.getParkState();});
+window.addEventListener('nrs-park-ticket-sale-notice',()=>{if(parkMenuOpen)window.NRS?.getParkState();});
+modal.addEventListener('change',e=>{
+ const t=e.target;
+ if(t?.id==='s5HospitalChoice'){stage5HospitalId=t.value==='hospital-princess'?'hospital-princess':'hospital-main';hospitalFeedback=null;window.NRS?.getHospitalState(stage5HospitalId);}
+});
+
 window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});
 const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
 modal.addEventListener('click',e=>{
@@ -3467,6 +3592,29 @@ modal.addEventListener('click',e=>{
  if(d.openWorkplaces){openWorkplaceMenu();return;}
  if(d.marketOpen){openMarketConsole();return;}
  if(d.bankOpen){openBankConsole();return;}
+ if(d.hospitalOpen){openHospitalConsole(d.hospitalOpen);return;}
+ if(d.parkOpen){openParkConsole();return;}
+ if(d.hospitalRefresh){window.NRS?.getHospitalState(stage5HospitalId);return;}
+ if(d.parkRefresh){window.NRS?.getParkState();return;}
+ if(d.hospitalRequestCare){hospitalFeedback=null;N.requestHospitalCare(stage5HospitalId);return;}
+ if(d.hospitalRequestAmbulance){hospitalFeedback=null;N.requestAmbulance(stage5HospitalId);return;}
+ if(d.hospitalTriage){hospitalFeedback=null;N.triageHospitalRequest(stage5HospitalId,d.hospitalTriage);return;}
+ if(d.hospitalDispatch){hospitalFeedback=null;N.dispatchHospitalAmbulance(stage5HospitalId,d.hospitalDispatch);return;}
+ if(d.hospitalTreat){hospitalFeedback=null;N.completeHospitalTreatment(stage5HospitalId,d.hospitalTreat);return;}
+ if(d.hospitalBuy){
+  const workerId=modal.querySelector('#s5HospitalWorker')?.value||'';
+  const quantity=Number(modal.querySelector('#s5HospitalQuantity')?.value);
+  if(!workerId){hospitalFeedback={ok:false,message:'Choose a medical worker who is at this hospital.'};renderHospitalConsole();return;}
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>10){hospitalFeedback={ok:false,message:'Enter a whole medicine quantity between 1 and 10.'};renderHospitalConsole();return;}
+  hospitalFeedback=null;N.purchaseHospitalMedicine(stage5HospitalId,workerId,d.hospitalBuy,quantity);return;
+ }
+ if(d.parkTicket){
+  const sellerId=modal.querySelector('#s5ParkSeller')?.value||'';
+  if(!sellerId){parkFeedback={ok:false,message:'Choose an on-duty ticket seller at City Park.'};renderParkConsole();return;}
+  parkFeedback=null;N.buyParkTicket(sellerId);return;
+ }
+ if(d.parkHelp){parkFeedback=null;N.requestParkHelp(d.parkHelp);return;}
+ if(d.parkResolve){parkFeedback=null;N.resolveParkHelpRequest(d.parkResolve);return;}
  if(d.marketRefresh){N.getMarketState();return;}
  if(d.bankRefresh){N.getBankState();return;}
  if(d.marketCommission){marketFeedback=null;N.claimMarketCommission();return;}
