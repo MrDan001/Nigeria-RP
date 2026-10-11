@@ -1,18 +1,21 @@
 # Stage 15 — Additional Cities & Inter-City Travel
 
-Status: IN PROGRESS
+Status: COMPLETE FOR AUTOMATED RELEASE GATE
 
 Implemented on `main`:
-- authoritative catalogue for Port Harcourt plus Aba, Owerri, Uyo, Warri, Yenagoa and Benin City
-- deterministic inter-city route catalogue with distance, travel duration, capacity and Naira fares
-- server-side fare calculation
-- server-side validation for passenger limits, balance, route validity and replayed request IDs
-- deterministic Stage 15 regression tests
-- Stage 15 test wired into Game Server CI
+- authoritative seven-city catalogue: Port Harcourt, Aba, Owerri, Uyo, Warri, Yenagoa and Benin City
+- 20 directed inter-city routes, including return journeys, with distance, duration, capacity and Naira fares
+- server-authoritative booking and balance deduction through the shared money-mutation queue
+- passenger, fare, current-city/route and replay-request validation
+- durable account city selection in PostgreSQL and file-store fallback
+- durable Stage 15 travel ledger, replay protection, rollback on failed persistence and recent-trip history
+- city-scoped snapshots and player-join/leave broadcasts to keep city instances separate
+- mobile-friendly travel terminal, fare/route display, arrival transition, saved-city resume and cash refresh
+- deterministic Stage 15 regression tests registered in Game Server CI
+- Stage 1–16 tests, server/client type and production builds passed on the Stage 16 pre-landmark checkpoint; final checkpoint rerun remains under verification
+- Railway production deployment succeeded on the Stage 16 checkpoint before the latest city-scene polish
 
-Current release gate:
-- CI must pass Stage 1–15 regression, typecheck and builds
-- Railway deployment must become healthy on the Stage 15 checkpoint
-- live browser/client travel UI and actual city scene transitions still need integration before Stage 15 can be marked complete
+Manual acceptance still outstanding:
+- real-device Android end-to-end travel, reconnect and persistence walkthrough
 
-Do not mark Stage 15 complete until those integration and release checks are green.
+This stage is closed for automated release sequencing. Do not claim the manual mobile walkthrough has been performed until it is actually tested on a device.
