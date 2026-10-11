@@ -17,6 +17,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('services/game-server/src/server.ts');s=p.read_text()
+          q=Path('services/game-server/src/stage11.ts');t=q.read_text();t=t.replace('residentIds.map(cleanId)','residentIds.map((residentId) => cleanId(residentId))');q.write_text(t)
           if 'from "./stage11"' not in s:
             i=s.index('import { TRANSPORT_WORKPLACE_ID')
             s=s[:i]+'import { STAGE11_BUSINESSES, STAGE11_SERVICES, STAGE11_FUEL_PRICE_PER_LITRE, assignStage11CourierDelivery, assignStage11RepairCall, assignStage11ServiceOrder, buyStage11Fuel, completeStage11CourierDelivery, completeStage11RepairCall, completeStage11ServiceOrder, createStage11State, normalizeStage11State, openStage11CourierDelivery, openStage11RepairCall, openStage11ServiceOrder, payStage11UtilityBill, pickupStage11CourierDelivery, registerStage11Property, registerStage11Vehicle, type Stage11Actor, type Stage11Property } from "./stage11";\n'+s[i:]
@@ -49,7 +50,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add services/game-server/src/server.ts
+          git add services/game-server/src/server.ts services/game-server/src/stage11.ts
           git diff --cached --quiet && exit 0
           git commit -m "Stage 11: complete live gameplay integration [skip ci]"
           git push origin main
