@@ -60,8 +60,11 @@ import {
   BANK_WORKPLACE_ID,
   MARKET_PRODUCTS,
   MARKET_RANKS,
+  MARKET_RESTOCK_RATE,
+  MAX_MARKET_STOCK,
   MARKET_WORKPLACE_ID,
   normalizeStage4State,
+  restockMarketStock,
   settleBankTransaction,
   settleMarketSale,
 } from "./stage4";
@@ -644,7 +647,11 @@ function marketStatePayload(session: Session) {
     onDuty: member && employment?.onDuty === true,
     uniform: member && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID,
     canSell: member && rank >= 1 && rank <= MARKET_RANKS.length &&
-      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID,
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID && atMarket,
+    canRestock: member && rank >= 5 && rank <= MARKET_RANKS.length &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID && atMarket,
+    restockRate: MARKET_RESTOCK_RATE,
+    maxStock: MAX_MARKET_STOCK,
     commissionBalance: stage4State.market.commissions[session.player.id] ?? 0,
     canCollectCommission: (stage4State.market.commissions[session.player.id] ?? 0) > 0,
     till: manager || isFactionAdmin(session) ? stage4State.market.till : null,
@@ -1947,11 +1954,13 @@ wss.on("connection", (socket) => {
       if (message.type === "claimMarketCommission") {
         await withMoneyMutation(async () => {
           const employment = session.player.life.employment;
+          const workplace = findWorkplace(MARKET_WORKPLACE_ID);
           const fail = (text: string) => send(socket, {
             type: "marketCommissionResult", ok: false, message: text,
           });
           if (employment?.workplaceId !== MARKET_WORKPLACE_ID || employment.onDuty !== true ||
-              employment.uniformWorkplaceId !== MARKET_WORKPLACE_ID) {
+              employment.uniformWorkplaceId !== MARKET_WORKPLACE_ID || !workplace ||
+              workplaceDistance(session, workplace) > 24) {
             fail("Clock in and wear your market uniform before collecting commission.");
             return;
           }
@@ -1991,6 +2000,81 @@ wss.on("connection", (socket) => {
             message: "Collected ₦" + amount.toLocaleString("en-NG") + " in market commission.",
           });
           send(socket, marketStatePayload(session));
+        });
+        return;
+      }
+
+      if (message.type === "marketRestock") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const productId = String(message.productId ?? "");
+          const quantity = Math.floor(Number(message.quantity));
+          const employment = session.player.life.employment;
+          const workplace = findWorkplace(MARKET_WORKPLACE_ID);
+          const fail = (messageText: string) => send(socket, {
+            type: "marketRestockResult", requestId, ok: false, message: messageText,
+          });
+
+          if (!requestId || !workplace || employment?.workplaceId !== MARKET_WORKPLACE_ID ||
+              !Number.isInteger(employment.rank) || employment.rank < 5 ||
+              employment.rank > MARKET_RANKS.length || employment.onDuty !== true ||
+              employment.uniformWorkplaceId !== MARKET_WORKPLACE_ID ||
+              workplaceDistance(session, workplace) > 24) {
+            fail("Market stock restocking requires an on-duty Market Supervisor or Market Chairman at Mile 1 Market.");
+            return;
+          }
+
+          const draft = normalizeStage4State(stage4State);
+          const idempotencyKey = createHash("sha256")
+            .update("market-restock|" + session.player.id + "|" + requestId)
+            .digest("hex");
+          const result = restockMarketStock({
+            state: draft.market,
+            productId,
+            quantity,
+            managerRank: employment.rank,
+            requestId,
+            idempotencyKey,
+          });
+          if (!result.ok) {
+            const reasons: Record<string, string> = {
+              unauthorized_manager: "Only a Market Supervisor or Market Chairman can restock inventory.",
+              unknown_product: "Choose a product from the market catalogue.",
+              invalid_quantity: "Restock quantity must be between 1 and 100 units.",
+              stock_limit: "That restock would exceed the maximum stock capacity of " + MAX_MARKET_STOCK + " units.",
+              insufficient_till: "The market till does not have enough funds to purchase that stock.",
+              balance_limit: "The market till reached its safe currency limit.",
+              invalid_request_id: "The restock reference is invalid.",
+              duplicate_restock: "This restock request has already been processed.",
+            };
+            fail(reasons[result.reason] ?? "The market restock was rejected.");
+            send(socket, marketStatePayload(session));
+            return;
+          }
+
+          const previousState = stage4State;
+          stage4State = draft;
+          try {
+            await saveStage4State();
+          } catch (error) {
+            stage4State = previousState;
+            try { await saveStage4State(previousState); } catch (rollbackError) {
+              console.error("market-restock-rollback", rollbackError);
+            }
+            console.error("market-restock-persist", error);
+            fail("The restock could not be saved. No stock was added; please try again.");
+            return;
+          }
+
+          send(socket, {
+            ...marketStatePayload(session),
+            type: "marketRestockResult",
+            requestId,
+            ok: true,
+            message: "Restocked " + result.result.productName + " × " + result.result.quantity +
+              " for " + "₦" + result.result.totalCost.toLocaleString("en-NG") + ".",
+            receipt: result.result,
+          });
         });
         return;
       }
