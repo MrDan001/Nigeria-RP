@@ -767,6 +767,234 @@ function bankStatePayload(session: Session) {
 }
 
 
+function stage5PrivateContext(session: Session) {
+  return session.inHome || session.inStaffRoom || session.inShopInterior ||
+    session.inApartmentInterior || session.inCarpark;
+}
+
+function stage5AtWorkplace(session: Session, workplaceId: string) {
+  const workplace = findWorkplace(workplaceId);
+  return !!workplace && !stage5PrivateContext(session) && workplaceDistance(session, workplace) <= 24;
+}
+
+function stage5PlayerAtHospital(session: Session, hospitalId: string) {
+  return stage5AtWorkplace(session, hospitalId);
+}
+
+function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
+  const employment = session.player.life.employment ?? null;
+  const preferred = isHospitalId(String(requestedHospitalId ?? "")) ? String(requestedHospitalId) :
+    (employment && isHospitalId(employment.workplaceId) ? employment.workplaceId : "");
+  const hospitalId = isHospitalId(preferred) ? preferred : "hospital-main";
+  const workplace = findWorkplace(hospitalId)!;
+  const member = employment?.workplaceId === hospitalId;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const onDuty = member && employment?.onDuty === true;
+  const uniform = member && employment?.uniformWorkplaceId === hospitalId;
+  const atHospital = stage5AtWorkplace(session, hospitalId);
+  const activePatientRequests = stage5State.hospital.requests
+    .filter(request => request.patientId === session.player.id &&
+      (request.status === "open" || request.status === "dispatched"))
+    .slice(-6).reverse()
+    .map(request => ({
+      ...request,
+      hospitalName: findWorkplace(request.hospitalId)?.name ?? request.hospitalId,
+      workerName: request.assignedWorkerId ? (players.get(request.assignedWorkerId)?.player.name ?? request.assignedWorkerId.slice(0, 8)) : null,
+    }));
+  const activeStaffRequests = member && onDuty && uniform && hospitalRankCanTriage(rank)
+    ? stage5State.hospital.requests.filter(request =>
+        request.hospitalId === hospitalId && (request.status === "open" || request.status === "dispatched"))
+      .slice(-15).reverse().map(request => {
+        const patient = players.get(request.patientId);
+        const patientAtHospital = !!patient && stage5PlayerAtHospital(patient, hospitalId);
+        const distanceToPatient = patient ? Math.hypot(session.player.x - patient.player.x, session.player.z - patient.player.z) : null;
+        return {
+          ...request,
+          patientName: patient?.player.name ?? request.patientId.slice(0, 8),
+          patientHp: patient?.player.hp ?? null,
+          patientX: patient?.player.x ?? request.patientX,
+          patientZ: patient?.player.z ?? request.patientZ,
+          patientAtHospital,
+          patientOnline: !!patient,
+          distanceToPatient: distanceToPatient === null ? null : Number(distanceToPatient.toFixed(1)),
+          assignedWorkerName: request.assignedWorkerId
+            ? (players.get(request.assignedWorkerId)?.player.name ?? request.assignedWorkerId.slice(0, 8))
+            : null,
+          canTriage: request.kind === "care" && request.status === "open" && atHospital && patientAtHospital &&
+            hospitalRankCanTriage(rank) && !request.triagedAt,
+          canDispatch: request.kind === "ambulance" && request.status === "open" && atHospital &&
+            hospitalRankCanDispatch(rank),
+          canTreat: request.kind === "care" && request.status === "open" && atHospital && patientAtHospital &&
+            hospitalRankCanTreat(rank),
+          canFieldTreat: request.kind === "ambulance" && request.status === "dispatched" &&
+            request.assignedWorkerId === session.player.id && distanceToPatient !== null &&
+            distanceToPatient <= 8 && !!patient && !stage5PrivateContext(patient) &&
+            !stage5PrivateContext(session) && hospitalRankCanTreat(rank),
+        };
+      })
+    : [];
+  const availableWorkers = [...players.values()]
+    .filter(candidate => candidate.player.life.employment?.workplaceId === hospitalId &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === hospitalId &&
+      Number(candidate.player.life.employment.rank) >= 2 &&
+      !stage5PrivateContext(candidate))
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: workplaceRankTitle(hospitalId, candidate.player.life.employment!.rank),
+      atHospital: stage5PlayerAtHospital(candidate, hospitalId),
+      x: Number(candidate.player.x.toFixed(1)),
+      z: Number(candidate.player.z.toFixed(1)),
+    }))
+    .sort((a, b) => Number(b.atHospital) - Number(a.atHospital));
+  const manager = member && rank >= 5;
+  const history = stage5State.hospital.history
+    .filter(record => isFactionAdmin(session) || manager ||
+      record.patientId === session.player.id || record.workerId === session.player.id)
+    .slice(-12).reverse()
+    .map(record => ({
+      ...record,
+      patientName: players.get(record.patientId)?.player.name ?? record.patientId.slice(0, 8),
+      workerName: players.get(record.workerId)?.player.name ?? record.workerId.slice(0, 8),
+    }));
+  const pharmacyHistory = stage5State.hospital.pharmacyHistory
+    .filter(receipt => isFactionAdmin(session) || manager ||
+      receipt.customerId === session.player.id || receipt.workerId === session.player.id)
+    .slice(-10).reverse()
+    .map(receipt => ({
+      ...receipt,
+      customerName: players.get(receipt.customerId)?.player.name ?? receipt.customerId.slice(0, 8),
+      workerName: players.get(receipt.workerId)?.player.name ?? receipt.workerId.slice(0, 8),
+    }));
+  const medicines = HOSPITAL_MEDICINES.map(medicine => ({
+    ...medicine,
+    stock: stage5State.hospital.pharmacyStock[hospitalId + ":" + medicine.id] ?? 0,
+  }));
+  const openCareRequest = stage5State.hospital.requests.some(request =>
+    request.patientId === session.player.id && request.kind === "care" &&
+    (request.status === "open" || request.status === "dispatched"));
+  const openAmbulanceRequest = stage5State.hospital.requests.some(request =>
+    request.patientId === session.player.id && request.kind === "ambulance" &&
+    (request.status === "open" || request.status === "dispatched"));
+  return {
+    type: "hospitalState",
+    hospitalId,
+    hospitalName: workplace.name,
+    hospitalOptions: HOSPITAL_IDS.map(id => ({ id, name: findWorkplace(id)?.name ?? id })),
+    atHospital,
+    rank,
+    rankTitle: member ? workplaceRankTitle(hospitalId, rank) : "",
+    onDuty,
+    uniform,
+    canTriage: member && hospitalRankCanTriage(rank) && onDuty && uniform && atHospital,
+    canTreat: member && hospitalRankCanTreat(rank) && onDuty && uniform,
+    canDispatch: member && hospitalRankCanDispatch(rank) && onDuty && uniform && atHospital,
+    canWorkPharmacy: member && hospitalRankCanTriage(rank) && onDuty && uniform && atHospital,
+    canRequestCare: atHospital && session.player.hp < 100 && !openCareRequest,
+    canRequestAmbulance: !stage5PrivateContext(session) && session.player.hp <= 80 && session.player.hp < 100 && !openAmbulanceRequest,
+    hp: session.player.hp,
+    cash: session.player.cash,
+    availableWorkers,
+    patientRequests: activePatientRequests,
+    staffRequests: activeStaffRequests,
+    medicines,
+    pharmacyTill: manager || isFactionAdmin(session) ? stage5State.hospital.pharmacyTill[hospitalId] : null,
+    history,
+    pharmacyHistory,
+    canViewHospitalLedger: manager || isFactionAdmin(session),
+  };
+}
+
+function parkStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const member = employment?.workplaceId === PARK_WORKPLACE_ID;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const onDuty = member && employment?.onDuty === true;
+  const uniform = member && employment?.uniformWorkplaceId === PARK_WORKPLACE_ID;
+  const workplace = findWorkplace(PARK_WORKPLACE_ID)!;
+  const atPark = stage5AtWorkplace(session, PARK_WORKPLACE_ID);
+  const today = clock.dayKey();
+  const currentTicket = stage5State.park.ticketsByVisitor[session.player.id];
+  const ticket = currentTicket?.dayKey === today ? currentTicket : null;
+  const availableWorkers = [...players.values()]
+    .filter(candidate => candidate.player.life.employment?.workplaceId === PARK_WORKPLACE_ID &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === PARK_WORKPLACE_ID &&
+      !stage5PrivateContext(candidate) && stage5AtWorkplace(candidate, PARK_WORKPLACE_ID))
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: workplaceRankTitle(PARK_WORKPLACE_ID, candidate.player.life.employment!.rank),
+    }));
+  const visitorRequests = stage5State.park.helpRequests
+    .filter(request => request.visitorId === session.player.id && request.status === "open")
+    .slice(-5).reverse()
+    .map(request => ({ ...request, visitorName: session.player.name }));
+  const staffRequests = member && parkRankCanHelpVisitors(rank) && onDuty && uniform && atPark
+    ? stage5State.park.helpRequests.filter(request => request.status === "open")
+      .filter(request => {
+        const visitor = players.get(request.visitorId);
+        return !!visitor && stage5AtWorkplace(visitor, PARK_WORKPLACE_ID);
+      }).slice(-12).reverse().map(request => ({
+        ...request,
+        visitorName: players.get(request.visitorId)?.player.name ?? request.visitorId.slice(0, 8),
+        visitorHp: players.get(request.visitorId)?.player.hp ?? null,
+        distanceToVisitor: players.get(request.visitorId)
+          ? Number(Math.hypot(session.player.x - players.get(request.visitorId)!.player.x,
+              session.player.z - players.get(request.visitorId)!.player.z).toFixed(1))
+          : null,
+      }))
+    : [];
+  const manager = member && rank >= 5;
+  const tickets = stage5State.park.ticketHistory
+    .filter(item => isFactionAdmin(session) || manager ||
+      item.visitorId === session.player.id || item.sellerId === session.player.id)
+    .slice(-12).reverse()
+    .map(item => ({
+      ...item,
+      visitorName: players.get(item.visitorId)?.player.name ?? item.visitorId.slice(0, 8),
+      sellerName: players.get(item.sellerId)?.player.name ?? item.sellerId.slice(0, 8),
+    }));
+  const history = stage5State.park.history
+    .filter(record => isFactionAdmin(session) || manager ||
+      record.visitorId === session.player.id || record.workerId === session.player.id)
+    .slice(-10).reverse()
+    .map(record => ({
+      ...record,
+      visitorName: players.get(record.visitorId)?.player.name ?? record.visitorId.slice(0, 8),
+      workerName: players.get(record.workerId)?.player.name ?? record.workerId.slice(0, 8),
+    }));
+  const openHelp = stage5State.park.helpRequests.some(request =>
+    request.visitorId === session.player.id && request.status === "open");
+  return {
+    type: "parkState",
+    workplaceId: PARK_WORKPLACE_ID,
+    workplaceName: workplace.name,
+    atPark,
+    rank,
+    rankTitle: member ? workplaceRankTitle(PARK_WORKPLACE_ID, rank) : "",
+    onDuty,
+    uniform,
+    canSellTickets: member && parkRankCanSellTickets(rank) && onDuty && uniform && atPark,
+    canHelpVisitors: member && parkRankCanHelpVisitors(rank) && onDuty && uniform && atPark,
+    canRequestHelp: atPark && !openHelp,
+    cash: session.player.cash,
+    ticketPrice: PARK_TICKET_PRICE,
+    ticket,
+    availableWorkers,
+    visitorRequests,
+    staffRequests,
+    tickets,
+    history,
+    till: manager || isFactionAdmin(session) ? stage5State.park.till : null,
+    canViewParkLedger: manager || isFactionAdmin(session),
+    helpCategories: PARK_HELP_CATEGORIES,
+  };
+}
+
 function hasWorkplaceBossPermission(session: Session, workplaceId: string) {
   return world.bosses[workplaceId] === session.player.id;
 }
