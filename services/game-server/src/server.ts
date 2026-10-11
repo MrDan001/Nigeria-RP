@@ -2015,7 +2015,8 @@ wss.on("connection", (socket) => {
         await withMoneyMutation(async () => {
           const requestId = String(message.requestId ?? "").trim().slice(0, 100);
           const productId = String(message.productId ?? "");
-          const quantity = Math.floor(Number(message.quantity));
+          // Do not round a client-supplied fractional restock quantity down.
+          const quantity = Number(message.quantity);
           const employment = session.player.life.employment;
           const workplace = findWorkplace(MARKET_WORKPLACE_ID);
           const fail = (messageText: string) => send(socket, {
@@ -2099,7 +2100,8 @@ wss.on("connection", (socket) => {
           const customerId = String(message.customerId ?? "").trim().slice(0, 100);
           const customer = players.get(customerId);
           const transactionType = String(message.transactionType ?? "");
-          const amount = Math.floor(Number(message.amount));
+          // Preserve the supplied numeric value; the domain engine must reject fractional money.
+          const amount = Number(message.amount);
           const employment = session.player.life.employment;
           const workplace = findWorkplace(BANK_WORKPLACE_ID);
           const fail = (text: string) => send(socket, {
