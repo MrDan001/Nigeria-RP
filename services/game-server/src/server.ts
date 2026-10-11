@@ -1913,7 +1913,6 @@ wss.on("connection", (socket) => {
             return;
           }
 
-          const product = MARKET_PRODUCTS.find((item) => item.id === result.result.productId);
           const receipt = {
             ...result.result,
             productName: product?.name ?? result.result.productId,
