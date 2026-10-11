@@ -27,7 +27,7 @@ Some Stage 4 groundwork is already present in source (bank transfers/withdrawal 
 
 ## Automated implementation updates — 11 October 2026
 
-The current Stage 3 closeout adds durable recent paid-task receipts to each account's saved life record (with a bounded history), shows those receipts in the Careers panel, and records applications, hires, departures, promotions/demotions, dismissals and boss replacements in the bounded persistent world audit trail. Existing saves without a work history normalize to an empty history. The history is returned per authenticated player snapshot and is not used as authority for the payout itself; the server still validates and applies the payout.
+The current Stage 3 closeout adds durable recent paid-task receipts to each account's saved life record (bounded to 50 records), shows those receipts in the Careers panel, and records applications, hires, departures, promotions/demotions, dismissals and boss replacements in a separate persistent workplace audit trail (bounded to 500 entries). The privileged admin audit remains separately capped at 200 entries so routine career activity cannot evict admin-access records. Existing saves without a work history or workplace audit normalize safely. A player's receipts are returned only in that authenticated player's snapshot and are not used as authority for the payout itself; the server still validates and applies the payout.
 
 The Stage 2 CI regression mismatch was a stale assertion: the current authoritative home catalogue has 33 entries. The fix updates the expected count to 33; it deliberately does not remove or reposition any housing/building geometry, and does not close the outstanding Stage 2 live-route checks.
 
