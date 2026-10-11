@@ -79,6 +79,17 @@ test("market rejects forged seller rank, unknown goods, invalid quantity and ins
   assert.equal(settleMarketSale({ state, orderId: "e", customer, sellerId: "seller", sellerRank: 2, productId: "rice-5kg", quantity: 1 }).ok, false);
 });
 
+test("market idempotency can be scoped to the authenticated customer", () => {
+  const state = createMarketState();
+  const one = { cash: 20_000, bank: 0 };
+  const two = { cash: 20_000, bank: 0 };
+  const first = settleMarketSale({ state, orderId: "client-generated-id", idempotencyKey: "customer-one-hash", customer: one, customerId: "customer-one", sellerId: "seller", sellerRank: 1, productId: "bread", quantity: 1 });
+  const second = settleMarketSale({ state, orderId: "client-generated-id", idempotencyKey: "customer-two-hash", customer: two, customerId: "customer-two", sellerId: "seller", sellerRank: 1, productId: "bread", quantity: 1 });
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+  assert.equal(state.history.length, 2);
+});
+
 test("replaying the same market order cannot create a second sale or commission", () => {
   const state = createMarketState();
   const customer = { cash: 50_000, bank: 0 };
@@ -116,6 +127,17 @@ test("bank withdrawal moves bank balance to cash and records the teller", () => 
   assert.equal(result.result.transaction.tellerId, "teller");
 });
 
+test("bank transaction identifiers can be scoped to the authenticated teller", () => {
+  const state = createBankState();
+  const one = { cash: 20_000, bank: 0 };
+  const two = { cash: 20_000, bank: 0 };
+  const first = settleBankTransaction({ state, requestId: "same-client-id", idempotencyKey: "teller-one-hash", customerId: "customer-one", tellerId: "teller-one", tellerRank: 2, customer: one, type: "deposit", amount: 5_000, now: 1_760_000_000_000 });
+  const second = settleBankTransaction({ state, requestId: "same-client-id", idempotencyKey: "teller-two-hash", customerId: "customer-two", tellerId: "teller-two", tellerRank: 2, customer: two, type: "deposit", amount: 5_000, now: 1_760_000_000_001 });
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+  assert.notEqual(first.ok && first.result.transaction.id, second.ok && second.result.transaction.id);
+});
+
 test("bank rejects trainee, self-service, forged amount and insufficient funds", () => {
   assert.equal(canExecuteBankTransaction(1), false);
   assert.equal(canExecuteBankTransaction(2), true);
@@ -137,6 +159,21 @@ test("replaying the same bank request cannot move money twice", () => {
   assert.equal(second.ok, false);
   assert.deepEqual(customer, afterFirst);
   assert.equal(state.history.length, 1);
+});
+
+test("market and bank reject balances that would overflow safe integer money", () => {
+  const market = createMarketState();
+  market.till = Number.MAX_SAFE_INTEGER;
+  const seller = { cash: 50_000, bank: 0 };
+  const sale = settleMarketSale({ state: market, orderId: "overflow-sale", customer: seller, sellerId: "seller", sellerRank: 2, productId: "bread", quantity: 1 });
+  assert.equal(sale.ok, false);
+  assert.equal(seller.cash, 50_000);
+
+  const bank = createBankState();
+  const customer = { cash: 10_000, bank: Number.MAX_SAFE_INTEGER };
+  const transaction = settleBankTransaction({ state: bank, requestId: "overflow-deposit", customerId: "customer", tellerId: "teller", tellerRank: 2, customer, type: "deposit", amount: 1_000, now: 1_760_000_000_000 });
+  assert.equal(transaction.ok, false);
+  assert.deepEqual(customer, { cash: 10_000, bank: Number.MAX_SAFE_INTEGER });
 });
 
 test("legacy or malformed Stage 4 state normalizes to safe bounded values", () => {
