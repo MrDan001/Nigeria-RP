@@ -485,6 +485,8 @@ function hasParkGateAccessClient(){
  const pass=n.parkState?.ticket;
  const today=n.today||n.parkState?.today;
  if(pass?.dayKey && (!today || pass.dayKey===today))return true;
+ const parkState=n.parkState||{};
+ if(parkState.workplaceId==='park-main'&&Number(parkState.rank)>=1&&Number(parkState.rank)<=6&&parkState.onDuty===true&&parkState.uniform===true)return true;
  const employment=n.life?.employment||{};
  return employment.workplaceId==='park-main'&&employment.onDuty===true&&employment.uniformWorkplaceId==='park-main';
 }
