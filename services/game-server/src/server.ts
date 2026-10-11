@@ -13,6 +13,7 @@ import {
   BOSS_RANK,
   MAX_STAFF_RANK,
   MAX_WORK_HISTORY,
+  RANK_MULTIPLIERS,
   FACTIONS,
   WORKPLACES,
   WORK_TASK_COOLDOWN_MS,
@@ -482,6 +483,7 @@ function workplaceSnapshot(session: Session) {
     const isMember = employment?.workplaceId === workplace.id;
     return {
       ...workplace,
+      rankMultipliers: [...RANK_MULTIPLIERS],
       faction,
       rankTitle: isMember ? workplaceRankTitle(workplace.id, employment?.rank ?? 1) : "",
       employed: isMember,
