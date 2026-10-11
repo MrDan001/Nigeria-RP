@@ -3493,7 +3493,12 @@ function renderHospitalConsole(data){
  const workerOptions=pharmacyWorkers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Medical worker')+'</option>').join('');
  const workersHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Hospital worker')+' · '+(w.atHospital?'At this hospital':'On duty · away from this hospital')+'</small></span><strong>'+(w.atHospital?'AVAILABLE':'RESPONDER')+'</strong></div>').join('')+'</div>':'<div class="s4-empty">No hospital workers are currently available. Staff must clock in and wear the hospital uniform to appear here.</div>';
  const ownRequests=Array.isArray(data.patientRequests)?data.patientRequests:[];
- const ownRequestsHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>'<div class="s4-row"><span><b>'+(r.kind==='ambulance'?'🚑 Ambulance request':'🩺 Care request')+'</b><small>'+safeText(r.hospitalName||stage5HospitalTitle(r.hospitalId))+' · Reference '+safeText(r.id)+'</small><small>Status: '+safeText(r.status)+(r.workerName?' · Assigned to '+safeText(r.workerName):' · Waiting for a worker')+'</small></span><strong>'+safeText(r.status.toUpperCase())+'</strong></div>').join('')+'</div>':'<div class="s4-empty">You have no open care or ambulance requests. Ask for help when you need it.</div>';
+ const ownRequestsHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>{
+  const nextStep=r.kind==='ambulance'
+   ?(r.status==='dispatched'?'Ambulance assigned · '+safeText(r.workerName||'Responder on route'):'Waiting for an authorised dispatcher')
+   :(r.triagedAt?'Triage completed by '+safeText(r.triageWorkerName||'medical staff')+' · awaiting Nurse or Doctor':'Waiting for patient triage');
+  return '<div class="s4-row"><span><b>'+(r.kind==='ambulance'?'🚑 Ambulance request':'🩺 Care request')+'</b><small>'+safeText(r.hospitalName||stage5HospitalTitle(r.hospitalId))+' · Reference '+safeText(r.id)+'</small><small>'+nextStep+'</small></span><strong>'+safeText(r.status.toUpperCase())+'</strong></div>';
+ }).join('')+'</div>':'<div class="s4-empty">You have no open care or ambulance requests. Ask for help when you need it.</div>';
  const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
  const staffRequestsHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>{
   let actions='';
