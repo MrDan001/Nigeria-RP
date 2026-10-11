@@ -157,18 +157,17 @@ Acceptance: customers receive the right goods; cash, bank balances, stock and co
 - Hospital ranks: Orderly, Nurse Aide, Nurse, Senior Nurse, Doctor, Chief Medical Director.
 - Park ranks: Cleaner, Gate Attendant, Ticket Seller, Ranger, Operations Officer, Park Director.
 - Hospital panels allow patients to request care or an ambulance, follow status, meet available staff and use a staffed pharmacy; workers receive an on-site queue and must triage before regular treatment. Ambulance dispatch requires a Nurse-or-higher responder, and field treatment requires the assigned worker to reach the patient in a public area.
-- City Park visitors can buy a daily pass from a real on-duty ticket seller, request help/lost-and-found/first-aid assistance, and receive completion notices. Park workers receive the visitor-request queue. The current daily pass is a receipt-backed ticket; physical gate enforcement is still open.
+- City Park visitors can buy a daily pass from a real on-duty ticket seller, request help/lost-and-found/first-aid assistance, and receive completion notices. Park workers receive the visitor-request queue. The receipt-backed pass opens the visible client gate, and server movement validation requires a current-day ticket to enter the bounded grounds; park staff on duty and in uniform receive staff access.
 - Hospital treatment, pharmacy sales, park tickets and assistance requests are server-authoritative, persist through the existing store and have deterministic Stage 5 tests. Old contextual treatment that bypassed the hospital request workflow is disabled.
 - Existing park work tasks (groundskeeping/visitor assistance) use the shared employment system.
 
 Acceptance:
 - [x] Server domain and account-scoped hospital/park workflows are implemented.
-- [x] Game Server CI passed on latest server commit `1736218ab944adeaa4b31af6b2c6da5122ffcbd8`, including Stage 1–5 regression, typecheck and builds.
-- [x] Browser Client Build and Android debug APK build passed on the latest client commit `96b956208aa7d50b3e8d64032542f64ef83caf8a`.
-- [x] Railway production deployed the latest server commit; the service is online and the configured `/` health check succeeded.
-- [ ] Solo Android visual check of patient status, triage-to-treatment flow, pharmacy receipt, park visitor-pass and help panels.
-- [ ] Implement and test physical park-gate enforcement for daily passes.
-- [ ] Verify homeless respawn routing to a designated public park/parking point without deleting property.
+- [x] Game Server CI passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`, including Stage 1–5 regression, typecheck and builds.
+- [x] Browser Client Build and Android debug APK build passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`.
+- [x] Railway production deployed commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`; service is online and the configured `/` health check succeeded.
+- [x] Server-authoritative daily park-pass entry, visible gate/collision and public-gate homeless respawn are implemented; respawn does not clear the home/lease record.
+- [ ] Solo Android visual check of patient status, triage-to-treatment flow, pharmacy receipt, park gate access, visitor pass and help panels.
 - [ ] User accepts Stage 5.
 
 ### Stage 6 — Rivers State government and civic finance
