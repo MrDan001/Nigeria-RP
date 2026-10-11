@@ -47,6 +47,12 @@ test("market supervisors and chairmen can restock from the market till", () => {
   assert.equal(result.result.totalCost, 15_000);
   assert.equal(result.result.remainingStock, 70);
   assert.equal(state.till, 85_000);
+  assert.equal(state.restockHistory.length, 1);
+  assert.equal(state.restockHistory[0].managerId, "manager");
+  assert.equal(state.restockHistory[0].totalCost, 15_000);
+  const restored = normalizeStage4State({ market: state }).market;
+  assert.equal(restored.restockHistory.length, 1);
+  assert.equal(restored.restockHistory[0].requestId, "restock-a");
   assert.equal(restockMarketStock({ state, productId: "bread", quantity: 10, managerRank: 5, requestId: "restock-a", idempotencyKey: "restock-hash-a" }).ok, false);
   assert.equal(restockMarketStock({ state, productId: "bread", quantity: 1, managerRank: 4, requestId: "restock-b" }).ok, false);
   assert.equal(restockMarketStock({ state, productId: "bread", quantity: 500, managerRank: 6, requestId: "restock-c" }).ok, false);
