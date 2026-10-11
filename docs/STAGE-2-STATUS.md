@@ -4,7 +4,7 @@
 
 ## Implemented in the current source
 
-- Places → Homes uses the server-authoritative catalogue of 30 rentable homes with rental prices, district, vacancy/occupancy and rent actions. The client-side visual plot layout currently defines 33 exterior preview slots; the additional client-only slots must not be described as independently rentable until their IDs and coordinates are represented in the server catalogue and its tests.
+- Places → Homes uses a server-authoritative catalogue of 33 rentable homes with rental prices, district, vacancy/occupancy and rent actions. The browser map also contains 33 residential exterior slots. The current catalogue-count regression test checks all 33 IDs; physical entrance/collision alignment, rent flows, garage routing and device visibility remain separate acceptance checks.
 - Server-authoritative renting/extension uses player cash, limits players to one rented home, blocks occupied homes, caps prepaid rent at seven days and persists home/life state.
 - Rent is settled against the Nigeria-time day. Online life updates and offline settlement at reconnect are implemented; eviction releases a home.
 - The client creates separate class-specific home exteriors for hut, face-me-I-face-you compound, two-storey flat, estate house, mansion and palace rather than reusing a generic cube.
@@ -16,7 +16,7 @@
 - The six rental classes now have different interior dimensions and furnishing plans, including a compact hut, a shared-compound room, an apartment lounge, family-house dining space and larger luxury suites. Modern exterior details include rooftop water storage, solar panels and air-conditioning units where appropriate.
 - Route-error events fade out a transition overlay if the server rejects a route request. Driving camera work freezes camera rotation/touch-look and zoom while the vehicle moves, allows camera adjustment at rest, and uses a more responsive steering curve.
 - Vehicle ownership is separate from rent, so losing a home must not delete the player's owned cars.
-- Test file covers the rent table, 30-home catalogue, parking-state normalization and rent-day settlement. Residential road/lot placement assertions have also been added.
+- Test file covers the rent table, 33-home catalogue, parking-state normalization and rent-day settlement. Residential road/lot placement assertions have also been added.
 
 ## Rental price table
 
@@ -87,8 +87,8 @@ Both **Browser Client Build** and **Game Server CI** GitHub workflows must pass 
 
 ## Follow-up: Face-Me visual layout and map navigation (2026-10-11)
 
-- The client plot layout contains three additional Face-Me-I-Face-You preview slots in Rumuola, but the current authoritative `HOUSES` catalogue and Stage 2 regression test still define 30 rentable properties. Treat 30 as the confirmed server-backed count until the catalogue, rent/tenancy routes, and tests are intentionally expanded together.
-- Keep client house plots, server house IDs/coordinates and collision/entrance positions aligned. The extra local preview slots are a known Stage 2 consistency item; do not promise that all 33 visuals can be rented.
+- The current authoritative `HOUSES` catalogue and Stage 2 regression test define 33 rentable properties. The former 30-versus-33 count discrepancy is resolved in the regression test; this does not verify every house's live entrance, collision, tenancy or garage routes.
+- Keep client house plots, server house IDs/coordinates and collision/entrance positions aligned and verify them in live play. The home-count test no longer treats three Face-Me-I-Face-You visuals as client-only previews.
 - Added an **All Places** navigation tab that aggregates registered points of interest, workplaces/organizations, services, shops/stalls, fuel stations, districts and every home without duplicating the same home entry.
 - The Homes tab lists every server-provided home and explicitly labels it YOUR HOME, AVAILABLE or OCCUPIED; occupancy and rent actions remain server-authoritative.
 - The housing visibility fix does not mark Stage 2 fully complete and does not complete Stage 3. Stage 3 remains the active approved stage; Stage 4 must wait until Stage 3's acceptance gate passes.
