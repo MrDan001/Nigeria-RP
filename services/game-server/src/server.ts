@@ -102,6 +102,7 @@ import { STAGE11_BUSINESSES, STAGE11_SERVICES, STAGE11_FUEL_PRICE_PER_LITRE, ass
 import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acceptStage9Ride, advanceStage9Delivery, advanceStage9Ride, cancelStage9Ride, checkoutStage9Vehicle, completeStage9Delivery, completeStage9Ride, consumeStage9Fuel, createStage9State, normalizeStage9State, pickupStage9Ride, refuelStage9Vehicle, requestStage9Ride, returnStage9Vehicle, startStage9Delivery, stage9DistanceToStop, type Stage9Actor, type Stage9Result } from "./stage9";
 import { createStage15State, findStage15City, findStage15Route, normalizeStage15State, recordStage15Travel, stage15Cities, stage15CitySpawn, stage15Routes, validateStage15Travel, type Stage15State } from "./stage15";
 import { findStage16Environment, stage16Environments } from "./stage16";
+import { createStage17State, normalizeStage17State, recordStage17CityDiscovery, stage17Passport, type Stage17State } from "./stage17";
 
 const scrypt = promisify(scryptCb);
 
@@ -204,6 +205,7 @@ type FileStore = {
   stage9?: unknown;
   stage11?: unknown;
   stage15?: unknown;
+  stage17?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -243,6 +245,7 @@ let stage8State = createStage8State();
 let stage9State = createStage9State();
 let stage11State = createStage11State();
 let stage15State: Stage15State = createStage15State();
+let stage17State: Stage17State = createStage17State();
 type Stage9FuelProgress = { vehicleId: string; pendingDistance: number; lastSavedAt: number };
 const stage9FuelProgress = new Map<string, Stage9FuelProgress>();
 const stage7ReportCooldownAt = new Map<string, number>();
@@ -521,6 +524,15 @@ async function saveStage15State(state = stage15State) {
     return;
   }
   fileStore.stage15 = state;
+  writeFileStore();
+}
+
+async function saveStage17State(state = stage17State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage17',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage17 = state;
   writeFileStore();
 }
 
@@ -1575,6 +1587,9 @@ async function initStore() {
     const stage15Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage15' LIMIT 1");
     stage15State = normalizeStage15State(stage15Row.rows[0]?.value);
     await saveStage15State();
+    const stage17Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage17' LIMIT 1");
+    stage17State = normalizeStage17State(stage17Row.rows[0]?.value);
+    await saveStage17State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1612,6 +1627,8 @@ async function initStore() {
   await saveStage11State();
   stage15State = normalizeStage15State(fileStore.stage15);
   await saveStage15State();
+  stage17State = normalizeStage17State(fileStore.stage17);
+  await saveStage17State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -2315,6 +2332,7 @@ wss.on("connection", (socket) => {
           currentCity: findStage15City(session.player.cityId) ?? findStage15City("port-harcourt"),
           environments: stage16Environments(),
           currentEnvironment: findStage16Environment(session.player.cityId) ?? findStage16Environment("port-harcourt"),
+          stage17Passport: stage17Passport(stage17State, session.player.id, session.player.cityId),
           cash: session.player.cash,
           recentTrips: stage15State.ledger.filter((entry) => entry.accountId === session.player.id).slice(-12).reverse(),
         });
@@ -2376,22 +2394,27 @@ wss.on("connection", (socket) => {
           const spawn = stage15CitySpawn(validated.toCityId);
           if (!destination) { fail("The destination city is not available."); return; }
 
+          const now = Date.now();
           const previousStage15State = stage15State;
+          const previousStage17State = stage17State;
+          let discovery: ReturnType<typeof recordStage17CityDiscovery>;
+          let nextStage17State: Stage17State;
+          try {
+            discovery = recordStage17CityDiscovery(previousStage17State, session.player.id, fromCityId, destination.id, requestId, now);
+            nextStage17State = discovery.state;
+          } catch {
+            fail("The city passport rejected this travel request. Please refresh and retry.");
+            return;
+          }
+          const nextCash = previous.cash - validated.fareNaira + discovery.rewardNaira;
           let nextState: Stage15State;
           try {
-            nextState = recordStage15Travel(
-              previousStage15State,
-              validated,
-              session.player.id,
-              Date.now(),
-              previous.cash - validated.fareNaira,
-            );
+            nextState = recordStage15Travel(previousStage15State, validated, session.player.id, now, nextCash);
           } catch {
             fail("The travel ledger rejected this request. Please retry.");
             return;
           }
-
-          session.player.cash = previous.cash - validated.fareNaira;
+          session.player.cash = nextCash;
           session.player.cityId = destination.id;
           session.player.x = spawn.x;
           session.player.z = spawn.z;
@@ -2405,6 +2428,8 @@ wss.on("connection", (socket) => {
             await persistSession(session);
             stage15State = nextState;
             await saveStage15State();
+            stage17State = nextStage17State;
+            await saveStage17State();
           } catch (error) {
             session.player.cash = previous.cash;
             session.player.cityId = previous.cityId;
@@ -2413,7 +2438,9 @@ wss.on("connection", (socket) => {
             session.player.yaw = previous.yaw;
             session.input = previous.input;
             stage15State = previousStage15State;
+            stage17State = previousStage17State;
             await saveStage15State().catch((stateError) => console.error("stage15-ledger-rollback", stateError));
+            await saveStage17State().catch((stateError) => console.error("stage17-passport-rollback", stateError));
             await persistSession(session).catch((persistError) => console.error("stage15-travel-rollback", persistError));
             fail("Travel could not be saved. Your previous city and cash have been restored.");
             console.error("stage15-travel-commit", error);
@@ -2444,13 +2471,23 @@ wss.on("connection", (socket) => {
             durationMinutes: validated.durationMinutes,
             passengers: validated.passengers,
             cash: session.player.cash,
+            stage17Discovery: {
+              newlyDiscovered: discovery.newlyDiscovered,
+              rewardNaira: discovery.rewardNaira,
+              cityId: destination.id,
+              visitedCount: stage17Passport(stage17State, session.player.id, destination.id).visitedCount,
+              totalCities: stage17Passport(stage17State, session.player.id, destination.id).totalCities,
+            },
+            stage17Passport: stage17Passport(stage17State, session.player.id, destination.id),
             x: session.player.x,
             z: session.player.z,
             yaw: session.player.yaw,
             players: snapshot(destination.id),
             onlineCount: cityOnlineCount(destination.id),
             message: "Arrived in " + destination.name + ". Your fare of ₦" +
-              validated.fareNaira.toLocaleString("en-NG") + " has been charged and your destination has been saved.",
+              validated.fareNaira.toLocaleString("en-NG") + " has been charged and your destination has been saved." +
+              (discovery.rewardNaira > 0 ? " New city passport stamp earned with a ₦" +
+                discovery.rewardNaira.toLocaleString("en-NG") + " discovery reward." : ""),
           });
         });
         return;

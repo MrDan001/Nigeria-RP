@@ -88,6 +88,9 @@ jobs:
       - name: Test Stage 16 city environment catalogue
         run: npm run test:stage16 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 17 city explorer passport and discovery rewards
+        run: npm run test:stage17 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 

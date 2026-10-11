@@ -569,11 +569,13 @@
 
       if (message.type === "stage15TravelState") {
         N.stage15TravelState = message;
+        N.stage17Passport = message.stage17Passport || N.stage17Passport || null;
         N.cityId = String(message.cityId || N.cityId || "port-harcourt");
         S.cityId = N.cityId;
         window.dispatchEvent(new CustomEvent("nrs-stage15-travel-state", { detail: message }));
       } else if (message.type === "stage15TravelResult") {
         if (message.ok) {
+          N.stage17Passport = message.stage17Passport || N.stage17Passport || null;
           S.cityId = String(message.cityId || "port-harcourt");
           N.cityId = S.cityId;
           cash = Math.max(0, Number(message.cash) || 0);
@@ -1602,7 +1604,12 @@
     }
     travelModal.hidden = true;
     $("nrsTravelArrivalTitle").textContent = "Welcome to " + (result.cityName || cityName(result.cityId, (N.stage15TravelState || {}).cities));
-    $("nrsTravelArrivalDesc").textContent = "Destination saved · Fare paid " + formatNaira(result.fareNaira);
+    const discovery = result.stage17Discovery || {};
+    const reward = Math.max(0, Number(discovery.rewardNaira) || 0);
+    const visitedCount = Math.max(0, Number(discovery.visitedCount) || 0);
+    const totalCities = Math.max(1, Number(discovery.totalCities) || 7);
+    $("nrsTravelArrivalDesc").textContent = "Destination saved · Fare paid " + formatNaira(result.fareNaira) +
+      (reward > 0 ? " · First-visit passport reward +" + formatNaira(reward) : " · Passport " + visitedCount + "/" + totalCities);
     travelArrival.hidden = false;
     window.setTimeout(() => { travelArrival.hidden = true; }, 1700);
     cityBadge.textContent = "CITY · " + String(result.cityName || result.cityId || "").toUpperCase();
@@ -1614,7 +1621,7 @@
   });
 
   const stage16ExperienceScript = document.createElement("script");
-  stage16ExperienceScript.src = "/nrs-city-experience.js?v=stage16-plaza-guide";
+  stage16ExperienceScript.src = "/nrs-city-experience.js?v=stage17-city-passport";
   stage16ExperienceScript.async = true;
   document.head.appendChild(stage16ExperienceScript);
   setVisible(false);

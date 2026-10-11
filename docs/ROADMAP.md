@@ -1,10 +1,8 @@
 # NRS Roadmap — Current Stage and Next Work
 
-The full scope and acceptance checks are in [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md).
+The implementation scope and acceptance checks are in IMPLEMENTATION-ROADMAP.md.
 
-> **Status update: 11 October 2026.** Stage 15 is complete for the automated release gate and its live transaction/persistence integration test passes. Railway production is online. Stage 16 — Distinct City Environments & Regional Identity — is now active on `main`. Real-device Android walkthroughs remain manual follow-up work.
-
-## Stage table
+> Status update: 11 October 2026. Stage 16 was accepted by the project owner. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main. Railway is the production host.
 
 | Stage | Canonical scope | Status |
 |---|---|---|
@@ -23,15 +21,18 @@ The full scope and acceptance checks are in [IMPLEMENTATION-ROADMAP.md](IMPLEMEN
 | 12 | Education, offices, oil and industry | Implemented |
 | 13 | Economy balance, safety and polish | Implemented |
 | 14 | Release, load and recovery validation | Complete for automated release gate |
-| 15 | Additional cities and inter-city travel | **Complete for automated release gate** |
-| 16 | Distinct city environments and regional identity | **Active** |
+| 15 | Additional cities and inter-city travel | Complete for automated release gate |
+| 16 | Distinct city environments and regional identity | Complete — owner accepted |
+| 17 | City Explorer Passport & Discovery Rewards | Active |
 
-## Active stage: Stage 16 — Distinct City Environments & Regional Identity
+## Active stage: Stage 17 — City Explorer Passport & Discovery Rewards
 
-The seven Stage 15 cities have validated environment profiles, separate sky/fog/accent palettes, city-specific low-poly landmarks, an off-road civic plaza with themed shopfronts and street furniture, and an on-foot district-guide interaction listing local activities and landmarks. Profiles are returned by the game server and applied on city arrival. Stage 16 catalogue tests validate each city’s guide content in Game Server CI.
+Players receive a persistent passport showing cities visited and a one-time ₦1,500 bonus for each first-time arrival in a new destination. Revisits do not pay the discovery bonus again. The server owns discovery validation, rewards, replay protection and persistence; the browser only displays the saved passport. Automated tests cover one-time rewards, returning visits, separate accounts and malformed stored state.
 
-The latest automated checkpoint passed all Game Server tests, typecheck, server/client builds and the Railway deployment gate. The remaining Stage 16 acceptance work is a real-device visual and end-to-end walkthrough, followed by any placement adjustments the test reveals.
+## Stage 16 — Accepted
+
+The seven city environments, low-poly landmarks, off-road civic plaza, themed shopfronts and local-district guide are deployed. The project owner accepted Stage 16 and authorized progression on 11 October 2026. Physical-device visual review remains optional polish and is not claimed as independently performed.
 
 ## Manual test queue
 
-Run a physical Android/mobile walkthrough for Stages 15–16: select a route, confirm fare deduction, arrive in the destination city, reconnect, and verify the saved city and cash persist. Inspect the new landmark models for road/spawn clearance and mobile performance. These manual actions remain unverified until performed on a device.
+For Stage 17, verify first-visit rewards, repeat-visit behavior, saved passport progress after reconnect/restart, and the passport sheet on a physical phone. Stage 15–16 visual polish can be recorded separately without blocking the approved Stage 17 work.
