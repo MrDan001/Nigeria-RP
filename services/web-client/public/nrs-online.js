@@ -511,6 +511,12 @@
       let message;
       try { message = JSON.parse(event.data); } catch { return; }
 
+      if (message.type === "richestPlayers") {
+        N.richestPlayers = Array.isArray(message.players) ? message.players : [];
+        window.dispatchEvent(new CustomEvent("nrs-richest-players", { detail: message }));
+        return;
+      }
+
       if (message.type === "authOk") {
         writeToken(message.token);
         syncAccount(message.player);
@@ -521,6 +527,7 @@
         window.dispatchEvent(new CustomEvent("nrs-housing", { detail: { houses: N.houses, life: N.life, cash, today: N.today } }));
         window.dispatchEvent(new CustomEvent("nrs-workplaces", { detail: message }));
         snapshot(message.players || [], message.onlineCount);
+        send({ type: "getRichestPlayers" });
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
         return;
@@ -852,6 +859,7 @@
 
   // Stage 3 careers and factions are server-authoritative; this bridge only sends requests.
   N.getWorkplaces = () => send({ type: "getWorkplaces" });
+  N.getRichestPlayers = () => send({ type: "getRichestPlayers" });
   N.applyWorkplace = (workplaceId) => send({ type: "applyWorkplace", workplaceId });
   N.leaveWorkplace = () => send({ type: "leaveWorkplace" });
   N.setWorkplaceDuty = (workplaceId, onDuty) => send({ type: "setWorkplaceDuty", workplaceId, onDuty: onDuty === true });

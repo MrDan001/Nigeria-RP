@@ -1596,6 +1596,35 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "getRichestPlayers") {
+        try {
+          let rankings: Array<{ username: string; totalWealth: number }>;
+          if (pool) {
+            const result = await pool.query(
+              "SELECT username, cash, bank FROM nrs_accounts ORDER BY (cash + bank) DESC, username_lower ASC LIMIT 10",
+            );
+            rankings = result.rows.map((row: { username: string; cash: string | number; bank: string | number }) => ({
+              username: String(row.username),
+              totalWealth: Math.max(0, Math.floor(Number(row.cash) || 0)) + Math.max(0, Math.floor(Number(row.bank) || 0)),
+            }));
+          } else {
+            rankings = Object.values(fileStore.accounts).map((account) => {
+              const normalized = normalizeAccount(account);
+              return { username: normalized.username, totalWealth: normalized.cash + normalized.bank };
+            }).sort((a, b) => b.totalWealth - a.totalWealth || a.username.localeCompare(b.username)).slice(0, 10);
+          }
+          rankings.sort((a, b) => b.totalWealth - a.totalWealth || a.username.localeCompare(b.username));
+          send(socket, {
+            type: "richestPlayers",
+            players: rankings.slice(0, 10).map((player, index) => ({ rank: index + 1, ...player })),
+          });
+        } catch (error) {
+          console.error("richest-players", error);
+          send(socket, { type: "richestPlayers", players: [], message: "Could not load the wealth rankings right now." });
+        }
+        return;
+      }
+
       if (message.type === "getWorkplaces") {
         sendWorkplaceState(session);
         return;
