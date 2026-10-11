@@ -2932,6 +2932,247 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "getParkState") {
+        send(socket, parkStatePayload(session));
+        return;
+      }
+
+      if (message.type === "buyParkTicket") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const sellerId = String(message.sellerId ?? "").trim().slice(0, 160);
+          const seller = players.get(sellerId);
+          const employment = seller?.player.life.employment;
+          const fail = (messageText: string) => send(socket, {
+            type: "parkActionResult", action: "buyTicket", requestId, ok: false, message: messageText,
+          });
+          if (!requestId || !seller || sellerId === session.player.id) {
+            fail("Choose an available ticket seller who is different from you.");
+            return;
+          }
+          if (!stage5AtWorkplace(session, PARK_WORKPLACE_ID) ||
+              !stage5AtWorkplace(seller, PARK_WORKPLACE_ID)) {
+            fail("You and the ticket seller must both be at City Park.");
+            return;
+          }
+          if (employment?.workplaceId !== PARK_WORKPLACE_ID || Number(employment.rank) < 3 ||
+              Number(employment.rank) > 6 || employment.onDuty !== true ||
+              employment.uniformWorkplaceId !== PARK_WORKPLACE_ID) {
+            fail("That park employee cannot sell tickets right now. A Ticket Seller or higher must be on duty and in uniform.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const idempotencyKey = createHash("sha256")
+            .update("park-ticket|" + session.player.id + "|" + requestId)
+            .digest("hex");
+          const purchased = buyParkTicket({
+            state: draft,
+            requestId,
+            idempotencyKey,
+            visitorId: session.player.id,
+            sellerId,
+            sellerRank: Number(employment.rank),
+            sellerOnDuty: employment.onDuty === true,
+            sellerUniform: employment.uniformWorkplaceId === PARK_WORKPLACE_ID,
+            visitorAtPark: stage5AtWorkplace(session, PARK_WORKPLACE_ID),
+            sellerAtPark: stage5AtWorkplace(seller, PARK_WORKPLACE_ID),
+            visitorCash: session.player.cash,
+            dayKey: clock.dayKey(),
+            now: Date.now(),
+          });
+          if (!purchased.ok) {
+            const reasons: Record<string, string> = {
+              invalid_request_id: "The ticket purchase reference is invalid. Refresh and try again.",
+              duplicate_ticket_sale: "This ticket purchase has already been processed.",
+              invalid_participants: "A visitor cannot sell a ticket to themselves.",
+              unauthorized_ticket_seller: "Ticket sales require a rank 3 or higher park employee on duty and in uniform.",
+              visitor_not_at_park: "Walk to City Park before buying an entry pass.",
+              invalid_day: "The park ticket could not be linked to today's game date.",
+              invalid_timestamp: "The ticket time could not be recorded.",
+              ticket_already_valid: "You already have a valid City Park pass for today.",
+              insufficient_cash: "City Park entry costs ₦" + PARK_TICKET_PRICE.toLocaleString("en-NG") + ".",
+              balance_limit: "The park till is at its safe balance limit. Please contact park management.",
+            };
+            fail(reasons[purchased.reason] ?? "The ticket purchase was rejected.");
+            return;
+          }
+          const previousState = stage5State;
+          const previousCash = session.player.cash;
+          session.player.cash = purchased.newCash;
+          try {
+            await persistSession(session);
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            session.player.cash = previousCash;
+            stage5State = previousState;
+            try { await persistSession(session); } catch (rollbackError) {
+              console.error("stage5-park-ticket-account-rollback", rollbackError);
+            }
+            try { await saveStage5State(previousState); } catch (rollbackError) {
+              console.error("stage5-park-ticket-state-rollback", rollbackError);
+            }
+            console.error("stage5-park-ticket-persist", error);
+            fail("Your ticket could not be saved. No ticket was confirmed; please retry.");
+            return;
+          }
+          const receipt = {
+            ...purchased.ticket,
+            visitorName: session.player.name,
+            sellerName: seller.player.name,
+            cashRemaining: session.player.cash,
+            till: purchased.till,
+          };
+          send(socket, {
+            type: "parkActionResult", action: "buyTicket", requestId, ok: true,
+            message: "City Park visitor pass issued for today. ₦" + PARK_TICKET_PRICE.toLocaleString("en-NG") + " paid.",
+            receipt, cash: session.player.cash,
+          });
+          send(seller.socket, {
+            type: "parkTicketSaleNotice",
+            message: "City Park ticket sold to " + session.player.name + ". Receipt " + receipt.id + ".",
+            receipt,
+          });
+          send(socket, parkStatePayload(session));
+          send(seller.socket, parkStatePayload(seller));
+        });
+        return;
+      }
+
+      if (message.type === "requestParkHelp") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const kind = String(message.kind ?? "");
+          const fail = (messageText: string) => send(socket, {
+            type: "parkActionResult", action: "requestHelp", requestId, ok: false, message: messageText,
+          });
+          if (!stage5AtWorkplace(session, PARK_WORKPLACE_ID)) {
+            fail("Walk to City Park before asking the park team for help.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const idempotencyKey = createHash("sha256")
+            .update("park-help|" + session.player.id + "|" + requestId)
+            .digest("hex");
+          const created = createParkHelpRequest({
+            state: draft,
+            requestId,
+            idempotencyKey,
+            visitorId: session.player.id,
+            kind,
+            atPark: stage5AtWorkplace(session, PARK_WORKPLACE_ID),
+            now: Date.now(),
+          });
+          if (!created.ok) {
+            const reasons: Record<string, string> = {
+              invalid_request_id: "The visitor request reference is invalid.",
+              duplicate_request: "This request has already been recorded.",
+              invalid_visitor: "Your player session could not be verified.",
+              invalid_help_kind: "Choose one of the listed visitor assistance options.",
+              visitor_not_at_park: "Walk to City Park before asking for assistance.",
+              request_already_open: "You already have an open park assistance request. The park team can see it.",
+              invalid_timestamp: "The request time could not be recorded.",
+            };
+            fail(reasons[created.reason] ?? "The park request was rejected.");
+            return;
+          }
+          try {
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            console.error("stage5-park-help-persist", error);
+            fail("Your request could not be saved. Please retry.");
+            return;
+          }
+          send(socket, {
+            type: "parkActionResult", action: "requestHelp", requestId, ok: true,
+            request: created.request,
+            message: created.request.kind === "first-aid"
+              ? "Your first-aid request has been sent to the park team. For severe injuries, request an ambulance from a hospital."
+              : "Your request is now in the park team's visitor queue.",
+          });
+          send(socket, parkStatePayload(session));
+          for (const worker of players.values()) {
+            if (worker.player.id !== session.player.id &&
+                worker.player.life.employment?.workplaceId === PARK_WORKPLACE_ID &&
+                worker.player.life.employment.onDuty === true &&
+                worker.player.life.employment.uniformWorkplaceId === PARK_WORKPLACE_ID &&
+                stage5AtWorkplace(worker, PARK_WORKPLACE_ID)) {
+              send(worker.socket, parkStatePayload(worker));
+              send(worker.socket, {
+                type: "parkRequestNotice",
+                message: "🌳 New City Park visitor assistance request from " + session.player.name + ".",
+              });
+            }
+          }
+        });
+        return;
+      }
+
+      if (message.type === "resolveParkHelpRequest") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const employment = session.player.life.employment;
+          const fail = (messageText: string) => send(socket, {
+            type: "parkActionResult", action: "resolveHelp", requestId, ok: false, message: messageText,
+          });
+          if (employment?.workplaceId !== PARK_WORKPLACE_ID) {
+            fail("You must belong to City Park Authority to handle visitor requests.");
+            return;
+          }
+          const stored = stage5State.park.helpRequests.find(request => request.id === requestId);
+          const visitor = stored ? players.get(stored.visitorId) : undefined;
+          if (!visitor || !stage5AtWorkplace(visitor, PARK_WORKPLACE_ID)) {
+            fail("The visitor must be online and present at City Park.");
+            return;
+          }
+          if (Math.hypot(session.player.x - visitor.player.x, session.player.z - visitor.player.z) > 24) {
+            fail("Move closer to the visitor before marking the request handled.");
+            return;
+          }
+          const draft = normalizeStage5State(stage5State);
+          const resolved = resolveParkHelpRequest({
+            state: draft,
+            requestId,
+            workerId: session.player.id,
+            workerRank: Number(employment.rank),
+            onDuty: employment.onDuty === true,
+            uniform: employment.uniformWorkplaceId === PARK_WORKPLACE_ID,
+            atPark: stage5AtWorkplace(session, PARK_WORKPLACE_ID),
+            now: Date.now(),
+          });
+          if (!resolved.ok) {
+            const reasons: Record<string, string> = {
+              unauthorized_park_worker: "Visitor assistance requires a rank 2 or higher park employee who is on duty, in uniform and at the park.",
+              request_unavailable: "This visitor request is already handled or unavailable.",
+              invalid_timestamp: "The completed request could not be recorded.",
+            };
+            fail(reasons[resolved.reason] ?? "The visitor request could not be completed.");
+            return;
+          }
+          try {
+            await saveStage5State(draft);
+            stage5State = draft;
+          } catch (error) {
+            console.error("stage5-park-help-resolution-persist", error);
+            fail("The completed request could not be saved. Please retry.");
+            return;
+          }
+          const kind = PARK_HELP_CATEGORIES.find(item => item.id === resolved.request.kind)?.title ?? "Visitor assistance";
+          send(socket, {
+            type: "parkActionResult", action: "resolveHelp", requestId, ok: true,
+            message: kind + " completed for " + visitor.player.name + ".",
+          });
+          send(visitor.socket, {
+            type: "parkActionResult", action: "helpResolved", requestId, ok: true,
+            message: session.player.name + " has handled your " + kind.toLowerCase() + " request.",
+          });
+          send(socket, parkStatePayload(session));
+          send(visitor.socket, parkStatePayload(visitor));
+        });
+        return;
+      }
+
       if (message.type === "getWorkplaces") {
         sendWorkplaceState(session);
         return;
