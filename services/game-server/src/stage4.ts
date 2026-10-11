@@ -21,6 +21,8 @@ export const BANK_RANKS = [
 export const MARKET_WORKPLACE_ID = "market-mile1";
 export const BANK_WORKPLACE_ID = "bank-main";
 export const MARKET_COMMISSION_RATE = 0.05;
+export const MARKET_RESTOCK_RATE = 0.6;
+export const MAX_MARKET_STOCK = 500;
 export const BANK_TRANSACTION_FEE = 0;
 export const MAX_TRANSACTION_HISTORY = 100;
 
@@ -92,6 +94,16 @@ export type MarketSaleResult = {
   tillCredit: number;
 };
 
+export type MarketRestockResult = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  remainingStock: number;
+  remainingTill: number;
+};
+
 export type BankTransactionResult = {
   transaction: BankTransaction;
   customer: AccountMoney;
@@ -126,6 +138,44 @@ export function createMarketState(): MarketState {
     commissions: {},
     completedOrderIds: {},
     history: [],
+  };
+}
+
+export function restockMarketStock(args: {
+  state: MarketState;
+  productId: string;
+  quantity: number;
+  managerRank: number;
+}): { ok: true; result: MarketRestockResult } | { ok: false; reason: string } {
+  const { state, productId, quantity, managerRank } = args;
+  if (!Number.isInteger(managerRank) || managerRank < 5 || managerRank > MARKET_RANKS.length) {
+    return { ok: false, reason: "unauthorized_manager" };
+  }
+  const product = findMarketProduct(productId);
+  if (!product) return { ok: false, reason: "unknown_product" };
+  if (!positiveInteger(quantity) || quantity > 100) return { ok: false, reason: "invalid_quantity" };
+  const stock = Math.max(0, Math.floor(Number(state.stock[productId] ?? 0)));
+  if (stock + quantity > MAX_MARKET_STOCK) return { ok: false, reason: "stock_limit" };
+  const unitCost = Math.floor(product.unitPrice * MARKET_RESTOCK_RATE);
+  const totalCost = unitCost * quantity;
+  const till = Number(state.till);
+  if (!Number.isSafeInteger(till) || till < 0 || !Number.isSafeInteger(totalCost) || totalCost <= 0) {
+    return { ok: false, reason: "balance_limit" };
+  }
+  if (till < totalCost) return { ok: false, reason: "insufficient_till" };
+  state.stock[productId] = stock + quantity;
+  state.till = till - totalCost;
+  return {
+    ok: true,
+    result: {
+      productId,
+      productName: product.name,
+      quantity,
+      unitCost,
+      totalCost,
+      remainingStock: state.stock[productId],
+      remainingTill: state.till,
+    },
   };
 }
 
