@@ -15,7 +15,7 @@ export type Stage17PassportView = {
 export type Stage17DiscoveryResult = { state: Stage17State; newlyDiscovered: boolean; cityId: string; rewardNaira: number; stamp: Stage17CityStamp };
 const clean = (v: unknown, max=128) => String(v ?? "").trim().slice(0,max);
 function rememberRequest(input: Record<string,true>, requestId:string): Record<string,true> {
- const next={...input,[requestId]:true}; const keys=Object.keys(next);
+ const next: Record<string,true>={...input,[requestId]:true}; const keys=Object.keys(next);
  for(const key of keys.slice(0,Math.max(0,keys.length-STAGE17_REQUEST_LIMIT))) delete next[key];
  return next;
 }
