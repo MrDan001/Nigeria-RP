@@ -4874,28 +4874,13 @@ wss.on("connection", (socket) => {
         const equippedForDuty = !!employment && employment.onDuty === true &&
           employment.uniformWorkplaceId === employment.workplaceId && !!workplace;
         if (action === "medicalTreat") {
-          if (!equippedForDuty || workplace?.kind !== "hospital") {
-            send(socket, { type: "playerInteractionResult", ok: false, message: "Patient treatment requires an on-duty hospital employee wearing the authorised uniform." });
-            return;
-          }
-          if (target.player.hp >= 100) {
-            send(socket, { type: "playerInteractionResult", ok: false, message: target.player.name + " does not need treatment." });
-            return;
-          }
-          const fee = 500;
-          if (target.player.cash < fee) {
-            send(socket, { type: "playerInteractionResult", ok: false, message: "The patient needs at least ₦500 for treatment." });
-            return;
-          }
-          target.player.cash -= fee;
-          session.player.cash += fee;
-          target.player.hp = Math.min(100, target.player.hp + 35);
-          await persistSession(target);
-          await persistSession(session);
-          send(target.socket, { type: "playerInteractionNotice", message: "You received treatment from " + session.player.name + " for ₦500. Health restored." });
-          send(socket, { type: "playerInteractionResult", ok: true, message: "Treatment completed for " + target.player.name + ". ₦500 received.", cash: session.player.cash });
-          sendWorkplaceState(session);
-          sendWorkplaceState(target);
+          // Legacy contextual treatment bypassed the Stage 5 patient-request queue.
+          // Route every clinical action through the request/triage/treatment flow instead.
+          send(socket, {
+            type: "playerInteractionResult",
+            ok: false,
+            message: "Use Careers & Factions → Hospital Services to review a patient request and complete authorised treatment. Direct treatment from this shortcut is disabled.",
+          });
           return;
         }
         if (action === "requestId") {
