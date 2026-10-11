@@ -27,17 +27,18 @@ export const MAX_TRANSACTION_HISTORY = 100;
 export type MarketProduct = {
   id: string;
   name: string;
+  inventoryItem: string;
   unitPrice: number;
   startingStock: number;
 };
 
 export const MARKET_PRODUCTS: readonly MarketProduct[] = [
-  { id: "rice-5kg", name: "Rice 5kg", unitPrice: 12000, startingStock: 40 },
-  { id: "beans-5kg", name: "Beans 5kg", unitPrice: 9000, startingStock: 40 },
-  { id: "garri-5kg", name: "Garri 5kg", unitPrice: 7000, startingStock: 50 },
-  { id: "cooking-oil-2l", name: "Cooking Oil 2L", unitPrice: 8000, startingStock: 30 },
-  { id: "bread", name: "Bread", unitPrice: 2500, startingStock: 60 },
-  { id: "water-pack", name: "Bottled Water Pack", unitPrice: 1500, startingStock: 80 },
+  { id: "rice-5kg", name: "Rice 5kg", inventoryItem: "Rice (5kg)", unitPrice: 12000, startingStock: 40 },
+  { id: "beans-5kg", name: "Beans 5kg", inventoryItem: "Beans (5kg)", unitPrice: 9000, startingStock: 40 },
+  { id: "garri-5kg", name: "Garri 5kg", inventoryItem: "Garri (1 bag)", unitPrice: 7000, startingStock: 50 },
+  { id: "cooking-oil-2l", name: "Cooking Oil 2L", inventoryItem: "Cooking Oil (2L)", unitPrice: 8000, startingStock: 30 },
+  { id: "bread", name: "Bread", inventoryItem: "Bread", unitPrice: 2500, startingStock: 60 },
+  { id: "water-pack", name: "Bottled Water Pack", inventoryItem: "Bottle Water", unitPrice: 1500, startingStock: 80 },
 ];
 
 export type MarketSale = {
