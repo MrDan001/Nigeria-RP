@@ -97,6 +97,7 @@ import {
 } from "./stage5";
 import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent, recordCivicFine } from "./stage6";
 import { ARMY_WORKPLACE_ID, FIRE_WORKPLACE_ID, FRSC_WORKPLACE_ID, POLICE_WORKPLACE_ID, STAGE7_CHECKPOINTS, STAGE7_FINE_RULES, STAGE7_UNITS, activateStage7Checkpoint, arrestStage7Suspect, attemptStage7Escape, closeStage7Incident, createStage7State, deactivateStage7Checkpoint, dispatchStage7Incident, findBlockingStage7Checkpoint, isAuthorisedStage7CheckpointPass, isStage7Unit, issueStage7Fine, maintainStage7State, normalizeStage7State, reportStage7Incident, requestStage7Appeal, resolveStage7Fire, resolveStage7TrafficIncident, reviewStage7Appeal, stage7Distance, investigateStage7Incident, type Stage7UnitId } from "./stage7";
+import { NEWS_WORKPLACE_ID, approveStage8Story, createStage8State, moderateStage8Report, normalizeStage8State, publishStage8Story, rejectStage8Story, reportStage8Story, stage8PublicFeed, submitStage8Story, type Stage8Actor, type Stage8ModerationDecision } from "./stage8";
 
 const scrypt = promisify(scryptCb);
 
@@ -193,6 +194,7 @@ type FileStore = {
   stage5?: unknown;
   stage6?: unknown;
   stage7?: unknown;
+  stage8?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -228,6 +230,7 @@ let stage4State = normalizeStage4State(null);
 let stage5State = normalizeStage5State(null);
 let stage6State = createStage6State();
 let stage7State = createStage7State();
+let stage8State = createStage8State();
 const stage7ReportCooldownAt = new Map<string, number>();
 let stage4MutationQueue: Promise<void> = Promise.resolve();
 
@@ -464,6 +467,15 @@ async function saveStage7State(state = stage7State) {
     return;
   }
   fileStore.stage7 = state;
+  writeFileStore();
+}
+
+async function saveStage8State(state = stage8State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage8',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage8 = state;
   writeFileStore();
 }
 
@@ -878,6 +890,34 @@ function sendStage7Result(session: Session, action: string, ok: boolean, message
   send(session.socket, { ...publicSafetyStatePayload(session), type: "stage7ActionResult", action, ok, message });
 }
 function broadcastStage7States() { for (const session of players.values()) send(session.socket, publicSafetyStatePayload(session)); }
+
+function stage8EventOptions() {
+  const incidents=stage7State.incidents.slice(-20).reverse().map(item=>({id:"incident:"+item.id,title:"Public safety · "+String(item.kind).replace(/-/g," ")+" — "+String(item.description).slice(0,90),createdAt:item.createdAt}));
+  const notices=stage6State.announcements.slice(-12).reverse().map(item=>({id:"government:"+item.id,title:"State notice · "+item.text.slice(0,100),createdAt:item.createdAt}));
+  return incidents.concat(notices).slice(0,24);
+}
+function stage8StatePayload(session:Session) {
+  const e=session.player.life.employment??null,workplaceId=e?.workplaceId??"",rank=workplaceId===NEWS_WORKPLACE_ID?Number(e?.rank??0):0;
+  const onDuty=workplaceId===NEWS_WORKPLACE_ID&&e?.onDuty===true,uniform=workplaceId===NEWS_WORKPLACE_ID&&e?.uniformWorkplaceId===NEWS_WORKPLACE_ID;
+  const inNewsroom=session.inWorkplaceInterior&&!session.inStaffRoom&&session.currentWorkplaceId===NEWS_WORKPLACE_ID;
+  const isAdmin=isFactionAdmin(session),ready=workplaceId===NEWS_WORKPLACE_ID&&onDuty&&uniform&&inNewsroom;
+  const canApprove=ready&&rank>=5&&rank<=6,canPublish=ready&&rank>=4&&rank<=6,canReviewReports=isAdmin||(ready&&rank>=5&&rank<=6);
+  return {type:"stage8State",feed:stage8PublicFeed(stage8State),
+    mySubmissions:stage8State.stories.filter(s=>s.authorId===session.player.id).slice(-25).reverse(),
+    editorialStories:(isAdmin||(workplaceId===NEWS_WORKPLACE_ID&&rank>=3))?stage8State.stories.filter(s=>s.status==="submitted"||s.status==="approved"||((canReviewReports||isAdmin)&&(s.status==="published"||s.status==="removed"||s.status==="rejected"))||s.authorId===session.player.id).slice(-60).reverse():[],
+    reports:canReviewReports?stage8State.reports.filter(r=>r.status==="open").slice(-60).reverse():[],
+    actions:canReviewReports?stage8State.actions.slice(-40).reverse():[],eventOptions:stage8EventOptions(),selfId:session.player.id,
+    workplaceId:workplaceId===NEWS_WORKPLACE_ID?workplaceId:null,rank,rankTitle:workplaceId===NEWS_WORKPLACE_ID?workplaceRankTitle(workplaceId,rank):"",
+    onDuty,uniform,inNewsroom,isAdmin,canSubmit:ready&&rank>=3&&rank<=6,canApprove,canPublish,canReviewReports};
+}
+function sendStage8Result(session:Session,action:string,r:{ok:boolean;message:string}) {send(session.socket,{...stage8StatePayload(session),type:"stage8ActionResult",action,ok:r.ok,message:r.message});}
+function broadcastStage8States(){for(const session of players.values())send(session.socket,stage8StatePayload(session));}
+function stage8Actor(session:Session):Stage8Actor {
+ const e=session.player.life.employment??null;
+ return {actorId:session.player.id,actorName:session.player.name,workplaceId:e?.workplaceId??null,rank:Number(e?.rank??0),
+  onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,
+  inNewsroom:session.inWorkplaceInterior&&!session.inStaffRoom&&session.currentWorkplaceId===NEWS_WORKPLACE_ID,isAdmin:isFactionAdmin(session)};
+}
 function stage7CanPassCheckpoint(session: Session) {
   const e = session.player.life.employment;
   return isAuthorisedStage7CheckpointPass(e?.workplaceId, e?.onDuty === true, !!e && e.uniformWorkplaceId === e.workplaceId);
@@ -1418,6 +1458,9 @@ async function initStore() {
     const stage7Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage7' LIMIT 1");
     stage7State = normalizeStage7State(stage7Row.rows[0]?.value);
     await saveStage7State();
+    const stage8Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage8' LIMIT 1");
+    stage8State = normalizeStage8State(stage8Row.rows[0]?.value);
+    await saveStage8State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1447,6 +1490,8 @@ async function initStore() {
   await saveStage6State();
   stage7State = normalizeStage7State(fileStore.stage7);
   await saveStage7State();
+  stage8State = normalizeStage8State(fileStore.stage8);
+  await saveStage8State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -3396,6 +3441,47 @@ wss.on("connection", (socket) => {
       }
 
 
+      if (message.type === "getStage8State") { send(socket, stage8StatePayload(session)); return; }
+      if (message.type === "submitStage8Story") {
+        await withMoneyMutation(async () => {
+          const r=submitStage8Story(stage8State,{requestId:String(message.requestId??""),actor:stage8Actor(session),now:Date.now(),
+            title:String(message.title??""),category:message.category,body:String(message.body??""),eventContext:String(message.eventContext??""),
+            eventRef:String(message.eventRef??"local"),validEventRefs:stage8EventOptions().map(e=>e.id)});
+          if(!r.ok){sendStage8Result(session,"submit",r);return;}
+          try{await saveStage8State(r.state);stage8State=r.state;}
+          catch(error){console.error("stage8-submit-save",error);sendStage8Result(session,"submit",{ok:false,message:"The story could not be saved. Refresh and retry."});return;}
+          sendStage8Result(session,"submit",r);broadcastStage8States();
+        });return;
+      }
+      if (message.type === "approveStage8Story" || message.type === "rejectStage8Story" || message.type === "publishStage8Story") {
+        await withMoneyMutation(async () => {
+          const input={requestId:String(message.requestId??""),actor:stage8Actor(session),storyId:String(message.storyId??""),note:String(message.note??""),now:Date.now()};
+          const r=message.type==="approveStage8Story"?approveStage8Story(stage8State,input):message.type==="rejectStage8Story"?rejectStage8Story(stage8State,input):publishStage8Story(stage8State,input);
+          if(!r.ok){sendStage8Result(session,"editorial",r);return;}
+          try{await saveStage8State(r.state);stage8State=r.state;}
+          catch(error){console.error("stage8-editorial-save",error);sendStage8Result(session,"editorial",{ok:false,message:"Editorial action could not be saved. Refresh before retrying."});return;}
+          sendStage8Result(session,"editorial",r);broadcastStage8States();
+        });return;
+      }
+      if (message.type === "reportStage8Story") {
+        await withMoneyMutation(async () => {
+          const r=reportStage8Story(stage8State,{requestId:String(message.requestId??""),actor:stage8Actor(session),storyId:String(message.storyId??""),reason:String(message.reason??""),now:Date.now()});
+          if(!r.ok){sendStage8Result(session,"report",r);return;}
+          try{await saveStage8State(r.state);stage8State=r.state;}
+          catch(error){console.error("stage8-report-save",error);sendStage8Result(session,"report",{ok:false,message:"The content report could not be saved."});return;}
+          sendStage8Result(session,"report",r);broadcastStage8States();
+        });return;
+      }
+      if (message.type === "moderateStage8Report") {
+        await withMoneyMutation(async () => {
+          const r=moderateStage8Report(stage8State,{requestId:String(message.requestId??""),actor:stage8Actor(session),reportId:String(message.reportId??""),
+            decision:String(message.decision??"") as Stage8ModerationDecision,reason:String(message.reason??""),now:Date.now()});
+          if(!r.ok){sendStage8Result(session,"moderation",r);return;}
+          try{await saveStage8State(r.state);stage8State=r.state;}
+          catch(error){console.error("stage8-moderation-save",error);sendStage8Result(session,"moderation",{ok:false,message:"The moderation decision could not be saved."});return;}
+          sendStage8Result(session,"moderation",r);broadcastStage8States();
+        });return;
+      }
       if (message.type === "getStage7State") { send(socket, publicSafetyStatePayload(session)); return; }
       if (message.type === "reportStage7Incident") {
         await withMoneyMutation(async () => {
