@@ -610,7 +610,13 @@ let houseVisualCheckT=0;
 function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
 
 function mirrorSignTexture(texture){const back=texture.clone();back.wrapS=THREE.RepeatWrapping;back.center.set(0,0);back.repeat.set(-1,1);back.offset.set(1,0);back.needsUpdate=true;return back;}
-const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(512,Math.round(512*h/w),fn),frontMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map),fog:true,side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
+function makeReadableSignBackGeometry(geometry){
+ const back=geometry.clone(),uv=back.attributes.uv;
+ for(let i=0;i<uv.count;i++)uv.setX(i,1-uv.getX(i));
+ uv.needsUpdate=true;
+ return back;
+}
+const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(512,Math.round(512*h/w),fn),frontMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(makeReadableSignBackGeometry(geo),backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
 const flag=(x,z)=>{add(new THREE.CylinderGeometry(.06,.06,8,6),M(0x888888),x,4,z);
  add(new THREE.PlaneGeometry(2.4,1.4),new THREE.MeshBasicMaterial({map:tex(30,14,(g,w,h)=>{g.fillStyle='#0a8f4a';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.fillRect(10,0,10,h);}),side:THREE.DoubleSide}),x+1.2,7,z).rotation.y=Math.PI/2;};
@@ -978,7 +984,7 @@ for(let i=0;i<16;i++){const x=-235+rnd()*130,z=-235+rnd()*110;if(!roadNear(x,z,4
 })();
 /* signs: district boards and street names */
 function label(t,x,z,bg){add(new THREE.CylinderGeometry(.1,.1,6,6),M(0x666666),x,3,z);
- const board=new THREE.Group();board.position.set(x,6.8,z);scene.add(board);const geo=new THREE.PlaneGeometry(7,1.75),map=tex(512,128,(g,w,h)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#fff';g.lineWidth=6;g.strokeRect(5,5,w-10,h-10);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px system-ui';g.fillText(t,w/2,h*.64);}),frontMat=new THREE.MeshBasicMaterial({map}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map)});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);}
+ const board=new THREE.Group();board.position.set(x,6.8,z);scene.add(board);const geo=new THREE.PlaneGeometry(7,1.75),map=tex(512,128,(g,w,h)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#fff';g.lineWidth=6;g.strokeRect(5,5,w-10,h-10);g.fillStyle='#fff';g.textAlign='center';g.font='bold 54px system-ui';g.fillText(t,w/2,h*.64);}),frontMat=new THREE.MeshBasicMaterial({map}),backMat=new THREE.MeshBasicMaterial({map});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(makeReadableSignBackGeometry(geo),backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);}
 ZN.forEach(a=>label(a.n,a.lx,a.lz,'#0f5b3a'));HR.forEach(r=>label(r[1],-14,r[0]+8,'#1d4a8a'));VR.slice(1).forEach(r=>{let lz=(r[2]+r[3])/2+30;if(RB.some(q=>Math.hypot(r[0]+8-q[0],lz-q[1])<40))lz-=60;label(r[1],r[0]+8,lz,'#1d4a8a');});
 const RD=HR.map(r=>[r[2],r[0]-5,r[3]-r[2],10]).concat(VR.map(r=>[r[0]-5,r[2],10,r[3]-r[2]]));
 for(let i=-12;i<=8;i++)[[-8.8,i*14+3],[8.8,i*14+10]].forEach(p=>{if(!HR.some(r=>Math.abs(p[1]-r[0])<10))palm(p[0],p[1]);});
