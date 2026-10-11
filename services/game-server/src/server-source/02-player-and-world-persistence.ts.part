@@ -113,7 +113,6 @@ function syncStage18ActiveCash(accountId: string, cashValue: number) {
 async function settleStage18Bets(betDate: string): Promise<void> {
   const db = pool;
   if (!db) return;
-  if (!pool) return;
   const client = await db.connect();
   const notices: Array<{ accountId: string; ticket: any }> = [];
   const balances = new Map<string, number>();
@@ -224,7 +223,6 @@ async function settleStage18Bets(betDate: string): Promise<void> {
 async function runStage18BettingSettlement(): Promise<void> {
   const db = pool;
   if (!db) return;
-  if (!pool) return;
   const clock = stage18NigeriaClock();
   const pending = await db.query(
     "SELECT DISTINCT bet_date FROM nrs_betting_tickets WHERE status='OPEN' AND bet_date < $1 ORDER BY bet_date",
@@ -240,7 +238,6 @@ async function runStage18BettingSettlement(): Promise<void> {
 async function sendStage18BettingState(session: Session, requestId = ""): Promise<void> {
   const db = pool;
   if (!db) {
-  if (!pool) {
     send(session.socket, { type: "bettingState", ok: false, requestId, message: "Sports betting is temporarily unavailable. Please try again shortly." });
     return;
   }
@@ -286,6 +283,7 @@ async function sendStage18BettingState(session: Session, requestId = ""): Promis
 }
 
 async function placeStage18BettingTicket(session: Session, message: any): Promise<void> {
+  const db = pool;
   const requestId = String(message.requestId ?? "").trim().slice(0, 128);
   const fail = (messageText: string, cash?: number) => send(session.socket, {
     type: "bettingTicketResult",
@@ -294,7 +292,7 @@ async function placeStage18BettingTicket(session: Session, message: any): Promis
     message: messageText,
     cash: cash ?? session.player.cash,
   });
-  if (!pool) return fail("Sports betting requires the secure game wallet. Please try again shortly.");
+  if (!db) return fail("Sports betting requires the secure game wallet. Please try again shortly.");
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(requestId)) return fail("The ticket reference is invalid. Please try again.");
   const clock = stage18NigeriaClock();
   if (clock.isClosed) return fail("Today's betting has closed at 10:00 PM. New fixtures open tomorrow.");
