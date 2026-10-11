@@ -4855,8 +4855,11 @@ wss.on("connection", (socket) => {
         const cls = atHome && home ? HOUSE_CLASSES.find((item) => item.id === home.cls)! : undefined;
         const room = atHome && home ? homeInteriorPosition(home.id) : null;
         const returnPosition = atHome && home ? homeStreetPosition(home.id) : null;
-        const x = room ? room.x : 0;
-        const z = room ? room.z + 1.4 : 0;
+        // Homeless respawn stays in public space just outside the ticketed City Park
+        // entrance. The player is not spawned inside the fenced grounds and no
+        // existing home/lease is cleared by this fallback.
+        const x = room ? room.x : PARK_GATE_APPROACH.x;
+        const z = room ? room.z + 1.4 : PARK_GATE_APPROACH.z;
         session.inHome = atHome;
         session.inCarpark = false;
         session.homeReturn = atHome ? (returnPosition ?? { x: home!.x, z: home!.z + 12 }) : null;
@@ -4879,7 +4882,7 @@ wss.on("connection", (socket) => {
             returnX: returnPosition?.x ?? home.x, returnZ: returnPosition?.z ?? home.z + 12,
             furniture: HOME_FURNITURE[home.cls] ?? [],
           } : {}),
-          message: atHome ? "You respawned inside your home." : "You have no home, so you respawned at the public parking lot.",
+          message: atHome ? "You respawned inside your home." : "You have no home, so you respawned at the public City Park entrance. Your housing record has not been changed.",
           x, z, life: session.player.life, today: clock.dayKey(),
         });
         if (atHome && !wasHidden) {
