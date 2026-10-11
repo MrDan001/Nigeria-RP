@@ -44,7 +44,7 @@ function plData(tab){const o=[],seen={};
  else{ZN.forEach(a=>o.push({n:a.n,sub:'District',x:(a.x1+a.x2)/2,z:(a.z1+a.z2)/2,ico:'🏙',c:'#0f5b3a',r:Math.min(30,Math.min(a.x2-a.x1,a.z2-a.z1)/3)}));o.push({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25});}
  const p=myPos();o.forEach(q=>q.d=Math.hypot(q.x-p.x,q.z-p.z));return o.sort((a,b)=>a.d-b.d);}
 function plRender(){plItems=plData(plTab);plSel=-1;
- const tools=plTab==='homes'?'<div class="hometools"><button data-housing-action="enter">🏠 Enter my home</button><button data-housing-action="park">🚗 Park all cars</button><button data-housing-action="retrieve">🔑 Retrieve cars</button><button data-housing-action="respawn">↪ Respawn</button></div>':'';
+ const tools=plTab==='homes'?'<div class="hometools"><button data-housing-action="enter">🏠 Enter my home</button><button data-housing-action="park">🚗 Park all cars</button><button data-housing-action="retrieve">🔑 Retrieve cars</button></div>':'';
  const rows=plItems.map((q,i)=>{if(q.home){const life=(window.NRS||{}).life||{},own=life.homeId===q.houseId,daysLeft=Math.max(0,7-(own?(life.rentDays||0):0));const canRent=(q.house.vacant||q.house.occupiedByMe)&&(!life.homeId||own)&&daysLeft>0;
   const opts=Array.from({length:Math.max(1,daysLeft)},(_,j)=>'<option value="'+(j+1)+'">'+(j+1)+'d</option>').join('');
   return '<div class="pr home-row" data-i="'+i+'"><i class="pi" style="background:'+q.c+'">'+q.ico+'</i><div class="pn"><b>'+esc(q.n)+'</b><small>'+esc(q.sub)+'</small></div><select class="home-days" aria-label="Prepaid days" '+(!canRent?'disabled':'')+'>'+opts+'</select><button class="hrent" data-house-action="rent" data-house-id="'+q.houseId+'" '+(!canRent?'disabled':'')+'>'+(own?'Add rent':q.house.vacant?'Rent':'Taken')+'</button><button class="pg">GO</button></div>';
@@ -68,7 +68,6 @@ pll.addEventListener('click',e=>{
   if(action.dataset.housingAction==='enter')N.enterHome();
   else if(action.dataset.housingAction==='park')N.parkCars();
   else if(action.dataset.housingAction==='retrieve')N.retrieveCars();
-  else if(action.dataset.housingAction==='respawn')N.respawn();
   else if(action.dataset.houseAction==='rent'){const row=action.closest('.pr'),days=Number(row?.querySelector('.home-days')?.value||1);N.rentHouse(action.dataset.houseId,days);}
   return;
  }

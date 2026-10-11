@@ -65,12 +65,7 @@
   function openTravel(mode) {
     closeTablet();
     window.dispatchEvent(new CustomEvent("nrs-tablet-travel-mode", { detail: { mode } }));
-    const open = $("nrsTravelOpen");
-    if (open) open.click();
-    else {
-      openTablet();
-      setScreenTitle("Travel terminal", "The interstate travel service is loading. Close the Tablet and try again once the game connects.");
-    }
+    window.dispatchEvent(new Event("nrs-open-travel"));
   }
   function renderWallet() {
     setScreenTitle("Wallet & banking", "View your available character cash and bank balance.");

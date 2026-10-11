@@ -1319,9 +1319,6 @@
   // balance checks, replay protection and the persisted destination city.
   const cityTravelStyle = document.createElement("style");
   cityTravelStyle.textContent = `
-    #nrsTravelOpen{position:fixed;top:calc(env(safe-area-inset-top,0px) + 54px);right:12px;z-index:8001;
-      border:1px solid rgba(111,205,255,.5);border-radius:13px;padding:10px 13px;background:linear-gradient(135deg,#0b6ea8,#124a77);
-      color:#fff;font:800 12px system-ui,sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.32);touch-action:manipulation}
     #nrsTravelModal[hidden],#nrsTravelArrival[hidden]{display:none!important}
     #nrsTravelModal{position:fixed;inset:0;z-index:95000;display:grid;place-items:center;padding:16px;
       background:rgba(1,7,14,.78);backdrop-filter:blur(10px);font-family:system-ui,sans-serif;color:#f4f8ff;box-sizing:border-box}
@@ -1357,15 +1354,9 @@
       font-family:system-ui,sans-serif;pointer-events:none}
     #nrsTravelArrival .title{font-size:clamp(25px,7vw,40px);font-weight:900;letter-spacing:-.035em}
     #nrsTravelArrival .desc{font-size:13px;color:#b6e2ff;margin-top:10px}
-    @media(max-width:480px){#nrsTravelModal .card{padding:16px;border-radius:18px}#nrsTravelOpen{top:calc(env(safe-area-inset-top,0px) + 52px);padding:9px 11px}}
+    @media(max-width:480px){#nrsTravelModal .card{padding:16px;border-radius:18px}}
   `;
   document.head.appendChild(cityTravelStyle);
-
-  const travelOpen = document.createElement("button");
-  travelOpen.id = "nrsTravelOpen";
-  travelOpen.type = "button";
-  travelOpen.textContent = "🚌 Interstate travel";
-  document.body.appendChild(travelOpen);
 
   const travelModal = document.createElement("div");
   travelModal.id = "nrsTravelModal";
@@ -1518,8 +1509,6 @@
     N.cityEnvironment = environment;
     // Stage 16 city experience layer owns landmark scene rendering.
     const accent = /^#[0-9a-f]{6}$/i.test(String(environment.accentCss || "")) ? environment.accentCss : "#31b8e8";
-    travelOpen.style.borderColor = accent;
-    travelOpen.style.background = "linear-gradient(135deg," + accent + ",#124a77)";
     travelArrival.style.background = "radial-gradient(ellipse at center," + accent + "55,rgba(2,8,17,.98))";
     try {
       if (typeof scene !== "undefined") {
@@ -1625,7 +1614,7 @@
     }
     travelModal.hidden = false;
   }
-  travelOpen.addEventListener("click", openTravelTerminal);
+  window.addEventListener("nrs-open-travel", openTravelTerminal);
   $("nrsTravelClose").addEventListener("click", () => { travelModal.hidden = true; });
   travelModal.addEventListener("click", (event) => { if (event.target === travelModal) travelModal.hidden = true; });
   travelModal.querySelectorAll("[data-travel-mode]").forEach((button) => {
