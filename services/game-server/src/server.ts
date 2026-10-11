@@ -12,6 +12,7 @@ import {
   MAX_PREPAID_DAYS,
   BOSS_RANK,
   MAX_STAFF_RANK,
+  MAX_WORK_HISTORY,
   FACTIONS,
   WORKPLACES,
   WORK_TASK_COOLDOWN_MS,
@@ -514,6 +515,8 @@ function workplaceSnapshot(session: Session) {
       ? { ...session.workTask, elapsedMs: Math.max(0, Date.now() - session.workTask.startedAt), durationMs: WORK_TASK_DURATION_MS }
       : null,
     taskReadyAt: Math.max(0, Number(employment?.lastTaskAt) + WORK_TASK_COOLDOWN_MS || 0),
+    // Returned only to the authenticated account owning this snapshot.
+    workHistory: (session.player.life.workHistory ?? []).slice(-10),
     cash: session.player.cash,
     today: clock.dayKey(),
   };
@@ -1650,6 +1653,7 @@ wss.on("connection", (socket) => {
             return;
           }
           applications[session.player.id] = Date.now();
+          appendAdminAudit(session, session.player.id, session.player.name, "workplace_application", "submitted application for " + workplaceId);
           await saveWorld();
           sendWorkplaceResult(session, "apply", true, "Application submitted. A faction boss must review it before you can join.");
           broadcastWorkplaceStates();
@@ -1657,8 +1661,9 @@ wss.on("connection", (socket) => {
         }
         session.player.life = {
           ...session.player.life,
-          employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0 },
+          employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null },
         };
+        appendAdminAudit(session, session.player.id, session.player.name, "staff_hired", "joined " + workplaceId + " through open recruitment");
         delete world.workplaceApplications[workplaceId]?.[session.player.id];
         await persistSession(session);
         await saveWorld();
@@ -1683,7 +1688,9 @@ wss.on("connection", (socket) => {
         }
         session.player.life = { ...session.player.life, employment: null };
         session.workTask = null;
+        appendAdminAudit(session, session.player.id, session.player.name, "staff_left", "left " + employment.workplaceId);
         await persistSession(session);
+        await saveWorld();
         sendWorkplaceResult(session, "leave", true, "You have left your workplace.");
         broadcastWorkplaceStates();
         return;
@@ -1797,6 +1804,18 @@ wss.on("connection", (socket) => {
         session.player.life = {
           ...session.player.life,
           employment: { ...employment, onDuty: true, lastTaskAt: now },
+          workHistory: [
+            ...(session.player.life.workHistory ?? []),
+            {
+              id: randomUUID(),
+              workplaceId: activeTask.workplaceId,
+              taskId: task.id,
+              taskTitle: task.title,
+              rank: employment.rank,
+              amount: reward,
+              paidAt: now,
+            },
+          ].slice(-MAX_WORK_HISTORY),
         };
         session.workTask = null;
         await persistSession(session);
@@ -1835,6 +1854,21 @@ wss.on("connection", (socket) => {
             return;
           }
           await setAccountEmployment(targetId, workplaceId, 1);
+          appendAdminAudit(
+            session,
+            targetId,
+            active?.player.name ?? account.username,
+            "workplace_application",
+            "approved application for " + workplaceId,
+          );
+        } else {
+          appendAdminAudit(
+            session,
+            targetId,
+            players.get(targetId)?.player.name ?? "Applicant",
+            "workplace_application",
+            "declined application for " + workplaceId,
+          );
         }
         delete applications[targetId];
         await saveWorld();
@@ -1862,6 +1896,7 @@ wss.on("connection", (socket) => {
           return;
         }
         target.player.life = { ...target.player.life, employment: { workplaceId, rank: 1, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } };
+        appendAdminAudit(session, targetId, target.player.name, "staff_hired", "hired into " + workplaceId);
         delete world.workplaceApplications[workplaceId]?.[targetId];
         await persistSession(target);
         await saveWorld();
@@ -1891,12 +1926,10 @@ wss.on("connection", (socket) => {
           sendWorkplaceResult(session, "dismiss", false, "That player is not a member of this workplace.");
           return;
         }
-        if (admin) {
-          appendAdminAudit(session, targetId, target?.player.name ?? account?.username ?? "Staff member", "dismiss_staff", workplaceId);
-        }
+        appendAdminAudit(session, targetId, target?.player.name ?? account?.username ?? "Staff member", "dismiss_staff", workplaceId);
         if (world.bosses[workplaceId] === targetId) { world.bosses[workplaceId] = null; world.bossNames[workplaceId] = null; }
         await setAccountEmployment(targetId, null);
-        if (admin) await saveWorld();
+        await saveWorld();
         sendWorkplaceResult(session, "dismiss", true, (target?.player.name ?? account?.username ?? "Staff member") + " has been removed from " + workplace.name + ".");
         if (target) sendWorkplaceResult(target, "dismissed", true, "You have been removed from " + workplace.name + ".");
         broadcastWorkplaceStates();
@@ -1977,16 +2010,14 @@ wss.on("connection", (socket) => {
           account.life = { ...account.life, employment };
           await saveAccount(account);
         }
-        if (admin) {
-          appendAdminAudit(
-            session,
-            targetId,
-            target?.player.name ?? account?.username ?? "Staff member",
-            "rank_change",
-            workplaceId + " -> rank " + newRank,
-          );
-          await saveWorld();
-        }
+        appendAdminAudit(
+          session,
+          targetId,
+          target?.player.name ?? account?.username ?? "Staff member",
+          "rank_change",
+          workplaceId + " -> rank " + newRank,
+        );
+        await saveWorld();
         const rankTitle = workplaceRankTitle(workplaceId, newRank);
         sendWorkplaceResult(session, "rank", true, (target?.player.name ?? account?.username ?? "Staff member") + " assigned to " + rankTitle + " at " + workplace.name + ".");
         if (target && target.player.id !== session.player.id) {
