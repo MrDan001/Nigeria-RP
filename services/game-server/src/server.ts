@@ -101,6 +101,7 @@ import { NEWS_WORKPLACE_ID, approveStage8Story, createStage8State, moderateStage
 import { STAGE11_BUSINESSES, STAGE11_SERVICES, STAGE11_FUEL_PRICE_PER_LITRE, assignStage11CourierDelivery, assignStage11RepairCall, assignStage11ServiceOrder, buyStage11Fuel, completeStage11CourierDelivery, completeStage11RepairCall, completeStage11ServiceOrder, createStage11State, normalizeStage11State, openStage11CourierDelivery, openStage11RepairCall, openStage11ServiceOrder, payStage11UtilityBill, pickupStage11CourierDelivery, registerStage11Property, registerStage11Vehicle, type Stage11Actor, type Stage11Property } from "./stage11";
 import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acceptStage9Ride, advanceStage9Delivery, advanceStage9Ride, cancelStage9Ride, checkoutStage9Vehicle, completeStage9Delivery, completeStage9Ride, consumeStage9Fuel, createStage9State, normalizeStage9State, pickupStage9Ride, refuelStage9Vehicle, requestStage9Ride, returnStage9Vehicle, startStage9Delivery, stage9DistanceToStop, type Stage9Actor, type Stage9Result } from "./stage9";
 import { createStage15State, findStage15City, findStage15Route, normalizeStage15State, recordStage15Travel, stage15Cities, stage15CitySpawn, stage15Routes, validateStage15Travel, type Stage15State } from "./stage15";
+import { findStage16Environment, stage16Environments } from "./stage16";
 
 const scrypt = promisify(scryptCb);
 
@@ -2312,6 +2313,8 @@ wss.on("connection", (socket) => {
           routes: stage15Routes(),
           cityId: session.player.cityId,
           currentCity: findStage15City(session.player.cityId) ?? findStage15City("port-harcourt"),
+          environments: stage16Environments(),
+          currentEnvironment: findStage16Environment(session.player.cityId) ?? findStage16Environment("port-harcourt"),
           cash: session.player.cash,
           recentTrips: stage15State.ledger.filter((entry) => entry.accountId === session.player.id).slice(-12).reverse(),
         });
@@ -2426,6 +2429,7 @@ wss.on("connection", (socket) => {
             fromCityId,
             cityId: destination.id,
             cityName: destination.name,
+            environment: findStage16Environment(destination.id) ?? findStage16Environment("port-harcourt"),
             fareNaira: validated.fareNaira,
             durationMinutes: validated.durationMinutes,
             passengers: validated.passengers,
