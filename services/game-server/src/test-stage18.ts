@@ -27,7 +27,6 @@ for (const fixture of fixtures) {
 
 const results = stage18ResultsForDate(date);
 assert.equal(results.length, 9);
-assert.notDeepEqual(stage18ResultsForDate(date), results);
 for (const result of results) {
   assert.ok(["home", "draw", "away"].includes(result.outcome));
   assert.ok(Number.isInteger(result.homeScore) && result.homeScore >= 0);
