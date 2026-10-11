@@ -95,6 +95,7 @@ import {
   hasValidParkTicket,
   isInsideParkGrounds,
 } from "./stage5";
+import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent } from "./stage6";
 
 const scrypt = promisify(scryptCb);
 
@@ -189,6 +190,7 @@ type FileStore = {
   world?: WorldState;
   stage4?: unknown;
   stage5?: unknown;
+  stage6?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -222,6 +224,7 @@ const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
 let stage4State = normalizeStage4State(null);
 let stage5State = normalizeStage5State(null);
+let stage6State = createStage6State();
 let stage4MutationQueue: Promise<void> = Promise.resolve();
 
 // Balance-changing actions share one queue, so jobs, housing, transfers, sales and teller
@@ -442,6 +445,14 @@ async function saveStage5State(state = stage5State) {
   fileStore.stage5 = state;
   writeFileStore();
 }
+async function saveStage6State(state = stage6State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage6',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage6 = state;
+  writeFileStore();
+}
 
 async function migrateLegacyAdminAllowlist() {
   if (world.legacyAdminsMigrated) return;
@@ -576,7 +587,7 @@ function workplaceSnapshot(session: Session) {
     }
     if (!world.bossNames[workplace.id] && world.bosses[workplace.id]) ensureBossDisplayName(workplace.id);
     const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
-    const canManage = world.bosses[workplace.id] === session.player.id;
+    const canManage = world.bosses[workplace.id] === session.player.id && (workplace.id !== GOVERNMENT_WORKPLACE_ID || (employment?.workplaceId === GOVERNMENT_WORKPLACE_ID && Number(employment?.rank) === BOSS_RANK));
     const applicants = (canManage || admin)
       ? Object.entries(applicationTimes).map(([accountId, appliedAt]) => {
           const applicant = players.get(accountId);
@@ -637,6 +648,7 @@ function sendWorkplaceResult(session: Session, action: string, ok: boolean, mess
 
 function broadcastWorkplaceStates() {
   for (const session of players.values()) sendWorkplaceState(session);
+  broadcastGovernmentStates();
 }
 
 function workplaceDistance(session: Session, workplace: Workplace) {
@@ -780,6 +792,41 @@ function stage5AtWorkplace(session: Session, workplaceId: string) {
   const workplace = findWorkplace(workplaceId);
   return !!workplace && !stage5PrivateContext(session) && workplaceDistance(session, workplace) <= 24;
 }
+
+function governmentWorkplaceFailure(session: Session, options: { governorOnly?: boolean; requiredRank?: number } = {}): string | null {
+  const e=session.player.life.employment??null;
+  if(e?.workplaceId!==GOVERNMENT_WORKPLACE_ID)return "You must be employed by Rivers State Government to use this action.";
+  const rank=Number(e.rank);
+  if(!Number.isInteger(rank)||rank<1||rank>BOSS_RANK)return "Your government rank is not valid.";
+  if(options.requiredRank&&rank!==options.requiredRank)return options.requiredRank===2?"Only the government public-relations rank can publish official announcements.":"This civic action requires the Governor's rank.";
+  const governor=rank===BOSS_RANK&&world.bosses[GOVERNMENT_WORKPLACE_ID]===session.player.id;
+  if(rank===BOSS_RANK&&!governor)return "The Governor role must be assigned through protected workplace administration first.";
+  if(options.governorOnly&&!governor)return "Only the appointed Governor may authorize state spending.";
+  if(e.onDuty!==true)return "Clock in at the government workplace before using this civic action.";
+  if(e.uniformWorkplaceId!==GOVERNMENT_WORKPLACE_ID)return "Wear the authorized government uniform before using this civic action.";
+  if(!stage5AtWorkplace(session,GOVERNMENT_WORKPLACE_ID))return "Return to the Rivers State Government building to use this civic action.";
+  return null;
+}
+function governmentStatePayload(session: Session) {
+  const e=session.player.life.employment??null,member=e?.workplaceId===GOVERNMENT_WORKPLACE_ID,rank=member?Number(e?.rank??0):0;
+  const isGovernor=member&&rank===BOSS_RANK&&world.bosses[GOVERNMENT_WORKPLACE_ID]===session.player.id;
+  const onDuty=member&&e?.onDuty===true,uniform=member&&e?.uniformWorkplaceId===GOVERNMENT_WORKPLACE_ID;
+  const atGovernment=stage5AtWorkplace(session,GOVERNMENT_WORKPLACE_ID),dayKey=clock.dayKey();
+  const claimedPayrollToday=stage6State.payrollDayByAccount[session.player.id]===dayKey;
+  const announcementReadyAt=(stage6State.lastAnnouncementAt[session.player.id]??0)+GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS;
+  const ready=member&&onDuty&&uniform&&atGovernment;
+  return {type:"governmentState",workplaceId:GOVERNMENT_WORKPLACE_ID,treasuryBalance:stage6State.treasuryBalance,
+    ledger:stage6State.ledger.slice(-20).reverse(),announcements:stage6State.announcements.slice(-15).reverse(),rank,
+    rankTitle:member?workplaceRankTitle(GOVERNMENT_WORKPLACE_ID,rank):"",member,isGovernor,onDuty,uniform,atGovernment,
+    payrollAmount:member?governmentPayrollAmount(rank):0,claimedPayrollToday,
+    canClaimPayroll:ready&&!claimedPayrollToday&&(rank<BOSS_RANK||isGovernor),
+    canPublishAnnouncement:ready&&rank===2&&Date.now()>=announcementReadyAt,announcementReadyAt,
+    canApproveSpending:ready&&isGovernor,cash:session.player.cash,dayKey};
+}
+function sendGovernmentResult(session: Session, action: string, ok: boolean, message: string) {
+  send(session.socket,{...governmentStatePayload(session),type:"governmentActionResult",action,ok,message});
+}
+function broadcastGovernmentStates() { for(const session of players.values())send(session.socket,governmentStatePayload(session)); }
 
 function stage5PlayerAtHospital(session: Session, hospitalId: string) {
   return stage5AtWorkplace(session, hospitalId);
@@ -1032,7 +1079,9 @@ function parkStatePayload(session: Session) {
 }
 
 function hasWorkplaceBossPermission(session: Session, workplaceId: string) {
-  return world.bosses[workplaceId] === session.player.id;
+  if(world.bosses[workplaceId]!==session.player.id)return false;
+  if(workplaceId===GOVERNMENT_WORKPLACE_ID){const e=session.player.life.employment;return e?.workplaceId===GOVERNMENT_WORKPLACE_ID&&Number(e.rank)===BOSS_RANK;}
+  return true;
 }
 
 async function setAccountEmployment(accountId: string, workplaceId: string | null, rank = 1) {
@@ -1308,6 +1357,9 @@ async function initStore() {
     const stage5Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage5' LIMIT 1");
     stage5State = normalizeStage5State(stage5Row.rows[0]?.value);
     await saveStage5State();
+    const stage6Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage6' LIMIT 1");
+    stage6State = normalizeStage6State(stage6Row.rows[0]?.value);
+    await saveStage6State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1333,6 +1385,8 @@ async function initStore() {
   await saveStage4State();
   stage5State = normalizeStage5State(fileStore.stage5);
   await saveStage5State();
+  stage6State = normalizeStage6State(fileStore.stage6);
+  await saveStage6State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -3244,6 +3298,39 @@ wss.on("connection", (socket) => {
         return;
       }
 
+
+      if (message.type === "getGovernmentState") { send(socket,governmentStatePayload(session)); return; }
+      if (message.type === "claimGovernmentPayroll") {
+        await withMoneyMutation(async()=>{
+          const failure=governmentWorkplaceFailure(session);
+          if(failure){sendGovernmentResult(session,"payroll",false,failure);return;}
+          const e=session.player.life.employment!;
+          const r=claimGovernmentPayroll(stage6State,{actorId:session.player.id,actorName:session.player.name,rank:Number(e.rank),dayKey:clock.dayKey(),now:Date.now()});
+          if(!r.ok||!r.transaction){sendGovernmentResult(session,"payroll",false,r.message);return;}
+          stage6State=r.state;session.player.cash+=r.transaction.amount;
+          await saveStage6State();await persistSession(session);
+          sendGovernmentResult(session,"payroll",true,r.message);broadcastGovernmentStates();
+        });return;
+      }
+      if (message.type === "publishGovernmentAnnouncement") {
+        await withMoneyMutation(async()=>{
+          const failure=governmentWorkplaceFailure(session,{requiredRank:2});
+          if(failure){sendGovernmentResult(session,"announcement",false,failure);return;}
+          const r=publishGovernmentAnnouncement(stage6State,{requestId:String(message.requestId??""),authorId:session.player.id,authorName:session.player.name,rank:Number(session.player.life.employment?.rank),text:String(message.text??""),now:Date.now()});
+          if(!r.ok){sendGovernmentResult(session,"announcement",false,r.message);return;}
+          stage6State=r.state;await saveStage6State();sendGovernmentResult(session,"announcement",true,r.message);broadcastGovernmentStates();
+        });return;
+      }
+      if (message.type === "approveGovernmentSpending") {
+        await withMoneyMutation(async()=>{
+          const failure=governmentWorkplaceFailure(session,{governorOnly:true,requiredRank:BOSS_RANK});
+          if(failure){sendGovernmentResult(session,"spending",false,failure);return;}
+          const r=approveGovernmentSpending(stage6State,{requestId:String(message.requestId??""),actorId:session.player.id,actorName:session.player.name,amount:Number(message.amount),memo:String(message.memo??""),now:Date.now()});
+          if(!r.ok){sendGovernmentResult(session,"spending",false,r.message);return;}
+          stage6State=r.state;await saveStage6State();sendGovernmentResult(session,"spending",true,"Authorized expenditure recorded in the state treasury ledger.");broadcastGovernmentStates();
+        });return;
+      }
+
       if (message.type === "getWorkplaces") {
         sendWorkplaceState(session);
         return;
@@ -3417,6 +3504,11 @@ wss.on("connection", (socket) => {
         }
         const reward = payForTask(task.basePay, employment.rank);
         const now = Date.now();
+        if(activeTask.workplaceId===GOVERNMENT_WORKPLACE_ID){
+          const payout=payGovernmentDuty(stage6State,{requestId:randomUUID(),actorId:session.player.id,actorName:session.player.name,rank:Number(employment.rank),amount:reward,memo:task.title,now});
+          if(!payout.ok){sendWorkplaceResult(session,"taskComplete",false,payout.message);return;}
+          stage6State=payout.state;await saveStage6State();
+        }
         session.player.cash += reward;
         session.player.life = {
           ...session.player.life,
@@ -4035,13 +4127,16 @@ wss.on("connection", (socket) => {
           fail("Not enough cash. You need ₦" + cost.toLocaleString("en-NG") + ".");
           return;
         }
+        const rentLedger=recordHousingRent(stage6State,{requestId:randomUUID(),actorId:session.player.id,actorName:session.player.name,houseId,amount:cost,now:Date.now()});
+        if(!rentLedger.ok){fail(rentLedger.message);return;}
         session.player.cash -= cost;
         session.player.life = {
           ...session.player.life, homeId: houseId, rentDays: totalDays, lastDay: clock.dayKey(),
         };
         world.houseTenants[houseId] = session.player.id;
-        // A property starts open when a new tenancy begins; its owner can lock it later.
+        // The current public-rental catalogue is treated as state-owned housing.
         if (!tenant) world.houseLocks[houseId] = false;
+        stage6State=rentLedger.state;await saveStage6State();
         await saveWorld();
         await persistSession(session);
         send(socket, {
@@ -4052,6 +4147,7 @@ wss.on("connection", (socket) => {
         for (const other of players.values()) {
           if (other.player.id !== session.player.id) sendHousingState(other);
         }
+        broadcastGovernmentStates();
         return;
         });
         return;

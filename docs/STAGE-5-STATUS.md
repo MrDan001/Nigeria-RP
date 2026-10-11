@@ -1,6 +1,6 @@
 # Stage 5 — Hospital, Ambulance and City Park Services
 
-> **Status: ACTIVE — interaction flows implemented; final integration, regression and production verification in progress (11 October 2026).** This stage is designed around real player-to-player services: a citizen uses clear menus to contact available workers, and the worker sees a queue and handles the request through the same server-authoritative workflow.
+> **Status: COMPLETE FOR SEQUENCING AT THE USER'S DIRECTION — final combined regression across Stages 1–6 is scheduled after Stage 6.** Manual Android/two-account checks are not claimed as performed. This stage delivers patient/worker service flows with server-authoritative rules.
 
 ## Existing locations and ranks
 

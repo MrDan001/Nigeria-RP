@@ -681,6 +681,14 @@
           window.dispatchEvent(new CustomEvent("nrs-park-ticket-sale-notice", { detail: message }));
           if (message.message) sys(message.message);
         }
+      } else if (message.type === "governmentState" || message.type === "governmentActionResult") {
+        N.governmentState = { ...(N.governmentState || {}), ...message };
+        window.dispatchEvent(new CustomEvent("nrs-government-state", { detail: N.governmentState }));
+        if (message.cash !== undefined) { cash=Number(message.cash)||0; N.cash=cash; money(); }
+        if (message.type === "governmentActionResult") {
+          window.dispatchEvent(new CustomEvent("nrs-government-action-result", { detail: message }));
+          if(message.message)sys(message.message);
+        }
       } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
         N.workplaceState = message;
         N.workplaces = message.workplaces || N.workplaces || [];
@@ -987,6 +995,10 @@
   N.purchaseHospitalMedicine = (hospitalId, workerId, medicineId, quantity, requestId = stage4RequestId("pharmacy")) =>
     send({ type: "purchaseHospitalMedicine", hospitalId, workerId, medicineId, quantity, requestId });
   N.getParkState = () => send({ type: "getParkState" });
+  N.getGovernmentState = () => send({ type: "getGovernmentState" });
+  N.claimGovernmentPayroll = () => send({ type: "claimGovernmentPayroll", requestId: stage4RequestId("gov-payroll") });
+  N.publishGovernmentAnnouncement = (text, requestId = stage4RequestId("gov-notice")) => send({ type: "publishGovernmentAnnouncement", text, requestId });
+  N.approveGovernmentSpending = (amount, memo, requestId = stage4RequestId("gov-spend")) => send({ type: "approveGovernmentSpending", amount, memo, requestId });
   N.buyParkTicket = (sellerId, requestId = stage4RequestId("park-ticket")) =>
     send({ type: "buyParkTicket", sellerId, requestId });
   N.requestParkHelp = (kind, requestId = stage4RequestId("park-help")) =>

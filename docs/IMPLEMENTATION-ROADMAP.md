@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Project status — 11 October 2026:** Stage 3 was accepted by the user; Stage 4 market/bank services were implemented and deployed to Railway; **Stage 5 (hospital, ambulance and City Park citizen-to-worker services) is active**. Current Stage 5 implementation includes patient request/triage/treatment queues, ambulance dispatch, pharmacy purchases and receipts, park tickets and visitor-help requests. See [Stage 5 status](STAGE-5-STATUS.md), [the short roadmap](ROADMAP.md) and the [master handoff](MASTER-DOCUMENT.md). The Face-Me-I-Face-You visibility fix remains a protected regression boundary.
+> **Project status — 11 October 2026:** Stages 0–5 are treated as complete for sequencing at the user's direction; integrated regression across Stages 1–6 is scheduled after Stage 6. **Stage 6 — Rivers State Government & Civic Finance — is active.** Keep the Face-Me-I-Face-You building visibility fix as a protected regression boundary. Manual Android/two-account checks are not claimed unless recorded.
 
 > **Gate rule:** The user has explicitly asked to continue through the stages without requiring a second human tester. Use deterministic automated tests for replay, rank, balance and multi-account domain scenarios. Do not claim an unperformed two-account/Android live check as complete; record it as a manual limitation while proceeding with the next approved stage.
 
@@ -152,7 +152,7 @@ Acceptance / closeout:
 Acceptance: customers receive the right goods; cash, bank balances, stock and commissions reconcile; replayed sales/withdrawals do not duplicate value.
 
 ### Stage 5 — Hospital and parks
-**Status: ACTIVE — citizen-to-worker interaction flows are implemented; final integration, regression, production and solo-device verification remain in progress.** The existing Mile One General Hospital, Princess Hospital and City Park locations are reused.
+**Status: COMPLETE FOR SEQUENCING AT THE USER'S DIRECTION.** Stage 5 features are deployed; integrated regression across Stages 1–6 and remaining solo Android visual checks are grouped with the planned test. The existing Mile One General Hospital, Princess Hospital and City Park locations are reused.
 
 - Hospital ranks: Orderly, Nurse Aide, Nurse, Senior Nurse, Doctor, Chief Medical Director.
 - Park ranks: Cleaner, Gate Attendant, Ticket Seller, Ranger, Operations Officer, Park Director.
@@ -168,14 +168,23 @@ Acceptance:
 - [x] Railway production deployed commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`; service is online and the configured `/` health check succeeded.
 - [x] Server-authoritative daily park-pass entry, visible gate/collision and public-gate homeless respawn are implemented; respawn does not clear the home/lease record.
 - [ ] Solo Android visual check of patient status, triage-to-treatment flow, pharmacy receipt, park gate access, visitor pass and help panels.
-- [ ] User accepts Stage 5.
+- [x] The user directed that previous stages be marked done for sequencing and approved Stage 6; integrated testing is scheduled across Stages 1–6.
+- [ ] Remaining solo Android visual checks are not claimed as performed.
 
 ### Stage 6 — Rivers State government and civic finance
+**Status: IMPLEMENTED IN CODE — automated suite and CI/deployment verification pending.**
 - Rank 6: Governor (boss). Rank 5: Deputy Governor. Rank 4: Secretary to the State Government, Chief of Staff and Speaker. Rank 3: Commissioners, Senators and LGA Chairmen. Rank 2: Vice Chairmen, Special Advisers and PRO. Rank 1: Councillors, Assistants and Clerks.
 - Government staff use the shared work system. The Governor is the only in-game official allowed to promote/demote/fire this workplace's staff, with rank rules enforced server-side.
 - State treasury tracks authorized income and spending. Rent from vacant government-owned houses is collected into the treasury; approved government staff payroll is paid from it.
 - PRO tools publish rate-limited official announcements; the other roles receive simple, auditable duties appropriate to their authority.
 - Citizen funds and the government treasury must remain separate and auditable.
+
+- Reuse the existing Rivers State Government workplace and six-rank ladder. Daily payroll and government duty pay debit the persistent state treasury; public-housing rent payments credit it. Citizen funds remain separate.
+- Daily payroll is computed from rank by the server, claimable once per Nigeria-time game day and blocked if the treasury cannot cover it.
+- Rank-2 officials can publish rate-limited official announcements. The shared job model groups Vice Chairman, Special Adviser and PRO at Rank 2, so those sub-posts cannot yet be distinguished.
+- The appointed Rank-6 Governor is the only ordinary in-game official allowed to authorize expenditure or manage government staff; the existing protected admin override remains.
+- Opening allocation and each rent, payroll, duty-pay and spending movement are recorded in a bounded ledger with actor, purpose, time, direction and resulting balance.
+- Treasury starts with a fixed, recorded ₦5,000,000 opening allocation; clients cannot set the treasury balance.
 
 Acceptance: only authorized ranks can issue notices or civic actions; rent and payroll transactions reconcile to treasury records; no client can mint or redirect public funds.
 
