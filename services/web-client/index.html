@@ -844,7 +844,13 @@ function createHouseExterior(h){
  if(HOUSE_VISUALS[h.id]){const v=HOUSE_VISUALS[h.id];v.home=h;refreshHousePlaque(v,h);return v;}
  const cls=HOUSE_SIZES[h.cls]?h.cls:"flat",s=HOUSE_SIZES[cls],m=houseMats(cls),S=houseShared(),g=new THREE.Group(),w=s.w,d=s.d,H=s.h,front=cls==="hut"?w*.48:d/2,recs=[];
  g.position.set(Number(h.x),0,Number(h.z));scene.add(g);
- const A=(geo,mat,x,y,z)=>{const o=new THREE.Object3D();o.position.set(x,y,z);recs.push({geo,mat,o});return o;};
+ const directFaceMe=cls==="faceme";
+ const A=(geo,mat,x,y,z)=>{
+  // Keep compound-room pieces as native THREE.Mesh objects. This avoids the merged
+  // geometry path that can make these particular multi-room exteriors disappear.
+  if(directFaceMe){const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.frustumCulled=false;mesh.visible=true;g.add(mesh);return mesh;}
+  const o=new THREE.Object3D();o.position.set(x,y,z);recs.push({geo,mat,o});return o;
+ };
  const K={A,m,S,w,d,H,front,Y:.22};
  K.B=(bw,bh,bd,mat,x,y,z)=>A(new THREE.BoxGeometry(bw,bh,bd),mat,x,y,z);
  K.C=(rt,rb,ch,mat,x,y,z,seg)=>A(new THREE.CylinderGeometry(rt,rb,ch,seg||10),mat,x,y,z);
@@ -864,7 +870,11 @@ function createHouseExterior(h){
  const addCollider=(x,z,hw,hd)=>{const b={x:g.position.x+x,z:g.position.z+z,hw,hd,homeId:h.id};boxes.push(b);bld.push(b);};
  addCollider(-w/2,0,.28,d/2);addCollider(w/2,0,.28,d/2);addCollider(0,-d/2,w/2,.28);
  addCollider(-(w/4+.55),d/2,w/4-.1,.28);addCollider(w/4+.55,d/2,w/4-.1,.28);addCollider(0,d/2,.68,.28);
- houseMerge(g,recs);
+ if(directFaceMe){
+  // The compound rooms use individual meshes so their walls, doors and roof are
+  // not dependent on the geometry-merging/culling path.
+  g.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.visible=true;}});
+ }else houseMerge(g,recs);
  HOUSE_VISUALS[h.id]={group:g,home:h,plaque,entrance:{x:g.position.x,z:g.position.z+front+2.15}};
  return HOUSE_VISUALS[h.id];
 }
