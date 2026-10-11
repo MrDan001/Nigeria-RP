@@ -5,7 +5,7 @@
   "description": "Browser-native 3D multiplayer client for Nigerian Roleplay Simulator",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/assemble-game.mjs && vite",
     "build": "node scripts/assemble-game.mjs && node scripts/check-syntax.mjs && vite build",
     "preview": "vite preview",
     "typecheck": "node scripts/assemble-game.mjs && node scripts/check-syntax.mjs",
