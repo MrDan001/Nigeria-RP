@@ -56,6 +56,7 @@ test("market supervisors and chairmen can restock from the market till", () => {
   assert.equal(restockMarketStock({ state, productId: "bread", quantity: 10, managerRank: 5, requestId: "restock-a", idempotencyKey: "restock-hash-a" }).ok, false);
   assert.equal(restockMarketStock({ state, productId: "bread", quantity: 1, managerRank: 4, requestId: "restock-b" }).ok, false);
   assert.equal(restockMarketStock({ state, productId: "bread", quantity: 500, managerRank: 6, requestId: "restock-c" }).ok, false);
+  assert.equal(restockMarketStock({ state, productId: "bread", quantity: 1.5, managerRank: 6, requestId: "restock-fraction" }).ok, false);
   state.till = 100;
   const lowFunds = restockMarketStock({ state, productId: "rice-5kg", quantity: 1, managerRank: 6, requestId: "restock-d" });
   assert.equal(lowFunds.ok, false);
@@ -172,6 +173,7 @@ test("bank rejects trainee, self-service, forged amount and insufficient funds",
   assert.equal(settleBankTransaction({ state, requestId: "b", customerId: "same", tellerId: "same", tellerRank: 2, customer, type: "deposit", amount: 10_000, now: 1_760_000_000_001 }).ok, false);
   assert.equal(settleBankTransaction({ state, requestId: "c", customerId: "customer", tellerId: "teller", tellerRank: 2, customer, type: "withdrawal", amount: 30_000, now: 1_760_000_000_002 }).ok, false);
   assert.equal(settleBankTransaction({ state, requestId: "d", customerId: "customer", tellerId: "teller", tellerRank: 2, customer, type: "deposit", amount: 0, now: 1_760_000_000_003 }).ok, false);
+  assert.equal(settleBankTransaction({ state, requestId: "e", customerId: "customer", tellerId: "teller", tellerRank: 2, customer, type: "deposit", amount: 10.5, now: 1_760_000_000_004 }).ok, false);
 });
 
 test("replaying the same bank request cannot move money twice", () => {
