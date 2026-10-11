@@ -487,6 +487,18 @@ export type Employment = {
   uniformWorkplaceId?: string | null;
 };
 
+export type WorkHistoryEntry = {
+  id: string;
+  workplaceId: string;
+  taskId: string;
+  taskTitle: string;
+  rank: number;
+  amount: number;
+  paidAt: number;
+};
+
+export const MAX_WORK_HISTORY = 50;
+
 export type Life = {
   v: 1;
   employment: Employment | null; // one main job at a time
@@ -495,10 +507,15 @@ export type Life = {
   lastDay: string; // last WAT day this player's life was settled up to
   ownedCars: string[];
   parkedCars: string[];
+  /** Recent server-paid work completions, stored with the account's durable life data. */
+  workHistory: WorkHistoryEntry[];
 };
 
 export function newLife(todayKey: string): Life {
-  return { v: 1, employment: null, homeId: null, rentDays: 0, lastDay: todayKey, ownedCars: [...CAR_IDS], parkedCars: [] };
+  return {
+    v: 1, employment: null, homeId: null, rentDays: 0, lastDay: todayKey,
+    ownedCars: [...CAR_IDS], parkedCars: [], workHistory: [],
+  };
 }
 
 // Accepts whatever came out of storage and always returns a valid Life.
@@ -537,7 +554,29 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
     ? [...new Set(v.parkedCars.map(String).filter((id) => ownedCars.includes(id)))]
     : [];
 
-  return { v: 1, employment, homeId, rentDays, lastDay, ownedCars, parkedCars };
+  const workHistory: WorkHistoryEntry[] = [];
+  const rawWorkHistory = Array.isArray(v.workHistory) ? v.workHistory.slice(-MAX_WORK_HISTORY) : [];
+  for (const raw of rawWorkHistory) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const entry = raw as Record<string, unknown>;
+    const id = String(entry.id ?? "").trim().slice(0, 160);
+    const workplaceId = String(entry.workplaceId ?? "");
+    const taskId = String(entry.taskId ?? "");
+    const taskTitle = String(entry.taskTitle ?? "").trim().slice(0, 120);
+    const rank = Math.floor(Number(entry.rank));
+    const amount = Math.floor(Number(entry.amount));
+    const paidAt = Math.floor(Number(entry.paidAt));
+    if (
+      !id || !taskTitle || !findWorkplace(workplaceId) ||
+      !workplaceTasks(workplaceId).some((task) => task.id === taskId) ||
+      !Number.isInteger(rank) || rank < 1 || rank > RANK_COUNT ||
+      !Number.isSafeInteger(amount) || amount < 0 ||
+      !Number.isSafeInteger(paidAt) || paidAt <= 0
+    ) continue;
+    workHistory.push({ id, workplaceId, taskId, taskTitle, rank, amount, paidAt });
+  }
+
+  return { v: 1, employment, homeId, rentDays, lastDay, ownedCars, parkedCars, workHistory };
 }
 
 // ---------------------------------------------------------------- rent over time
@@ -608,7 +647,9 @@ export function checkRankChange(args: {
 // The named primary account is fixed in server policy, not selected by a client request.
 export const MAIN_ADMIN_USERNAME = "dbase_mccoll";
 export type AdminRole = "main_admin" | "admin" | null;
-export type AdminAuditAction = "grant_admin" | "revoke_admin" | "appoint_boss" | "rank_change" | "dismiss_staff";
+export type AdminAuditAction =
+  | "grant_admin" | "revoke_admin" | "appoint_boss" | "rank_change" | "dismiss_staff"
+  | "workplace_application" | "staff_hired" | "staff_left";
 export type AdminAuditEntry = {
   actorId: string;
   actorUsername: string;
@@ -744,6 +785,7 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
   }
   const allowedAuditActions = new Set<AdminAuditAction>([
     "grant_admin", "revoke_admin", "appoint_boss", "rank_change", "dismiss_staff",
+    "workplace_application", "staff_hired", "staff_left",
   ]);
   if (Array.isArray(v.adminAudit)) {
     base.adminAudit = v.adminAudit
