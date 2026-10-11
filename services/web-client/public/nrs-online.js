@@ -1500,7 +1500,7 @@
   function applyCityEnvironment(environment) {
     if (!environment) return;
     N.cityEnvironment = environment;
-    renderStage16Landmarks(environment);
+    // Stage 16 city experience layer owns landmark scene rendering.
     const accent = /^#[0-9a-f]{6}$/i.test(String(environment.accentCss || "")) ? environment.accentCss : "#31b8e8";
     cityBadge.style.borderColor = accent;
     cityBadge.style.boxShadow = "0 8px 22px " + accent + "25";
@@ -1613,6 +1613,10 @@
     applyCityEnvironment(result.environment);
   });
 
+  const stage16ExperienceScript = document.createElement("script");
+  stage16ExperienceScript.src = "/nrs-city-experience.js?v=stage16-plaza-guide";
+  stage16ExperienceScript.async = true;
+  document.head.appendChild(stage16ExperienceScript);
   setVisible(false);
   connect();
 })();

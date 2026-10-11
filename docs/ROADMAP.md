@@ -28,9 +28,9 @@ The full scope and acceptance checks are in [IMPLEMENTATION-ROADMAP.md](IMPLEMEN
 
 ## Active stage: Stage 16 — Distinct City Environments & Regional Identity
 
-The seven Stage 15 cities now have validated environment profiles, separate sky/fog/accent palettes, city-specific lightweight low-poly 3D landmark silhouettes and landmark callouts in the responsive travel terminal. Profiles are returned by the game server and applied on city arrival. Stage 16 catalogue tests are part of Game Server CI.
+The seven Stage 15 cities have validated environment profiles, separate sky/fog/accent palettes, city-specific low-poly landmarks, an off-road civic plaza with themed shopfronts and street furniture, and an on-foot district-guide interaction listing local activities and landmarks. Profiles are returned by the game server and applied on city arrival. Stage 16 catalogue tests validate each city’s guide content in Game Server CI.
 
-The latest automated checkpoint passed all Game Server tests, typecheck, server/client builds and the Railway deployment gate. Remaining Stage 16 acceptance work is the real-device visual review and further per-city streetscape/building sets and local interactions.
+The latest automated checkpoint passed all Game Server tests, typecheck, server/client builds and the Railway deployment gate. The remaining Stage 16 acceptance work is a real-device visual and end-to-end walkthrough, followed by any placement adjustments the test reveals.
 
 ## Manual test queue
 

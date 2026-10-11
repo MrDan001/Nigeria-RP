@@ -10,6 +10,10 @@ for (const city of stage15Cities()) {
   assert.ok(environment, "Every Stage 15 city needs a Stage 16 environment profile: " + city.id);
   assert.ok(environment.landmarks.length >= 2);
   assert.ok(environment.atmosphere.length >= 10);
+  assert.ok(environment.districtName.length >= 3);
+  assert.ok(environment.guideTitle.length >= 3);
+  assert.ok(environment.localActivities.length >= 2);
+  assert.ok(environment.localActivities.every((activity) => activity.length >= 8));
 }
 assert.equal(findStage16Environment("not-a-city"), undefined);
 console.log("Stage 16 city environment catalogue passed: " + stage16Environments().length + " differentiated city profiles.");

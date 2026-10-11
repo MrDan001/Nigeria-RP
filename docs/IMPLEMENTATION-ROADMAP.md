@@ -41,9 +41,9 @@ Implemented on `main`:
 - [x] Game Server test suite, typecheck, server/client builds and Railway deployment passed at the current Stage 16 checkpoint.
 
 Remaining acceptance:
-- [ ] Physical mobile review of landmark placement, spawn/road clearance, touch usability and frame performance.
-- [ ] Expand into more complete city-specific streetscapes/building sets and add region-specific local interactions.
-- [ ] Run the final end-to-end device walkthrough before marking Stage 16 fully complete.
+- [ ] Physical mobile review of each city plaza for landmark placement, building collision clearance, touch usability and frame performance.
+- [ ] Run the end-to-end device walkthrough: inter-city travel, on-foot district guide, reconnect and saved city/cash persistence.
+- [ ] Apply any placement adjustments revealed by the real-device checks before marking Stage 16 fully complete.
 
 These landmarks are intentionally stylized lightweight representations, not 1:1 photogrammetric models.
 

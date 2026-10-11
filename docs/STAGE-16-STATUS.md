@@ -9,6 +9,8 @@ Implemented on `main`:
 - validated environment profile for Port Harcourt, Aba, Owerri, Uyo, Warri, Yenagoa and Benin City
 - differentiated sky, fog and accent palettes, applied after login state refresh and successful travel
 - lightweight low-poly 3D landmark scenes: port cranes/containers, market canopy/stalls, cultural hall/dome, stadium bowl, river-port dock, creek pavilion/mangrove silhouettes and heritage palace gate
+- a safe off-road civic plaza site selected against road/building collision geometry, with city-themed shopfronts, trees, benches, lamps and an information pavilion
+- an on-foot local-district guide interaction that reveals city-specific activities and landmarks without changing the shared wallet or authoritative game state
 - city-specific landmark name chips in the responsive travel terminal
 - server delivery of profile metadata with city travel state and arrival results
 - distinct multi-city app title and refreshed browser-client asset version
@@ -20,8 +22,8 @@ Automated release verification:
 - [x] Railway deployment on the current Stage 16 checkpoint succeeds; service is online with no current warning/critical issues reported
 
 Remaining acceptance:
-- [ ] review each city on a physical phone for landmark visibility, spawn/road clearance, performance and touch UX
-- [ ] refine landmark placement/scale from device review
-- [ ] extend toward more complete city-specific streetscapes/building sets and local interactions without breaking shared gameplay
+- [ ] review all seven city scenes on a physical phone for landmark visibility, collision clearance, movement, performance and touch usability
+- [ ] complete a real-device travel → district guide → reconnect walkthrough and confirm saved city/cash persist
+- [ ] adjust any landmark or plaza placement issues found during device review before marking Stage 16 complete
 
-The current meshes are stylized lightweight landmark representations, not production-accurate 1:1 city models. Do not mark Stage 16 complete until manual mobile review and remaining scene work are finished.
+The meshes are stylized lightweight representations, not production-accurate 1:1 city models. The implementation now includes interactive local district guides, but Stage 16 must remain IN PROGRESS until the listed real-device visual and end-to-end checks have actually been performed.
