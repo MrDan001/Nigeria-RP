@@ -57,7 +57,7 @@ export const STAGE9_ROUTES = [
   { id: "haulage-market-waterlines", name: "Haulage: Terminal → Mile 1 → Rumuola → Waterlines", vehicleType: "haulage" as const, stopIds: ["transport-terminal", "mile1-market", "rumuola", "waterlines"], reward: 11500 },
 ];
 const validStop = (id: unknown): Stage9Stop | undefined => STAGE9_STOPS.find(s => s.id === id);
-const types = new Set<Stage9VehicleType>(["keke", "okada", "taxi", "danfo", "bus", "haulage"]);
+function isPassengerVehicleType(value: unknown): value is Stage9Ride["vehicleType"] { return value === "keke" || value === "okada" || value === "taxi" || value === "danfo" || value === "bus"; }
 const rideStatuses: readonly Stage9RideStatus[] = ["waiting", "assigned", "onboard", "completed", "cancelled"];
 const deliveryStatuses: readonly Stage9DeliveryStatus[] = ["active", "completed", "cancelled"];
 const edges: readonly (readonly [string, string])[] = [
@@ -101,8 +101,8 @@ export function normalizeStage9State(raw: unknown): Stage9State {
   if(obj(raw.vehicles))for(const d of catalog)vehicles[d.id]=normVehicle(raw.vehicles[d.id],d);
   const rides:Stage9Ride[]=Array.isArray(raw.rides)?raw.rides.slice(-120).flatMap(v=>{
     if(!obj(v)||!rideStatuses.includes(v.status as Stage9RideStatus))return [];
-    const id=clean(v.id,180),requestId=clean(v.requestId,120),passengerId=clean(v.passengerId,120),pickupStopId=clean(v.pickupStopId,80),destinationStopId=clean(v.destinationStopId,80),rawVehicleType=v.vehicleType as Stage9VehicleType,vehicleType=rawVehicleType as Stage9Ride["vehicleType"];
-    if(!id||!requestId||!passengerId||!validStop(pickupStopId)||!validStop(destinationStopId)||pickupStopId===destinationStopId||!types.has(rawVehicleType)||rawVehicleType==="haulage")return [];
+    const id=clean(v.id,180),requestId=clean(v.requestId,120),passengerId=clean(v.passengerId,120),pickupStopId=clean(v.pickupStopId,80),destinationStopId=clean(v.destinationStopId,80),rawVehicleType=v.vehicleType;
+    if(!id||!requestId||!passengerId||!validStop(pickupStopId)||!validStop(destinationStopId)||pickupStopId===destinationStopId||!isPassengerVehicleType(rawVehicleType))return [];\n    const vehicleType = rawVehicleType;
     const routeStopIds=Array.isArray(v.routeStopIds)?v.routeStopIds.filter((x):x is string=>typeof x==="string"&&!!validStop(x)).slice(0,20):[];
     return [{id,requestId,passengerId,passengerName:clean(v.passengerName,80)||"Passenger",pickupStopId,destinationStopId,vehicleType,driverId:clean(v.driverId,120)||null,driverName:clean(v.driverName,80)||null,vehicleId:clean(v.vehicleId,80)||null,routeStopIds,nextStopIndex:Math.max(0,Math.min(routeStopIds.length,Math.floor(Number(v.nextStopIndex)||0))),status:v.status as Stage9RideStatus,fare:amount(v.fare),driverShare:amount(v.driverShare),createdAt:stamp(v.createdAt),updatedAt:stamp(v.updatedAt),settledAt:v.settledAt==null?null:stamp(v.settledAt)}];
   }):[];
@@ -154,9 +154,9 @@ export function consumeStage9Fuel(s:Stage9State,vehicleId:string,ownerId:string,
 }
 
 export function requestStage9Ride(s:Stage9State,i:Base&{pickupStopId:string;destinationStopId:string;vehicleType:unknown;passengerCash:number}):Stage9Result {
-  const a=actorClean(i.actor),r=clean(i.requestId,120),from=validStop(clean(i.pickupStopId,80)),to=validStop(clean(i.destinationStopId,80)),rawType=i.vehicleType as Stage9VehicleType,type=rawType as Stage9Ride["vehicleType"];
+  const a=actorClean(i.actor),r=clean(i.requestId,120),from=validStop(clean(i.pickupStopId,80)),to=validStop(clean(i.destinationStopId,80)),rawType=i.vehicleType;
   if(r.length<4||used(s,r))return fail(s,"This ride request is missing or was already processed.");if(!from||!to||from.id===to.id)return fail(s,"Choose two different public transport stops.");
-  if(!types.has(rawType)||rawType==="haulage")return fail(s,"Choose a passenger vehicle, not a haulage truck.");
+  if(!isPassengerVehicleType(rawType))return fail(s,"Choose a passenger vehicle, not a haulage truck.");\n  const type = rawType;
   if(dist(a.x,a.z,from)>STAGE9_STOP_RADIUS)return fail(s,"Walk to the pickup stop before requesting a ride.");
   if(jobActive(s,a.actorId))return fail(s,"You already have an active passenger request or assignment.");
   const fare=fareFor(type,from,to);if(amount(i.passengerCash)<fare)return fail(s,"You need ₦"+fare.toLocaleString("en-NG")+" cash available for that fare.");
