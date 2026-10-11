@@ -42,3 +42,7 @@ Thumbs.db
 dist/
 out/
 coverage/
+
+# Generated source bundles (rebuilt from the committed small source fragments)
+/services/game-server/src/server.ts
+/services/web-client/public/nrs-game-*.js
