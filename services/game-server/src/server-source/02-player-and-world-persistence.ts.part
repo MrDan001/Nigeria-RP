@@ -890,6 +890,7 @@ wss.on("connection", (socket) => {
           const requestId = String(message.requestId ?? "").trim().slice(0, 128);
           const routeId = String(message.routeId ?? "");
           const passengers = Number(message.passengers);
+          const travelMode = String(message.travelMode ?? "day-bus") as Stage15TravelMode;
           const currentCityId = session.player.cityId;
           const route = findStage15Route(routeId);
           const fail = (messageText: string) => send(socket, {
@@ -921,6 +922,7 @@ wss.on("connection", (socket) => {
             passengers,
             requestId,
             balanceNaira: session.player.cash,
+            travelMode,
           }, new Set(stage15State.usedRequestIds));
           if (!validated) {
             fail("Travel could not be approved. Check your fare, passenger count, available cash and route.");
@@ -1015,6 +1017,7 @@ wss.on("connection", (socket) => {
             environment: findStage16Environment(destination.id) ?? findStage16Environment("port-harcourt"),
             fareNaira: validated.fareNaira,
             durationMinutes: validated.durationMinutes,
+            travelMode: validated.travelMode,
             passengers: validated.passengers,
             cash: session.player.cash,
             stage17Discovery: {

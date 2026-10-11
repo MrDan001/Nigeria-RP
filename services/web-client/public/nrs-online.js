@@ -1060,8 +1060,8 @@
   N.getStage8State = () => send({ type: "getStage8State" });
   N.getStage9State = () => send({ type: "getStage9State" });
   N.getStage15TravelState = () => send({ type: "getStage15TravelState" });
-  N.travelStage15City = (routeId, passengers = 1, requestId = stage4RequestId("city-travel")) =>
-    send({ type: "travelCity", routeId, passengers: Number(passengers), requestId });
+  N.travelStage15City = (routeId, passengers = 1, travelMode = "day-bus", requestId = stage4RequestId("city-travel")) =>
+    send({ type: "travelCity", routeId, passengers: Number(passengers), travelMode, requestId });
   N.checkoutStage9Vehicle = (vehicleId, requestId = stage4RequestId("stage9-checkout")) => send({type:"checkoutStage9Vehicle",vehicleId,requestId});
   N.returnStage9Vehicle = (requestId = stage4RequestId("stage9-return")) => send({type:"returnStage9Vehicle",requestId});
   N.refuelStage9Vehicle = (litres, requestId = stage4RequestId("stage9-fuel")) => send({type:"refuelStage9Vehicle",litres,requestId});
@@ -1303,7 +1303,7 @@
   window.addEventListener("blur", stopMoving);
   document.addEventListener("visibilitychange", () => { if (document.hidden) stopMoving(); });
 
-  // Stage 15 inter-city travel terminal. The server is authoritative for routes, fares,
+  // Stage 15 interstate travel terminal. The server is authoritative for routes, fares,
   // balance checks, replay protection and the persisted destination city.
   const cityTravelStyle = document.createElement("style");
   cityTravelStyle.textContent = `
@@ -1325,6 +1325,11 @@
     #nrsTravelLandmarks{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
     #nrsTravelLandmarks .landmark{display:inline-flex;max-width:100%;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.055);
       border:1px solid rgba(255,255,255,.09);color:#c5d7e8;font-size:10px;line-height:1.3}
+    #nrsTravelModes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:14px 0 8px}
+    #nrsTravelModes button{min-width:0;padding:10px 5px;border:1px solid #30475d;border-radius:11px;background:#0b1726;color:#c5d7e8;font-weight:800;font-size:11px;touch-action:manipulation}
+    #nrsTravelModes button.on{border-color:#61c9ff;background:linear-gradient(135deg,#145c7b,#14314b);color:#fff;box-shadow:0 0 0 1px #61c9ff33}
+    #nrsTravelModeNote{margin:4px 0 12px;padding:9px 10px;border:1px solid rgba(255,199,78,.28);border-radius:10px;background:rgba(255,184,60,.07);color:#d8e5f0;font-size:11px;line-height:1.45}
+    #nrsTravelModeNote strong{color:#ffd568;letter-spacing:.04em}
     #nrsTravelRoutes{display:grid;gap:8px}
     #nrsTravelRoutes .route{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
       padding:12px;border-radius:13px;border:1px solid #263d55;background:#0d1b2b;color:#edf6ff;touch-action:manipulation}
@@ -1347,7 +1352,7 @@
   const travelOpen = document.createElement("button");
   travelOpen.id = "nrsTravelOpen";
   travelOpen.type = "button";
-  travelOpen.textContent = "🚌 Inter-city travel";
+  travelOpen.textContent = "🚌 Interstate travel";
   document.body.appendChild(travelOpen);
 
   const travelModal = document.createElement("div");
@@ -1355,9 +1360,15 @@
   travelModal.hidden = true;
   travelModal.innerHTML = `
     <section class="card" role="dialog" aria-modal="true" aria-labelledby="nrsTravelTitle">
-      <div class="head"><div><h2 id="nrsTravelTitle">Inter-city travel</h2><p class="sub">Book a verified route. Fares and destination changes are confirmed by the server.</p></div><button class="close" id="nrsTravelClose" type="button">Close</button></div>
+      <div class="head"><div><h2 id="nrsTravelTitle">Interstate travel</h2><p class="sub">Travel between the seven game states by Waterlines day/night coach or NRS Air.</p></div><button class="close" id="nrsTravelClose" type="button">Close</button></div>
       <div class="wallet"><span>Current city<br><strong id="nrsTravelCity">Port Harcourt</strong></span><span>Available cash<br><strong id="nrsTravelCash">₦0</strong></span></div>
       <div id="nrsTravelLandmarks" aria-label="Regional landmarks"></div>
+      <div id="nrsTravelModes" role="tablist" aria-label="Choose transport">
+        <button type="button" data-travel-mode="day-bus" class="on" aria-pressed="true">☀ Day Bus</button>
+        <button type="button" data-travel-mode="night-bus" aria-pressed="false">🌙 Night Bus</button>
+        <button type="button" data-travel-mode="flight" aria-pressed="false">✈ Flights</button>
+      </div>
+      <p id="nrsTravelModeNote"><strong>COMING SOON</strong> · Full walk-up terminal boarding, timetables and airport check-in scenes are still being built. In-game route booking works below.</p>
       <div class="controls"><label for="nrsTravelPassengers">Passengers</label><select id="nrsTravelPassengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div>
       <div id="nrsTravelRoutes" aria-live="polite"><p class="sub">Loading routes…</p></div>
       <div id="nrsTravelStatus" role="status"></div>
@@ -1520,6 +1531,23 @@
     }
   }
 
+  let currentTravelMode = "day-bus";
+  function setTravelMode(mode) {
+    currentTravelMode = ["day-bus", "night-bus", "flight"].includes(mode) ? mode : "day-bus";
+    for (const button of travelModal.querySelectorAll("[data-travel-mode]")) {
+      const active = button.dataset.travelMode === currentTravelMode;
+      button.classList.toggle("on", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+    const notes = {
+      "day-bus": "<strong>WATERLINES · DAY COACH</strong> · Daytime departures with standard fares. The Waterlines physical boarding hall is coming soon.",
+      "night-bus": "<strong>WATERLINES · NIGHT COACH</strong> · Overnight service costs 20% more and takes slightly longer. Full night-terminal gameplay is coming soon.",
+      flight: "<strong>NRS AIR · FLIGHT TICKETS</strong> · Book from this Tablet or visit the in-game airport counter. Flight fares are higher and journeys are shorter. Airport check-in gameplay is coming soon."
+    };
+    $("nrsTravelModeNote").innerHTML = notes[currentTravelMode];
+    if (N.stage15TravelState) renderTravelState(N.stage15TravelState);
+  }
+
   function renderTravelState(data = N.stage15TravelState || {}) {
     const cities = Array.isArray(data.cities) ? data.cities : [];
     const routes = Array.isArray(data.routes) ? data.routes : [];
@@ -1544,16 +1572,24 @@
     }
     for (const route of outbound) {
       const destinationName = cityName(route.toCityId, cities);
-      const fare = Number(route.baseFareNaira) * passengers;
+      const multiplier = currentTravelMode === "night-bus" ? 1.2 : currentTravelMode === "flight" ? 2.5 : 1;
+      const fare = Math.round(Number(route.baseFareNaira) * multiplier) * passengers;
+      const destination = cities.find((city) => city.id === route.toCityId);
+      const durationMinutes = currentTravelMode === "flight"
+        ? Math.max(30, Math.round(Number(route.durationMinutes) / 4))
+        : currentTravelMode === "night-bus" ? Math.round(Number(route.durationMinutes) * 1.08) : Number(route.durationMinutes);
       const button = document.createElement("button");
       button.type = "button";
       button.className = "route";
       button.disabled = Number(data.cash ?? N.cash ?? 0) < fare;
       const detail = document.createElement("span");
       const title = document.createElement("strong");
-      title.textContent = destinationName;
+      title.textContent = destinationName + (destination?.state ? ", " + destination.state : "");
       const meta = document.createElement("small");
-      meta.textContent = Number(route.distanceKm).toLocaleString() + " km · " + Math.floor(Number(route.durationMinutes) / 60) + "h " + (Number(route.durationMinutes) % 60) + "m · up to " + route.capacity + " passengers";
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+      const service = currentTravelMode === "flight" ? "NRS Air" : currentTravelMode === "night-bus" ? "Waterlines · Night coach" : "Waterlines · Day coach";
+      meta.textContent = service + " · " + Number(route.distanceKm).toLocaleString() + " km · " + (hours ? hours + "h " : "") + minutes + "m · up to " + route.capacity + " seats";
       detail.append(title, meta);
       const price = document.createElement("span");
       price.className = "price";
@@ -1563,7 +1599,7 @@
         const statusEl = $("nrsTravelStatus");
         statusEl.textContent = "Confirming seat and fare with the server…";
         for (const item of routesBox.querySelectorAll("button")) item.disabled = true;
-        N.travelStage15City(route.id, passengers);
+        N.travelStage15City(route.id, passengers, currentTravelMode);
       });
       routesBox.appendChild(button);
     }
@@ -1580,7 +1616,12 @@
   travelOpen.addEventListener("click", openTravelTerminal);
   $("nrsTravelClose").addEventListener("click", () => { travelModal.hidden = true; });
   travelModal.addEventListener("click", (event) => { if (event.target === travelModal) travelModal.hidden = true; });
+  travelModal.querySelectorAll("[data-travel-mode]").forEach((button) => {
+    button.addEventListener("click", () => setTravelMode(button.dataset.travelMode));
+  });
+  window.addEventListener("nrs-tablet-travel-mode", (event) => setTravelMode(event.detail?.mode));
   $("nrsTravelPassengers").addEventListener("change", () => renderTravelState());
+  setTravelMode("day-bus");
   window.addEventListener("keydown", (event) => { if (event.key === "Escape") travelModal.hidden = true; });
   window.addEventListener("nrs-stage15-travel-state", (event) => renderTravelState(event.detail));
   window.addEventListener("nrs-stage15-travel-result", (event) => {
@@ -1596,7 +1637,8 @@
     const reward = Math.max(0, Number(discovery.rewardNaira) || 0);
     const visitedCount = Math.max(0, Number(discovery.visitedCount) || 0);
     const totalCities = Math.max(1, Number(discovery.totalCities) || 7);
-    $("nrsTravelArrivalDesc").textContent = "Destination saved · Fare paid " + formatNaira(result.fareNaira) +
+    const modeLabel = result.travelMode === "flight" ? "NRS Air flight" : result.travelMode === "night-bus" ? "Waterlines night coach" : "Waterlines day coach";
+    $("nrsTravelArrivalDesc").textContent = "Destination saved · " + modeLabel + " · Fare " + formatNaira(result.fareNaira) +
       (reward > 0 ? " · First-visit passport reward +" + formatNaira(reward) : " · Passport " + visitedCount + "/" + totalCities);
     travelArrival.hidden = false;
     window.setTimeout(() => { travelArrival.hidden = true; }, 1700);

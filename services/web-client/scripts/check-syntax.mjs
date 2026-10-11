@@ -19,6 +19,7 @@ function check(label, code) {
 }
 
 check("public/nrs-online.js", readFileSync(path.join(root, "public/nrs-online.js"), "utf8"));
+check("public/nrs-tablet.js", readFileSync(path.join(root, "public/nrs-tablet.js"), "utf8"));
 
 const gameSourceParts = [
   "game-source/01-world-foundation.js.part",

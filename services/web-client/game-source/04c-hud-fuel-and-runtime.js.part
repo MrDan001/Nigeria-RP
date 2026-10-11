@@ -260,7 +260,7 @@ function fsBuild(brand,axis,road,side,cx,cz){
  const W=(lx,lz)=>[cx+lx*cs+lz*sn,cz-lx*sn+lz*cs];
  const wb=(lx,lz,hx,hz)=>{const p=W(lx,lz),sw=Math.abs(sn)>.5;boxes.push({x:p[0],z:p[1],hw:sw?hz:hx,hd:sw?hx:hz});};
  const pl=(w,d,m,x,y,z)=>{const o=add(new THREE.PlaneGeometry(w,d),m,x,y,z,g);o.rotation.x=-Math.PI/2;return o;};
- const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;g.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(tw,th2,fn)});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
+ const lab=(w,h,tw,th2,fn,x,y,z,ry)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;g.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(tw,th2,fn),frontMat=new THREE.MeshBasicMaterial({map}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map)});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
  pl(18,14,M(0x9a9a96),0,.03,1);pl(14,3,M(0x8d8d88),0,.035,-7.5);
  pl(.25,12,M(0xf2c230),-8.6,.04,1);pl(.25,12,M(0xf2c230),8.6,.04,1);
  /* canopy */
