@@ -64,6 +64,9 @@ jobs:
       - name: Test Stage 9 transport and haulage rules
         run: npm run test:stage9 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 10 food shops and service transactions
+        run: npm run test:stage10 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
