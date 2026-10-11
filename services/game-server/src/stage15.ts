@@ -53,6 +53,16 @@ const ROUTES: readonly Stage15Route[] = [
   { id: "warri-benin", fromCityId: "warri", toCityId: "benin-city", distanceKm: 160, durationMinutes: 190, baseFareNaira: 7500, capacity: 14 },
   { id: "uyo-owerri", fromCityId: "uyo", toCityId: "owerri", distanceKm: 115, durationMinutes: 145, baseFareNaira: 6500, capacity: 14 },
   { id: "yenagoa-warri", fromCityId: "yenagoa", toCityId: "warri", distanceKm: 185, durationMinutes: 220, baseFareNaira: 9000, capacity: 14 },
+  { id: "aba-ph", fromCityId: "aba", toCityId: "port-harcourt", distanceKm: 65, durationMinutes: 90, baseFareNaira: 4500, capacity: 14 },
+  { id: "owerri-ph", fromCityId: "owerri", toCityId: "port-harcourt", distanceKm: 105, durationMinutes: 140, baseFareNaira: 6500, capacity: 14 },
+  { id: "uyo-ph", fromCityId: "uyo", toCityId: "port-harcourt", distanceKm: 160, durationMinutes: 190, baseFareNaira: 8000, capacity: 14 },
+  { id: "warri-ph", fromCityId: "warri", toCityId: "port-harcourt", distanceKm: 170, durationMinutes: 210, baseFareNaira: 8500, capacity: 14 },
+  { id: "yenagoa-ph", fromCityId: "yenagoa", toCityId: "port-harcourt", distanceKm: 110, durationMinutes: 135, baseFareNaira: 6000, capacity: 14 },
+  { id: "benin-ph", fromCityId: "benin-city", toCityId: "port-harcourt", distanceKm: 310, durationMinutes: 330, baseFareNaira: 12000, capacity: 14 },
+  { id: "owerri-aba", fromCityId: "owerri", toCityId: "aba", distanceKm: 75, durationMinutes: 100, baseFareNaira: 4500, capacity: 14 },
+  { id: "benin-warri", fromCityId: "benin-city", toCityId: "warri", distanceKm: 160, durationMinutes: 190, baseFareNaira: 7500, capacity: 14 },
+  { id: "owerri-uyo", fromCityId: "owerri", toCityId: "uyo", distanceKm: 115, durationMinutes: 145, baseFareNaira: 6500, capacity: 14 },
+  { id: "warri-yenagoa", fromCityId: "warri", toCityId: "yenagoa", distanceKm: 185, durationMinutes: 220, baseFareNaira: 9000, capacity: 14 },
 ];
 
 const cityMap = new Map(STAGE15_CITIES.map((city) => [city.id, city]));
