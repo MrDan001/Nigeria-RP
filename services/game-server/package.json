@@ -18,7 +18,8 @@
     "test:stage8": "tsx src/test-stage8.ts",
     "test:stage9": "tsx src/test-stage9.ts",
     "test:stage10": "tsx src/test-stage10.ts",
-    "test:stage11": "tsx src/test-stage11.ts"
+    "test:stage11": "tsx src/test-stage11.ts",
+    "test:stage12": "tsx src/test-stage12.ts"
   },
   "engines": {
     "node": ">=20.9.0"
