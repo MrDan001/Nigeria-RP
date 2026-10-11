@@ -49,6 +49,8 @@ test("market sale settles against server-owned stock and customer cash", () => {
     sellerRank: 3,
     productId: MARKET_PRODUCTS[0].id,
     quantity: 2,
+    customerId: "customer-1",
+    now: 1_760_000_000_000,
   });
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -58,6 +60,11 @@ test("market sale settles against server-owned stock and customer cash", () => {
   assert.equal(state.stock[MARKET_PRODUCTS[0].id], before - 2);
   assert.equal(state.till, 22_800);
   assert.equal(state.commissions["seller-1"], 1_200);
+  assert.equal(state.history.length, 1);
+  assert.equal(state.history[0].customerId, "customer-1");
+  assert.equal(state.history[0].sellerId, "seller-1");
+  assert.equal(state.history[0].productName, "Rice 5kg");
+  assert.equal(state.history[0].createdAt, 1_760_000_000_000);
 });
 
 test("market rejects forged seller rank, unknown goods, invalid quantity and insufficient stock/cash", () => {
