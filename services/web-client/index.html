@@ -478,7 +478,7 @@ const boxes=[],bld=[];
 
 // Keep these coordinates in sync with services/game-server/src/stage5.ts.
 // Access is personalised client-side for collision feel, then enforced again by the server.
-const PARK_GATE_BOUNDS={minX:-50,maxX:-26,minZ:23,maxZ:41,gateX:-33,gateZ:23,gateWidth:4.5,approachX:-33,approachZ:21.5};
+const PARK_GATE_BOUNDS={minX:-34,maxX:-10,minZ:23,maxZ:41,gateX:-30,gateZ:23,gateWidth:4.5,approachX:-30,approachZ:21.5};
 const PARK_GATE_VISUALS=[];
 function hasParkGateAccessClient(){
  const n=window.NRS||{};
@@ -2397,13 +2397,14 @@ function buildWorkplaceEntrance(w){
   }else if(w.id==='park-main'){
    organizationEntranceZ(w,palette,{frontZ,doorWidth:2.8,doorHeight:2.45,columns:2,signWidth:9.2,signHeight:1.2,signY:3.9,subtitle:p.subtitle});
    /* A real public park has a small admin/restroom pavilion, shaded paths, benches and planting. */
-   flatW(24,18,M(0x568b45),w.x-8,.056,w.z+12,4);
-   flatW(2,10,swm,w.x-3,.065,w.z+8,4);
-   [-18,-10].forEach(dx=>{palm(w.x+dx,w.z+11);palm(w.x+dx,w.z+19);});
+   flatW(24,18,M(0x568b45),w.x+8,.056,w.z+12,4);
+   flatW(2,10,swm,w.x,.065,w.z+8,4);
+   // Keep the landscaped area east of the market's 34m-wide building footprint.
+   [-2,6].forEach(dx=>{palm(w.x+dx,w.z+11);palm(w.x+dx,w.z+19);});
    [-1,1].forEach(side=>{
-    organizationBox(2.6,.22,.55,w.x-8+side*5,.55,w.z+15,0x684b35);
-    organizationBox(.12,.85,.12,w.x-8+side*5-1.05,.43,w.z+15,0x424b4a);
-    organizationBox(.12,.85,.12,w.x-8+side*5+1.05,.43,w.z+15,0x424b4a);
+    organizationBox(2.6,.22,.55,w.x+5+side*5,.55,w.z+15,0x684b35);
+    organizationBox(.12,.85,.12,w.x+5+side*5-1.05,.43,w.z+15,0x424b4a);
+    organizationBox(.12,.85,.12,w.x+5+side*5+1.05,.43,w.z+15,0x424b4a);
    });
 
    // Ticketed, walk-in visitor grounds. The south fence has one aligned entrance
