@@ -2373,10 +2373,11 @@ wss.on("connection", (socket) => {
           const spawn = stage15CitySpawn(validated.toCityId);
           if (!destination) { fail("The destination city is not available."); return; }
 
+          const previousStage15State = stage15State;
           let nextState: Stage15State;
           try {
             nextState = recordStage15Travel(
-              stage15State,
+              previousStage15State,
               validated,
               session.player.id,
               Date.now(),
@@ -2408,6 +2409,8 @@ wss.on("connection", (socket) => {
             session.player.z = previous.z;
             session.player.yaw = previous.yaw;
             session.input = previous.input;
+            stage15State = previousStage15State;
+            await saveStage15State().catch((stateError) => console.error("stage15-ledger-rollback", stateError));
             await persistSession(session).catch((persistError) => console.error("stage15-travel-rollback", persistError));
             fail("Travel could not be saved. Your previous city and cash have been restored.");
             console.error("stage15-travel-commit", error);
