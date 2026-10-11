@@ -5,6 +5,10 @@ export const HOSPITAL_HEAL_AMOUNT = 35;
 export const AMBULANCE_TREATMENT_FEE = 1_200;
 export const AMBULANCE_HEAL_AMOUNT = 50;
 export const PARK_TICKET_PRICE = 500;
+// Keep these bounds and the gate approach aligned with the visible City Park fence
+// in services/web-client/index.html. The server remains authoritative for ticket access.
+export const PARK_GROUNDS_BOUNDS = { minX: -50, maxX: -26, minZ: 23, maxZ: 41 } as const;
+export const PARK_GATE_APPROACH = { x: -33, z: 21.5 } as const;
 export const MAX_STAGE5_HISTORY = 100;
 export const MAX_HOSPITAL_STOCK = 200;
 
@@ -140,6 +144,17 @@ export function hospitalRankCanDispatch(rank: number): boolean {
   // The assigned dispatcher becomes the field responder for this request,
   // so dispatching requires a clinical rank capable of treating the patient.
   return Number.isInteger(rank) && rank >= 3 && rank <= 6;
+}
+
+export function isInsideParkGrounds(x: number, z: number): boolean {
+  return Number.isFinite(x) && Number.isFinite(z) &&
+    x >= PARK_GROUNDS_BOUNDS.minX && x <= PARK_GROUNDS_BOUNDS.maxX &&
+    z >= PARK_GROUNDS_BOUNDS.minZ && z <= PARK_GROUNDS_BOUNDS.maxZ;
+}
+
+export function hasValidParkTicket(state: Stage5State, visitorId: string, dayKey: string): boolean {
+  const ticket = state.park.ticketsByVisitor[visitorId];
+  return !!ticket && !!dayKey && ticket.dayKey === dayKey;
 }
 
 export function parkRankCanSellTickets(rank: number): boolean {
