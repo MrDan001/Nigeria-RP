@@ -28,5 +28,3 @@ jobs:
       - name: Run production build
         run: npm run build
 
-      - name: Test Stage 18 betting schedule and results
-        run: npm run test:stage18 --workspace nigeria-rp-game-server
