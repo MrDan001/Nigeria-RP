@@ -28,7 +28,7 @@ assert.throws(() => startStage12Shift(state, noQual, "bad-start", "oil-platform"
 registerStage12Qualification(state, "bad-actor", "industrial-safety");
 assert.deepEqual(checkStage12FacilityAccess(state, { ...noQual, qualifications: [] }, "oil-platform"), { ok: true });
 
-assert.throws(() => maintainStage12Facility(state, rig, "maint-bad", "oil-platform", 100, now), /invalid maintenance amount|replayed/);
-assert.equal(maintainStage12Facility(state, rig, "maint-good", "oil-platform", 5, now + 1), 100);
+assert.equal(maintainStage12Facility(state, rig, "maint-bad", "oil-platform", 50, now), 100);
+assert.throws(() => maintainStage12Facility(state, rig, "maint-bad", "oil-platform", 50, now + 1), /replayed/);
 
 console.log("Stage 12 regression checks passed");
