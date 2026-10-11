@@ -1,0 +1,1454 @@
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { createHash, randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { WebSocketServer, WebSocket } from "ws";
+import { Pool } from "pg";
+import {
+  GameClock,
+  HOUSES,
+  HOUSE_CLASSES,
+  MAX_PREPAID_DAYS,
+  BOSS_RANK,
+  MAX_STAFF_RANK,
+  MAX_WORK_HISTORY,
+  MAX_WORKPLACE_AUDIT,
+  RANK_MULTIPLIERS,
+  FACTIONS,
+  WORKPLACES,
+  WORK_TASK_COOLDOWN_MS,
+  WORK_TASK_DURATION_MS,
+  CARPARK_EXIT_GATE,
+  CARPARK_POSITION,
+  CARPARK_VEHICLE_SPAWN,
+  validateCarparkExit,
+  checkRankChange,
+  checkWorkplaceApplication,
+  checkWorkplaceDuty,
+  checkWorkTaskEligibility,
+  bossWorkplaceOf,
+  findHouse,
+  findWorkplace,
+  findShopInterior,
+  shopInteriorPosition,
+  workplaceInteriorPosition,
+  APARTMENT_RENT_PER_DAY,
+  MAX_APARTMENT_PREPAID_DAYS,
+  daysBetween,
+  houseRent,
+  newLife,
+  newWorld,
+  normalizeLife,
+  normalizeWorld,
+  payForTask,
+  workplaceRankTitle,
+  workplaceTasks,
+  settleLife,
+  MAIN_ADMIN_USERNAME,
+  resolveAdminRole,
+  canManageAdminRoles,
+  type AdminAuditAction,
+  type WorkplaceAuditAction,
+  type CarparkVehicleTrack,
+  type Life,
+  type Workplace,
+  type WorldState,
+} from "./world";
+import {
+  BANK_RANKS,
+  BANK_WORKPLACE_ID,
+  MARKET_PRODUCTS,
+  MARKET_RANKS,
+  MARKET_RESTOCK_RATE,
+  MAX_MARKET_STOCK,
+  MARKET_WORKPLACE_ID,
+  normalizeStage4State,
+  restockMarketStock,
+  settleBankTransaction,
+  settleMarketSale,
+} from "./stage4";
+import {
+  AMBULANCE_TREATMENT_FEE,
+  HOSPITAL_IDS,
+  HOSPITAL_MEDICINES,
+  PARK_HELP_CATEGORIES,
+  PARK_TICKET_PRICE,
+  PARK_WORKPLACE_ID,
+  buyParkTicket,
+  completeHospitalTreatment,
+  createHospitalRequest,
+  createParkHelpRequest,
+  createStage5State,
+  dispatchHospitalAmbulance,
+  hospitalRankCanDispatch,
+  hospitalRankCanTreat,
+  hospitalRankCanTriage,
+  isHospitalId,
+  normalizeStage5State,
+  parkRankCanHelpVisitors,
+  parkRankCanSellTickets,
+  purchaseHospitalMedicine,
+  resolveParkHelpRequest,
+  triageHospitalRequest,
+  PARK_GATE_APPROACH,
+  hasValidParkTicket,
+  isInsideParkGrounds,
+} from "./stage5";
+import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent, recordCivicFine } from "./stage6";
+import { ARMY_WORKPLACE_ID, FIRE_WORKPLACE_ID, FRSC_WORKPLACE_ID, POLICE_WORKPLACE_ID, STAGE7_CHECKPOINTS, STAGE7_FINE_RULES, STAGE7_UNITS, activateStage7Checkpoint, arrestStage7Suspect, attemptStage7Escape, closeStage7Incident, createStage7State, deactivateStage7Checkpoint, dispatchStage7Incident, findBlockingStage7Checkpoint, isAuthorisedStage7CheckpointPass, isStage7Unit, issueStage7Fine, maintainStage7State, normalizeStage7State, reportStage7Incident, requestStage7Appeal, resolveStage7Fire, resolveStage7TrafficIncident, reviewStage7Appeal, stage7Distance, investigateStage7Incident, type Stage7UnitId } from "./stage7";
+import { NEWS_WORKPLACE_ID, approveStage8Story, createStage8State, moderateStage8Report, normalizeStage8State, publishStage8Story, rejectStage8Story, reportStage8Story, stage8PublicFeed, submitStage8Story, type Stage8Actor, type Stage8ModerationDecision } from "./stage8";
+import { STAGE11_BUSINESSES, STAGE11_SERVICES, STAGE11_FUEL_PRICE_PER_LITRE, assignStage11CourierDelivery, assignStage11RepairCall, assignStage11ServiceOrder, buyStage11Fuel, completeStage11CourierDelivery, completeStage11RepairCall, completeStage11ServiceOrder, createStage11State, normalizeStage11State, openStage11CourierDelivery, openStage11RepairCall, openStage11ServiceOrder, payStage11UtilityBill, pickupStage11CourierDelivery, registerStage11Property, registerStage11Vehicle, type Stage11Actor, type Stage11Property } from "./stage11";
+import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acceptStage9Ride, advanceStage9Delivery, advanceStage9Ride, cancelStage9Ride, checkoutStage9Vehicle, completeStage9Delivery, completeStage9Ride, consumeStage9Fuel, createStage9State, normalizeStage9State, pickupStage9Ride, refuelStage9Vehicle, requestStage9Ride, returnStage9Vehicle, startStage9Delivery, stage9DistanceToStop, type Stage9Actor, type Stage9Result } from "./stage9";
+import { createStage15State, findStage15City, findStage15Route, normalizeStage15State, recordStage15Travel, stage15Cities, stage15CitySpawn, stage15Routes, validateStage15Travel, type Stage15State } from "./stage15";
+import { findStage16Environment, stage16Environments } from "./stage16";
+import { createStage17State, normalizeStage17State, recordStage17CityDiscovery, stage17Passport, type Stage17State } from "./stage17";
+
+const scrypt = promisify(scryptCb);
+
+type JobState = { n: string; x: number; z: number; pay: number } | null;
+type Inventory = Record<string, number>;
+type FuelMap = Record<string, number>;
+
+type Account = {
+  id: string;
+  username: string;
+  usernameLower: string;
+  email: string;
+  emailLower: string;
+  passwordSalt: string;
+  passwordHash: string;
+  cash: number;
+  bank: number;
+  x: number;
+  z: number;
+  yaw: number;
+  hp: number;
+  hunger: number;
+  level: number;
+  xp: number;
+  job: JobState;
+  inventory: Inventory;
+  fuel: FuelMap;
+  life: Life;
+  createdAt: number;
+  updatedAt: number;
+  cityId: string;
+};
+
+type PlayerState = {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  yaw: number;
+  hp: number;
+  hunger: number;
+  level: number;
+  xp: number;
+  cash: number;
+  bank: number;
+  job: JobState;
+  inventory: Inventory;
+  fuel: FuelMap;
+  life: Life;
+  cityId: string;
+  lastSequence: number;
+};
+
+type Session = {
+  socket: WebSocket;
+  account: Account;
+  player: PlayerState;
+  input: { sequence: number; forward: number; strafe: number };
+  lastMessageAt: number;
+  lastInputAt: number;
+  lastSyncAt: number;
+  rejectedSyncs: number;
+  inHome: boolean;
+  inCarpark: boolean;
+  inStaffRoom: boolean;
+  inWorkplaceInterior: boolean;
+  inShopInterior: boolean;
+  inApartmentInterior: boolean;
+  apartmentMode: "hall" | "room" | null;
+  apartmentBuildingId: string | null;
+  apartmentBuildingName: string;
+  apartmentFloors: number;
+  apartmentFloor: number;
+  apartmentRoomNumber: number | null;
+  apartmentReturn: { x: number; z: number; yaw?: number } | null;
+  homeReturn: { x: number; z: number } | null;
+  staffRoomReturn: { x: number; z: number; yaw?: number } | null;
+  workplaceInteriorReturn: { x: number; z: number; yaw?: number } | null;
+  shopInteriorReturn: { x: number; z: number; yaw?: number } | null;
+  currentStaffWorkplaceId: string | null;
+  currentWorkplaceId: string | null;
+  currentShopId: string | null;
+  displayId: string;
+  /** House currently being visited; visitors may enter unlocked or vacant homes. */
+  currentHomeId?: string | null;
+  carparkVehicle: CarparkVehicleTrack | null;
+  workTask: { workplaceId: string; taskId: string; startedAt: number } | null;
+  parkGateNoticeAt?: number;
+};
+
+type FileStore = {
+  accounts: Record<string, Account>;
+  sessions: Record<string, { accountId: string; expiresAt: number }>;
+  world?: WorldState;
+  stage4?: unknown;
+  stage5?: unknown;
+  stage6?: unknown;
+  stage7?: unknown;
+  stage8?: unknown;
+  stage9?: unknown;
+  stage11?: unknown;
+  stage15?: unknown;
+  stage17?: unknown;
+};
+
+const PORT = Number(process.env.PORT ?? 8080);
+const TICK_RATE = 20;
+const SNAPSHOT_RATE = 10;
+const MOVE_SPEED = 4.5; // matches the client's normal walk top speed; posSync corrects sprint/crouch
+const WORLD_LIMIT = 500;
+const SESSION_DAYS = 30;
+const INPUT_TIMEOUT_MS = 400;
+const FUEL_TANK = 40; // litres, must match the client
+// Naira per litre, by station brand. NNPC is cheapest, then Restopark, then DBase, Hydropet is dearest.
+// Keep in sync with FBR in the web client.
+const FUEL_PRICES: Record<string, number> = { NNPC: 1250, Restopark: 1350, DBase: 1450, Hydropet: 1550 };
+const FUEL_START = 20; // litres a car holds before its first save
+const SYNC_MAX_SPEED = 50; // m/s, a bit above top car speed
+const SYNC_SLACK = 3; // metres of tolerance
+const SYNC_MAX_ELAPSED = 5; // seconds counted per sync, stops idle-then-teleport
+const PROTOCOL_VERSION = 1;
+const DATA_FILE = process.env.NRS_DATA_FILE ?? path.join(process.env.NRS_DATA_DIR ?? "/data", "accounts.json");
+const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? "";
+
+// Debug clock: lets a test skip days without waiting. Off unless NRS_DEBUG_CLOCK=1.
+const DEBUG_CLOCK = process.env.NRS_DEBUG_CLOCK === "1";
+// Comma-separated account usernames authorised to appoint faction/workplace bosses.
+// Empty by default: leadership can never be claimed by an ordinary client.
+const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
+// Optional email binding protects the root account when its initial account is registered.
+// If unset, an already-existing Dbase_Mccoll account remains the configured root identity.
+const MAIN_ADMIN_EMAIL = String(process.env.NRS_MAIN_ADMIN_EMAIL ?? "").trim().toLowerCase();
+const clock = new GameClock();
+let world: WorldState = newWorld(clock.dayKey());
+let stage4State = normalizeStage4State(null);
+let stage5State = normalizeStage5State(null);
+let stage6State = createStage6State();
+let stage7State = createStage7State();
+let stage8State = createStage8State();
+let stage9State = createStage9State();
+let stage11State = createStage11State();
+let stage15State: Stage15State = createStage15State();
+let stage17State: Stage17State = createStage17State();
+type Stage9FuelProgress = { vehicleId: string; pendingDistance: number; lastSavedAt: number };
+const stage9FuelProgress = new Map<string, Stage9FuelProgress>();
+const stage7ReportCooldownAt = new Map<string, number>();
+let stage4MutationQueue: Promise<void> = Promise.resolve();
+
+// Balance-changing actions share one queue, so jobs, housing, transfers, sales and teller
+// transactions cannot interleave stale cash/bank snapshots within this game-server process.
+function withMoneyMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const pending = stage4MutationQueue.then(operation, operation);
+  stage4MutationQueue = pending.then(() => undefined, () => undefined);
+  return pending;
+}
+
+const players = new Map<string, Session>();
+const activeAccounts = new Map<string, WebSocket>();
+
+// Short display IDs belong to live login sessions, never to saved accounts. The account
+// UUID remains the internal key for persistence and player interactions.
+let nextDisplayPlayerNumber = Math.floor(Math.random() * 999);
+function allocateDisplayPlayerId(): string {
+  const used = new Set([...players.values()].map((session) => session.displayId));
+  for (let attempt = 0; attempt < 999; attempt++) {
+    nextDisplayPlayerNumber = (nextDisplayPlayerNumber % 999) + 1;
+    const displayId = String(nextDisplayPlayerNumber).padStart(3, "0");
+    if (!used.has(displayId)) return displayId;
+  }
+  let fallback = 1000;
+  while (used.has(String(fallback))) fallback++;
+  return String(fallback);
+}
+
+let pool: Pool | null = null;
+let fileStore: FileStore = { accounts: {}, sessions: {} };
+
+const JOBS: Array<Exclude<JobState, null>> = [
+  { n: "Parcel to Mile 1 Market", x: -6.5, z: 95, pay: 6000 },
+  { n: "Parcel to Rumuola", x: 110, z: 70, pay: 9000 },
+  { n: "Parcel to Waterlines", x: 90, z: 150, pay: 12000 },
+];
+
+function send(socket: WebSocket, message: unknown) {
+  if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+}
+
+function broadcast(message: unknown) {
+  for (const session of players.values()) send(session.socket, message);
+}
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function sanitizeEmail(value: unknown) {
+  return String(value ?? "").trim().slice(0, 160);
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function sanitizeUsername(value: unknown) {
+  return String(value ?? "").trim().slice(0, 31);
+}
+
+function normalizeInventory(value: unknown): Inventory {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Inventory = {};
+  for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
+    const count = Math.floor(Number(raw));
+    if (Number.isFinite(count) && count > 0) out[name.slice(0, 60)] = Math.min(9999, count);
+  }
+  return out;
+}
+
+function normalizeFuel(value: unknown): FuelMap {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: FuelMap = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>).slice(0, 40)) {
+    if (!/^c\d{1,3}$/.test(key)) continue;
+    const litres = Number(raw);
+    if (Number.isFinite(litres)) out[key] = Math.round(Math.max(0, Math.min(FUEL_TANK, litres)) * 100) / 100;
+  }
+  return out;
+}
+
+function normalizeJob(value: unknown): JobState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  let n = typeof v.n === "string" ? v.n.slice(0, 100) : "";
+  if (n === "Parcel to the Waterfront") n = "Parcel to Waterlines"; // renamed; keeps old saved jobs payable
+  const x = Number(v.x);
+  const z = Number(v.z);
+  const pay = Number(v.pay);
+  if (!n || !Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(pay)) return null;
+  return { n, x, z, pay };
+}
+
+function normalizeAccount(account: Account): Account {
+  return {
+    ...account,
+    email: typeof account.email === "string" ? account.email : "",
+    emailLower: typeof account.emailLower === "string" ? account.emailLower : "",
+    cash: Math.max(0, Math.floor(Number(account.cash) || 0)),
+    bank: Math.max(0, Math.floor(Number(account.bank) || 0)),
+    x: Number.isFinite(Number(account.x)) ? Number(account.x) : 0,
+    z: Number.isFinite(Number(account.z)) ? Number(account.z) : 24,
+    yaw: Number.isFinite(Number(account.yaw)) ? Number(account.yaw) : Math.PI,
+    hp: Math.max(1, Math.min(100, Number(account.hp) || 100)),
+    hunger: Math.max(0, Math.min(100, Number(account.hunger) || 82)),
+    level: Math.max(1, Math.floor(Number(account.level) || 1)),
+    xp: Math.max(0, Math.floor(Number(account.xp) || 0)),
+    job: normalizeJob(account.job),
+    inventory: normalizeInventory(account.inventory),
+    fuel: normalizeFuel(account.fuel),
+    life: normalizeLife(account.life, clock.dayKey()),
+    cityId: findStage15City(String(account.cityId ?? ""))?.id ?? "port-harcourt",
+  };
+}
+
+function publicPlayer(player: PlayerState) {
+  return {
+    id: player.id,
+    sessionId: players.get(player.id)?.displayId ?? "000",
+    name: player.name,
+    x: Number(player.x.toFixed(3)),
+    z: Number(player.z.toFixed(3)),
+    yaw: Number(player.yaw.toFixed(3)),
+    level: player.level,
+    workplaceId: player.life.employment?.workplaceId ?? null,
+    onDuty: player.life.employment?.onDuty === true,
+    uniformWorkplaceId: player.life.employment?.uniformWorkplaceId ?? null,
+    cityId: findStage15City(String(player.cityId ?? ""))?.id ?? "port-harcourt",
+  };
+}
+
+function accountPayload(player: PlayerState) {
+  return {
+    id: player.id,
+    sessionId: players.get(player.id)?.displayId ?? "000",
+    name: player.name,
+    cityId: findStage15City(String(player.cityId ?? ""))?.id ?? "port-harcourt",
+    x: player.x,
+    z: player.z,
+    yaw: player.yaw,
+    hp: player.hp,
+    hunger: player.hunger,
+    level: player.level,
+    xp: player.xp,
+    cash: player.cash,
+    bank: player.bank,
+    job: player.job,
+    inventory: player.inventory,
+    fuel: player.fuel,
+    life: player.life,
+    today: clock.dayKey(),
+  };
+}
+
+function cityOnlineCount(cityId: string) {
+  return [...players.values()].filter((session) => session.player.cityId === cityId).length;
+}
+
+function snapshot(cityId?: string) {
+  // Apartment-room coordinates are instanced; never expose those players at the shared interior origin.
+  // Stage 15 cities are isolated logical instances even though they share the current world-template geometry.
+  return [...players.values()].filter((session) => (!cityId || session.player.cityId === cityId) && !session.inHome && !session.inStaffRoom && !session.inApartmentInterior).map((session) => publicPlayer(session.player));
+}
+
+function isValidKnownJob(value: JobState) {
+  return value === null || JOBS.some(
+    (job) => job.n === value?.n && job.x === value.x && job.z === value.z && job.pay === value.pay,
+  );
+}
+
+async function hashPassword(password: string, saltHex?: string) {
+  const salt = saltHex ?? randomBytes(16).toString("hex");
+  const result = await scrypt(password, Buffer.from(salt, "hex"), 64) as Buffer;
+  return { salt, hash: result.toString("hex") };
+}
+
+async function verifyPassword(password: string, saltHex: string, expectedHash: string) {
+  const result = await scrypt(password, Buffer.from(saltHex, "hex"), 64) as Buffer;
+  const expected = Buffer.from(expectedHash, "hex");
+  return expected.length === result.length && timingSafeEqual(expected, result);
+}
+
+function writeFileStore() {
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  const tempPath = DATA_FILE + ".tmp";
+  fs.writeFileSync(tempPath, JSON.stringify(fileStore), "utf8");
+  fs.renameSync(tempPath, DATA_FILE);
+}
+
+async function saveWorld() {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('world',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(world), Date.now()],
+    );
+    return;
+  }
+  fileStore.world = world;
+  writeFileStore();
+}
+
+async function saveStage4State(state = stage4State) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage4',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(state), Date.now()],
+    );
+    return;
+  }
+  fileStore.stage4 = state;
+  writeFileStore();
+}
+
+async function saveStage5State(state = stage5State) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage5',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(state), Date.now()],
+    );
+    return;
+  }
+  fileStore.stage5 = state;
+  writeFileStore();
+}
+async function saveStage6State(state = stage6State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage6',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage6 = state;
+  writeFileStore();
+}
+
+async function saveStage7State(state = stage7State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage7',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage7 = state;
+  writeFileStore();
+}
+
+async function saveStage8State(state = stage8State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage8',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage8 = state;
+  writeFileStore();
+}
+
+async function saveStage11State(state = stage11State) {
+  if (pool) { await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage11',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]); return; }
+  fileStore.stage11=state; writeFileStore();
+}
+
+async function saveStage9State(state = stage9State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage9',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage9 = state;
+  writeFileStore();
+}
+
+async function saveStage15State(state = stage15State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage15',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage15 = state;
+  writeFileStore();
+}
+
+async function saveStage17State(state = stage17State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage17',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage17 = state;
+  writeFileStore();
+}
+
+async function migrateLegacyAdminAllowlist() {
+  if (world.legacyAdminsMigrated) return;
+  // Import old configured admins by immutable account ID once. Subsequent revocations by
+  // Dbase_Mccoll are durable and must not be undone by a leftover Railway variable.
+  for (const usernameLower of FACTION_ADMIN_USERNAMES) {
+    if (usernameLower === MAIN_ADMIN_USERNAME) continue;
+    const account = await findAccountByUsername(usernameLower);
+    if (account) world.admins[account.id] = true;
+  }
+  world.legacyAdminsMigrated = true;
+  await saveWorld();
+}
+
+function housingSnapshot(session: Session) {
+  return HOUSES.map((house) => {
+    const cls = HOUSE_CLASSES.find((item) => item.id === house.cls)!;
+    const tenant = world.houseTenants[house.id] ?? null;
+    return {
+      id: house.id, cls: house.cls, name: cls.name, rentPerDay: cls.rentPerDay,
+      zone: house.zone, x: house.x, z: house.z, placed: house.placed,
+      vacant: tenant === null, occupiedByMe: tenant === session.player.id,
+      // Unrented properties are intentionally always visitable, regardless of a stale save.
+      locked: tenant !== null && world.houseLocks[house.id] === true,
+    };
+  });
+}
+
+function adminRoleOf(session: Session) {
+  const usernameLower = session.player.name.toLowerCase();
+  const role = resolveAdminRole(session.player.name, session.player.id, world.admins);
+  if (usernameLower === MAIN_ADMIN_USERNAME) {
+    // Do not silently downgrade an email-mismatched root-name account through the legacy
+    // allowlist. When configured, the owner email is an additional immutable identity check.
+    if (MAIN_ADMIN_EMAIL && session.account.emailLower !== MAIN_ADMIN_EMAIL) return null;
+    return role === "main_admin" ? "main_admin" as const : null;
+  }
+  if (role === "admin") return "admin" as const;
+  return null;
+}
+
+function isMainAdmin(session: Session) {
+  return adminRoleOf(session) === "main_admin";
+}
+
+function isFactionAdmin(session: Session) {
+  return adminRoleOf(session) !== null;
+}
+
+function appendAdminAudit(
+  actor: Session,
+  targetId: string,
+  targetUsername: string,
+  action: AdminAuditAction,
+  detail: string,
+) {
+  world.adminAudit.push({
+    actorId: actor.player.id,
+    actorUsername: actor.player.name,
+    targetId,
+    targetUsername,
+    action,
+    detail: String(detail).slice(0, 240),
+    at: Date.now(),
+  });
+  if (world.adminAudit.length > 200) world.adminAudit.splice(0, world.adminAudit.length - 200);
+}
+
+function appendWorkplaceAudit(
+  actor: Session,
+  targetId: string,
+  targetUsername: string,
+  action: WorkplaceAuditAction,
+  detail: string,
+) {
+  world.workplaceAudit.push({
+    actorId: actor.player.id,
+    actorUsername: actor.player.name,
+    targetId,
+    targetUsername,
+    action,
+    detail: String(detail).slice(0, 240),
+    at: Date.now(),
+  });
+  if (world.workplaceAudit.length > MAX_WORKPLACE_AUDIT) {
+    world.workplaceAudit.splice(0, world.workplaceAudit.length - MAX_WORKPLACE_AUDIT);
+  }
+}
+
+const bossDisplayLookupInFlight = new Set<string>();
+function ensureBossDisplayName(workplaceId: string) {
+  const bossId = world.bosses[workplaceId];
+  if (!bossId || world.bossNames[workplaceId] || bossDisplayLookupInFlight.has(workplaceId)) return;
+  bossDisplayLookupInFlight.add(workplaceId);
+  void (async () => {
+    const account = await findAccountById(bossId);
+    if (world.bosses[workplaceId] !== bossId || world.bossNames[workplaceId]) return;
+    if (account?.username) {
+      world.bossNames[workplaceId] = account.username;
+      await saveWorld();
+      broadcastWorkplaceStates();
+    }
+  })().catch((error) => console.error("Unable to resolve workplace boss display name:", error))
+    .finally(() => bossDisplayLookupInFlight.delete(workplaceId));
+}
+
+function workplaceSnapshot(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const bossWorkplaceId = bossWorkplaceOf(world, session.player.id);
+  const adminRole = adminRoleOf(session);
+  const admin = adminRole !== null;
+  const canManageAdmins = canManageAdminRoles(adminRole);
+  const onlinePlayers = [...players.values()].map((member) => ({
+    id: member.player.id,
+    name: member.player.name,
+    adminRole: adminRoleOf(member),
+    workplaceId: member.player.life.employment?.workplaceId ?? null,
+    rank: member.player.life.employment?.rank ?? null,
+    onDuty: member.player.life.employment?.onDuty === true,
+  }));
+  const workplaces = WORKPLACES.map((workplace) => {
+    const faction = FACTIONS.find((candidate) => candidate.id === workplace.factionId) ?? null;
+    const members = onlinePlayers.filter((member) => member.workplaceId === workplace.id).map((member) => ({
+      ...member,
+      rankTitle: workplaceRankTitle(workplace.id, Number(member.rank)),
+      boss: world.bosses[workplace.id] === member.id,
+    }));
+    const onlineBoss = members.find((member) => member.id === world.bosses[workplace.id]);
+    if (onlineBoss?.name && world.bossNames[workplace.id] !== onlineBoss.name) {
+      world.bossNames[workplace.id] = onlineBoss.name;
+      void saveWorld().catch((error) => console.error("Unable to cache workplace boss display name:", error));
+    }
+    if (!world.bossNames[workplace.id] && world.bosses[workplace.id]) ensureBossDisplayName(workplace.id);
+    const applicationTimes = world.workplaceApplications[workplace.id] ?? {};
+    const canManage = world.bosses[workplace.id] === session.player.id && (workplace.id !== GOVERNMENT_WORKPLACE_ID || (employment?.workplaceId === GOVERNMENT_WORKPLACE_ID && Number(employment?.rank) === BOSS_RANK));
+    const applicants = (canManage || admin)
+      ? Object.entries(applicationTimes).map(([accountId, appliedAt]) => {
+          const applicant = players.get(accountId);
+          return applicant ? { id: accountId, name: applicant.player.name, appliedAt } : { id: accountId, name: "Offline applicant", appliedAt };
+        })
+      : [];
+    const isMember = employment?.workplaceId === workplace.id;
+    return {
+      ...workplace,
+      rankMultipliers: [...RANK_MULTIPLIERS],
+      faction,
+      rankTitle: isMember ? workplaceRankTitle(workplace.id, employment?.rank ?? 1) : "",
+      employed: isMember,
+      onDuty: isMember && employment?.onDuty === true,
+      canManage,
+      bossName: world.bossNames[workplace.id] ?? members.find((member) => member.id === world.bosses[workplace.id])?.name ?? null,
+      memberCount: members.length,
+      staff: members,
+      applications: applicants,
+      hasApplied: Object.prototype.hasOwnProperty.call(applicationTimes, session.player.id),
+      requiresApproval: faction?.requiresApproval === true,
+      tasks: workplaceTasks(workplace.id).map((task) => ({
+        ...task,
+        pay: payForTask(task.basePay, isMember ? (employment?.rank ?? 1) : 1),
+        durationMs: WORK_TASK_DURATION_MS,
+        cooldownMs: WORK_TASK_COOLDOWN_MS,
+      })),
+    };
+  });
+  return {
+    workplaces,
+    factions: FACTIONS,
+    employment,
+    bossWorkplaceId,
+    isFactionAdmin: admin,
+    adminRole,
+    isMainAdmin: adminRole === "main_admin",
+    canManageAdmins,
+    onlinePlayers,
+    activeTask: session.workTask
+      ? { ...session.workTask, elapsedMs: Math.max(0, Date.now() - session.workTask.startedAt), durationMs: WORK_TASK_DURATION_MS }
+      : null,
+    taskReadyAt: Math.max(0, Number(employment?.lastTaskAt) + WORK_TASK_COOLDOWN_MS || 0),
+    // Returned only to the authenticated account owning this snapshot.
+    workHistory: (session.player.life.workHistory ?? []).slice(-10),
+    cash: session.player.cash,
+    today: clock.dayKey(),
+  };
+}
+
+function sendWorkplaceState(session: Session) {
+  send(session.socket, { type: "workplaceState", ...workplaceSnapshot(session) });
+}
+
+function sendWorkplaceResult(session: Session, action: string, ok: boolean, message: string, extra: Record<string, unknown> = {}) {
+  send(session.socket, { type: "workplaceResult", action, ok, message, ...extra, ...workplaceSnapshot(session) });
+}
+
+function broadcastWorkplaceStates() {
+  for (const session of players.values()) sendWorkplaceState(session);
+  broadcastGovernmentStates();
+}
+
+function workplaceDistance(session: Session, workplace: Workplace) {
+  // Reception is still an authorised on-site location for this workplace's work actions.
+  if (session.inWorkplaceInterior && !session.inStaffRoom && session.currentWorkplaceId === workplace.id) return 0;
+  return Math.hypot(session.player.x - workplace.x, session.player.z - workplace.z);
+}
+
+function marketStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const member = employment?.workplaceId === MARKET_WORKPLACE_ID;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const manager = member && rank >= 5;
+  const workplace = findWorkplace(MARKET_WORKPLACE_ID);
+  const atMarket = !!workplace && workplaceDistance(session, workplace) <= 24;
+  const availableSellers = atMarket ? [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === MARKET_WORKPLACE_ID &&
+      Number(candidate.player.life.employment.rank) >= 1 &&
+      Number(candidate.player.life.employment.rank) <= MARKET_RANKS.length &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === MARKET_WORKPLACE_ID &&
+      workplaceDistance(candidate, workplace) <= 24)
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: MARKET_RANKS[candidate.player.life.employment!.rank - 1],
+    })) : [];
+  const salesHistory = stage4State.market.history
+    .filter((sale) => isFactionAdmin(session) || manager ||
+      sale.customerId === session.player.id || sale.sellerId === session.player.id)
+    .slice(-12)
+    .reverse()
+    .map((sale) => ({
+      ...sale,
+      customerName: players.get(sale.customerId)?.player.name ?? sale.customerId.slice(0, 8),
+      sellerName: players.get(sale.sellerId)?.player.name ?? sale.sellerId.slice(0, 8),
+    }));
+  const restockHistory = manager || isFactionAdmin(session)
+    ? stage4State.market.restockHistory.slice(-8).reverse().map(receipt => ({
+        ...receipt,
+        managerName: players.get(receipt.managerId)?.player.name ?? receipt.managerId.slice(0, 8),
+      }))
+    : [];
+  return {
+    type: "marketState",
+    workplaceId: MARKET_WORKPLACE_ID,
+    atMarket,
+    availableSellers,
+    products: MARKET_PRODUCTS.map((product) => ({
+      ...product,
+      stock: stage4State.market.stock[product.id] ?? 0,
+    })),
+    rank,
+    rankTitle: rank >= 1 && rank <= MARKET_RANKS.length ? MARKET_RANKS[rank - 1] : "",
+    onDuty: member && employment?.onDuty === true,
+    uniform: member && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID,
+    canSell: member && rank >= 1 && rank <= MARKET_RANKS.length &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID && atMarket,
+    canRestock: member && rank >= 5 && rank <= MARKET_RANKS.length &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID && atMarket,
+    restockRate: MARKET_RESTOCK_RATE,
+    maxStock: MAX_MARKET_STOCK,
+    commissionBalance: stage4State.market.commissions[session.player.id] ?? 0,
+    canCollectCommission: atMarket && member &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID &&
+      (stage4State.market.commissions[session.player.id] ?? 0) > 0,
+    canViewRestockHistory: manager || isFactionAdmin(session),
+    till: manager || isFactionAdmin(session) ? stage4State.market.till : null,
+    salesHistory,
+    restockHistory,
+  };
+}
+
+function bankStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const member = employment?.workplaceId === BANK_WORKPLACE_ID;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const manager = member && rank >= 5;
+  const workplace = findWorkplace(BANK_WORKPLACE_ID);
+  const atBank = !!workplace && workplaceDistance(session, workplace) <= 24;
+  const canServeCustomers = member && rank >= 2 && rank <= BANK_RANKS.length &&
+    employment?.onDuty === true && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID && atBank;
+  const availableTellers = atBank && workplace ? [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === BANK_WORKPLACE_ID &&
+      Number(candidate.player.life.employment.rank) >= 2 &&
+      Number(candidate.player.life.employment.rank) <= BANK_RANKS.length &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === BANK_WORKPLACE_ID &&
+      workplaceDistance(candidate, workplace) <= 24)
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: BANK_RANKS[candidate.player.life.employment!.rank - 1],
+    })) : [];
+  const nearbyCustomers = canServeCustomers && workplace ? [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id && workplaceDistance(candidate, workplace) <= 24)
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      cash: candidate.player.cash,
+      bank: candidate.player.bank,
+    })) : [];
+  const transactions = stage4State.bank.history
+    .filter((transaction) => isFactionAdmin(session) || manager ||
+      transaction.customerId === session.player.id || transaction.tellerId === session.player.id)
+    .slice(-12)
+    .reverse()
+    .map((transaction) => ({
+      ...transaction,
+      customerName: players.get(transaction.customerId)?.player.name ?? transaction.customerId.slice(0, 8),
+      tellerName: players.get(transaction.tellerId)?.player.name ?? transaction.tellerId.slice(0, 8),
+    }));
+  return {
+    type: "bankState",
+    workplaceId: BANK_WORKPLACE_ID,
+    atBank,
+    availableTellers,
+    nearbyCustomers,
+    rank,
+    rankTitle: rank >= 1 && rank <= BANK_RANKS.length ? BANK_RANKS[rank - 1] : "",
+    onDuty: member && employment?.onDuty === true,
+    uniform: member && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID,
+    canProcessTransactions: canServeCustomers,
+    cash: session.player.cash,
+    bank: session.player.bank,
+    transactions,
+  };
+}
+
+
+function stage5PrivateContext(session: Session) {
+  return session.inHome || session.inStaffRoom || session.inShopInterior ||
+    session.inApartmentInterior || session.inCarpark;
+}
+
+function stage5AtWorkplace(session: Session, workplaceId: string) {
+  const workplace = findWorkplace(workplaceId);
+  return !!workplace && !stage5PrivateContext(session) && workplaceDistance(session, workplace) <= 24;
+}
+
+function governmentWorkplaceFailure(session: Session, options: { governorOnly?: boolean; requiredRank?: number } = {}): string | null {
+  const e=session.player.life.employment??null;
+  if(e?.workplaceId!==GOVERNMENT_WORKPLACE_ID)return "You must be employed by Rivers State Government to use this action.";
+  const rank=Number(e.rank);
+  if(!Number.isInteger(rank)||rank<1||rank>BOSS_RANK)return "Your government rank is not valid.";
+  if(options.requiredRank&&rank!==options.requiredRank)return options.requiredRank===2?"Only the government public-relations rank can publish official announcements.":"This civic action requires the Governor's rank.";
+  const governor=rank===BOSS_RANK&&world.bosses[GOVERNMENT_WORKPLACE_ID]===session.player.id;
+  if(rank===BOSS_RANK&&!governor)return "The Governor role must be assigned through protected workplace administration first.";
+  if(options.governorOnly&&!governor)return "Only the appointed Governor may authorize state spending.";
+  if(e.onDuty!==true)return "Clock in at the government workplace before using this civic action.";
+  if(e.uniformWorkplaceId!==GOVERNMENT_WORKPLACE_ID)return "Wear the authorized government uniform before using this civic action.";
+  if(!stage5AtWorkplace(session,GOVERNMENT_WORKPLACE_ID))return "Return to the Rivers State Government building to use this civic action.";
+  return null;
+}
+function governmentStatePayload(session: Session) {
+  const e=session.player.life.employment??null,member=e?.workplaceId===GOVERNMENT_WORKPLACE_ID,rank=member?Number(e?.rank??0):0;
+  const isGovernor=member&&rank===BOSS_RANK&&world.bosses[GOVERNMENT_WORKPLACE_ID]===session.player.id;
+  const onDuty=member&&e?.onDuty===true,uniform=member&&e?.uniformWorkplaceId===GOVERNMENT_WORKPLACE_ID;
+  const atGovernment=stage5AtWorkplace(session,GOVERNMENT_WORKPLACE_ID),dayKey=clock.dayKey();
+  const claimedPayrollToday=stage6State.payrollDayByAccount[session.player.id]===dayKey;
+  const announcementReadyAt=(stage6State.lastAnnouncementAt[session.player.id]??0)+GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS;
+  const ready=member&&onDuty&&uniform&&atGovernment;
+  return {type:"governmentState",workplaceId:GOVERNMENT_WORKPLACE_ID,treasuryBalance:stage6State.treasuryBalance,
+    ledger:stage6State.ledger.slice(-20).reverse(),announcements:stage6State.announcements.slice(-15).reverse(),rank,
+    rankTitle:member?workplaceRankTitle(GOVERNMENT_WORKPLACE_ID,rank):"",member,isGovernor,onDuty,uniform,atGovernment,
+    payrollAmount:member?governmentPayrollAmount(rank):0,claimedPayrollToday,
+    canClaimPayroll:ready&&!claimedPayrollToday&&(rank<BOSS_RANK||isGovernor),
+    canPublishAnnouncement:ready&&rank===2&&Date.now()>=announcementReadyAt,announcementReadyAt,
+    canApproveSpending:ready&&isGovernor,cash:session.player.cash,dayKey};
+}
+function sendGovernmentResult(session: Session, action: string, ok: boolean, message: string) {
+  send(session.socket,{...governmentStatePayload(session),type:"governmentActionResult",action,ok,message});
+}
+function broadcastGovernmentStates() { for(const session of players.values())send(session.socket,governmentStatePayload(session)); }
+
+
+function stage7SessionIsPrivate(session: Session) {
+  return session.inHome || session.inCarpark || session.inStaffRoom || session.inWorkplaceInterior || session.inShopInterior || session.inApartmentInterior;
+}
+function publicSafetyStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const id = employment?.workplaceId ?? "";
+  const isUnit = isStage7Unit(id);
+  const rank = isUnit ? Number(employment?.rank ?? 0) : 0;
+  const onDuty = !!isUnit && employment?.onDuty === true;
+  const uniform = !!isUnit && employment?.uniformWorkplaceId === id;
+  const ready = !!isUnit && onDuty && uniform;
+  const isAdmin = isFactionAdmin(session);
+  const canReviewAppeals = isAdmin || (id === POLICE_WORKPLACE_ID && rank >= 5 && onDuty && uniform);
+  const citizens = [...players.values()].filter(p => !stage7SessionIsPrivate(p)).map(p => ({ id: p.player.id, name: p.player.name, x: p.player.x, z: p.player.z }));
+  const appeals = canReviewAppeals ? Object.values(stage7State.detentions).filter(d => d.appealRequested).map(d => ({ targetId: d.accountId, targetName: d.accountName, incidentId: d.incidentId, reason: d.appealReason, arrestedByName: d.arrestedByName, arrestedAt: d.startedAt, remainingMs: Math.max(0, d.expiresAt - Date.now()) })) : [];
+  const detention = stage7State.detentions[session.player.id] ?? null;
+  return {
+    type: "stage7State", selfId: session.player.id, incidents: stage7State.incidents.slice(-80).reverse(), actions: stage7State.actions.slice(-40).reverse(),
+    checkpoints: stage7State.checkpoints, citizens, appeals,
+    myDetention: detention ? { ...detention, remainingMs: Math.max(0, detention.expiresAt - Date.now()), canAttemptEscape: Date.now() >= detention.canEscapeAt } : null,
+    workplaceId: isUnit ? id : null, unitName: isUnit ? STAGE7_UNITS[id as Stage7UnitId].label : "",
+    rank, rankTitle: isUnit ? workplaceRankTitle(id, rank) : "", onDuty, uniform, canRespond: ready,
+    canInvestigate: ready && id === POLICE_WORKPLACE_ID && rank >= 2,
+    canArrest: ready && id === POLICE_WORKPLACE_ID && rank >= 2,
+    canFine: ready && (id === POLICE_WORKPLACE_ID ? rank >= 2 : id === FRSC_WORKPLACE_ID && rank >= 1),
+    canResolveFire: ready && id === FIRE_WORKPLACE_ID,
+    canClearTraffic: ready && ((id === FRSC_WORKPLACE_ID && rank >= 2) || (id === POLICE_WORKPLACE_ID && rank >= 4)),
+    canCloseCase: ready && id === POLICE_WORKPLACE_ID && rank >= 4,
+    canActivateCheckpoint: ready && id === ARMY_WORKPLACE_ID && rank >= 2,
+    canReviewAppeals, isAdmin, treasuryBalance: stage6State.treasuryBalance,
+  };
+}
+function sendStage7Result(session: Session, action: string, ok: boolean, message: string) {
+  send(session.socket, { ...publicSafetyStatePayload(session), type: "stage7ActionResult", action, ok, message });
+}
+function broadcastStage7States() { for (const session of players.values()) send(session.socket, publicSafetyStatePayload(session)); }
+
+function stage8EventOptions() {
+  const incidents=stage7State.incidents.slice(-20).reverse().map(item=>({id:"incident:"+item.id,title:"Public safety · "+String(item.kind).replace(/-/g," ")+" — "+String(item.description).slice(0,90),createdAt:item.createdAt}));
+  const notices=stage6State.announcements.slice(-12).reverse().map(item=>({id:"government:"+item.id,title:"State notice · "+item.text.slice(0,100),createdAt:item.createdAt}));
+  return incidents.concat(notices).slice(0,24);
+}
+function stage8StatePayload(session:Session) {
+  const e=session.player.life.employment??null,workplaceId=e?.workplaceId??"",rank=workplaceId===NEWS_WORKPLACE_ID?Number(e?.rank??0):0;
+  const onDuty=workplaceId===NEWS_WORKPLACE_ID&&e?.onDuty===true,uniform=workplaceId===NEWS_WORKPLACE_ID&&e?.uniformWorkplaceId===NEWS_WORKPLACE_ID;
+  const inNewsroom=session.inWorkplaceInterior&&!session.inStaffRoom&&session.currentWorkplaceId===NEWS_WORKPLACE_ID;
+  const isAdmin=isFactionAdmin(session),ready=workplaceId===NEWS_WORKPLACE_ID&&onDuty&&uniform&&inNewsroom;
+  const canApprove=ready&&rank>=5&&rank<=6,canPublish=ready&&rank>=4&&rank<=6,canReviewReports=isAdmin||(ready&&rank>=5&&rank<=6);
+  return {type:"stage8State",feed:stage8PublicFeed(stage8State),
+    mySubmissions:stage8State.stories.filter(s=>s.authorId===session.player.id).slice(-25).reverse(),
+    editorialStories:(isAdmin||(workplaceId===NEWS_WORKPLACE_ID&&rank>=3))?stage8State.stories.filter(s=>s.status==="submitted"||s.status==="approved"||((canReviewReports||isAdmin)&&(s.status==="published"||s.status==="removed"||s.status==="rejected"))||s.authorId===session.player.id).slice(-60).reverse():[],
+    reports:canReviewReports?stage8State.reports.filter(r=>r.status==="open").slice(-60).reverse():[],
+    actions:canReviewReports?stage8State.actions.slice(-40).reverse():[],eventOptions:stage8EventOptions(),selfId:session.player.id,
+    workplaceId:workplaceId===NEWS_WORKPLACE_ID?workplaceId:null,rank,rankTitle:workplaceId===NEWS_WORKPLACE_ID?workplaceRankTitle(workplaceId,rank):"",
+    onDuty,uniform,inNewsroom,isAdmin,canSubmit:ready&&rank>=3&&rank<=6,canApprove,canPublish,canReviewReports};
+}
+function sendStage8Result(session:Session,action:string,r:{ok:boolean;message:string}) {send(session.socket,{...stage8StatePayload(session),type:"stage8ActionResult",action,ok:r.ok,message:r.message});}
+function broadcastStage8States(){for(const session of players.values())send(session.socket,stage8StatePayload(session));}
+function stage8Actor(session:Session):Stage8Actor {
+ const e=session.player.life.employment??null;
+ return {actorId:session.player.id,actorName:session.player.name,workplaceId:e?.workplaceId??null,rank:Number(e?.rank??0),
+  onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,
+  inNewsroom:session.inWorkplaceInterior&&!session.inStaffRoom&&session.currentWorkplaceId===NEWS_WORKPLACE_ID,isAdmin:isFactionAdmin(session)};
+}
+
+function stage11Actor(session:Session):Stage11Actor { const e=session.player.life.employment??null; return {actorId:session.player.id,workplaceId:e?.workplaceId??"",rank:Number(e?.rank??0),onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,x:session.player.x,z:session.player.z}; }
+function stage11Vehicle(session:Session,id:string){if(!id||!session.player.life.ownedCars.includes(id))return null;const old=stage11State.vehicles[id];registerStage11Vehicle(stage11State,{id,ownerId:session.player.id,x:session.player.x,z:session.player.z,fuelLitres:old?Math.min(old.fuelLitres,session.player.fuel[id]??20):(session.player.fuel[id]??20),fuelCapacityLitres:40,condition:old?.condition??70,cleanliness:old?.cleanliness??70});return stage11State.vehicles[id]??null;}
+function stage11Property(session:Session):Stage11Property|null{const hid=session.player.life.homeId;if(!hid||world.houseTenants[hid]!==session.player.id)return null;const h=findHouse(hid);if(!h)return null;const id="house:"+hid;const old=stage11State.properties[id];registerStage11Property(stage11State,{id,ownerId:session.player.id,residentIds:[],x:h.x,z:h.z,bills:old?.bills??{electricity:{amountDue:8000,paidAt:null},water:{amountDue:3000,paidAt:null},waste:{amountDue:1500,paidAt:null}},issues:old?.issues??[]});return stage11State.properties[id]??null;}
+function stage11Payload(session:Session){return {type:"stage11State",cash:session.player.cash,businesses:STAGE11_BUSINESSES,services:STAGE11_SERVICES,fuelPricePerLitre:STAGE11_FUEL_PRICE_PER_LITRE,ownedVehicles:session.player.life.ownedCars.map(id=>stage11Vehicle(session,id)).filter(Boolean),property:stage11Property(session),serviceOrders:stage11State.serviceOrders.slice(-30).reverse(),repairCalls:stage11State.repairCalls.slice(-30).reverse(),deliveries:stage11State.deliveries.slice(-30).reverse(),utilityPayments:stage11State.utilityPayments.filter(x=>x.customerId===session.player.id).slice(-20).reverse()};}
+function stage11Result(session:Session,action:string,r:any){send(session.socket,{...stage11Payload(session),type:"stage11ActionResult",action,ok:r.ok,result:r.ok?r.result:null,reason:r.ok?null:r.reason});}
+function broadcastStage11States(){for(const x of players.values())send(x.socket,stage11Payload(x));}
+
+function stage9Actor(session:Session):Stage9Actor {
+ const e=session.player.life.employment??null;
+ return {actorId:session.player.id,actorName:session.player.name,workplaceId:e?.workplaceId??null,rank:Number(e?.rank??0),onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,x:session.player.x,z:session.player.z};
+}
+function stage9OwnRide(session:Session) {
+ const mine=stage9State.rides.filter(r=>r.passengerId===session.player.id||r.driverId===session.player.id);
+ return mine.find(r=>["waiting","assigned","onboard"].includes(r.status))??mine[mine.length-1]??null;
+}
+function stage9OwnDelivery(session:Session) {
+ const mine=stage9State.deliveries.filter(d=>d.driverId===session.player.id);
+ return mine.find(d=>d.status==="active")??mine[mine.length-1]??null;
+}
+function stage9StatePayload(session:Session) {
+ const e=session.player.life.employment??null,member=e?.workplaceId===TRANSPORT_WORKPLACE_ID,rank=member?Number(e?.rank??0):0;
+ const onDuty=member&&e?.onDuty===true,uniform=member&&e?.uniformWorkplaceId===TRANSPORT_WORKPLACE_ID;
+ const nearDepot=Math.hypot(session.player.x-STAGE9_DEPOT.x,session.player.z-STAGE9_DEPOT.z)<=18;
+ const ownVehicle=Object.values(stage9State.vehicles).find(v=>v.ownerId===session.player.id)??null;
+ const ownRide=stage9OwnRide(session),ownDelivery=stage9OwnDelivery(session);
+ const nearestStop=STAGE9_STOPS.map(s=>({id:s.id,name:s.name,distance:stage9DistanceToStop(session.player.x,session.player.z,s.id)})).sort((a,b)=>a.distance-b.distance)[0];
+ return {type:"stage9State",selfId:session.player.id,selfName:session.player.name,x:session.player.x,z:session.player.z,cash:session.player.cash,
+  stops:STAGE9_STOPS,routes:STAGE9_ROUTES,vehicles:Object.values(stage9State.vehicles),
+  rides:stage9State.rides.filter(r=>["waiting","assigned","onboard"].includes(r.status)).slice(-50).reverse(),
+  deliveries:stage9State.deliveries.filter(d=>d.status==="active").slice(-30).reverse(),
+  ownVehicle,ownRide,ownDelivery,unionTreasury:stage9State.unionTreasury,workplaceId:member?TRANSPORT_WORKPLACE_ID:null,rank,
+  rankTitle:rank?workplaceRankTitle(TRANSPORT_WORKPLACE_ID,rank):"",onDuty,uniform,nearDepot,nearFuelPoint:nearDepot,
+  nearestStop:nearestStop&&nearestStop.distance<=13?nearestStop:null,canDrive:rank>=3&&onDuty&&uniform,canHaul:rank>=5&&onDuty&&uniform};
+}
+function sendStage9Result(session:Session,action:string,r:Stage9Result) {
+ send(session.socket,{...stage9StatePayload(session),type:"stage9ActionResult",action,ok:r.ok,message:r.message,fare:r.fare??null,driverShare:r.driverShare??null,cost:r.cost??null,reward:r.reward??null});
+}
+function broadcastStage9States(){for(const session of players.values())send(session.socket,stage9StatePayload(session));}
+async function persistStage9Action(session:Session,action:string,r:Stage9Result):Promise<boolean>{
+ if(!r.ok){sendStage9Result(session,action,r);return false;}
+ try{await saveStage9State(r.state);stage9State=r.state;return true;}
+ catch(error){console.error("stage9-"+action+"-save",error);sendStage9Result(session,action,{ok:false,state:stage9State,message:"Transport state could not be saved. Refresh and retry."});return false;}
+}
+async function recordStage9VehicleMovement(session:Session,vehicleId:string,moved:number,now:number){
+ const vehicle=stage9State.vehicles[vehicleId];
+ if(!vehicle||vehicle.ownerId!==session.player.id){stage9FuelProgress.delete(session.player.id);return;}
+ let sample=stage9FuelProgress.get(session.player.id);
+ if(!sample||sample.vehicleId!==vehicleId){sample={vehicleId,pendingDistance:0,lastSavedAt:now};stage9FuelProgress.set(session.player.id,sample);return;}
+ sample.pendingDistance+=Math.max(0,moved);
+ if(now-sample.lastSavedAt<2000||sample.pendingDistance<.5)return;
+ const burned=consumeStage9Fuel(stage9State,vehicleId,session.player.id,sample.pendingDistance);
+ sample.pendingDistance=0;sample.lastSavedAt=now;
+ if(burned.consumed<=0)return;
+ try{stage9State=burned.state;await saveStage9State();send(session.socket,stage9StatePayload(session));
+  if(burned.vehicle?.fuelLitres===0)send(session.socket,{type:"stage9FuelEmpty",message:"Company vehicle is out of fuel. Return to the depot for refuelling."});
+ }catch(error){console.error("stage9-fuel-save",error);}
+}
+
+function stage7CanPassCheckpoint(session: Session) {
+  const e = session.player.life.employment;
+  return isAuthorisedStage7CheckpointPass(e?.workplaceId, e?.onDuty === true, !!e && e.uniformWorkplaceId === e.workplaceId);
+}
+
+function stage5PlayerAtHospital(session: Session, hospitalId: string) {
+  return stage5AtWorkplace(session, hospitalId);
+}
+
+function broadcastHospitalStaffState(hospitalId: string, excludeIds: readonly string[] = []) {
+  const excluded = new Set(excludeIds);
+  for (const recipient of players.values()) {
+    if (excluded.has(recipient.player.id) || stage5PrivateContext(recipient)) continue;
+    const employment = recipient.player.life.employment;
+    if (employment?.workplaceId !== hospitalId) continue;
+    // Each recipient gets a role-filtered payload. This refreshes the live queue
+    // without granting new permissions or exposing another patient's private history.
+    send(recipient.socket, hospitalStatePayload(recipient, hospitalId));
+  }
+}
+
+function broadcastParkStaffState(excludeIds: readonly string[] = []) {
+  const excluded = new Set(excludeIds);
+  for (const recipient of players.values()) {
+    if (excluded.has(recipient.player.id)) continue;
+    const employment = recipient.player.life.employment;
+    if (employment?.workplaceId !== PARK_WORKPLACE_ID) continue;
+    // Park management can see its authorised ledger while off duty; ordinary
+    // staff receive only the queue permitted by parkStatePayload.
+    if (stage5PrivateContext(recipient) && Number(employment.rank) < 5) continue;
+    send(recipient.socket, parkStatePayload(recipient));
+  }
+}
+
+function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
+  const employment = session.player.life.employment ?? null;
+  const preferred = isHospitalId(String(requestedHospitalId ?? "")) ? String(requestedHospitalId) :
+    (employment && isHospitalId(employment.workplaceId) ? employment.workplaceId : "");
+  const hospitalId = isHospitalId(preferred) ? preferred : "hospital-main";
+  const workplace = findWorkplace(hospitalId)!;
+  const member = employment?.workplaceId === hospitalId;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const onDuty = member && employment?.onDuty === true;
+  const uniform = member && employment?.uniformWorkplaceId === hospitalId;
+  const atHospital = stage5AtWorkplace(session, hospitalId);
+  const activePatientRequests = stage5State.hospital.requests
+    .filter(request => request.patientId === session.player.id &&
+      (request.status === "open" || request.status === "dispatched"))
+    .slice(-6).reverse()
+    .map(request => ({
+      ...request,
+      hospitalName: findWorkplace(request.hospitalId)?.name ?? request.hospitalId,
+      workerName: request.assignedWorkerId ? (players.get(request.assignedWorkerId)?.player.name ?? request.assignedWorkerId.slice(0, 8)) : null,
+      triageWorkerName: request.triagedBy ? (players.get(request.triagedBy)?.player.name ?? request.triagedBy.slice(0, 8)) : null,
+    }));
+  const activeStaffRequests = member && onDuty && uniform && hospitalRankCanTriage(rank)
+    ? stage5State.hospital.requests.filter(request =>
+        request.hospitalId === hospitalId && (request.status === "open" || request.status === "dispatched"))
+      .slice(-15).reverse().map(request => {
+        const patient = players.get(request.patientId);
+        const patientAtHospital = !!patient && stage5PlayerAtHospital(patient, hospitalId);
+        const distanceToPatient = patient ? Math.hypot(session.player.x - patient.player.x, session.player.z - patient.player.z) : null;
+        return {
+          ...request,
+          patientName: patient?.player.name ?? request.patientId.slice(0, 8),
+          patientHp: patient?.player.hp ?? null,
+          patientX: patient?.player.x ?? request.patientX,
+          patientZ: patient?.player.z ?? request.patientZ,
+          patientAtHospital,
+          patientOnline: !!patient,
+          distanceToPatient: distanceToPatient === null ? null : Number(distanceToPatient.toFixed(1)),
+          assignedWorkerName: request.assignedWorkerId
+            ? (players.get(request.assignedWorkerId)?.player.name ?? request.assignedWorkerId.slice(0, 8))
+            : null,
+          canTriage: request.kind === "care" && request.status === "open" && atHospital && patientAtHospital &&
+            hospitalRankCanTriage(rank) && !request.triagedAt,
+          canDispatch: request.kind === "ambulance" && request.status === "open" && atHospital &&
+            hospitalRankCanDispatch(rank),
+          canTreat: request.kind === "care" && request.status === "open" && !!request.triagedAt &&
+            atHospital && patientAtHospital && hospitalRankCanTreat(rank),
+          canFieldTreat: request.kind === "ambulance" && request.status === "dispatched" &&
+            request.assignedWorkerId === session.player.id && distanceToPatient !== null &&
+            distanceToPatient <= 8 && !!patient && !stage5PrivateContext(patient) &&
+            !stage5PrivateContext(session) && hospitalRankCanTreat(rank),
+        };
+      })
+    : [];
+  const availableWorkers = [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === hospitalId &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === hospitalId &&
+      Number(candidate.player.life.employment.rank) >= 1 &&
+      Number(candidate.player.life.employment.rank) <= 6 &&
+      !stage5PrivateContext(candidate))
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: workplaceRankTitle(hospitalId, candidate.player.life.employment!.rank),
+      atHospital: stage5PlayerAtHospital(candidate, hospitalId),
+      x: Number(candidate.player.x.toFixed(1)),
+      z: Number(candidate.player.z.toFixed(1)),
+    }))
+    .sort((a, b) => Number(b.atHospital) - Number(a.atHospital));
+  const manager = member && rank >= 5;
+  const history = stage5State.hospital.history
+    .filter(record => isFactionAdmin(session) || manager ||
+      record.patientId === session.player.id || record.workerId === session.player.id)
+    .slice(-12).reverse()
+    .map(record => ({
+      ...record,
+      patientName: players.get(record.patientId)?.player.name ?? record.patientId.slice(0, 8),
+      workerName: players.get(record.workerId)?.player.name ?? record.workerId.slice(0, 8),
+    }));
+  const pharmacyHistory = stage5State.hospital.pharmacyHistory
+    .filter(receipt => isFactionAdmin(session) || manager ||
+      receipt.customerId === session.player.id || receipt.workerId === session.player.id)
+    .slice(-10).reverse()
+    .map(receipt => ({
+      ...receipt,
+      customerName: players.get(receipt.customerId)?.player.name ?? receipt.customerId.slice(0, 8),
+      workerName: players.get(receipt.workerId)?.player.name ?? receipt.workerId.slice(0, 8),
+    }));
+  const medicines = HOSPITAL_MEDICINES.map(medicine => ({
+    ...medicine,
+    stock: stage5State.hospital.pharmacyStock[hospitalId + ":" + medicine.id] ?? 0,
+  }));
+  const openCareRequest = stage5State.hospital.requests.some(request =>
+    request.patientId === session.player.id && request.kind === "care" &&
+    (request.status === "open" || request.status === "dispatched"));
+  const openAmbulanceRequest = stage5State.hospital.requests.some(request =>
+    request.patientId === session.player.id && request.kind === "ambulance" &&
+    (request.status === "open" || request.status === "dispatched"));
+  return {
+    type: "hospitalState",
+    hospitalId,
+    hospitalName: workplace.name,
+    hospitalOptions: HOSPITAL_IDS.map(id => ({ id, name: findWorkplace(id)?.name ?? id })),
+    atHospital,
+    rank,
+    rankTitle: member ? workplaceRankTitle(hospitalId, rank) : "",
+    onDuty,
+    uniform,
+    canTriage: member && hospitalRankCanTriage(rank) && onDuty && uniform && atHospital,
+    canTreat: member && hospitalRankCanTreat(rank) && onDuty && uniform,
+    canDispatch: member && hospitalRankCanDispatch(rank) && onDuty && uniform && atHospital,
+    canWorkPharmacy: member && hospitalRankCanTriage(rank) && onDuty && uniform && atHospital,
+    canUsePharmacy: atHospital,
+    canRequestCare: atHospital && session.player.hp < 100 && !openCareRequest,
+    canRequestAmbulance: !stage5PrivateContext(session) && !session.inWorkplaceInterior &&
+      session.player.hp <= 80 && session.player.hp < 100 && !openAmbulanceRequest,
+    hp: session.player.hp,
+    cash: session.player.cash,
+    availableWorkers,
+    patientRequests: activePatientRequests,
+    staffRequests: activeStaffRequests,
+    medicines,
+    pharmacyTill: manager || isFactionAdmin(session) ? stage5State.hospital.pharmacyTill[hospitalId] : null,
+    history,
+    pharmacyHistory,
+    canViewHospitalLedger: manager || isFactionAdmin(session),
+  };
+}
+
+function parkStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const member = employment?.workplaceId === PARK_WORKPLACE_ID;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const onDuty = member && employment?.onDuty === true;
+  const uniform = member && employment?.uniformWorkplaceId === PARK_WORKPLACE_ID;
+  const workplace = findWorkplace(PARK_WORKPLACE_ID)!;
+  const atPark = stage5AtWorkplace(session, PARK_WORKPLACE_ID);
+  const today = clock.dayKey();
+  const currentTicket = stage5State.park.ticketsByVisitor[session.player.id];
+  const ticket = currentTicket?.dayKey === today ? currentTicket : null;
+  const availableWorkers = [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === PARK_WORKPLACE_ID &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === PARK_WORKPLACE_ID &&
+      !stage5PrivateContext(candidate) && stage5AtWorkplace(candidate, PARK_WORKPLACE_ID))
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: workplaceRankTitle(PARK_WORKPLACE_ID, candidate.player.life.employment!.rank),
+    }));
+  const visitorRequests = stage5State.park.helpRequests
+    .filter(request => request.visitorId === session.player.id && request.status === "open")
+    .slice(-5).reverse()
+    .map(request => ({ ...request, visitorName: session.player.name }));
+  const staffRequests = member && parkRankCanHelpVisitors(rank) && onDuty && uniform && atPark
+    ? stage5State.park.helpRequests.filter(request => request.status === "open")
+      .filter(request => {
+        const visitor = players.get(request.visitorId);
+        return !!visitor && stage5AtWorkplace(visitor, PARK_WORKPLACE_ID);
+      }).slice(-12).reverse().map(request => ({
+        ...request,
+        visitorName: players.get(request.visitorId)?.player.name ?? request.visitorId.slice(0, 8),
+        visitorHp: players.get(request.visitorId)?.player.hp ?? null,
+        distanceToVisitor: players.get(request.visitorId)
+          ? Number(Math.hypot(session.player.x - players.get(request.visitorId)!.player.x,
+              session.player.z - players.get(request.visitorId)!.player.z).toFixed(1))
+          : null,
+      }))
+    : [];
+  const manager = member && rank >= 5;
+  const tickets = stage5State.park.ticketHistory
+    .filter(item => isFactionAdmin(session) || manager ||
+      item.visitorId === session.player.id || item.sellerId === session.player.id)
+    .slice(-12).reverse()
+    .map(item => ({
+      ...item,
+      visitorName: players.get(item.visitorId)?.player.name ?? item.visitorId.slice(0, 8),
+      sellerName: players.get(item.sellerId)?.player.name ?? item.sellerId.slice(0, 8),
+    }));
+  const history = stage5State.park.history
+    .filter(record => isFactionAdmin(session) || manager ||
+      record.visitorId === session.player.id || record.workerId === session.player.id)
+    .slice(-10).reverse()
+    .map(record => ({
+      ...record,
+      visitorName: players.get(record.visitorId)?.player.name ?? record.visitorId.slice(0, 8),
+      workerName: players.get(record.workerId)?.player.name ?? record.workerId.slice(0, 8),
+    }));
+  const openHelp = stage5State.park.helpRequests.some(request =>
+    request.visitorId === session.player.id && request.status === "open");
+  return {
+    type: "parkState",
+    workplaceId: PARK_WORKPLACE_ID,
+    workplaceName: workplace.name,
+    today,
+    atPark,
+    rank,
+    rankTitle: member ? workplaceRankTitle(PARK_WORKPLACE_ID, rank) : "",
+    onDuty,
+    uniform,
+    canSellTickets: member && parkRankCanSellTickets(rank) && onDuty && uniform && atPark,
+    canHelpVisitors: member && parkRankCanHelpVisitors(rank) && onDuty && uniform && atPark,
+    canRequestHelp: atPark && !openHelp,
+    cash: session.player.cash,
+    ticketPrice: PARK_TICKET_PRICE,
+    ticket,
+    availableWorkers,
+    visitorRequests,
+    staffRequests,
+    tickets,
+    history,
+    till: manager || isFactionAdmin(session) ? stage5State.park.till : null,
+    canViewParkLedger: manager || isFactionAdmin(session),
+    helpCategories: PARK_HELP_CATEGORIES,
+  };
+}
+
+function hasWorkplaceBossPermission(session: Session, workplaceId: string) {
+  if(world.bosses[workplaceId]!==session.player.id)return false;
+  if(workplaceId===GOVERNMENT_WORKPLACE_ID){const e=session.player.life.employment;return e?.workplaceId===GOVERNMENT_WORKPLACE_ID&&Number(e.rank)===BOSS_RANK;}
+  return true;
+}
+
+async function setAccountEmployment(accountId: string, workplaceId: string | null, rank = 1) {
+  const active = players.get(accountId);
+  if (active) {
+    active.player.life = {
+      ...active.player.life,
+      employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } : null,
+    };
+    active.workTask = null;
+    await persistSession(active);
+    return active.player.name;
+  }
+  const account = await findAccountById(accountId);
+  if (!account) return null;
+  account.life = {
+    ...account.life,
+    employment: workplaceId ? { workplaceId, rank, onDuty: false, lastTaskAt: 0, uniformWorkplaceId: null } : null,
+  };
+  await saveAccount(account);
+  return account.username;
+}
+
+function homeInteriorPosition(homeId: string) {
+  const found = HOUSES.findIndex((house) => house.id === homeId);
+  const index = Math.max(0, found);
+  // Six columns by five rows, each room separated and kept inside WORLD_LIMIT.
+  return { x: 280 + (index % 6) * 28, z: 280 + Math.floor(index / 6) * 27 };
+}
+
+function staffRoomInteriorPosition(workplaceId: string) {
+  const found = WORKPLACES.findIndex((workplace) => workplace.id === workplaceId);
+  const index = Math.max(0, found);
+  // Isolated interior grid away from both residential interiors and the car park.
+  return { x: -450 + (index % 4) * 23, z: -430 + Math.floor(index / 4) * 26 };
+}
+
+function houseExteriorDepth(cls: string): number {
+  switch (cls) {
+    case "hut": return 6;
+    case "faceme": return 8;
+    case "flat": return 10;
+    case "estate": return 11;
+    case "mansion": return 13;
+    case "palace": return 16;
+    default: return 10;
+  }
+}
+
+// All exits use the front approach, so players emerge beside the home they rent
+// instead of reappearing at whatever point on the map they entered from.
+function homeStreetPosition(homeId: string) {
+  const home = findHouse(homeId);
+  if (!home) return null;
+  return {
+    x: Math.max(-WORLD_LIMIT + 8, Math.min(WORLD_LIMIT - 8, home.x)),
+    z: Math.max(-WORLD_LIMIT + 8, Math.min(WORLD_LIMIT - 8, home.z + houseExteriorDepth(home.cls) / 2 + 8)),
+  };
+}
+
+const CARPARK_PLAYER_POSITION = { x: CARPARK_POSITION.x, z: CARPARK_POSITION.z - 12 };
+
+function sendHousingState(session: Session) {
+  send(session.socket, {
+    type: "housingState", houses: housingSnapshot(session),
+    life: session.player.life, cash: session.player.cash, today: clock.dayKey(),
+  });
+}
+
+const APARTMENT_INTERIOR_POSITION = { x: 450, z: -270 } as const;
+const APARTMENT_ROOMS_PER_FLOOR = 10;
+
+function apartmentRoomKey(buildingId: string, roomNumber: number) {
+  return buildingId + ":" + roomNumber;
+}
+function apartmentRoomFloor(roomNumber: number) {
+  if (!Number.isInteger(roomNumber) || roomNumber < 1) return 0;
+  return Math.floor((roomNumber - 1) / APARTMENT_ROOMS_PER_FLOOR) + 1;
+}
+function apartmentFloorRooms(buildingId: string, floor: number, accountId: string) {
+  return Array.from({ length: APARTMENT_ROOMS_PER_FLOOR }, (_, index) => {
+    const roomNumber = (floor - 1) * APARTMENT_ROOMS_PER_FLOOR + index + 1;
+    const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
+    return {
+      roomNumber,
+      vacant: !lease,
+      occupiedByMe: lease?.tenantId === accountId,
+      locked: lease?.locked === true,
+      prepaidDays: lease?.tenantId === accountId ? lease.prepaidDays : 0,
+      rentPerDay: APARTMENT_RENT_PER_DAY,
+    };
+  });
+}
+function findApartmentLeaseForTenant(accountId: string) {
+  return Object.entries(world.apartmentRooms).find(([, lease]) => lease.tenantId === accountId) ?? null;
+}
+function sendApartmentFloorState(session: Session, type: string, message?: string) {
+  const buildingId = session.apartmentBuildingId;
+  if (!buildingId) return;
+  send(session.socket, {
+    type,
+    ok: true,
+    buildingId,
+    buildingName: session.apartmentBuildingName,
+    floor: session.apartmentFloor,
+    floors: session.apartmentFloors,
+    roomX: APARTMENT_INTERIOR_POSITION.x,
+    roomZ: APARTMENT_INTERIOR_POSITION.z,
+    x: session.player.x,
+    z: session.player.z,
+    returnX: session.apartmentReturn?.x ?? session.player.x,
+    returnZ: session.apartmentReturn?.z ?? session.player.z,
+    returnYaw: session.apartmentReturn?.yaw ?? session.player.yaw,
+    rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id),
+    rentPerDay: APARTMENT_RENT_PER_DAY,
+    message: message ?? ("Apartment floor " + session.apartmentFloor + " of " + session.apartmentFloors + ". Rooms are numbered by floor."),
+  });
+}
+function validApartmentBuilding(message: any) {
+  const buildingId = String(message.buildingId ?? "").slice(0, 90);
+  const x = Number(message.x), z = Number(message.z);
+  const entryX = Number(message.entryX), entryZ = Number(message.entryZ);
+  const width = Number(message.width), depth = Number(message.depth), height = Number(message.height);
+  const floors = Math.floor(Number(message.floors));
+  const expectedId = "apt-" + Math.round(x * 10) + "-" + Math.round(z * 10);
+  if (
+    !buildingId || buildingId !== expectedId ||
+    ![x, z, entryX, entryZ, width, depth, height].every(Number.isFinite) ||
+    Math.abs(x) > 240 || Math.abs(z) > 240 ||
+    width < 8 || width > 65 || depth < 8 || depth > 65 || height < 5 || height > 60 ||
+    !Number.isInteger(floors) || floors < 2 || floors > 10 ||
+    Math.hypot(entryX - x, entryZ - z) > Math.hypot(width, depth) + 8
+  ) return null;
+  const expectedFloors = Math.max(2, Math.min(10, Math.floor(height / 4)));
+  if (floors !== expectedFloors) return null;
+  return {
+    buildingId, x, z, entryX, entryZ, width, depth, height, floors,
+    name: String(message.buildingName ?? "Apartment Building").trim().slice(0, 72) || "Apartment Building",
+  };
+}
+function enterApartmentRoom(session: Session, roomNumber: number) {
+  session.apartmentMode = "room";
+  session.apartmentRoomNumber = roomNumber;
+  session.player.x = APARTMENT_INTERIOR_POSITION.x;
+  session.player.z = APARTMENT_INTERIOR_POSITION.z;
+  session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+  session.lastInputAt = Date.now();
+  session.lastSyncAt = Date.now();
+}
+
+const HOME_FURNITURE: Record<string, string[]> = {
+  hut: ["Foam mattress", "Plastic chair", "Small table", "Standing fan", "Curtains"],
+  faceme: ["Bed", "Wardrobe", "Two chairs", "Shared kitchen", "Curtains"],
+  flat: ["Sofa set", "Bed and wardrobe", "Dining table", "Kitchen counter", "Television"],
+  estate: ["Large sofa set", "Bedroom suite", "Dining set", "Kitchen cabinets", "Television", "Generator"],
+  mansion: ["Luxury sofa set", "Master bedroom suite", "Dining room", "Fitted kitchen", "Television", "Air conditioning"],
+  palace: ["Luxury lounge", "Premium bedroom suite", "Formal dining set", "Fitted kitchen", "Multiple televisions", "Air conditioning", "Decorative lighting"],
+};
+
