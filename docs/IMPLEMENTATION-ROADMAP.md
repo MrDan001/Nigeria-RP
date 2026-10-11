@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Project status — 11 October 2026:** Stages 0–5 are marked done for sequencing at the user's direction. Stage 6 — Rivers State Government & Civic Finance — is deployed to Railway under the named Stage 6 release. Stage 1–6 domain regression, server typecheck/build, browser build and Android debug-APK build passed. Real-device/two-account checks remain unclaimed. Keep the Face-Me-I-Face-You visibility fix protected.
+> **Project status — 11 October 2026:** Stage 7 is deployed on Railway at commit `3d50df0da4a1cfb749bbc56d9a844c2a6ca1d29e`; its 13 tests plus Stage 1–7 regression, typecheck, server/browser builds and Android debug-APK workflow passed. Stage 8 — Rivers News Network — is implemented on `main`; verification and Railway rollout for this release are pending. Real-device/two-account checks remain explicitly unclaimed. Keep the Face-Me-I-Face-You visibility fix protected.
 
 > **Gate rule:** The user has explicitly asked to continue through the stages without requiring a second human tester. Use deterministic automated tests for replay, rank, balance and multi-account domain scenarios. Do not claim an unperformed two-account/Android live check as complete; record it as a manual limitation while proceeding with the next approved stage.
 
@@ -201,12 +201,13 @@ Verification:
 Acceptance: unauthorized arrests, arbitrary fines and restricted-area misuse are rejected; every consequential action is logged and testable.
 
 ### Stage 8 — Rivers News Network
-- Create a walkable newsroom/studio, newsroom tools and six-rank ladder: Intern, Production Assistant, Reporter, Anchor, Editor, Editor-in-Chief (boss).
-- Reporters file stories tied to in-world events; anchors broadcast approved reports; the editor approves/moderates publication.
-- Publish a small in-game news ticker and phone feed; the feed must be readable on Android and update without blocking gameplay.
-- Add rate limits, a word/profanity filter, report button, moderation logs and protected Editor-in-Chief permissions.
+**Status — implemented on main; CI and Railway verification pending for this release.** Reuses the existing walkable `news-main` newsroom/studio and six-rank ladder.
+- Rank 3+ employees submit event-based copy into a private queue. Rank 5+ Editors approve/reject; rank 4+ Anchors broadcast only approved stories.
+- A mobile-conscious public feed and non-blocking ticker update over WebSocket without interrupting gameplay.
+- Server-side rank, job, duty, uniform and newsroom-location checks protect editorial actions. Stories may link to active Stage 6 government notices or Stage 7 public-safety incidents.
+- Cooldowns, replay protection, profanity filtering, citizen content reports, protected report review/removal and a bounded audit log are implemented.
 
-Acceptance: unapproved stories do not publish; publication permissions and rate limits hold under retries; reported content can be reviewed and removed.
+Acceptance: unapproved stories do not publish; editorial permissions and rate limits hold under retries; reported content can be reviewed and removed. Automated checks are added; live Android/two-account checks remain separate.
 
 ### Stage 9 — Transport, passengers and haulage
 - Add player-operated danfo/bus routes and stops, keke/okada passenger trips, taxis, terminals and truck-haul depots.
