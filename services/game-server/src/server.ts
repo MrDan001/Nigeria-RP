@@ -602,6 +602,22 @@ function marketStatePayload(session: Session) {
   const member = employment?.workplaceId === MARKET_WORKPLACE_ID;
   const rank = member ? Number(employment?.rank ?? 0) : 0;
   const manager = member && rank >= 5;
+  const workplace = findWorkplace(MARKET_WORKPLACE_ID);
+  const atMarket = !!workplace && workplaceDistance(session, workplace) <= 24;
+  const availableSellers = atMarket ? [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === MARKET_WORKPLACE_ID &&
+      Number(candidate.player.life.employment.rank) >= 1 &&
+      Number(candidate.player.life.employment.rank) <= MARKET_RANKS.length &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === MARKET_WORKPLACE_ID &&
+      workplaceDistance(candidate, workplace) <= 24)
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: MARKET_RANKS[candidate.player.life.employment!.rank - 1],
+    })) : [];
   const salesHistory = stage4State.market.history
     .filter((sale) => isFactionAdmin(session) || manager ||
       sale.customerId === session.player.id || sale.sellerId === session.player.id)
@@ -615,6 +631,8 @@ function marketStatePayload(session: Session) {
   return {
     type: "marketState",
     workplaceId: MARKET_WORKPLACE_ID,
+    atMarket,
+    availableSellers,
     products: MARKET_PRODUCTS.map((product) => ({
       ...product,
       stock: stage4State.market.stock[product.id] ?? 0,
@@ -637,6 +655,18 @@ function bankStatePayload(session: Session) {
   const member = employment?.workplaceId === BANK_WORKPLACE_ID;
   const rank = member ? Number(employment?.rank ?? 0) : 0;
   const manager = member && rank >= 5;
+  const workplace = findWorkplace(BANK_WORKPLACE_ID);
+  const atBank = !!workplace && workplaceDistance(session, workplace) <= 24;
+  const canServeCustomers = member && rank >= 2 && rank <= BANK_RANKS.length &&
+    employment?.onDuty === true && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID && atBank;
+  const nearbyCustomers = canServeCustomers && workplace ? [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id && workplaceDistance(candidate, workplace) <= 24)
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      cash: candidate.player.cash,
+      bank: candidate.player.bank,
+    })) : [];
   const transactions = stage4State.bank.history
     .filter((transaction) => isFactionAdmin(session) || manager ||
       transaction.customerId === session.player.id || transaction.tellerId === session.player.id)
@@ -650,12 +680,13 @@ function bankStatePayload(session: Session) {
   return {
     type: "bankState",
     workplaceId: BANK_WORKPLACE_ID,
+    atBank,
+    nearbyCustomers,
     rank,
     rankTitle: rank >= 1 && rank <= BANK_RANKS.length ? BANK_RANKS[rank - 1] : "",
     onDuty: member && employment?.onDuty === true,
     uniform: member && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID,
-    canProcessTransactions: member && rank >= 2 && rank <= BANK_RANKS.length &&
-      employment?.onDuty === true && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID,
+    canProcessTransactions: canServeCustomers,
     cash: session.player.cash,
     bank: session.player.bank,
     transactions,
@@ -1794,8 +1825,27 @@ wss.on("connection", (socket) => {
             return;
           }
 
+          const product = MARKET_PRODUCTS.find(item => item.id === String(message.productId ?? ""));
+          if (!product) {
+            fail("Choose a product from the market catalogue.");
+            return;
+          }
+          const requestedQuantity = Number(message.quantity);
+          const inventoryCount = Math.max(0, Math.floor(Number(session.player.inventory[product.inventoryItem] ?? 0)));
+          if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > 99) {
+            fail("Quantity must be between 1 and 99.");
+            return;
+          }
+          if (inventoryCount + requestedQuantity > 9999) {
+            fail("Your backpack cannot hold any more of this product.");
+            return;
+          }
+
           const draft = normalizeStage4State(stage4State);
           const customerMoney = { cash: session.player.cash, bank: session.player.bank };
+          const idempotencyKey = createHash("sha256")
+            .update("market|" + session.player.id + "|" + orderId)
+            .digest("hex");
           const result = settleMarketSale({
             state: draft.market,
             orderId,
@@ -1803,8 +1853,9 @@ wss.on("connection", (socket) => {
             customerId: session.player.id,
             sellerId: seller.player.id,
             sellerRank: sellerEmployment.rank,
-            productId: String(message.productId ?? ""),
-            quantity,
+            productId: product.id,
+            quantity: requestedQuantity,
+            idempotencyKey,
             now: Date.now(),
           });
           if (!result.ok) {
@@ -1816,6 +1867,7 @@ wss.on("connection", (socket) => {
               insufficient_stock: "There is not enough stock for this order.",
               insufficient_cash: "The customer does not have enough cash.",
               invalid_order_id: "The order reference is invalid.",
+              balance_limit: "The sale exceeds a safe balance limit and was rejected.",
             };
             fail(reasons[result.reason] ?? "The market sale was rejected.");
             send(socket, marketStatePayload(session));
@@ -1824,7 +1876,9 @@ wss.on("connection", (socket) => {
 
           const previousState = stage4State;
           const previousCash = session.player.cash;
+          const previousInventory = { ...session.player.inventory };
           session.player.cash = customerMoney.cash;
+          session.player.inventory[product.inventoryItem] = inventoryCount + requestedQuantity;
           try {
             await persistSession(session);
             stage4State = draft;
@@ -1832,6 +1886,7 @@ wss.on("connection", (socket) => {
           } catch (error) {
             stage4State = previousState;
             session.player.cash = previousCash;
+            session.player.inventory = previousInventory;
             try { await persistSession(session); } catch (rollbackError) {
               console.error("market-sale-rollback", rollbackError);
             }
@@ -1857,7 +1912,7 @@ wss.on("connection", (socket) => {
             ...marketStatePayload(session),
             type: "marketSaleResult", requestId: orderId, ok: true,
             message: "Purchase completed. Receipt " + orderId + ".",
-            receipt, cash: session.player.cash,
+            receipt, cash: session.player.cash, inventory: session.player.inventory,
           });
           send(seller.socket, {
             type: "marketSaleNotice",
@@ -1966,9 +2021,13 @@ wss.on("connection", (socket) => {
 
           const draft = normalizeStage4State(stage4State);
           const customerMoney = { cash: customer.player.cash, bank: customer.player.bank };
+          const idempotencyKey = createHash("sha256")
+            .update("bank|" + session.player.id + "|" + requestId)
+            .digest("hex");
           const result = settleBankTransaction({
             state: draft.bank,
             requestId,
+            idempotencyKey,
             customerId: customer.player.id,
             tellerId: session.player.id,
             tellerRank: employment.rank,
@@ -1987,6 +2046,7 @@ wss.on("connection", (socket) => {
               insufficient_bank_balance: "The customer does not have enough money in the bank for this withdrawal.",
               invalid_request_id: "The transaction reference is invalid.",
               invalid_transaction_type: "Choose either deposit or withdrawal.",
+              balance_limit: "The transaction exceeds a safe balance limit and was rejected.",
             };
             fail(reasons[result.reason] ?? "The bank transaction was rejected.");
             send(socket, bankStatePayload(session));
