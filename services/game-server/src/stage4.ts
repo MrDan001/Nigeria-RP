@@ -40,11 +40,25 @@ export const MARKET_PRODUCTS: readonly MarketProduct[] = [
   { id: "water-pack", name: "Bottled Water Pack", unitPrice: 1500, startingStock: 80 },
 ];
 
+export type MarketSale = {
+  orderId: string;
+  customerId: string;
+  sellerId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  total: number;
+  commission: number;
+  tillCredit: number;
+  createdAt: number;
+};
+
 export type MarketState = {
   stock: Record<string, number>;
   till: number;
   commissions: Record<string, number>;
   completedOrderIds: Record<string, true>;
+  history: MarketSale[];
 };
 
 export type BankState = {
@@ -110,6 +124,7 @@ export function createMarketState(): MarketState {
     till: 0,
     commissions: {},
     completedOrderIds: {},
+    history: [],
   };
 }
 
@@ -133,8 +148,12 @@ export function settleMarketSale(args: {
   sellerRank: number;
   productId: string;
   quantity: number;
+  customerId?: string;
+  now?: number;
 }): { ok: true; result: MarketSaleResult } | { ok: false; reason: string } {
   const { state, orderId, customer, sellerId, sellerRank, productId, quantity } = args;
+  const customerId = String(args.customerId ?? "");
+  const now = Number(args.now ?? Date.now());
   if (!orderId || orderId.length > 100) return { ok: false, reason: "invalid_order_id" };
   if (state.completedOrderIds[orderId]) return { ok: false, reason: "duplicate_order" };
   if (!sellerId || !canExecuteMarketSale(sellerRank)) return { ok: false, reason: "unauthorized_seller" };
@@ -153,6 +172,21 @@ export function settleMarketSale(args: {
   state.commissions[sellerId] = Math.max(0, Math.floor(state.commissions[sellerId] ?? 0)) + commission;
   state.completedOrderIds[orderId] = true;
   customer.cash -= total;
+  state.history.push({
+    orderId,
+    customerId: customerId.slice(0, 100),
+    sellerId: sellerId.slice(0, 100),
+    productId,
+    productName: product.name,
+    quantity,
+    total,
+    commission,
+    tillCredit,
+    createdAt: Number.isFinite(now) && now > 0 ? Math.floor(now) : Date.now(),
+  });
+  if (state.history.length > MAX_TRANSACTION_HISTORY) {
+    state.history.splice(0, state.history.length - MAX_TRANSACTION_HISTORY);
+  }
 
   return {
     ok: true,
@@ -244,8 +278,41 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
       history.push({ id: value.id.slice(0, 120), requestId: value.requestId.slice(0, 100), type, customerId: value.customerId.slice(0, 100), tellerId: value.tellerId.slice(0, 100), amount, fee: 0, createdAt });
     }
   }
+  const marketHistory: MarketSale[] = [];
+  if (Array.isArray(marketRaw.history)) {
+    for (const entry of marketRaw.history) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const value = entry as Record<string, unknown>;
+      const product = findMarketProduct(String(value.productId ?? ""));
+      const quantity = Number(value.quantity);
+      const total = Number(value.total);
+      const commission = Number(value.commission);
+      const tillCredit = Number(value.tillCredit);
+      const createdAt = Number(value.createdAt);
+      if (
+        typeof value.orderId !== "string" || !value.orderId ||
+        typeof value.customerId !== "string" || typeof value.sellerId !== "string" ||
+        !product || !positiveInteger(quantity) || !positiveMoney(total) ||
+        !Number.isInteger(commission) || commission < 0 ||
+        !Number.isInteger(tillCredit) || tillCredit < 0 ||
+        !Number.isFinite(createdAt) || createdAt <= 0
+      ) continue;
+      marketHistory.push({
+        orderId: value.orderId.slice(0, 100),
+        customerId: value.customerId.slice(0, 100),
+        sellerId: value.sellerId.slice(0, 100),
+        productId: product.id,
+        productName: product.name,
+        quantity: Math.min(99, quantity),
+        total: Math.min(Number.MAX_SAFE_INTEGER, total),
+        commission: Math.min(Number.MAX_SAFE_INTEGER, commission),
+        tillCredit: Math.min(Number.MAX_SAFE_INTEGER, tillCredit),
+        createdAt: Math.floor(createdAt),
+      });
+    }
+  }
   return {
-    market: { stock, till: Math.max(0, Math.floor(Number(marketRaw.till) || 0)), commissions, completedOrderIds },
+    market: { stock, till: Math.max(0, Math.floor(Number(marketRaw.till) || 0)), commissions, completedOrderIds, history: marketHistory.slice(-MAX_TRANSACTION_HISTORY) },
     bank: { completedTransactionIds, history: history.slice(-MAX_TRANSACTION_HISTORY) },
   };
 }
