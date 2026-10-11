@@ -1,15 +1,10 @@
 # Stage 4 — Market Salespeople and Bank Tellers
 
-> **Status: ACTIVE — 11 October 2026.** Stage 3 has been accepted and Stage 4 is now the active implementation stage.
+> **Status: IMPLEMENTED — FINAL VERIFICATION IN PROGRESS (11 October 2026).** Stage 3 remains accepted. Stage 4 backend and browser interfaces are now connected to the existing workplace system.
 
-## Goal
+## Scope and ranks
 
-Build the next complete economy layer without disturbing the already-working housing, roads, vehicles, accounts or workplace framework.
-
-## Market
-
-Six ranks:
-
+### Market — Mile 1 Market (`market-mile1`)
 1. Hawker
 2. Stall Assistant
 3. Sales Rep
@@ -17,12 +12,7 @@ Six ranks:
 5. Market Supervisor
 6. Market Chairman
 
-The market must support server-authoritative customer orders, listed products, stock, prices, till settlement, salesperson commission and sales history. A client request must never be trusted for product price, stock quantity, commission or final cash outcome.
-
-## Bank
-
-Six ranks:
-
+### Bank — Port Harcourt Bank (`bank-main`)
 1. Trainee
 2. Teller
 3. Senior Teller
@@ -30,45 +20,53 @@ Six ranks:
 5. Operations Manager
 6. Branch Manager
 
-The bank must support server-authoritative deposits and withdrawals, receipts and transaction history. A teller cannot invent a balance, withdraw beyond the customer's bank balance, deposit money the customer does not possess, or replay the same request to move money twice.
+## Delivered implementation
 
-## Automated foundation added
+### Server-authoritative market
+- Six seeded goods, fixed server-owned prices and starting stock.
+- A customer may purchase only from a different, online market employee who is clocked in, wearing the market uniform and physically at Mile 1 Market. The customer must also be at the market.
+- The server checks seller rank, product, quantity, available stock, buyer cash and inventory capacity. It debits the buyer, adds the goods to the buyer's backpack, credits the market till and tracks the salesperson's 5% commission.
+- Receipts and a bounded sales history are saved in the existing PostgreSQL world table or file store.
+- Commissions are claimable by the on-duty salesperson at the market; collection is server-validated and persisted.
+- Market Supervisors and the Market Chairman may replenish stock from the market till. The wholesale cost is 60% of the listed retail price, per-product stock is capped, and manager identity / receipt / timestamp are recorded in a bounded restock ledger. Restock requests have server-side replay protection.
 
-`services/game-server/src/stage4.ts` now contains the isolated Stage 4 domain engine for:
+### Server-authoritative bank
+- Customers can see their own cash and bank balances and transaction history, plus tellers currently available at the branch.
+- A teller must be a bank employee of Teller rank or higher, clocked in, wearing the bank uniform and physically at the bank. Both the teller and customer must be on site; they must be different players.
+- Deposits move existing customer cash into the customer's bank balance. Withdrawals move existing bank funds into cash. The server enforces amount limits, available funds, safe balance limits and request replay protection.
+- Receipts include a unique transaction reference, customer and teller identity, amount, time and resulting balances. Customer and teller views are filtered to their relevant transactions; authorised management has broader oversight.
+- No client-supplied price, balance, commission or final transaction outcome is trusted.
 
-- Market and bank rank ladders.
-- Market product catalogue and starting stock.
-- Market sale settlement and commission calculation.
-- Bank deposit and withdrawal settlement.
-- Idempotency/replay protection for orders and transactions.
-- Bounded transaction history and safe state normalization.
+### Client integration and persistence
+- Market and bank terminals are accessible from their existing cards in Careers & Factions; no duplicate workplace/building was added.
+- Responsive in-game panels cover product catalogue, available salespeople, purchasing, manager restocking, commission collection, receipts/history, teller customer selection, deposits/withdrawals, and bank receipts/history.
+- UI validation uses in-game panels instead of native browser alerts.
+- Stage 4 state is persisted alongside the existing world data. Money-affecting server actions are queued within a server process so competing requests do not interleave stale in-memory balance snapshots.
+- Added deterministic domain tests and registered `npm run test:stage4 --workspace nigeria-rp-game-server` in game-server CI.
 
-`services/game-server/src/test-stage4.ts` contains automated checks covering valid sales, stock/cash reconciliation, commission calculation, invalid/forged requests, replay protection, deposits, withdrawals, teller authorization, insufficient funds and state normalization.
+## Automated checks
 
-## Next implementation work
+`services/game-server/src/test-stage4.ts` covers:
+- rank ladder and teller permissions;
+- valid market sales, stock/cash/till/commission reconciliation and inventory purchase mapping;
+- invalid product, quantity, stock, rank and insufficient-funds rejection;
+- replay protection and request idempotency;
+- valid deposits/withdrawals, receipt identity and balance reconciliation;
+- trainee/self-service/invalid amount/overflow rejection;
+- market supervisor restocking, till funds, stock caps, replay rejection and persisted stock receipts;
+- safe normalization of stored state.
 
-1. Wire the Stage 4 domain engine into the existing WebSocket server and persistent world/account state.
-2. Reuse the existing `market-mile1` and `bank-main` workplace/interior groundwork instead of creating duplicate locations.
-3. Add market customer-order UI and employee sales/till UI to the browser client.
-4. Add bank teller transaction UI, receipts and transaction-history UI.
-5. Persist Stage 4 state through the existing PostgreSQL/file-store paths used by the server.
-6. Add the Stage 4 regression command to the game-server workspace and CI.
-7. Deploy to Railway and run automated regression checks before making any visual/gameplay claims.
-8. Because the user is the only tester, provide a single-account verification path and rely on deterministic server tests for multi-account/replay/security scenarios rather than blocking on a second human tester.
+Latest CI / deployment verification is being checked against the latest repository commit before this stage is marked accepted.
 
-## Acceptance gate
+## Remaining acceptance work
 
-- [ ] Customer receives exactly the goods ordered and paid for.
-- [ ] Market stock, till and salesperson commission reconcile after every valid sale.
-- [ ] Invalid products, quantities, prices, ranks and stock states are rejected server-side.
-- [ ] Replayed market orders cannot duplicate goods, cash or commission.
-- [ ] Deposits reconcile cash and bank balances.
-- [ ] Withdrawals reconcile bank and cash balances.
-- [ ] Insufficient funds are rejected.
-- [ ] Trainees cannot independently settle bank transactions.
-- [ ] Replayed bank requests cannot move money twice.
-- [ ] Receipts and transaction history persist and are account-scoped.
-- [ ] Stage 1–3 regression suites remain green.
-- [ ] Stage 4 tests, typecheck, build and CI are green.
-- [ ] Railway deployment is healthy.
-- [ ] The user approves Stage 4 completion.
+- [ ] Latest full CI for the final commit is green, including Stage 1–4 regression, typecheck, browser build and Android build.
+- [ ] Railway production deployment for the latest commit is successful and the public service responds normally.
+- [ ] Solo account verification of market/bank panels and current balances after reconnect.
+- [ ] User confirms Stage 4 acceptance.
+
+As previously agreed, a second human tester is not required to close Stage 4. Multi-account, replay and competing-balance scenarios are covered by deterministic automated tests; any live scenario that truly requires two simultaneously online player sessions remains explicitly unverified rather than being claimed as manually tested.
+
+## Regression boundaries
+
+Keep the accepted Stage 1–3 implementation and the existing buildings/map, player authentication, player cash/bank, homes/apartments, roads, vehicles and workplace/interior structure intact. Stage 4 must reuse `market-mile1` and `bank-main`; do not introduce duplicate market or bank locations.
