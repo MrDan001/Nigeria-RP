@@ -13,6 +13,7 @@ import {
   BOSS_RANK,
   MAX_STAFF_RANK,
   MAX_WORK_HISTORY,
+  MAX_WORKPLACE_AUDIT,
   RANK_MULTIPLIERS,
   FACTIONS,
   WORKPLACES,
@@ -445,7 +446,9 @@ function appendWorkplaceAudit(
     detail: String(detail).slice(0, 240),
     at: Date.now(),
   });
-  if (world.workplaceAudit.length > 500) world.workplaceAudit.splice(0, world.workplaceAudit.length - 500);
+  if (world.workplaceAudit.length > MAX_WORKPLACE_AUDIT) {
+    world.workplaceAudit.splice(0, world.workplaceAudit.length - MAX_WORKPLACE_AUDIT);
+  }
 }
 
 const bossDisplayLookupInFlight = new Set<string>();
