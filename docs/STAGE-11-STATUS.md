@@ -1,6 +1,6 @@
 # Stage 11 — Personal services, property services and utilities
 
-**Status: SERVER-AUTHORITATIVE DOMAIN FOUNDATION PUSHED TO MAIN — live gameplay integration and release acceptance remain open.**
+**Status: DOMAIN FOUNDATION PUSHED TO MAIN AND DEPLOYED SUCCESSFULLY TO RAILWAY at commit `c892d95d86eaefae2e4b20d794aa967daa790df9` — live gameplay integration and release acceptance remain open.**
 
 Implemented in `services/game-server/src/stage11.ts`:
 
@@ -15,4 +15,4 @@ Implemented in `services/game-server/src/stage11.ts`:
 
 ## Acceptance still outstanding
 
-This is a domain foundation, not a claim that the full Stage 11 player experience is finished. The new engine is not yet wired to live server message handlers, existing saved citizen cash, vehicle persistence, property/rent records, workplace roster dispatch UI or browser shop/service panels. Complete that integration next, then validate the Stage 1–11 CI suite and Railway deployment. Real Android visual checks are still unclaimed until actually performed.
+This is a domain foundation, not a claim that the full Stage 11 player experience is finished. The new engine is not yet wired to live server message handlers, existing saved citizen cash, vehicle persistence, property/rent records, workplace roster dispatch UI or browser shop/service panels. The foundation deployment completed successfully and the server build accepted the code. Complete live integration next, then verify the Stage 1–11 CI suite and deploy the integrated gameplay. Real Android visual checks are still unclaimed until actually performed.
