@@ -23,6 +23,7 @@
     "test:stage13": "tsx src/test-stage13.ts",
     "test:stage14": "tsx src/test-stage14.ts",
     "test:stage15": "tsx src/test-stage15.ts",
+    "test:stage15:live": "tsx src/test-stage15-live.ts",
     "test:stage16": "tsx src/test-stage16.ts"
   },
   "engines": {
