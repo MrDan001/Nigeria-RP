@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Project status — 11 October 2026:** Stage 10's food-shop/service transaction engine and Stage 11's personal-services/property-repair/utilities engine have been added to `main` as server-authoritative domain foundations, with deterministic tests and CI coverage. Their live player/server integration and end-to-end gameplay acceptance remain open. Railway deployment and passing CI must be verified for each current release; real Android/two-account checks are not claimed unless performed.
+> **Project status — 11 October 2026:** Stage 10's food-shop/service transaction engine and Stage 11's personal-services/property-repair/utilities engine are on `main` as server-authoritative domain foundations. The Stage 11 foundation deployed successfully to Railway at commit `c892d95d86eaefae2e4b20d794aa967daa790df9`. Live player/server integration and end-to-end acceptance remain open; verify the Stage 1–11 CI suite and do not claim real Android/two-account checks unless performed.
 
 > **Gate rule:** The user has explicitly asked to continue through the stages without requiring a second human tester. Use deterministic automated tests for replay, rank, balance and multi-account domain scenarios. Do not claim an unperformed two-account/Android live check as complete; record it as a manual limitation while proceeding with the next approved stage.
 
