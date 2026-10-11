@@ -611,10 +611,9 @@ function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualChec
 
 function mirrorSignTexture(texture){const back=texture.clone();back.wrapS=THREE.RepeatWrapping;back.center.set(0,0);back.repeat.set(-1,1);back.offset.set(1,0);back.needsUpdate=true;return back;}
 function makeReadableSignBackGeometry(geometry){
- const back=geometry.clone(),uv=back.attributes.uv;
- for(let i=0;i<uv.count;i++)uv.setX(i,1-uv.getX(i));
- uv.needsUpdate=true;
- return back;
+ // The back panel is already rotated 180 degrees to face the opposite way.
+ // Flipping its U coordinates as well mirrors all lettering a second time.
+ return geometry.clone();
 }
 const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(512,Math.round(512*h/w),fn),frontMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(makeReadableSignBackGeometry(geo),backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
