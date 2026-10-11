@@ -308,7 +308,7 @@ const HOUSE_PLAN: ReadonlyArray<{ cls: HouseClassId; zone: string; count: number
   { cls: "hut", zone: "Mile 1 Market", count: 4, tag: "m1" },
   { cls: "hut", zone: "Rumuola", count: 4, tag: "rum" },
   { cls: "faceme", zone: "Mile 1 Market", count: 3, tag: "m1" },
-  { cls: "faceme", zone: "Rumuola", count: 3, tag: "rum" },
+  { cls: "faceme", zone: "Rumuola", count: 6, tag: "rum" },
   { cls: "flat", zone: "D-Line", count: 3, tag: "dl" },
   { cls: "flat", zone: "Waterlines", count: 4, tag: "wl" },
   { cls: "estate", zone: "Trans Amadi", count: 4, tag: "ta" },
@@ -344,6 +344,10 @@ const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>>
   "faceme-rum-01": { x: 135, z: -34 },
   "faceme-rum-02": { x: 170, z: -34 },
   "faceme-rum-03": { x: 205, z: -34 },
+  // Second separated row; existing roads and original house coordinates stay unchanged.
+  "faceme-rum-04": { x: 135, z: -8 },
+  "faceme-rum-05": { x: 170, z: -8 },
+  "faceme-rum-06": { x: 205, z: -8 },
 };
 
 function buildHouses(): HouseDef[] {
