@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcessByStdio } from "node:child_process";
+import type { Readable } from "node:stream";
 import { mkdtempSync, rmSync } from "node:fs";
 import net, { type AddressInfo } from "node:net";
 import os from "node:os";
@@ -10,7 +11,7 @@ type ServerMessage = Record<string, any>;
 
 const tempDir = mkdtempSync(path.join(os.tmpdir(), "nrs-stage15-live-"));
 const dataFile = path.join(tempDir, "accounts.json");
-let child: ChildProcessWithoutNullStreams | null = null;
+let child: ChildProcessByStdio<null, Readable, Readable> | null = null;
 let output = "";
 
 function reservePort(): Promise<number> {
@@ -40,7 +41,7 @@ async function waitUntil(predicate: () => boolean, label: string, timeoutMs = 15
 async function startServer(): Promise<{ port: number }> {
   const port = await reservePort();
   output = "";
-  child = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
+  const activeChild = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -53,7 +54,7 @@ async function startServer(): Promise<{ port: number }> {
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const activeChild = child;
+  child = activeChild;
   activeChild.stdout.on("data", (data: Buffer) => { output += data.toString("utf8"); });
   activeChild.stderr.on("data", (data: Buffer) => { output += data.toString("utf8"); });
   await waitUntil(() => output.includes("NRS web + multiplayer server listening on"), "server startup");
