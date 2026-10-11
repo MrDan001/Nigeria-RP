@@ -659,6 +659,20 @@ function bankStatePayload(session: Session) {
   const atBank = !!workplace && workplaceDistance(session, workplace) <= 24;
   const canServeCustomers = member && rank >= 2 && rank <= BANK_RANKS.length &&
     employment?.onDuty === true && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID && atBank;
+  const availableTellers = atBank && workplace ? [...players.values()]
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === BANK_WORKPLACE_ID &&
+      Number(candidate.player.life.employment.rank) >= 2 &&
+      Number(candidate.player.life.employment.rank) <= BANK_RANKS.length &&
+      candidate.player.life.employment.onDuty === true &&
+      candidate.player.life.employment.uniformWorkplaceId === BANK_WORKPLACE_ID &&
+      workplaceDistance(candidate, workplace) <= 24)
+    .map(candidate => ({
+      id: candidate.player.id,
+      name: candidate.player.name,
+      rank: candidate.player.life.employment!.rank,
+      rankTitle: BANK_RANKS[candidate.player.life.employment!.rank - 1],
+    })) : [];
   const nearbyCustomers = canServeCustomers && workplace ? [...players.values()]
     .filter(candidate => candidate.player.id !== session.player.id && workplaceDistance(candidate, workplace) <= 24)
     .map(candidate => ({
@@ -681,6 +695,7 @@ function bankStatePayload(session: Session) {
     type: "bankState",
     workplaceId: BANK_WORKPLACE_ID,
     atBank,
+    availableTellers,
     nearbyCustomers,
     rank,
     rankTitle: rank >= 1 && rank <= BANK_RANKS.length ? BANK_RANKS[rank - 1] : "",
