@@ -1854,10 +1854,10 @@ wss.on("connection", (socket) => {
             createdAt: draft.market.history[draft.market.history.length - 1]?.createdAt ?? Date.now(),
           };
           send(socket, {
+            ...marketStatePayload(session),
             type: "marketSaleResult", requestId: orderId, ok: true,
             message: "Purchase completed. Receipt " + orderId + ".",
             receipt, cash: session.player.cash,
-            ...marketStatePayload(session),
           });
           send(seller.socket, {
             type: "marketSaleNotice",
@@ -2026,11 +2026,11 @@ wss.on("connection", (socket) => {
             customerBank: customer.player.bank,
           };
           send(socket, {
+            ...bankStatePayload(session),
             type: "bankTransactionResult", requestId, ok: true,
             message: (transactionType === "deposit" ? "Deposit" : "Withdrawal") +
               " completed. Receipt " + receipt.receiptNumber + ".",
             receipt,
-            ...bankStatePayload(session),
           });
           send(customer.socket, {
             type: "bankReceipt", ok: true, receipt,
