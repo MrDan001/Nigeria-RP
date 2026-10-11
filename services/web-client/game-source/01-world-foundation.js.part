@@ -1010,7 +1010,6 @@ function carGeo(){if(CGc)return CGc;
  CGc={
   nose:prof([[.9,.4],[2.2,.4],[2.2,.6],[1.98,.84],[.9,.93]],1.9,.05),
   trunk:prof([[-1.35,.4],[-1.35,.96],[-2.0,.94],[-2.2,.76],[-2.2,.4]],1.9,.05),
-  glass:prof([[-1.35,.95],[.95,.95],[.55,1.68],[-1.0,1.68]],1.76,0),
   door:rbox(.12,.62,2.35,.05),roof:rbox(1.86,.14,1.75,.07),floor:new THREE.BoxGeometry(1.8,.12,2.3),
   bump:rbox(2.0,.2,.24,.09),grilC:rbox(1.06,.2,.05,.03),grilD:rbox(.98,.14,.05,.03),
   hlH:rbox(.5,.2,.16,.06),hlL:rbox(.4,.13,.04,.02),ind:rbox(.12,.12,.05,.02),
@@ -1021,18 +1020,31 @@ function carGeo(){if(CGc)return CGc;
   ring:new THREE.TorusGeometry(.22,.032,8,22),spk:new THREE.BoxGeometry(.4,.035,.02),spk2:new THREE.BoxGeometry(.035,.2,.02),swh:sh,
   tire,rim,hub,hubc,spoke:new THREE.BoxGeometry(.335,.05,.42),
   dk:M(0x24262b),blk:M(0x111111),chr:M(0xb9bec5),tireM:M(0x141414),rimM:M(0xc9ced4),spM:M(0x474b52),
-  glassM:new THREE.MeshBasicMaterial({color:0xdff0ff,transparent:true,opacity:.14,side:THREE.DoubleSide,depthWrite:false}),
+  glassM:new THREE.MeshBasicMaterial({color:0x7999a8,transparent:true,opacity:.2,side:THREE.DoubleSide,depthWrite:false}),
   mirM:new THREE.MeshBasicMaterial({color:0x9fb4c4}),amb:new THREE.MeshBasicMaterial({color:0xc77a10}),plM:plate};
  return CGc;}
+function addVehicleGlassPane(parent,points,material){
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(points.flat(),3));
+ geometry.setIndex([0,1,2,0,2,3]);geometry.computeVertexNormals();
+ const pane=new THREE.Mesh(geometry,material);pane.renderOrder=2;parent.add(pane);return pane;
+}
 function car(x,z,col,ry,kind){const G=carGeo(),g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);
  const body=new THREE.Group();g.add(body);const bm=M(col),dk=G.dk;
  /* shell: sloped nose and boot, door panels, floor */
  add(G.nose,bm,0,0,0,body);add(G.trunk,bm,0,0,0,body);add(G.floor,dk,0,.41,-.2,body);
  [-.9,.9].forEach(sx=>add(G.door,bm,sx,.72,-.2,body));
- /* rounded cabin: slanted pillars, roof, clear glass (driver stays visible) */
+ /* Rounded cabin frame with separate thin panes: never use a filled transparent cabin prism. */
  [-.88,.88].forEach(sx=>{bar(sx,.95,.95,.55,1.68,.08,bm,body);bar(sx,-1.35,.95,-1.0,1.68,.08,bm,body);add(new THREE.BoxGeometry(.07,.74,.07),bm,sx,1.31,-.35,body);});
  add(G.roof,bm,0,1.69,-.225,body);
- const gl=add(G.glass,G.glassM,0,0,0,body);gl.renderOrder=2;
+ const glass=G.glassM;
+ addVehicleGlassPane(body,[[-.79,.96,.91],[.79,.96,.91],[.79,1.59,.58],[-.79,1.59,.58]],glass);
+ addVehicleGlassPane(body,[[-.79,.97,-1.35],[.79,.97,-1.35],[.79,1.59,-1.02],[-.79,1.59,-1.02]],glass);
+ [-1,1].forEach(side=>{
+  const sx=side*.842;
+  addVehicleGlassPane(body,[[sx,.985,.72],[sx,.985,-.30],[sx,1.56,-.30],[sx,1.56,.57]],glass);
+  addVehicleGlassPane(body,[[sx,.985,-.46],[sx,.985,-1.24],[sx,1.56,-.99],[sx,1.56,-.44]],glass);
+ });
  /* interior */
  add(G.dash,dk,0,.98,.72,body);add(G.rv,dk,0,1.5,.6,body);
  [.42,-.42].forEach(sx=>{add(G.seat,dk,sx,.62,-.25,body);add(G.seatB,dk,sx,.95,-.58,body);});
@@ -1069,7 +1081,6 @@ function car(x,z,col,ry,kind){const G=carGeo(),g=new THREE.Group();g.position.se
   add(new THREE.BoxGeometry(1.6,.08,.18),dk,0,1.75,-1.2,body);
  }else if(style===2){
   /* Hatchback: sloped rear hatch glass and a compact roof spoiler. */
-  const hatch=add(G.glass,G.glassM,0,0,0,body);hatch.position.set(0,1.25,-1.18);hatch.rotation.x=-.48;
   add(new THREE.BoxGeometry(1.35,.075,.2),dk,0,1.74,-1.24,body);
   add(new THREE.BoxGeometry(.18,.12,.09),chrome,0,.62,-2.26,body);
  }else{

@@ -155,26 +155,26 @@ function traffic(dt){
  cars.forEach(c=>{if(c.kind!=='t'&&c.g?.visible&&c.box?.hw>0&&c.box?.hd>0)obs.push(c);});
  for(const c of tr){
   if(!c.g.visible)continue;
-  // lx is the vehicle's assigned lane centre. Using the live x coordinate
-  // made each avoidance manoeuvre the next baseline, accumulating sideways
-  // drift until traffic mounted the pavement. Keep AI traffic in its lane and
-  // use following-distance braking rather than unsafe lateral evasions.
+  // Ambient traffic follows fixed lanes along the north/south arterial.
+  // These cars have no lane-change controller: allowing avoidance to alter x
+  // (even briefly) can carry the new x into the next frame and walk the car
+  // diagonally onto the pavement. Use the spawn-time lane centre as an invariant.
   const dz=c.ry>2?-1:1;
   const base=Number.isFinite(c.laneX)?c.laneX:(Number.isFinite(c.lx)?c.lx:c.x);
   let gap=Infinity;
   for(const o of obs){
    if(o===c||o?.g?.visible===false)continue;
    const d=(o.z-c.z)*dz,ox=o.x??o.position?.x;
-   if(d>0&&d<gap&&Number.isFinite(ox)&&Math.abs(ox-c.x)<2.25)gap=d;
+   if(d>0&&d<gap&&Number.isFinite(ox)&&Math.abs(ox-base)<2.25)gap=d;
   }
   const targetSpeed=gap<4.2?0:gap<7?2.5:gap<12?5.5:(c.vm||9);
-  c.x+=clamp(base-c.x,-2.4*dt,2.4*dt);
+  c.x=base;
   c.v+=clamp(targetSpeed-c.v,-16*dt,5*dt);
   c.z+=dz*c.v*dt;if(Math.abs(c.z)>190)c.z=-dz*190;
   c.wh.forEach(w=>w.sp.rotation.x+=c.v*dt/.38);setCar(c);
  }
 }
-const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornKey=false,carparkExitAttemptAt=0;
+const WLOCK=200,WMAX=540;let hornN=null,hornBtn=false,hornWheel=false,hornWheelPointer=null,hornKey=false,carparkExitAttemptAt=0;
 let gasT=0,brkT=0,gasP=0,brkP=0,hbP=false,wheelA=0,wheelHeld=false,jv=0,pHand=0,bagA=0,bagV=0,eng=null;
 const TANK=40,FUEL_PER_M=.004,FUEL_IDLE=.002; /* litres: 1 L per 250 m, small idle burn */
 function driveUpdate(dt){const c=driving;if(Math.abs(c.v)>.05){drivingCameraLocked=true;cam.fov=60;}else drivingCameraLocked=false;
@@ -242,7 +242,7 @@ function hudAct(){const a=$('act');
  a.style.display=nearCar?'block':'none';a.textContent='Enter car';}
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
-  standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;if(window.NRS)window.NRS.currentStage9VehicleId='';setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
+  standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;if(window.NRS)window.NRS.currentStage9VehicleId='';setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornWheel=false;hornWheelPointer=null;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
  else if(nearCar&&nearCar.g?.visible&&nearCar.box&&nearCar.box.hw>0&&nearCar.box.hd>0){driving=nearCar;if(window.NRS)window.NRS.currentStage9VehicleId=nearCar.stage9FleetId||'';driving.v=driving.vx=driving.vz=0;driving.box.hw=1.05;driving.box.hd=2.3;vel.set(0,0,0);driving.on=false;driving.starting=false;driveCamOffset=0;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
  else if(inside?.isCarpark){const door=Math.hypot(pos.x-inside.x,pos.z-(inside.z+13.4));if(door<3.2)openGarageFootExitMenu();else openGarageSpawnMenu();}};
 /* seated driver: player rides inside the car body, hands on the wheel, legs forward */
@@ -270,7 +270,7 @@ function ignition(){const c=driving;if(!c||c.starting)return;
 $('ign').onclick=ignition;
 function ctx(){return ac=ac||new (window.AudioContext||window.webkitAudioContext)();}
 /* two-tone horn: sounds for exactly as long as the button (or H) is held */
-function hornSync(){const want=(hornBtn||hornKey)&&driving;
+function hornSync(){const want=(hornBtn||hornWheel||hornKey)&&driving;
  if(want&&!hornN){const a=ctx();if(a.state==='suspended')a.resume();const t=a.currentTime,g=a.createGain(),f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=2300;f.Q.value=.7;
   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.13,t+.03);
   const os=[[392,'sawtooth',1],[494,'sawtooth',1],[784,'square',.16],[988,'square',.16]].map((q,k)=>{const o=a.createOscillator(),og=a.createGain();o.type=q[1];o.frequency.value=q[0]*(k%2?1.004:.997);og.gain.value=q[2];o.connect(og);og.connect(f);o.start(t);return o;});
@@ -420,9 +420,20 @@ $('go').onclick=async()=>{$('start').style.display='none';try{await document.doc
 /* ---------- Steering wheel, pedals, engine, radio ---------- */
 const wl=$('wheel');let wla=0,wid=null;
 const wang=e=>{const r=wl.getBoundingClientRect();return Math.atan2(e.clientY-(r.top+r.height/2),e.clientX-(r.left+r.width/2))*57.2958;};
-wl.addEventListener('pointerdown',e=>{wid=e.pointerId;wl.setPointerCapture(wid);wla=wang(e);wheelHeld=true;});
+wl.addEventListener('pointerdown',e=>{
+ const r=wl.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);
+ wl.setPointerCapture(e.pointerId);
+ // The steering-wheel hub is a separate hold-to-honk control; outer rim still steers.
+ if(Math.hypot(dx,dy)<=Math.min(r.width,r.height)*.16){
+  hornWheelPointer=e.pointerId;hornWheel=true;hornSync();e.preventDefault();return;
+ }
+ wid=e.pointerId;wla=wang(e);wheelHeld=true;
+});
 wl.addEventListener('pointermove',e=>{if(e.pointerId!==wid)return;const q=wang(e);let d=q-wla;if(d>180)d-=360;else if(d<-180)d+=360;wla=q;wheelA=clamp(wheelA+d,-WMAX,WMAX);});
-const wend=e=>{if(e.pointerId===wid){wid=null;wheelHeld=false;}};wl.addEventListener('pointerup',wend);wl.addEventListener('pointercancel',wend);
+const wend=e=>{
+ if(e.pointerId===hornWheelPointer){hornWheelPointer=null;hornWheel=false;hornSync();}
+ if(e.pointerId===wid){wid=null;wheelHeld=false;}
+};wl.addEventListener('pointerup',wend);wl.addEventListener('pointercancel',wend);
 function hold(id,fn){const el=$(id);el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);fn(1);el.classList.add('on');});
  const up=()=>{fn(0);el.classList.remove('on');};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);}
 hold('gas',v=>gasT=v);hold('brk',v=>brkT=v);hold('hb',v=>hbP=!!v);hold('hn',v=>{hornBtn=!!v;hornSync();});
