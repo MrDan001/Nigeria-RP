@@ -2,7 +2,7 @@
 
 The full scope and acceptance checks are in [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md).
 
-> **Status update: 11 October 2026.** Stage 15 is complete for automated release sequencing. Stage 16 — Distinct City Environments & Regional Identity — is now active on `main`. The Android travel/reconnect walkthrough remains a manual test item.
+> **Status update: 11 October 2026.** Stage 15 is complete for the automated release gate and its live transaction/persistence integration test passes. Railway production is online. Stage 16 — Distinct City Environments & Regional Identity — is now active on `main`. Real-device Android walkthroughs remain manual follow-up work.
 
 ## Stage table
 
@@ -23,15 +23,15 @@ The full scope and acceptance checks are in [IMPLEMENTATION-ROADMAP.md](IMPLEMEN
 | 12 | Education, offices, oil and industry | Implemented |
 | 13 | Economy balance, safety and polish | Implemented |
 | 14 | Release, load and recovery validation | Complete for automated release gate |
-| 15 | Additional cities and inter-city travel | **Complete for automated release sequencing** |
+| 15 | Additional cities and inter-city travel | **Complete for automated release gate** |
 | 16 | Distinct city environments and regional identity | **Active** |
 
 ## Active stage: Stage 16 — Distinct City Environments & Regional Identity
 
-Stage 16 defines a differentiated atmosphere and landmark identity for each Stage 15 city. The current release includes seven validated city profiles, separate sky/fog/accent palettes, compact low-poly 3D landmark scenes, and landmark callouts in the mobile travel terminal. Its regression suite is registered in Game Server CI.
+The seven Stage 15 cities now have validated environment profiles, separate sky/fog/accent palettes, city-specific lightweight low-poly 3D landmark silhouettes and landmark callouts in the responsive travel terminal. Profiles are returned by the game server and applied on city arrival. Stage 16 catalogue tests are part of Game Server CI.
 
-Next: refine per-city streetscape/building sets and add city-specific interactions while preserving the current shared simulation rules. Validate the final Stage 16 commit in CI and Railway before claiming the stage complete.
+The latest automated checkpoint passed all Game Server tests, typecheck, server/client builds and the Railway deployment gate. Remaining Stage 16 acceptance work is the real-device visual review and further per-city streetscape/building sets and local interactions.
 
 ## Manual test queue
 
-Run an Android/mobile walkthrough for Stage 15: book a route, verify fare deduction, reach the destination, refresh/reconnect, and confirm the saved city and balance persist. This is documented as unverified until performed on a real device.
+Run a physical Android/mobile walkthrough for Stages 15–16: select a route, confirm fare deduction, arrive in the destination city, reconnect, and verify the saved city and cash persist. Inspect the new landmark models for road/spawn clearance and mobile performance. These manual actions remain unverified until performed on a device.
