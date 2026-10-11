@@ -55,6 +55,16 @@ import {
   type Workplace,
   type WorldState,
 } from "./world";
+import {
+  BANK_RANKS,
+  BANK_WORKPLACE_ID,
+  MARKET_PRODUCTS,
+  MARKET_RANKS,
+  MARKET_WORKPLACE_ID,
+  normalizeStage4State,
+  settleBankTransaction,
+  settleMarketSale,
+} from "./stage4";
 
 const scrypt = promisify(scryptCb);
 
@@ -146,6 +156,7 @@ type FileStore = {
   accounts: Record<string, Account>;
   sessions: Record<string, { accountId: string; expiresAt: number }>;
   world?: WorldState;
+  stage4?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -177,6 +188,14 @@ const FACTION_ADMIN_USERNAMES = new Set((process.env.NRS_FACTION_ADMINS ?? "").s
 const MAIN_ADMIN_EMAIL = String(process.env.NRS_MAIN_ADMIN_EMAIL ?? "").trim().toLowerCase();
 const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
+let stage4State = normalizeStage4State(null);
+let stage4MutationQueue: Promise<void> = Promise.resolve();
+
+function withStage4Mutation<T>(operation: () => Promise<T>): Promise<T> {
+  const pending = stage4MutationQueue.then(operation, operation);
+  stage4MutationQueue = pending.then(() => undefined, () => undefined);
+  return pending;
+}
 
 const players = new Map<string, Session>();
 const activeAccounts = new Map<string, WebSocket>();
@@ -360,6 +379,19 @@ async function saveWorld() {
     return;
   }
   fileStore.world = world;
+  writeFileStore();
+}
+
+async function saveStage4State(state = stage4State) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage4',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(state), Date.now()],
+    );
+    return;
+  }
+  fileStore.stage4 = state;
   writeFileStore();
 }
 
@@ -564,6 +596,72 @@ function workplaceDistance(session: Session, workplace: Workplace) {
   if (session.inWorkplaceInterior && !session.inStaffRoom && session.currentWorkplaceId === workplace.id) return 0;
   return Math.hypot(session.player.x - workplace.x, session.player.z - workplace.z);
 }
+
+function marketStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const member = employment?.workplaceId === MARKET_WORKPLACE_ID;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const manager = member && rank >= 5;
+  const salesHistory = stage4State.market.history
+    .filter((sale) => isFactionAdmin(session) || manager ||
+      sale.customerId === session.player.id || sale.sellerId === session.player.id)
+    .slice(-12)
+    .reverse()
+    .map((sale) => ({
+      ...sale,
+      customerName: players.get(sale.customerId)?.player.name ?? sale.customerId.slice(0, 8),
+      sellerName: players.get(sale.sellerId)?.player.name ?? sale.sellerId.slice(0, 8),
+    }));
+  return {
+    type: "marketState",
+    workplaceId: MARKET_WORKPLACE_ID,
+    products: MARKET_PRODUCTS.map((product) => ({
+      ...product,
+      stock: stage4State.market.stock[product.id] ?? 0,
+    })),
+    rank,
+    rankTitle: rank >= 1 && rank <= MARKET_RANKS.length ? MARKET_RANKS[rank - 1] : "",
+    onDuty: member && employment?.onDuty === true,
+    uniform: member && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID,
+    canSell: member && rank >= 1 && rank <= MARKET_RANKS.length &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID,
+    commissionBalance: stage4State.market.commissions[session.player.id] ?? 0,
+    canCollectCommission: (stage4State.market.commissions[session.player.id] ?? 0) > 0,
+    till: manager || isFactionAdmin(session) ? stage4State.market.till : null,
+    salesHistory,
+  };
+}
+
+function bankStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const member = employment?.workplaceId === BANK_WORKPLACE_ID;
+  const rank = member ? Number(employment?.rank ?? 0) : 0;
+  const manager = member && rank >= 5;
+  const transactions = stage4State.bank.history
+    .filter((transaction) => isFactionAdmin(session) || manager ||
+      transaction.customerId === session.player.id || transaction.tellerId === session.player.id)
+    .slice(-12)
+    .reverse()
+    .map((transaction) => ({
+      ...transaction,
+      customerName: players.get(transaction.customerId)?.player.name ?? transaction.customerId.slice(0, 8),
+      tellerName: players.get(transaction.tellerId)?.player.name ?? transaction.tellerId.slice(0, 8),
+    }));
+  return {
+    type: "bankState",
+    workplaceId: BANK_WORKPLACE_ID,
+    rank,
+    rankTitle: rank >= 1 && rank <= BANK_RANKS.length ? BANK_RANKS[rank - 1] : "",
+    onDuty: member && employment?.onDuty === true,
+    uniform: member && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID,
+    canProcessTransactions: member && rank >= 2 && rank <= BANK_RANKS.length &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === BANK_WORKPLACE_ID,
+    cash: session.player.cash,
+    bank: session.player.bank,
+    transactions,
+  };
+}
+
 
 function hasWorkplaceBossPermission(session: Session, workplaceId: string) {
   return world.bosses[workplaceId] === session.player.id;
@@ -836,6 +934,9 @@ async function initStore() {
     const worldRow = await pool.query("SELECT value FROM nrs_world WHERE key='world' LIMIT 1");
     world = normalizeWorld(worldRow.rows[0]?.value, clock.dayKey());
     await saveWorld();
+    const stage4Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage4' LIMIT 1");
+    stage4State = normalizeStage4State(stage4Row.rows[0]?.value);
+    await saveStage4State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -857,6 +958,8 @@ async function initStore() {
   }
   world = normalizeWorld(fileStore.world, clock.dayKey());
   await saveWorld();
+  stage4State = normalizeStage4State(fileStore.stage4);
+  await saveStage4State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -1650,6 +1753,292 @@ wss.on("connection", (socket) => {
           console.error("richest-players", error);
           send(socket, { type: "richestPlayers", players: [], message: "Could not load the wealth rankings right now." });
         }
+        return;
+      }
+
+      if (message.type === "getMarketState") {
+        send(socket, marketStatePayload(session));
+        return;
+      }
+
+      if (message.type === "marketSale") {
+        await withStage4Mutation(async () => {
+          const orderId = String(message.orderId ?? "").trim().slice(0, 100);
+          const sellerId = String(message.sellerId ?? "").trim().slice(0, 100);
+          const quantity = Math.floor(Number(message.quantity));
+          const seller = players.get(sellerId);
+          const workplace = findWorkplace(MARKET_WORKPLACE_ID);
+          const fail = (text: string) => send(socket, {
+            type: "marketSaleResult", requestId: orderId, ok: false, message: text,
+          });
+
+          if (!orderId || !sellerId || !seller || sellerId === session.player.id) {
+            fail("Choose an available market salesperson and try again.");
+            send(socket, marketStatePayload(session));
+            return;
+          }
+          const sellerEmployment = seller.player.life.employment;
+          if (
+            !workplace ||
+            sellerEmployment?.workplaceId !== MARKET_WORKPLACE_ID ||
+            !Number.isInteger(sellerEmployment.rank) ||
+            sellerEmployment.rank < 1 || sellerEmployment.rank > MARKET_RANKS.length ||
+            sellerEmployment.onDuty !== true ||
+            sellerEmployment.uniformWorkplaceId !== MARKET_WORKPLACE_ID
+          ) {
+            fail("That salesperson is not authorised and on duty at Mile 1 Market.");
+            return;
+          }
+          if (workplaceDistance(seller, workplace) > 24 || workplaceDistance(session, workplace) > 24) {
+            fail("The customer and salesperson must both be at Mile 1 Market.");
+            return;
+          }
+
+          const draft = normalizeStage4State(stage4State);
+          const customerMoney = { cash: session.player.cash, bank: session.player.bank };
+          const result = settleMarketSale({
+            state: draft.market,
+            orderId,
+            customer: customerMoney,
+            customerId: session.player.id,
+            sellerId: seller.player.id,
+            sellerRank: sellerEmployment.rank,
+            productId: String(message.productId ?? ""),
+            quantity,
+            now: Date.now(),
+          });
+          if (!result.ok) {
+            const reasons: Record<string, string> = {
+              duplicate_order: "This order has already been processed.",
+              unauthorized_seller: "That salesperson is not authorised.",
+              unknown_product: "Choose a product from the market catalogue.",
+              invalid_quantity: "Quantity must be between 1 and 99.",
+              insufficient_stock: "There is not enough stock for this order.",
+              insufficient_cash: "The customer does not have enough cash.",
+              invalid_order_id: "The order reference is invalid.",
+            };
+            fail(reasons[result.reason] ?? "The market sale was rejected.");
+            send(socket, marketStatePayload(session));
+            return;
+          }
+
+          const previousState = stage4State;
+          const previousCash = session.player.cash;
+          session.player.cash = customerMoney.cash;
+          try {
+            await persistSession(session);
+            stage4State = draft;
+            await saveStage4State();
+          } catch (error) {
+            stage4State = previousState;
+            session.player.cash = previousCash;
+            try { await persistSession(session); } catch (rollbackError) {
+              console.error("market-sale-rollback", rollbackError);
+            }
+            try { await saveStage4State(previousState); } catch (rollbackError) {
+              console.error("market-state-rollback", rollbackError);
+            }
+            console.error("market-sale-persist", error);
+            fail("The sale could not be saved. No order was confirmed; please retry.");
+            return;
+          }
+
+          const product = MARKET_PRODUCTS.find((item) => item.id === result.result.productId);
+          const receipt = {
+            ...result.result,
+            productName: product?.name ?? result.result.productId,
+            customerId: session.player.id,
+            customerName: session.player.name,
+            sellerId: seller.player.id,
+            sellerName: seller.player.name,
+            createdAt: draft.market.history[draft.market.history.length - 1]?.createdAt ?? Date.now(),
+          };
+          send(socket, {
+            type: "marketSaleResult", requestId: orderId, ok: true,
+            message: "Purchase completed. Receipt " + orderId + ".",
+            receipt, cash: session.player.cash,
+            ...marketStatePayload(session),
+          });
+          send(seller.socket, {
+            type: "marketSaleNotice",
+            message: "Sale completed: " + receipt.productName + " × " + receipt.quantity +
+              ". Commission earned: ₦" + receipt.commission.toLocaleString("en-NG") + ".",
+            receipt,
+            commissionBalance: stage4State.market.commissions[seller.player.id] ?? 0,
+          });
+        });
+        return;
+      }
+
+      if (message.type === "claimMarketCommission") {
+        await withStage4Mutation(async () => {
+          const employment = session.player.life.employment;
+          const fail = (text: string) => send(socket, {
+            type: "marketCommissionResult", ok: false, message: text,
+          });
+          if (employment?.workplaceId !== MARKET_WORKPLACE_ID || employment.onDuty !== true ||
+              employment.uniformWorkplaceId !== MARKET_WORKPLACE_ID) {
+            fail("Clock in and wear your market uniform before collecting commission.");
+            return;
+          }
+          const draft = normalizeStage4State(stage4State);
+          const amount = Math.max(0, Math.floor(draft.market.commissions[session.player.id] ?? 0));
+          if (!amount) {
+            fail("You have no market commission ready to collect.");
+            return;
+          }
+          if (!Number.isSafeInteger(session.player.cash + amount)) {
+            fail("Your cash balance is at its limit. Spend or bank some cash before collecting commission.");
+            return;
+          }
+          const previousState = stage4State;
+          const previousCash = session.player.cash;
+          delete draft.market.commissions[session.player.id];
+          session.player.cash += amount;
+          try {
+            await persistSession(session);
+            stage4State = draft;
+            await saveStage4State();
+          } catch (error) {
+            stage4State = previousState;
+            session.player.cash = previousCash;
+            try { await persistSession(session); } catch (rollbackError) {
+              console.error("market-commission-rollback", rollbackError);
+            }
+            try { await saveStage4State(previousState); } catch (rollbackError) {
+              console.error("market-commission-state-rollback", rollbackError);
+            }
+            console.error("market-commission-persist", error);
+            fail("Commission could not be saved; please try again.");
+            return;
+          }
+          send(socket, {
+            type: "marketCommissionResult", ok: true, amount, cash: session.player.cash,
+            message: "Collected ₦" + amount.toLocaleString("en-NG") + " in market commission.",
+          });
+          send(socket, marketStatePayload(session));
+        });
+        return;
+      }
+
+      if (message.type === "getBankState") {
+        send(socket, bankStatePayload(session));
+        return;
+      }
+
+      if (message.type === "bankTransaction") {
+        await withStage4Mutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 100);
+          const customerId = String(message.customerId ?? "").trim().slice(0, 100);
+          const customer = players.get(customerId);
+          const transactionType = String(message.transactionType ?? "");
+          const amount = Math.floor(Number(message.amount));
+          const employment = session.player.life.employment;
+          const workplace = findWorkplace(BANK_WORKPLACE_ID);
+          const fail = (text: string) => send(socket, {
+            type: "bankTransactionResult", requestId, ok: false, message: text,
+          });
+
+          if (!requestId || !customerId || !customer || customerId === session.player.id) {
+            fail("Choose an available customer at the bank.");
+            send(socket, bankStatePayload(session));
+            return;
+          }
+          if (
+            !workplace ||
+            employment?.workplaceId !== BANK_WORKPLACE_ID ||
+            !Number.isInteger(employment.rank) ||
+            employment.rank < 2 || employment.rank > BANK_RANKS.length ||
+            employment.onDuty !== true ||
+            employment.uniformWorkplaceId !== BANK_WORKPLACE_ID
+          ) {
+            fail("A bank teller ranked Teller or higher must be on duty and in uniform.");
+            return;
+          }
+          if (workplaceDistance(session, workplace) > 24 || workplaceDistance(customer, workplace) > 24) {
+            fail("The teller and customer must both be at the bank.");
+            return;
+          }
+          if (transactionType !== "deposit" && transactionType !== "withdrawal") {
+            fail("Choose either deposit or withdrawal.");
+            return;
+          }
+
+          const draft = normalizeStage4State(stage4State);
+          const customerMoney = { cash: customer.player.cash, bank: customer.player.bank };
+          const result = settleBankTransaction({
+            state: draft.bank,
+            requestId,
+            customerId: customer.player.id,
+            tellerId: session.player.id,
+            tellerRank: employment.rank,
+            customer: customerMoney,
+            type: transactionType,
+            amount,
+            now: Date.now(),
+          });
+          if (!result.ok) {
+            const reasons: Record<string, string> = {
+              duplicate_transaction: "This transaction reference has already been processed.",
+              unauthorized_teller: "A teller ranked Teller or higher is required.",
+              invalid_participants: "The customer and teller must be different players.",
+              invalid_amount: "Enter a whole amount between ₦1 and ₦10,000,000.",
+              insufficient_cash: "The customer does not have enough cash for this deposit.",
+              insufficient_bank_balance: "The customer does not have enough money in the bank for this withdrawal.",
+              invalid_request_id: "The transaction reference is invalid.",
+              invalid_transaction_type: "Choose either deposit or withdrawal.",
+            };
+            fail(reasons[result.reason] ?? "The bank transaction was rejected.");
+            send(socket, bankStatePayload(session));
+            return;
+          }
+
+          const previousState = stage4State;
+          const previousCash = customer.player.cash;
+          const previousBank = customer.player.bank;
+          customer.player.cash = customerMoney.cash;
+          customer.player.bank = customerMoney.bank;
+          try {
+            await persistSession(customer);
+            stage4State = draft;
+            await saveStage4State();
+          } catch (error) {
+            stage4State = previousState;
+            customer.player.cash = previousCash;
+            customer.player.bank = previousBank;
+            try { await persistSession(customer); } catch (rollbackError) {
+              console.error("bank-transaction-rollback", rollbackError);
+            }
+            try { await saveStage4State(previousState); } catch (rollbackError) {
+              console.error("bank-state-rollback", rollbackError);
+            }
+            console.error("bank-transaction-persist", error);
+            fail("The transaction could not be saved. No receipt was issued; please retry.");
+            return;
+          }
+
+          const receipt = {
+            ...result.result.transaction,
+            customerName: customer.player.name,
+            tellerName: session.player.name,
+            receiptNumber: result.result.transaction.id,
+            customerCash: customer.player.cash,
+            customerBank: customer.player.bank,
+          };
+          send(socket, {
+            type: "bankTransactionResult", requestId, ok: true,
+            message: (transactionType === "deposit" ? "Deposit" : "Withdrawal") +
+              " completed. Receipt " + receipt.receiptNumber + ".",
+            receipt,
+            ...bankStatePayload(session),
+          });
+          send(customer.socket, {
+            type: "bankReceipt", ok: true, receipt,
+            cash: customer.player.cash, bank: customer.player.bank,
+            message: (transactionType === "deposit" ? "Deposit" : "Withdrawal") +
+              " completed at Port Harcourt Bank.",
+          });
+        });
         return;
       }
 
