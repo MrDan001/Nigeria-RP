@@ -624,6 +624,57 @@
           window.dispatchEvent(new CustomEvent("nrs-bank-receipt", { detail: message }));
           if (message.message) sys(message.message);
         }
+      } else if (message.type === "hospitalState" || message.type === "hospitalActionResult" ||
+                 message.type === "hospitalRequestNotice" || message.type === "hospitalPharmacySaleNotice") {
+        if (message.type === "hospitalState") {
+          N.hospitalState = { ...(N.hospitalState || {}), ...message };
+          window.dispatchEvent(new CustomEvent("nrs-hospital-state", { detail: N.hospitalState }));
+        }
+        if (message.cash !== undefined) {
+          cash = Number(message.cash) || 0;
+          N.cash = cash;
+          money();
+        }
+        if (message.hp !== undefined) {
+          hp = Math.max(0, Math.min(100, Number(message.hp) || 0));
+          N.hp = hp;
+          money();
+          window.dispatchEvent(new CustomEvent("nrs-health-updated", { detail: { hp, message } }));
+        }
+        if (message.inventory && typeof message.inventory === "object") {
+          for (const key of Object.keys(inv)) delete inv[key];
+          Object.assign(inv, message.inventory);
+          N.inventory = { ...message.inventory };
+        }
+        if (message.type === "hospitalActionResult") {
+          window.dispatchEvent(new CustomEvent("nrs-hospital-action-result", { detail: message }));
+        } else if (message.type === "hospitalRequestNotice") {
+          window.dispatchEvent(new CustomEvent("nrs-hospital-request-notice", { detail: message }));
+          if (message.message) sys(message.message);
+        } else if (message.type === "hospitalPharmacySaleNotice") {
+          window.dispatchEvent(new CustomEvent("nrs-hospital-pharmacy-notice", { detail: message }));
+          if (message.message) sys(message.message);
+        }
+      } else if (message.type === "parkState" || message.type === "parkActionResult" ||
+                 message.type === "parkRequestNotice" || message.type === "parkTicketSaleNotice") {
+        if (message.type === "parkState") {
+          N.parkState = { ...(N.parkState || {}), ...message };
+          window.dispatchEvent(new CustomEvent("nrs-park-state", { detail: N.parkState }));
+        }
+        if (message.cash !== undefined) {
+          cash = Number(message.cash) || 0;
+          N.cash = cash;
+          money();
+        }
+        if (message.type === "parkActionResult") {
+          window.dispatchEvent(new CustomEvent("nrs-park-action-result", { detail: message }));
+        } else if (message.type === "parkRequestNotice") {
+          window.dispatchEvent(new CustomEvent("nrs-park-request-notice", { detail: message }));
+          if (message.message) sys(message.message);
+        } else if (message.type === "parkTicketSaleNotice") {
+          window.dispatchEvent(new CustomEvent("nrs-park-ticket-sale-notice", { detail: message }));
+          if (message.message) sys(message.message);
+        }
       } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
         N.workplaceState = message;
         N.workplaces = message.workplaces || N.workplaces || [];
@@ -916,6 +967,25 @@
   N.getBankState = () => send({ type: "getBankState" });
   N.processBankTransaction = (customerId, transactionType, amount, requestId = stage4RequestId("bank")) =>
     send({ type: "bankTransaction", customerId, transactionType, amount, requestId });
+  N.getHospitalState = (hospitalId = "hospital-main") => send({ type: "getHospitalState", hospitalId });
+  N.requestHospitalCare = (hospitalId, requestId = stage4RequestId("care")) =>
+    send({ type: "requestHospitalCare", hospitalId, requestId });
+  N.requestAmbulance = (hospitalId, requestId = stage4RequestId("ambulance")) =>
+    send({ type: "requestAmbulance", hospitalId, requestId });
+  N.triageHospitalRequest = (hospitalId, requestId) =>
+    send({ type: "triageHospitalRequest", hospitalId, requestId });
+  N.dispatchHospitalAmbulance = (hospitalId, requestId) =>
+    send({ type: "dispatchHospitalAmbulance", hospitalId, requestId });
+  N.completeHospitalTreatment = (hospitalId, requestId) =>
+    send({ type: "completeHospitalTreatment", hospitalId, requestId });
+  N.purchaseHospitalMedicine = (hospitalId, workerId, medicineId, quantity, requestId = stage4RequestId("pharmacy")) =>
+    send({ type: "purchaseHospitalMedicine", hospitalId, workerId, medicineId, quantity, requestId });
+  N.getParkState = () => send({ type: "getParkState" });
+  N.buyParkTicket = (sellerId, requestId = stage4RequestId("park-ticket")) =>
+    send({ type: "buyParkTicket", sellerId, requestId });
+  N.requestParkHelp = (kind, requestId = stage4RequestId("park-help")) =>
+    send({ type: "requestParkHelp", kind, requestId });
+  N.resolveParkHelpRequest = (requestId) => send({ type: "resolveParkHelpRequest", requestId });
   N.getRichestPlayers = () => send({ type: "getRichestPlayers" });
   N.applyWorkplace = (workplaceId) => send({ type: "applyWorkplace", workplaceId });
   N.leaveWorkplace = () => send({ type: "leaveWorkplace" });
