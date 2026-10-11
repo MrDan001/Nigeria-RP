@@ -11,7 +11,11 @@ import {
 } from "./stage13";
 
 const assert = (condition: unknown, message: string): void => { if (!condition) throw new Error(message); };
-const rejects = (fn: () => unknown, message: string): void => { try { fn(); throw new Error(`expected rejection: ${message}`); } catch (error) { if (error instanceof Error && error.message === `expected rejection: ${message}`) throw error; } };
+const rejects = (fn: () => unknown, message: string): void => {
+  let rejected = false;
+  try { fn(); } catch { rejected = true; }
+  if (!rejected) throw new Error(`expected rejection: ${message}`);
+};
 
 const state = createStage13State();
 ensureStage13Account(state, "alice", { cash: 1000 });
@@ -33,7 +37,7 @@ rejects(() => transferStage13(state, "alice", "bob", "transfer-2", 999999999, 17
 assert(state.accounts.alice.cash === 1050 && state.accounts.bob.cash === 300, "failed transaction mutated balances");
 rejects(() => creditStage13(state, "alice", "bad-time", "wage", 50, 0), "invalid timestamp");
 assert(state.accounts.alice.cash === 1050, "invalid timestamp mutated balance");
-rejects(() => debitStage13(state, "alice", "too-much", "purchase", 100_000_001, 1700000000005), "payout cap");
+rejects(() => debitStage13(state, "alice", "too-much", "purchase", 100_000_001, 1700000000005), "amount cap");
 assert(state.accounts.alice.cash === 1050, "invalid amount mutated balance");
 assert(validateStage13Price(500_000_000) === 500_000_000, "maximum price rejected");
 rejects(() => validateStage13Price(500_000_001), "price cap");
