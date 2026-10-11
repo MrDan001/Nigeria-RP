@@ -6,12 +6,16 @@ import {
   stage15Cities,
   stage15Routes,
   validateStage15Travel,
+  createStage15State,
+  normalizeStage15State,
+  recordStage15Travel,
 } from "./stage15";
 
 assert.ok(stage15Cities().length >= 7, "Stage 15 must expose additional cities");
 assert.ok(findStage15City("port-harcourt"), "Port Harcourt must remain a travel hub");
 assert.ok(findStage15City("aba"), "Aba must be available");
 assert.ok(findStage15City("uyo"), "Uyo must be available");
+assert.ok(stage15Routes().length >= 20, "Every city must have return routes, not one-way dead ends");
 assert.ok(stage15Routes().every((route) => route.distanceKm > 0 && route.durationMinutes > 0));
 assert.ok(stage15Routes().every((route) => findStage15City(route.fromCityId) && findStage15City(route.toCityId)));
 
@@ -35,3 +39,11 @@ assert.equal(validateStage15Travel({ routeId: "ph-aba", passengers: 1, requestId
 assert.equal(validateStage15Travel({ routeId: "missing", passengers: 1, requestId: "travel-test-3", balanceNaira: 100_000 }), null);
 
 console.log(`Stage 15 tests passed: ${stage15Cities().length} cities, ${stage15Routes().length} routes.`);
+
+const committedState = recordStage15Travel(createStage15State(), request!, "account-1", 1_800_000_000_000, 11_000);
+assert.ok(committedState.usedRequestIds.includes("travel-test-1"));
+assert.equal(committedState.ledger[0]?.accountId, "account-1");
+assert.equal(committedState.ledger[0]?.cashAfter, 11_000);
+assert.equal(validateStage15Travel({ ...request!, balanceNaira: 20_000 }, new Set(committedState.usedRequestIds)), null);
+assert.deepEqual(normalizeStage15State(committedState), committedState);
+assert.equal(normalizeStage15State({ usedRequestIds: ["ok", 7, ""], ledger: [{ nope: true }] }).usedRequestIds.length, 1);
