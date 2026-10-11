@@ -57,12 +57,13 @@ Use the existing workplace IDs and exteriors. Do not create replacement building
 
 The suite runs in Game Server CI as `npm run test:stage5 --workspace nigeria-rp-game-server`.
 
-## Remaining acceptance work
+## Current verification and remaining acceptance work
 
-- [ ] Latest full CI for the latest commit passes (server typecheck/build, Stage 1–5 regression, browser client build and Android debug APK build).
-- [ ] Latest Railway deployment is healthy after the final commit; test the public page/health endpoint.
+- [x] Game Server CI passed for the latest server commit `1736218ab944adeaa4b31af6b2c6da5122ffcbd8`, including typecheck/build and Stage 1–5 regression suites.
+- [x] Browser Client Build and Android debug APK build passed on the latest client commit `96b956208aa7d50b3e8d64032542f64ef83caf8a`; later commits changed only server/documentation, not the built client.
+- [x] Railway deployed the latest application commit `1736218ab944adeaa4b31af6b2c6da5122ffcbd8`; service status is online, PostgreSQL is healthy, and Railway's `/` health check succeeded.
 - [ ] Solo visual check on Android: hospital cards, patient request status, triage-to-treatment transition, pharmacy stock/receipt and park help/pass panels.
-- [ ] Inspect and, if necessary, implement a physical park-gate interaction that enforces valid daily passes.
+- [ ] Implement and test physical park-gate enforcement for daily passes; current pass is an auditable ticket but does not yet block physical entry.
 - [ ] Review homeless/respawn routing to a designated public park/parking point without resetting housing/property.
 - [ ] User confirms Stage 5 acceptance.
 
