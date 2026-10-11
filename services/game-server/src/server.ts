@@ -659,7 +659,10 @@ function marketStatePayload(session: Session) {
     restockRate: MARKET_RESTOCK_RATE,
     maxStock: MAX_MARKET_STOCK,
     commissionBalance: stage4State.market.commissions[session.player.id] ?? 0,
-    canCollectCommission: (stage4State.market.commissions[session.player.id] ?? 0) > 0,
+    canCollectCommission: atMarket && member &&
+      employment?.onDuty === true && employment?.uniformWorkplaceId === MARKET_WORKPLACE_ID &&
+      (stage4State.market.commissions[session.player.id] ?? 0) > 0,
+    canViewRestockHistory: manager || isFactionAdmin(session),
     till: manager || isFactionAdmin(session) ? stage4State.market.till : null,
     salesHistory,
     restockHistory,
