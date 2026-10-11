@@ -695,6 +695,10 @@
         window.dispatchEvent(new CustomEvent("nrs-stage7-state", { detail: N.stage7State }));
         if (message.type === "stage7ActionResult") window.dispatchEvent(new CustomEvent("nrs-stage7-action-result", { detail: message }));
         if ((message.type === "stage7Detained" || message.type === "stage7CheckpointBlocked") && message.message) sys(message.message);
+      } else if (message.type === "stage8State" || message.type === "stage8ActionResult") {
+        N.stage8State = { ...(N.stage8State || {}), ...message };
+        window.dispatchEvent(new CustomEvent("nrs-stage8-state", { detail: N.stage8State }));
+        if (message.type === "stage8ActionResult") window.dispatchEvent(new CustomEvent("nrs-stage8-action-result", { detail: message }));
       } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
         N.workplaceState = message;
         N.workplaces = message.workplaces || N.workplaces || [];
@@ -1003,6 +1007,13 @@
   N.getParkState = () => send({ type: "getParkState" });
   N.getGovernmentState = () => send({ type: "getGovernmentState" });
   N.getStage7State = () => send({ type: "getStage7State" });
+  N.getStage8State = () => send({ type: "getStage8State" });
+  N.submitStage8Story = (title,category,body,eventContext,eventRef="local",requestId=stage4RequestId("stage8-submit")) => send({type:"submitStage8Story",title,category,body,eventContext,eventRef,requestId});
+  N.approveStage8Story = (storyId,note="",requestId=stage4RequestId("stage8-approve")) => send({type:"approveStage8Story",storyId,note,requestId});
+  N.rejectStage8Story = (storyId,note,requestId=stage4RequestId("stage8-reject")) => send({type:"rejectStage8Story",storyId,note,requestId});
+  N.publishStage8Story = (storyId,note="",requestId=stage4RequestId("stage8-publish")) => send({type:"publishStage8Story",storyId,note,requestId});
+  N.reportStage8Story = (storyId,reason,requestId=stage4RequestId("stage8-report")) => send({type:"reportStage8Story",storyId,reason,requestId});
+  N.moderateStage8Report = (reportId,decision,reason,requestId=stage4RequestId("stage8-moderate")) => send({type:"moderateStage8Report",reportId,decision,reason,requestId});
   N.reportStage7Incident = (kind, description, requestId = stage4RequestId("stage7-report")) => send({ type: "reportStage7Incident", kind, description, requestId });
   N.dispatchStage7Incident = (incidentId, requestId = stage4RequestId("stage7-dispatch")) => send({ type: "dispatchStage7Incident", incidentId, requestId });
   N.investigateStage7Incident = (incidentId, reason, evidence, requestId = stage4RequestId("stage7-investigation")) => send({ type: "investigateStage7Incident", incidentId, reason, evidence, requestId });
