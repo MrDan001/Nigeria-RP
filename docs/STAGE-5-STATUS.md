@@ -59,12 +59,13 @@ The suite runs in Game Server CI as `npm run test:stage5 --workspace nigeria-rp-
 
 ## Current verification and remaining acceptance work
 
-- [x] Game Server CI passed for the latest server commit `1736218ab944adeaa4b31af6b2c6da5122ffcbd8`, including typecheck/build and Stage 1–5 regression suites.
-- [x] Browser Client Build and Android debug APK build passed on the latest client commit `96b956208aa7d50b3e8d64032542f64ef83caf8a`; later commits changed only server/documentation, not the built client.
-- [x] Railway deployed the latest application commit `1736218ab944adeaa4b31af6b2c6da5122ffcbd8`; service status is online, PostgreSQL is healthy, and Railway's `/` health check succeeded.
-- [ ] Solo visual check on Android: hospital cards, patient request status, triage-to-treatment transition, pharmacy stock/receipt and park help/pass panels.
-- [ ] Implement and test physical park-gate enforcement for daily passes; current pass is an auditable ticket but does not yet block physical entry.
-- [ ] Review homeless/respawn routing to a designated public park/parking point without resetting housing/property.
+- [x] Game Server CI passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`, including typecheck/build and Stage 1–5 regression suites.
+- [x] Browser Client Build passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`.
+- [ ] Android debug APK build for commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61` was still running at the last check; the immediately preceding gate/geometry revision passed Android build.
+- [x] Railway deployed commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`; the application service reports SUCCESS, and PostgreSQL is healthy.
+- [x] Implemented a visible ticketed City Park perimeter and gate, local collision for the fence/gate leaves, and server-side position validation against a current-day pass. On-duty park workers in uniform receive staff access.
+- [x] Homeless respawn now sends a player to the public City Park gate approach outside ticketed grounds without clearing or replacing their housing/lease record.
+- [ ] Solo visual check on Android: hospital cards, patient request status, triage-to-treatment transition, pharmacy stock/receipt, park gate access, daily pass and visitor-help panels.
 - [ ] User confirms Stage 5 acceptance.
 
 A second human tester is not required to finish the stage. Replay, rank, balance and invalid-location scenarios should be tested automatically; a real transaction involving two simultaneously online players remains marked as not manually verified unless a second session is available.
