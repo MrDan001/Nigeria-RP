@@ -58,6 +58,9 @@ jobs:
       - name: Test Stage 7 public-safety incident rules
         run: npm run test:stage7 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 8 newsroom workflow
+        run: npm run test:stage8 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
