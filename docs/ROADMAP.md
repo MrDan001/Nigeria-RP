@@ -2,7 +2,7 @@
 
 The full scope, dependencies, acceptance checks, test commands and developer handoff are in [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md). Stage-specific implementation details are recorded in [Stage 4 status](STAGE-4-STATUS.md) and [Stage 5 status](STAGE-5-STATUS.md).
 
-> **Status update: 11 October 2026.** Stages 0–5 are marked done for sequencing at the user's direction. Stages 6 and 7 are deployed to Railway; Stage 7's 13-test suite, Stage 1–7 regression, typecheck, server/browser builds and Android debug-APK workflow passed. Stage 8 — Rivers News Network — is implemented on `main`; CI and Railway rollout follow this commit. Real-device/two-account checks remain separate.
+> **Status update: 11 October 2026.** Stages 0–5 are marked done for sequencing at the user's direction. Stages 6 and 7 are deployed to Railway; Stage 7's 13-test suite, Stage 1–7 regression, typecheck, server/browser builds and Android debug-APK workflow passed. Stage 8 — Rivers News Network — is implemented on `main` and has passed Game Server CI; this commit is the Railway rollout trigger. Real-device/two-account checks remain separate.
 
 ## Stage table
 
@@ -16,8 +16,8 @@ The full scope, dependencies, acceptance checks, test commands and developer han
 | 5 | Hospital treatment workflows and parks | Done for sequencing; automated regression passed |
 | 6 | Rivers State government and civic finance | Deployed; Stage 1–6 CI and browser build passed |
 | 7 | Police, Army, FRSC and Fire Service | Deployed; 13 Stage 7 tests and CI passed |
-| 8 | Rivers News Network | Implemented on main; CI/deployment verification pending |
-| 9 | Transport, passengers and haulage | Planned |
+| 8 | Rivers News Network | Implemented on main; Game Server CI passed; Railway rollout triggered |
+| 9 | Transport, passengers and haulage | Next |
 | 10 | Food businesses and everyday shops | Planned |
 | 11 | Personal services, property services and utilities | Planned |
 | 12 | Education, offices, oil and industry | Planned |
@@ -25,9 +25,9 @@ The full scope, dependencies, acceptance checks, test commands and developer han
 | 14 | Release, load and recovery validation | Planned |
 | 15 | Additional cities and inter-city travel | Planned |
 
-## Active stage: Stage 8 — Rivers News Network
+## Active stage: Stage 9 — Transport, passengers and haulage
 
-Stage 7 is on `main` at commit `3d50df0da4a1cfb749bbc56d9a844c2a6ca1d29e`; Railway production is healthy. Stage 8 reuses the existing walkable `news-main` newsroom/studio and six-rank career ladder. Rank 3+ newsroom employees can submit event-based stories into a private queue; rank 5+ Editors approve/reject and rank 4+ Anchors broadcast only approved reports. The public feed and lightweight ticker update via WebSocket. Server-side rank, assignment, duty, uniform and newsroom-location checks protect editorial actions. Cooldowns, replay protection, profanity filtering, citizen reports, protected moderation and an audit log are included. Stage 8 CI and Railway verification follow this release.
+Stage 8 is on `main` and its Game Server CI run passed. The next implementation stage is Transport, passengers and haulage. Stage 8 reuses the existing walkable `news-main` newsroom/studio and six-rank career ladder. Rank 3+ newsroom employees can submit event-based stories into a private queue; rank 5+ Editors approve/reject and rank 4+ Anchors broadcast only approved reports. The public feed and lightweight ticker update via WebSocket. Server-side rank, assignment, duty, uniform and newsroom-location checks protect editorial actions. Cooldowns, replay protection, profanity filtering, citizen reports, protected moderation and an audit log are included.
 
 ## Stage 5 acceptance history — hospital and park services
 
