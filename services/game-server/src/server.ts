@@ -100,6 +100,7 @@ import { ARMY_WORKPLACE_ID, FIRE_WORKPLACE_ID, FRSC_WORKPLACE_ID, POLICE_WORKPLA
 import { NEWS_WORKPLACE_ID, approveStage8Story, createStage8State, moderateStage8Report, normalizeStage8State, publishStage8Story, rejectStage8Story, reportStage8Story, stage8PublicFeed, submitStage8Story, type Stage8Actor, type Stage8ModerationDecision } from "./stage8";
 import { STAGE11_BUSINESSES, STAGE11_SERVICES, STAGE11_FUEL_PRICE_PER_LITRE, assignStage11CourierDelivery, assignStage11RepairCall, assignStage11ServiceOrder, buyStage11Fuel, completeStage11CourierDelivery, completeStage11RepairCall, completeStage11ServiceOrder, createStage11State, normalizeStage11State, openStage11CourierDelivery, openStage11RepairCall, openStage11ServiceOrder, payStage11UtilityBill, pickupStage11CourierDelivery, registerStage11Property, registerStage11Vehicle, type Stage11Actor, type Stage11Property } from "./stage11";
 import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acceptStage9Ride, advanceStage9Delivery, advanceStage9Ride, cancelStage9Ride, checkoutStage9Vehicle, completeStage9Delivery, completeStage9Ride, consumeStage9Fuel, createStage9State, normalizeStage9State, pickupStage9Ride, refuelStage9Vehicle, requestStage9Ride, returnStage9Vehicle, startStage9Delivery, stage9DistanceToStop, type Stage9Actor, type Stage9Result } from "./stage9";
+import { createStage15State, findStage15City, findStage15Route, normalizeStage15State, recordStage15Travel, stage15Cities, stage15CitySpawn, stage15Routes, validateStage15Travel, type Stage15State } from "./stage15";
 
 const scrypt = promisify(scryptCb);
 
@@ -130,6 +131,7 @@ type Account = {
   life: Life;
   createdAt: number;
   updatedAt: number;
+  cityId: string;
 };
 
 type PlayerState = {
@@ -148,6 +150,7 @@ type PlayerState = {
   inventory: Inventory;
   fuel: FuelMap;
   life: Life;
+  cityId: string;
   lastSequence: number;
 };
 
@@ -199,6 +202,7 @@ type FileStore = {
   stage8?: unknown;
   stage9?: unknown;
   stage11?: unknown;
+  stage15?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -237,6 +241,7 @@ let stage7State = createStage7State();
 let stage8State = createStage8State();
 let stage9State = createStage9State();
 let stage11State = createStage11State();
+let stage15State: Stage15State = createStage15State();
 type Stage9FuelProgress = { vehicleId: string; pendingDistance: number; lastSavedAt: number };
 const stage9FuelProgress = new Map<string, Stage9FuelProgress>();
 const stage7ReportCooldownAt = new Map<string, number>();
@@ -352,6 +357,7 @@ function normalizeAccount(account: Account): Account {
     inventory: normalizeInventory(account.inventory),
     fuel: normalizeFuel(account.fuel),
     life: normalizeLife(account.life, clock.dayKey()),
+    cityId: findStage15City(String(account.cityId ?? ""))?.id ?? "port-harcourt",
   };
 }
 
@@ -367,6 +373,7 @@ function publicPlayer(player: PlayerState) {
     workplaceId: player.life.employment?.workplaceId ?? null,
     onDuty: player.life.employment?.onDuty === true,
     uniformWorkplaceId: player.life.employment?.uniformWorkplaceId ?? null,
+    cityId: findStage15City(String(player.cityId ?? ""))?.id ?? "port-harcourt",
   };
 }
 
@@ -375,6 +382,7 @@ function accountPayload(player: PlayerState) {
     id: player.id,
     sessionId: players.get(player.id)?.displayId ?? "000",
     name: player.name,
+    cityId: findStage15City(String(player.cityId ?? ""))?.id ?? "port-harcourt",
     x: player.x,
     z: player.z,
     yaw: player.yaw,
@@ -392,9 +400,14 @@ function accountPayload(player: PlayerState) {
   };
 }
 
-function snapshot() {
+function cityOnlineCount(cityId: string) {
+  return [...players.values()].filter((session) => session.player.cityId === cityId).length;
+}
+
+function snapshot(cityId?: string) {
   // Apartment-room coordinates are instanced; never expose those players at the shared interior origin.
-  return [...players.values()].filter((session) => !session.inHome && !session.inStaffRoom && !session.inApartmentInterior).map((session) => publicPlayer(session.player));
+  // Stage 15 cities are isolated logical instances even though they share the current world-template geometry.
+  return [...players.values()].filter((session) => (!cityId || session.player.cityId === cityId) && !session.inHome && !session.inStaffRoom && !session.inApartmentInterior).map((session) => publicPlayer(session.player));
 }
 
 function isValidKnownJob(value: JobState) {
@@ -498,6 +511,15 @@ async function saveStage9State(state = stage9State) {
     return;
   }
   fileStore.stage9 = state;
+  writeFileStore();
+}
+
+async function saveStage15State(state = stage15State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage15',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage15 = state;
   writeFileStore();
 }
 
@@ -1521,6 +1543,7 @@ async function initStore() {
     );
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'port-harcourt'");
     await pool.query(
       "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
     );
@@ -1548,6 +1571,9 @@ async function initStore() {
     const stage11Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage11' LIMIT 1");
     stage11State = normalizeStage11State(stage11Row.rows[0]?.value);
     await saveStage11State();
+    const stage15Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage15' LIMIT 1");
+    stage15State = normalizeStage15State(stage15Row.rows[0]?.value);
+    await saveStage15State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1583,6 +1609,8 @@ async function initStore() {
   await saveStage9State();
   stage11State = normalizeStage11State(fileStore.stage11);
   await saveStage11State();
+  stage15State = normalizeStage15State(fileStore.stage15);
+  await saveStage15State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -1609,6 +1637,7 @@ function accountFromRow(row: any): Account {
     inventory: row.inventory ?? {},
     fuel: row.fuel ?? {},
     life: row.life ?? {},
+    cityId: String(row.city_id ?? "port-harcourt"),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   });
@@ -1644,8 +1673,8 @@ async function insertAccount(account: Account) {
   if (pool) {
     await pool.query(
       "INSERT INTO nrs_accounts (" +
-      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at" +
-      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20)",
+      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,city_id" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21)",
       [
         account.id,
         account.username,
@@ -1667,6 +1696,7 @@ async function insertAccount(account: Account) {
         JSON.stringify(account.inventory),
         account.createdAt,
         account.updatedAt,
+        account.cityId,
       ],
     );
     return;
@@ -1683,7 +1713,7 @@ async function saveAccount(account: Account) {
     await pool.query(
       "UPDATE nrs_accounts SET " +
       "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
-      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb WHERE id=$1",
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb,city_id=$17 WHERE id=$1",
       [
         account.id,
         account.username,
@@ -1701,6 +1731,7 @@ async function saveAccount(account: Account) {
         account.updatedAt,
         JSON.stringify(account.fuel),
         JSON.stringify(account.life),
+        account.cityId,
       ],
     );
     return;
@@ -1750,6 +1781,7 @@ async function createAccount(email: string, username: string, password: string) 
     inventory: {},
     fuel: {},
     life: newLife(clock.dayKey()),
+    cityId: "port-harcourt",
     createdAt: now,
     updatedAt: now,
   };
@@ -1830,6 +1862,7 @@ function makePlayer(account: Account): PlayerState {
     inventory: normalizeInventory(account.inventory),
     fuel: normalizeFuel(account.fuel),
     life: account.life,
+    cityId: findStage15City(String(account.cityId ?? ""))?.id ?? "port-harcourt",
     lastSequence: -1,
   };
 }
@@ -1838,6 +1871,7 @@ async function persistSession(session: Session) {
   const account = session.account;
   account.username = session.player.name;
   account.usernameLower = account.username.toLowerCase();
+  account.cityId = findStage15City(String(session.player.cityId ?? ""))?.id ?? "port-harcourt";
   // If a player disconnects or the server restarts indoors, resume outside the room.
   account.x = session.inHome && session.homeReturn
     ? session.homeReturn.x
@@ -2070,8 +2104,8 @@ wss.on("connection", (socket) => {
       protocolVersion: PROTOCOL_VERSION,
       token,
       player: accountPayload(session.player),
-      players: snapshot(),
-      onlineCount: players.size,
+      players: snapshot(session.player.cityId),
+      onlineCount: cityOnlineCount(session.player.cityId),
       houses: housingSnapshot(session),
       ...workplaceSnapshot(session),
     });
@@ -2268,6 +2302,145 @@ wss.on("connection", (socket) => {
             send(socket, { type: "posCorrect", x: session.player.x, z: session.player.z });
           }
         }
+        return;
+      }
+
+      if (message.type === "getStage15TravelState") {
+        send(socket, {
+          type: "stage15TravelState",
+          cities: stage15Cities(),
+          routes: stage15Routes(),
+          cityId: session.player.cityId,
+          currentCity: findStage15City(session.player.cityId) ?? findStage15City("port-harcourt"),
+          cash: session.player.cash,
+          recentTrips: stage15State.ledger.filter((entry) => entry.accountId === session.player.id).slice(-12).reverse(),
+        });
+        return;
+      }
+
+      if (message.type === "travelCity") {
+        await withMoneyMutation(async () => {
+          const requestId = String(message.requestId ?? "").trim().slice(0, 128);
+          const routeId = String(message.routeId ?? "");
+          const passengers = Number(message.passengers);
+          const currentCityId = session.player.cityId;
+          const route = findStage15Route(routeId);
+          const fail = (messageText: string) => send(socket, {
+            type: "stage15TravelResult",
+            ok: false,
+            message: messageText,
+            cityId: session.player.cityId,
+            cash: session.player.cash,
+            requestId,
+          });
+
+          if (!requestId) { fail("Travel request ID is required. Please retry from the travel terminal."); return; }
+          if (session.inHome || session.inCarpark || session.inStaffRoom || session.inWorkplaceInterior ||
+              session.inShopInterior || session.inApartmentInterior) {
+            fail("Return to the street before using inter-city travel.");
+            return;
+          }
+          if (!route || route.fromCityId !== currentCityId) {
+            fail("That route does not depart from your current city. Refresh the travel terminal.");
+            return;
+          }
+          if (stage15State.usedRequestIds.includes(requestId)) {
+            fail("This travel request has already been processed. Refresh your travel terminal.");
+            return;
+          }
+
+          const validated = validateStage15Travel({
+            routeId,
+            passengers,
+            requestId,
+            balanceNaira: session.player.cash,
+          }, new Set(stage15State.usedRequestIds));
+          if (!validated) {
+            fail("Travel could not be approved. Check your fare, passenger count, available cash and route.");
+            return;
+          }
+
+          const fromCityId = session.player.cityId;
+          const previous = {
+            cash: session.player.cash,
+            cityId: session.player.cityId,
+            x: session.player.x,
+            z: session.player.z,
+            yaw: session.player.yaw,
+            input: session.input,
+          };
+          const destination = findStage15City(validated.toCityId);
+          const spawn = stage15CitySpawn(validated.toCityId);
+          if (!destination) { fail("The destination city is not available."); return; }
+
+          let nextState: Stage15State;
+          try {
+            nextState = recordStage15Travel(
+              stage15State,
+              validated,
+              session.player.id,
+              Date.now(),
+              previous.cash - validated.fareNaira,
+            );
+          } catch {
+            fail("The travel ledger rejected this request. Please retry.");
+            return;
+          }
+
+          session.player.cash = previous.cash - validated.fareNaira;
+          session.player.cityId = destination.id;
+          session.player.x = spawn.x;
+          session.player.z = spawn.z;
+          session.player.yaw = spawn.yaw;
+          session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+          session.lastInputAt = 0;
+          session.lastSyncAt = Date.now();
+          session.rejectedSyncs = 0;
+
+          try {
+            await persistSession(session);
+            stage15State = nextState;
+            await saveStage15State();
+          } catch (error) {
+            session.player.cash = previous.cash;
+            session.player.cityId = previous.cityId;
+            session.player.x = previous.x;
+            session.player.z = previous.z;
+            session.player.yaw = previous.yaw;
+            session.input = previous.input;
+            await persistSession(session).catch((persistError) => console.error("stage15-travel-rollback", persistError));
+            fail("Travel could not be saved. Your previous city and cash have been restored.");
+            console.error("stage15-travel-commit", error);
+            return;
+          }
+
+          broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+          send(socket, {
+            type: "stage15TravelResult",
+            ok: true,
+            requestId,
+            routeId: validated.routeId,
+            fromCityId,
+            cityId: destination.id,
+            cityName: destination.name,
+            fareNaira: validated.fareNaira,
+            durationMinutes: validated.durationMinutes,
+            passengers: validated.passengers,
+            cash: session.player.cash,
+            x: session.player.x,
+            z: session.player.z,
+            yaw: session.player.yaw,
+            players: snapshot(destination.id),
+            onlineCount: cityOnlineCount(destination.id),
+            message: "Arrived in " + destination.name + ". Your fare of ₦" +
+              validated.fareNaira.toLocaleString("en-NG") + " has been charged and your destination has been saved.",
+          });
+          broadcast({
+            type: "playerJoined",
+            player: publicPlayer(session.player),
+            onlineCount: cityOnlineCount(destination.id),
+          });
+        });
         return;
       }
 
@@ -5639,12 +5812,16 @@ setInterval(() => {
 }, 1000 / TICK_RATE);
 
 setInterval(() => {
-  broadcast({
-    type: "snapshot",
-    serverTime: Date.now(),
-    players: snapshot(),
-    onlineCount: players.size,
-  });
+  const serverTime = Date.now();
+  for (const session of players.values()) {
+    send(session.socket, {
+      type: "snapshot",
+      serverTime,
+      players: snapshot(session.player.cityId),
+      onlineCount: cityOnlineCount(session.player.cityId),
+      cityId: session.player.cityId,
+    });
+  }
 }, 1000 / SNAPSHOT_RATE);
 
 setInterval(() => {
