@@ -349,6 +349,9 @@ body.drv #camB{display:grid}
 #modal.stage4-menu .s4-receipt h3{margin:0 0 .3rem;color:#a9f5cf;font-size:.8rem}
 #modal.stage4-menu .s4-empty{padding:.85rem;border:1px dashed rgba(151,188,213,.18);border-radius:.65rem;color:#9db3c5;font-size:.71rem;line-height:1.5}
 @media(max-width:560px){#modal.stage4-menu{width:calc(100vw - .65rem);max-height:89vh;max-height:89dvh;padding:.78rem;border-radius:.8rem}#modal.stage4-menu .s4-grid{grid-template-columns:1fr}#modal.stage4-menu .s4-kpis{gap:.32rem}#modal.stage4-menu .s4-kpi{padding:.5rem .42rem}#modal.stage4-menu .s4-kpi strong{font-size:.84rem}#modal.stage4-menu .s4-head h2{font-size:1.05rem}#modal.stage4-menu .s4-inline{grid-template-columns:1fr}}
+#modal.work-menu .wm-card .s4-card{margin:.55rem 0 0;padding:.65rem;border:1px solid rgba(98,184,249,.22);border-radius:.65rem;background:linear-gradient(145deg,rgba(21,93,143,.13),rgba(255,255,255,.015))}
+#modal.work-menu .wm-card .s4-card h3{margin:0 0 .2rem;font-size:.78rem;color:#dcefff}
+#modal.work-menu .wm-card .s4-card p{margin:.25rem 0 .4rem;font-size:.65rem;color:#9fb7ca;line-height:1.4}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -3387,12 +3390,18 @@ function renderMarketConsole(data){
  const canCollect=!!data.canCollectCommission&&Number(data.commissionBalance)>0;
  const feedback=marketFeedback?'<div class="s4-notice '+(marketFeedback.ok?'success':'error')+'">'+safeText(marketFeedback.message||'')+'</div>':'';
  const receipt=marketFeedback?.ok&&marketFeedback.receipt
-  ?'<div class="s4-receipt"><h3>✓ Purchase receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Reference '+safeText(marketFeedback.receipt.orderId||marketFeedback.requestId||'')+' · Quantity '+Number(marketFeedback.receipt.quantity||0)+'</small></span><strong>'+s4Money(marketFeedback.receipt.total)+'</strong></div><p class="s4-muted">Goods added to your backpack. Current cash: '+s4Money(window.NRS?.cash)+'</p></div>':'';
+  ?(marketFeedback.receipt.totalCost!==undefined
+    ?'<div class="s4-receipt"><h3>✓ Inventory restock receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Quantity added: '+Number(marketFeedback.receipt.quantity||0)+' · '+Number(marketFeedback.receipt.remainingStock||0)+' now in stock</small></span><strong>'+s4Money(marketFeedback.receipt.totalCost)+'</strong></div><p class="s4-muted">Paid from the market till. Remaining till: '+s4Money(marketFeedback.receipt.remainingTill)+'</p></div>'
+    :'<div class="s4-receipt"><h3>✓ Purchase receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Reference '+safeText(marketFeedback.receipt.orderId||marketFeedback.requestId||'')+' · Quantity '+Number(marketFeedback.receipt.quantity||0)+'</small></span><strong>'+s4Money(marketFeedback.receipt.total)+'</strong></div><p class="s4-muted">Goods added to your backpack. Current cash: '+s4Money(window.NRS?.cash)+'</p></div>'):'';
+
  const sellerOptions=sellers.map(seller=>'<option value="'+safeText(seller.id)+'">'+safeText(seller.name)+' · '+safeText(seller.rankTitle||'Salesperson')+'</option>').join('');
  const productsHtml=products.map(product=>{
    const available=Math.max(0,Math.floor(Number(product.stock)||0));
    return '<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(product.name)+'</h3><p class="s4-muted">Sold by unit · Fixed market price</p><span class="s4-stock">'+available+' in stock</span></div><div class="s4-price">'+s4Money(product.unitPrice)+'</div></div><label class="s4-field">Quantity<input data-market-qty="'+safeText(product.id)+'" type="number" min="1" max="99" step="1" inputmode="numeric" value="1" '+(available<1?'disabled':'')+'></label><button data-market-order="'+safeText(product.id)+'" '+(!data.atMarket||!sellers.length||available<1?'disabled':'')+'>Buy from selected salesperson</button></article>';
  }).join('');
+ const restockPanel=data.canRestock
+  ?'<section class="s4-card"><h3>📦 Manager stock controls</h3><p class="s4-muted">Market Supervisors and the Market Chairman can replenish stock using the market till. Wholesale cost is '+Math.round(Number(data.restockRate||.6)*100)+'% of the fixed retail price; maximum stock is '+Number(data.maxStock||500)+' units per product.</p><div class="s4-inline"><label class="s4-field">Product<select id="s4RestockProduct">'+products.map(product=>'<option value="'+safeText(product.id)+'">'+safeText(product.name)+' · '+s4Money(Math.floor(Number(product.unitPrice)*Number(data.restockRate||.6))+'/unit').replace('/unit','')+' per unit</option>').join('')+'</select></label><label class="s4-field">Quantity<input id="s4RestockQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="10"></label></div><button data-market-restock="1">Purchase stock for the market</button></section>'
+  :'';
  const historyHtml=history.length?'<div class="s4-list">'+history.map(sale=>'<div class="s4-row"><span><b>'+safeText(sale.productName||sale.productId)+' × '+Number(sale.quantity||0)+'</b><small>'+safeText(sale.customerName||'Customer')+' · Salesperson '+safeText(sale.sellerName||'Staff')+' · '+s4Time(sale.createdAt)+'</small><small>Receipt '+safeText(sale.orderId||'')+'</small></span><strong>'+s4Money(sale.total)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed market receipts will appear here.</div>';
  panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Shop local goods with on-duty market staff.</p></div></div>'+
   '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+s4Money(window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Commission</small><strong>'+s4Money(data.commissionBalance)+'</strong></div><div class="s4-kpi"><small>Market till</small><strong>'+(data.till===null||data.till===undefined?'Staff only':s4Money(data.till))+'</strong></div></div>'+
@@ -3402,6 +3411,7 @@ function renderMarketConsole(data){
   feedback+receipt+
   '<div class="s4-sectiontitle">Market catalogue <small>PRICES SET BY THE SERVER</small></div>'+
   (productsHtml?'<div class="s4-grid">'+productsHtml+'</div>':'<div class="s4-empty">The market catalogue is not available yet.</div>')+
+  restockPanel+
   '<div class="s4-sectiontitle">Recent receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
   '<button class="subtle" data-market-refresh="1">Refresh market data</button>');
  modal.classList.add('stage4-menu');
@@ -3441,6 +3451,7 @@ function renderBankConsole(data){
 window.addEventListener('nrs-market-state',e=>{if(marketMenuOpen)renderMarketConsole(e.detail);});
 window.addEventListener('nrs-market-sale-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
 window.addEventListener('nrs-market-commission-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen){renderMarketConsole(window.NRS?.marketState||{});if(e.detail?.ok)window.NRS?.getMarketState();}});
+window.addEventListener('nrs-market-restock-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
 window.addEventListener('nrs-market-sale-notice',()=>{if(marketMenuOpen)window.NRS?.getMarketState();});
 window.addEventListener('nrs-bank-state',e=>{if(bankMenuOpen)renderBankConsole(e.detail);});
 window.addEventListener('nrs-bank-transaction-result',e=>{bankFeedback=e.detail||null;if(bankMenuOpen)renderBankConsole(window.NRS?.bankState||{});});
@@ -3456,6 +3467,12 @@ modal.addEventListener('click',e=>{
  if(d.marketRefresh){N.getMarketState();return;}
  if(d.bankRefresh){N.getBankState();return;}
  if(d.marketCommission){marketFeedback=null;N.claimMarketCommission();return;}
+ if(d.marketRestock){
+  const productId=modal.querySelector('#s4RestockProduct')?.value||'';
+  const quantity=Math.floor(Number(modal.querySelector('#s4RestockQuantity')?.value));
+  if(!productId||!Number.isInteger(quantity)||quantity<1||quantity>100){marketFeedback={ok:false,message:'Choose a product and a whole restock quantity between 1 and 100.'};renderMarketConsole();return;}
+  marketFeedback=null;N.restockMarket(productId,quantity);return;
+ }
  if(d.marketOrder){
   const sellerId=modal.querySelector('#s4MarketSeller')?.value||'';
   const quantity=Math.floor(Number(modal.querySelector('[data-market-qty="'+d.marketOrder+'"]')?.value));
