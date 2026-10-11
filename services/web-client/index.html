@@ -483,7 +483,7 @@ const PARK_GATE_VISUALS=[];
 function hasParkGateAccessClient(){
  const n=window.NRS||{};
  const pass=n.parkState?.ticket;
- const today=n.parkState?.today||n.today;
+ const today=n.today||n.parkState?.today;
  if(pass?.dayKey && (!today || pass.dayKey===today))return true;
  const employment=n.life?.employment||{};
  return employment.workplaceId==='park-main'&&employment.onDuty===true&&employment.uniformWorkplaceId==='park-main';
