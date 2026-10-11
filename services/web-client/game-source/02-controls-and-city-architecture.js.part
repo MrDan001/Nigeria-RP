@@ -155,23 +155,20 @@ function traffic(dt){
  cars.forEach(c=>{if(c.kind!=='t'&&c.g?.visible&&c.box?.hw>0&&c.box?.hd>0)obs.push(c);});
  for(const c of tr){
   if(!c.g.visible)continue;
-  const dz=c.ry>2?-1:1,base=Number.isFinite(c.laneX)?c.laneX:c.x;
-  let gap=Infinity,blocker=null;
-  for(const o of obs){if(o===c||o?.g?.visible===false)continue;const d=(o.z-c.z)*dz,ox=o.x??o.position?.x;
-   if(d>0&&d<gap&&Number.isFinite(ox)&&Math.abs(ox-c.x)<2.25){gap=d;blocker=o;}
+  // lx is the vehicle's assigned lane centre. Using the live x coordinate
+  // made each avoidance manoeuvre the next baseline, accumulating sideways
+  // drift until traffic mounted the pavement. Keep AI traffic in its lane and
+  // use following-distance braking rather than unsafe lateral evasions.
+  const dz=c.ry>2?-1:1;
+  const base=Number.isFinite(c.laneX)?c.laneX:(Number.isFinite(c.lx)?c.lx:c.x);
+  let gap=Infinity;
+  for(const o of obs){
+   if(o===c||o?.g?.visible===false)continue;
+   const d=(o.z-c.z)*dz,ox=o.x??o.position?.x;
+   if(d>0&&d<gap&&Number.isFinite(ox)&&Math.abs(ox-c.x)<2.25)gap=d;
   }
-  let targetX=base;
-  if(blocker&&gap<18){
-   const side=Math.sign(base||(dz<0?1:-1)),candidates=[clamp(base+side*2.5,-4.4,4.4),clamp(base-side*2.5,-4.4,4.4)];
-   for(const candidate of candidates){
-    const lookZ=c.z+dz*Math.min(8,Math.max(3,gap));
-    const statClear=!boxes.some(b=>b!==c.box&&b.hw>0&&b.hd>0&&(!b.owner||b.owner===c||b.owner.g.visible)&&Math.abs(candidate-b.x)<objectHalfExtents(b).hw+1.05&&Math.abs(lookZ-b.z)<objectHalfExtents(b).hd+2.3);
-    const dynClear=!obs.some(o=>o!==c&&Number.isFinite(o.x)&&Math.abs(o.x-candidate)<2.2&&Math.abs(o.z-lookZ)<4.8);
-    if(statClear&&dynClear){targetX=candidate;break;}
-   }
-  }
-  c.x+=clamp(targetX-c.x,-2.4*dt,2.4*dt);
   const targetSpeed=gap<4.2?0:gap<7?2.5:gap<12?5.5:(c.vm||9);
+  c.x+=clamp(base-c.x,-2.4*dt,2.4*dt);
   c.v+=clamp(targetSpeed-c.v,-16*dt,5*dt);
   c.z+=dz*c.v*dt;if(Math.abs(c.z)>190)c.z=-dz*190;
   c.wh.forEach(w=>w.sp.rotation.x+=c.v*dt/.38);setCar(c);
