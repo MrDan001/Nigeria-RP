@@ -650,11 +650,12 @@ async function insertAccount(account: Account) {
   writeFileStore();
 }
 
-async function saveAccount(account: Account) {
+async function saveAccount(account: Account, executor?: any) {
   account.updatedAt = Date.now();
 
-  if (pool) {
-    await pool.query(
+  const db = executor ?? pool;
+  if (db) {
+    await db.query(
       "UPDATE nrs_accounts SET " +
       "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
       "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb,city_id=$17 WHERE id=$1",
@@ -852,12 +853,52 @@ async function persistSession(session: Session) {
   account.hunger = session.player.hunger;
   account.level = session.player.level;
   account.xp = session.player.xp;
-  account.cash = session.player.cash;
-  account.bank = session.player.bank;
   account.job = normalizeJob(session.player.job);
   account.inventory = normalizeInventory(session.player.inventory);
   account.fuel = normalizeFuel(session.player.fuel);
   account.life = session.player.life;
+
+  if (pool) {
+    const db = pool;
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      // Serialize full-account saves with betting and other wallet transactions. Balance
+      // deltas are merged against the latest row so a periodic position save cannot undo
+      // a newly placed ticket or settlement payout.
+      const wallet = await client.query(
+        "SELECT cash, bank FROM nrs_accounts WHERE id=$1 FOR UPDATE",
+        [account.id],
+      );
+      if (!wallet.rows[0]) throw new Error("ACCOUNT_ROW_MISSING");
+      const currentCash = Number(wallet.rows[0].cash);
+      const currentBank = Number(wallet.rows[0].bank);
+      const cashDelta = Math.trunc(Number(session.player.cash) - Number(account.cash));
+      const bankDelta = Math.trunc(Number(session.player.bank) - Number(account.bank));
+      const nextCash = currentCash + cashDelta;
+      const nextBank = currentBank + bankDelta;
+      if (!Number.isSafeInteger(nextCash) || nextCash < 0 ||
+          !Number.isSafeInteger(nextBank) || nextBank < 0) {
+        throw new Error("INVALID_ACCOUNT_BALANCE_DELTA");
+      }
+
+      session.player.cash = nextCash;
+      session.player.bank = nextBank;
+      account.cash = nextCash;
+      account.bank = nextBank;
+      await saveAccount(account, client);
+      await client.query("COMMIT");
+    } catch (error) {
+      try { await client.query("ROLLBACK"); } catch {}
+      throw error;
+    } finally {
+      client.release();
+    }
+    return;
+  }
+
+  account.cash = session.player.cash;
+  account.bank = session.player.bank;
   await saveAccount(account);
 }
 
