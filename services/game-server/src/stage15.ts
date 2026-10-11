@@ -101,3 +101,101 @@ export function validateStage15Travel(request: Stage15TravelRequest, usedRequest
     requestId: request.requestId,
   };
 }
+
+
+export type Stage15LedgerEntry = Stage15TravelResult & {
+  accountId: string;
+  completedAt: number;
+  cashAfter: number;
+};
+
+export type Stage15State = {
+  usedRequestIds: string[];
+  ledger: Stage15LedgerEntry[];
+};
+
+const MAX_STAGE15_REQUEST_IDS = 10_000;
+const MAX_STAGE15_LEDGER = 2_000;
+
+export function createStage15State(): Stage15State {
+  return { usedRequestIds: [], ledger: [] };
+}
+
+export function normalizeStage15State(value: unknown): Stage15State {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return createStage15State();
+  const raw = value as Record<string, unknown>;
+  const usedRequestIds = Array.isArray(raw.usedRequestIds)
+    ? raw.usedRequestIds.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 128).slice(-MAX_STAGE15_REQUEST_IDS)
+    : [];
+  const ledger = Array.isArray(raw.ledger)
+    ? raw.ledger.filter((entry): entry is Stage15LedgerEntry => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+        const item = entry as Record<string, unknown>;
+        return typeof item.accountId === "string" &&
+          typeof item.requestId === "string" &&
+          item.requestId.length > 0 &&
+          typeof item.routeId === "string" &&
+          !!findStage15Route(item.routeId) &&
+          typeof item.fromCityId === "string" &&
+          !!findStage15City(item.fromCityId) &&
+          typeof item.toCityId === "string" &&
+          !!findStage15City(item.toCityId) &&
+          Number.isSafeInteger(item.passengers) && Number(item.passengers) > 0 &&
+          Number.isSafeInteger(item.fareNaira) && Number(item.fareNaira) > 0 &&
+          Number.isSafeInteger(item.durationMinutes) && Number(item.durationMinutes) > 0 &&
+          Number.isFinite(item.completedAt) && Number(item.completedAt) >= 0 &&
+          Number.isSafeInteger(item.cashAfter) && Number(item.cashAfter) >= 0;
+      }).slice(-MAX_STAGE15_LEDGER) as Stage15LedgerEntry[]
+    : [];
+  // Ledger entries are another durable replay source after a state is restored.
+  const requestIds = new Set(usedRequestIds);
+  for (const entry of ledger) requestIds.add(entry.requestId);
+  return {
+    usedRequestIds: [...requestIds].slice(-MAX_STAGE15_REQUEST_IDS),
+    ledger,
+  };
+}
+
+export function recordStage15Travel(
+  state: Stage15State,
+  result: Stage15TravelResult,
+  accountId: string,
+  completedAt: number,
+  cashAfter: number,
+): Stage15State {
+  if (!accountId || !Number.isFinite(completedAt) || completedAt < 0 ||
+      !Number.isSafeInteger(cashAfter) || cashAfter < 0 ||
+      state.usedRequestIds.includes(result.requestId) ||
+      !findStage15Route(result.routeId)) {
+    throw new Error("INVALID_STAGE15_LEDGER_ENTRY");
+  }
+  const entry: Stage15LedgerEntry = {
+    ...result,
+    accountId,
+    completedAt: Math.floor(completedAt),
+    cashAfter,
+  };
+  return {
+    usedRequestIds: [...state.usedRequestIds, result.requestId].slice(-MAX_STAGE15_REQUEST_IDS),
+    ledger: [...state.ledger, entry].slice(-MAX_STAGE15_LEDGER),
+  };
+}
+
+export function stage15CityName(cityId: string): string {
+  return findStage15City(cityId)?.name ?? "Port Harcourt";
+}
+
+export function stage15CitySpawn(cityId: string): { x: number; z: number; yaw: number } {
+  // Each city is an isolated logical instance using the current world-template geometry.
+  // Safe spawn coordinates intentionally remain within the existing validated world bounds.
+  const spawns: Record<string, { x: number; z: number; yaw: number }> = {
+    "port-harcourt": { x: 0, z: 24, yaw: Math.PI },
+    "aba": { x: 0, z: 24, yaw: Math.PI },
+    "owerri": { x: 0, z: 24, yaw: Math.PI },
+    "uyo": { x: 0, z: 24, yaw: Math.PI },
+    "warri": { x: 0, z: 24, yaw: Math.PI },
+    "yenagoa": { x: 0, z: 24, yaw: Math.PI },
+    "benin-city": { x: 0, z: 24, yaw: Math.PI },
+  };
+  return spawns[cityId] ?? spawns["port-harcourt"];
+}
