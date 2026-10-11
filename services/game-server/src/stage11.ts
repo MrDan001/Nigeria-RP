@@ -268,7 +268,7 @@ export function normalizeStage11State(raw: unknown): Stage11State {
       const x = Number(p.x);
       const z = Number(p.z);
       if (!id || !ownerId || !Number.isFinite(x) || !Number.isFinite(z)) continue;
-      const residentIds = Array.isArray(p.residentIds) ? p.residentIds.map(cleanId).filter(Boolean).slice(0, 50) : [];
+      const residentIds = Array.isArray(p.residentIds) ? p.residentIds.map((residentId) => cleanId(residentId)).filter(Boolean).slice(0, 50) : [];
       const rawBills = p.bills && typeof p.bills === "object" ? p.bills as Record<string, unknown> : {};
       const bills = {} as Record<Stage11UtilityKind, Stage11UtilityBill>;
       for (const utility of UTILITIES) {
@@ -461,14 +461,14 @@ export function completeStage11ServiceOrder(args: {
   const business = args.state.businesses[order.businessId];
   if (!service || !business || !validActor(args.actor, business, service.requiredRank)) return { ok: false, reason: "unauthorized_worker" };
   if (safeMoney(args.customerCash) < order.total) return { ok: false, reason: "insufficient_cash" };
+  const now = Number(args.now ?? Date.now());
+  if (!validTime(now)) return { ok: false, reason: "invalid_timestamp" };
   if (order.targetVehicleId) {
     const vehicle = args.state.vehicles[order.targetVehicleId];
     if (!vehicle || vehicle.ownerId !== order.customerId || !closeTo(vehicle.x, vehicle.z, business.x, business.z)) return { ok: false, reason: "target_vehicle_missing" };
     if (service.kind === "vehicle-repair") vehicle.condition = 100;
     if (service.kind === "car-wash") vehicle.cleanliness = 100;
   }
-  const now = Number(args.now ?? Date.now());
-  if (!validTime(now)) return { ok: false, reason: "invalid_timestamp" };
   order.status = "completed";
   order.completedAt = now;
   ledger(args.state, { id: "stage11-service-ledger:" + order.id, requestId: "complete:" + order.requestId, actorId: cleanId(args.actor.actorId), customerId: order.customerId, businessId: business.id, kind: "service", amount: order.total, at: now });
