@@ -82,7 +82,7 @@
   document.head.appendChild(style);
   hubButton=el("button","","🏙️ City & News Hub");hubButton.id="nrsCityNewsHubOpen";hubButton.type="button";hubButton.hidden=true;
   hubButton.setAttribute("aria-label","Open City and News Hub");
-  hubButton.addEventListener("click",()=>{render(N.stage17Passport||N.stage15TravelState?.stage17Passport||null);modal.hidden=false;document.getElementById("gp")&&(document.getElementById("gp").style.display="none");N.getStage15TravelState?.();N.getStage8State?.();});
+  hubButton.addEventListener("click",()=>{render(N.stage17Passport||N.stage15TravelState?.stage17Passport||null);modal.hidden=false;const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;document.getElementById("gp")&&(document.getElementById("gp").style.display="none");N.getStage15TravelState?.();N.getStage8State?.();});
   const gearMenu=document.getElementById("gp");if(gearMenu)gearMenu.appendChild(hubButton);else document.body.appendChild(hubButton);
   modal=el("div");modal.id="nrsCityNewsHubModal";modal.hidden=true;modal.setAttribute("role","dialog");modal.setAttribute("aria-modal","true");modal.setAttribute("aria-label","City and News Hub");
   const card=el("section","cnh-card");
