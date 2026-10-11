@@ -3446,9 +3446,56 @@ function renderWorkplaceMenu(data){
   return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+stage4Shortcut+management+'</article>';
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
- panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div><button data-stage7-open="1">🚨 Police, traffic, fire & public-safety incidents</button>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');modal.style.display='flex';
 }
+
+
+/* Stage 7 — Public-safety incident and responder console */
+let stage7MenuOpen = false, stage7Feedback = null;
+const stage7IncidentTitle = k => ({crime:"Crime report","traffic-accident":"Traffic accident",fire:"Fire / rescue","public-safety":"Major public-safety event"}[k] || "Incident");
+const stage7UnitTitle = id => ({"police-rivers":"Police","army-rivers":"Army","frsc-rivers":"FRSC","fire-rivers":"Fire Service"}[id] || id || "Unassigned");
+const stage7Id = id => String(id || "").replace(/[^a-z0-9_-]/gi,"_");
+function openStage7Console() {
+  stage7MenuOpen=true; stage7Feedback=null; governmentMenuOpen=false; workplaceMenuOpen=false;
+  marketMenuOpen=false; bankMenuOpen=false; hospitalMenuOpen=false; parkMenuOpen=false;
+  panel('<div class="s4-head"><span class="s4-icon">🚨</span><div><small>PORT HARCOURT · PUBLIC SAFETY</small><h2>Emergency & law enforcement</h2><p>Report incidents, dispatch responders and keep an accountable audit trail.</p></div></div><div class="s4-empty">Loading incident board…</div>');
+  modal.classList.add("stage4-menu"); window.NRS?.getStage7State();
+}
+function renderStage7Console(d) {
+  if (!stage7MenuOpen) return; d=d || window.NRS?.stage7State || {};
+  const incidents=Array.isArray(d.incidents)?d.incidents:[], actions=Array.isArray(d.actions)?d.actions:[], citizens=Array.isArray(d.citizens)?d.citizens:[], checkpoints=Array.isArray(d.checkpoints)?d.checkpoints:[], appeals=Array.isArray(d.appeals)?d.appeals:[];
+  const feedback=stage7Feedback?'<div class="s4-notice '+(stage7Feedback.ok?"success":"error")+'">'+safeText(stage7Feedback.message||"")+'</div>':"";
+  const activeCount=incidents.filter(i=>i.status!=="resolved").length, detention=d.myDetention;
+  const responder=d.canRespond?'<div class="s4-notice success">Responder verified: '+safeText(d.unitName)+' · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">Citizen reporting is open. Response actions require the correct organisation, rank, duty status and uniform.</div>';
+  const reportForm='<section class="s4-card"><h3>📣 Report a public-safety incident</h3><p class="s4-muted">The server records your current location. False reports may be reviewed.</p><label class="s4-field">Incident type<select id="s7IncidentKind"><option value="crime">Crime / suspicious activity</option><option value="traffic-accident">Traffic accident</option><option value="fire">Fire / rescue</option><option value="public-safety">Major public-safety event</option></select></label><label class="s4-field">What happened?<textarea id="s7IncidentDescription" rows="3" maxlength="240" placeholder="Describe the event and any immediate danger"></textarea></label><button data-stage7-report="1">Submit incident report</button></section>';
+  const targetOptions='<option value="">Select online citizen</option>'+citizens.filter(p=>p.id!==d.selfId).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+'</option>').join("");
+  const incidentCards=incidents.length?'<div class="s4-list">'+incidents.map(i=>{
+    const id=stage7Id(i.id),done=i.status==="resolved",assigned=i.assignedWorkplaceId===d.workplaceId; let controls="";
+    if(d.canRespond&&!done&&!i.assignedWorkplaceId)controls+='<button data-stage7-dispatch="'+safeText(i.id)+'">Dispatch '+safeText(d.unitName||stage7UnitTitle(d.workplaceId))+'</button>';
+    if(!done&&assigned&&d.canInvestigate&&(i.kind==="crime"||i.kind==="public-safety")){
+      controls+='<label class="s4-field">Reason / investigation lead<input id="s7Reason_'+id+'" maxlength="500" placeholder="Reason for action"></label><label class="s4-field">Evidence / witness notes<textarea id="s7Evidence_'+id+'" maxlength="500" rows="2" placeholder="Record supporting evidence"></textarea></label><button data-stage7-investigate="'+safeText(i.id)+'">Save investigation note</button>';
+      controls+='<label class="s4-field">Suspect to arrest<select id="s7Target_'+id+'">'+targetOptions+'</select></label><button data-stage7-arrest="'+safeText(i.id)+'">Record arrest & temporary custody</button>';
+    }
+    if(!done&&assigned&&d.canFine&&(i.kind==="traffic-accident"||i.kind==="public-safety")){
+      controls+='<label class="s4-field">Fine recipient<select id="s7FineTarget_'+id+'">'+targetOptions+'</select></label><label class="s4-field">Offence<select id="s7Offence_'+id+'"><option value="speeding">Speeding</option><option value="illegal-parking">Illegal parking</option><option value="reckless-driving">Reckless driving</option><option value="dangerous-driving">Dangerous driving</option><option value="unsafe-load">Unsafe / unsecured load</option><option value="obstructing-emergency">Obstructing emergency response</option></select></label><label class="s4-field">Fine amount (₦)<input id="s7FineAmount_'+id+'" type="number" min="1" step="1" inputmode="numeric" placeholder="5000"></label><label class="s4-field">Fine reason<input id="s7FineReason_'+id+'" maxlength="500" placeholder="Reason for fine"></label><label class="s4-field">Evidence<textarea id="s7FineEvidence_'+id+'" maxlength="500" rows="2" placeholder="Observation / supporting evidence"></textarea></label><button data-stage7-fine="'+safeText(i.id)+'">Settle fine & credit state treasury</button>';
+    }
+    if(!done&&assigned&&d.canResolveFire&&i.kind==="fire")controls+='<label class="s4-field">Extinguishing & safety outcome<textarea id="s7Outcome_'+id+'" rows="2" maxlength="300" placeholder="Record extinguishing and scene safety"></textarea></label><button data-stage7-extinguish="'+safeText(i.id)+'">Record fire extinguished</button>';
+    if(!done&&assigned&&d.canClearTraffic&&i.kind==="traffic-accident")controls+='<label class="s4-field">Traffic response & road clearance<textarea id="s7Road_'+id+'" rows="2" maxlength="300" placeholder="Record actions and road condition"></textarea></label><button data-stage7-clear="'+safeText(i.id)+'">Record response & clear road</button>';
+    if(!done&&assigned&&d.canCloseCase&&(i.kind==="crime"||i.kind==="public-safety"))controls+='<label class="s4-field">Case closure reason<input id="s7CloseReason_'+id+'" maxlength="500" placeholder="Closure reason"></label><label class="s4-field">Final evidence / outcome<textarea id="s7CloseEvidence_'+id+'" maxlength="500" rows="2" placeholder="Outcome supporting closure"></textarea></label><button data-stage7-close="'+safeText(i.id)+'">Close Police case</button>';
+    return '<div class="s4-card"><h3>'+(done?"✅":"🟠")+' '+safeText(stage7IncidentTitle(i.kind))+' · '+safeText(String(i.status||"open").toUpperCase())+'</h3><p>'+safeText(i.description||"No description")+'</p><p class="s4-muted">Ref '+safeText(i.id)+' · Reporter '+safeText(i.reporterName)+' · '+stage5When(i.createdAt)+'</p><p class="s4-muted">Server location X '+Number(i.x).toFixed(1)+' · Z '+Number(i.z).toFixed(1)+' · Assigned '+safeText(stage7UnitTitle(i.assignedWorkplaceId))+'</p>'+(i.resolution?'<div class="s4-notice success">'+safeText(i.resolution)+'</div>':"")+controls+'</div>';
+  }).join("")+'</div>':'<div class="s4-empty">No incidents yet. Reports will appear here for the relevant response unit.</div>';
+  const activeCps=checkpoints.filter(c=>c.active);
+  const checkpointPanel=d.canActivateCheckpoint?'<section class="s4-card"><h3>🪖 Restricted checkpoint control</h3><p class="s4-muted">Army rank 2+; activation is location-checked and expires after 20 minutes.</p><label class="s4-field">Checkpoint<select id="s7Checkpoint">'+checkpoints.map(c=>'<option value="'+safeText(c.id)+'">'+safeText(c.name)+(c.active?" · ACTIVE":"")+'</option>').join("")+'</select></label><button data-stage7-activate="1">Activate checkpoint</button></section>':"";
+  const checkpointClose=activeCps.length&&(d.canReviewAppeals||(d.workplaceId==="army-rivers"&&Number(d.rank)>=4&&d.canRespond))?'<section class="s4-card"><h3>Checkpoint closure</h3>'+activeCps.map(c=>'<label class="s4-field">'+safeText(c.name)+' closure reason<input id="s7DeactivateReason_'+stage7Id(c.id)+'" maxlength="240" placeholder="Why close this checkpoint?"></label><button class="subtle" data-stage7-deactivate="'+safeText(c.id)+'">Deactivate checkpoint</button>').join("")+'</section>':"";
+  const detentionPanel=detention?'<section class="s4-card"><h3>⛓ Temporary custody</h3><p class="s4-muted">Incident '+safeText(detention.incidentId)+' · Arresting officer '+safeText(detention.arrestedByName)+' · Expires in '+Math.ceil(Number(detention.remainingMs||0)/1000)+' seconds.</p><p>'+safeText(detention.reason)+'</p>'+(detention.appealRequested?'<div class="s4-notice">Your appeal is awaiting independent review.</div>':'<label class="s4-field">Appeal reason<textarea id="s7AppealReason" maxlength="500" rows="3" placeholder="Explain why the detention should be reviewed"></textarea></label><button data-stage7-appeal="1">Request appeal review</button>')+'<button class="subtle" data-stage7-escape="1" '+(!detention.canAttemptEscape?"disabled":"")+'>Attempt escape'+(!detention.canAttemptEscape?" · not yet available":"")+'</button></section>':"";
+  const appealQueue=d.canReviewAppeals&&appeals.length?'<section class="s4-card"><h3>⚖ Independent detention appeals</h3>'+appeals.map(a=>'<div class="s4-row"><span><b>'+safeText(a.targetName)+'</b><small>Arrested by '+safeText(a.arrestedByName)+' · '+safeText(a.incidentId)+'</small><p>'+safeText(a.reason)+'</p></span></div><label class="s4-field">Review rationale<input id="s7AppealReview_'+stage7Id(a.targetId)+'" maxlength="500" placeholder="Record independent review"></label><div class="wm-buttons"><button data-stage7-review="release" data-target="'+safeText(a.targetId)+'">Accept & release</button><button class="subtle" data-stage7-review="deny" data-target="'+safeText(a.targetId)+'">Deny appeal</button></div>').join("")+'</section>':"";
+  const logs=actions.length?'<div class="s4-list">'+actions.map(a=>'<div class="s4-row"><span><b>'+safeText(a.type.replace(/-/g," "))+'</b><small>'+safeText(a.actorName)+' · '+stage5When(a.at)+'</small><small>'+safeText(a.details||a.reason||a.evidence||a.incidentId||"Action logged")+(a.targetName?" · target "+safeText(a.targetName):"")+'</small></span><strong>'+(a.amount?"₦"+Number(a.amount).toLocaleString("en-NG"):(a.success?"RECORDED":"BLOCKED"))+'</strong></div>').join("")+'</div>':'<div class="s4-empty">Response, dispatch, arrest, fine, appeal and checkpoint changes appear here.</div>';
+  panel('<div class="s4-head"><span class="s4-icon">🚨</span><div><small>STAGE 7 · PUBLIC SAFETY</small><h2>Emergency & law enforcement</h2><p>Police · Army · FRSC · Fire Service</p></div></div><div class="s4-kpis"><div class="s4-kpi"><small>Open incidents</small><strong>'+activeCount+'</strong></div><div class="s4-kpi"><small>State treasury</small><strong>'+stage5Money(d.treasuryBalance)+'</strong></div><div class="s4-kpi"><small>Your duty</small><strong>'+(d.canRespond?"ON DUTY":"CITIZEN")+'</strong></div></div>'+responder+feedback+reportForm+detentionPanel+incidentCards+checkpointPanel+checkpointClose+appealQueue+'<div class="s4-sectiontitle">Recent public-safety audit trail <small>'+actions.length+' ENTRIES</small></div>'+logs+'<button class="subtle" data-stage7-refresh="1">Refresh incident board</button>');
+  modal.classList.add("stage4-menu");
+}
+window.addEventListener("nrs-stage7-state",e=>{if(stage7MenuOpen)renderStage7Console(e.detail);});
+window.addEventListener("nrs-stage7-action-result",e=>{stage7Feedback=e.detail||null;if(stage7MenuOpen)renderStage7Console(window.NRS?.stage7State||{});});
 
 /* ---------- Stage 4: market counter and bank teller services ---------- */
 let marketMenuOpen=false,bankMenuOpen=false,marketFeedback=null,bankFeedback=null;
@@ -3709,6 +3756,43 @@ const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMe
 modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.governmentOpen){openGovernmentConsole();return;}
+
+  if(d.stage7Open){openStage7Console();return;}
+  if(d.stage7Refresh){N.getStage7State();return;}
+  if(d.stage7Report){
+    const kind=modal.querySelector("#s7IncidentKind")?.value||"",description=modal.querySelector("#s7IncidentDescription")?.value||"";
+    if(description.trim().length<8){stage7Feedback={ok:false,message:"Describe what happened in at least 8 characters."};renderStage7Console();return;}
+    stage7Feedback=null;N.reportStage7Incident(kind,description);return;
+  }
+  if(d.stage7Dispatch){stage7Feedback=null;N.dispatchStage7Incident(d.stage7Dispatch);return;}
+  if(d.stage7Investigate||d.stage7Arrest){
+    const incidentId=d.stage7Investigate||d.stage7Arrest,k=stage7Id(incidentId),reason=modal.querySelector("#s7Reason_"+k)?.value||"",evidence=modal.querySelector("#s7Evidence_"+k)?.value||"";
+    if(reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Record a reason and evidence note of at least 8 characters each."};renderStage7Console();return;}
+    if(d.stage7Investigate){stage7Feedback=null;N.investigateStage7Incident(incidentId,reason,evidence);return;}
+    const targetId=modal.querySelector("#s7Target_"+k)?.value||"";if(!targetId){stage7Feedback={ok:false,message:"Choose an online suspect."};renderStage7Console();return;}
+    stage7Feedback=null;N.arrestStage7Suspect(incidentId,targetId,reason,evidence);return;
+  }
+  if(d.stage7Fine){
+    const k=stage7Id(d.stage7Fine),target=modal.querySelector("#s7FineTarget_"+k)?.value||"",offence=modal.querySelector("#s7Offence_"+k)?.value||"",amount=Number(modal.querySelector("#s7FineAmount_"+k)?.value),reason=modal.querySelector("#s7FineReason_"+k)?.value||"",evidence=modal.querySelector("#s7FineEvidence_"+k)?.value||"";
+    if(!target||!Number.isSafeInteger(amount)||amount<1||reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Choose a citizen, whole-naira amount, reason and evidence."};renderStage7Console();return;}
+    stage7Feedback=null;N.issueStage7Fine(d.stage7Fine,target,offence,amount,reason,evidence);return;
+  }
+  if(d.stage7Extinguish||d.stage7Clear){
+    const isFire=!!d.stage7Extinguish,incidentId=d.stage7Extinguish||d.stage7Clear,k=stage7Id(incidentId),outcome=modal.querySelector((isFire?"#s7Outcome_":"#s7Road_")+k)?.value||"";
+    if(outcome.trim().length<8){stage7Feedback={ok:false,message:"Record the response outcome in at least 8 characters."};renderStage7Console();return;}
+    stage7Feedback=null;if(isFire)N.resolveStage7Fire(incidentId,outcome);else N.resolveStage7TrafficIncident(incidentId,outcome);return;
+  }
+  if(d.stage7Close){
+    const k=stage7Id(d.stage7Close),reason=modal.querySelector("#s7CloseReason_"+k)?.value||"",evidence=modal.querySelector("#s7CloseEvidence_"+k)?.value||"";
+    if(reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Case closure needs a reason and final evidence/outcome note."};renderStage7Console();return;}
+    stage7Feedback=null;N.closeStage7Incident(d.stage7Close,reason,evidence);return;
+  }
+  if(d.stage7Activate){const id=modal.querySelector("#s7Checkpoint")?.value||"";if(!id){stage7Feedback={ok:false,message:"Choose a checkpoint."};renderStage7Console();return;}stage7Feedback=null;N.activateStage7Checkpoint(id);return;}
+  if(d.stage7Deactivate){const reason=modal.querySelector("#s7DeactivateReason_"+stage7Id(d.stage7Deactivate))?.value||"";if(!N.stage7State?.isAdmin&&reason.trim().length<8){stage7Feedback={ok:false,message:"Enter a closure reason of at least 8 characters."};renderStage7Console();return;}stage7Feedback=null;N.deactivateStage7Checkpoint(d.stage7Deactivate,reason);return;}
+  if(d.stage7Appeal){const reason=modal.querySelector("#s7AppealReason")?.value||"";if(reason.trim().length<10){stage7Feedback={ok:false,message:"Explain your appeal in at least 10 characters."};renderStage7Console();return;}stage7Feedback=null;N.requestStage7Appeal(reason);return;}
+  if(d.stage7Escape){stage7Feedback=null;N.attemptStage7Escape();return;}
+  if(d.stage7Review){const target=d.target||"",reason=modal.querySelector("#s7AppealReview_"+stage7Id(target))?.value||"";if(reason.trim().length<8){stage7Feedback={ok:false,message:"Record an independent review rationale."};renderStage7Console();return;}stage7Feedback=null;N.reviewStage7Appeal(target,d.stage7Review,reason);return;}
+
   if(d.governmentRefresh){N.getGovernmentState();return;}
   if(d.governmentPayroll){governmentFeedback=null;N.claimGovernmentPayroll();return;}
   if(d.governmentAnnounce){const text=modal.querySelector('#s6GovernmentAnnouncement')?.value||'';if(!text.trim()){governmentFeedback={ok:false,message:'Write a notice first.'};renderGovernmentConsole();return;}governmentFeedback=null;N.publishGovernmentAnnouncement(text);return;}
@@ -4224,4 +4308,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=stage6-government-finance"></script></body></html>
+</script><script src="/nrs-online.js?v=stage7-public-safety"></script></body></html>

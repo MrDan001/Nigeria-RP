@@ -10,7 +10,7 @@ export const GOVERNMENT_ANNOUNCEMENT_LIMIT = 50;
 
 export type GovernmentTransaction = {
   id: string; requestId: string;
-  kind: "opening-allocation" | "housing-rent" | "government-payroll" | "government-duty" | "approved-spending";
+  kind: "opening-allocation" | "housing-rent" | "government-payroll" | "government-duty" | "approved-spending" | "public-safety-fine";
   direction: "credit" | "debit"; amount: number; actorId: string; actorName: string;
   memo: string; at: number; balanceAfter: number; rank?: number;
 };
@@ -21,7 +21,7 @@ export type Stage6State = {
 };
 export type Stage6Result = { ok:boolean; state:Stage6State; message:string; transaction?:GovernmentTransaction; announcement?:GovernmentAnnouncement };
 
-const kinds: GovernmentTransaction["kind"][] = ["opening-allocation","housing-rent","government-payroll","government-duty","approved-spending"];
+const kinds: GovernmentTransaction["kind"][] = ["opening-allocation","housing-rent","government-payroll","government-duty","approved-spending","public-safety-fine"];
 function record(v:unknown):v is Record<string,unknown>{return !!v&&typeof v==="object"&&!Array.isArray(v);}
 function txt(v:unknown,max=180){return String(v??"").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim().slice(0,max);}
 function amount(v:unknown){const n=Number(v);return Number.isSafeInteger(n)&&n>=0?n:-1;}
@@ -99,4 +99,21 @@ export function publishGovernmentAnnouncement(s:Stage6State,a:{requestId:string;
  if(now<last+GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS)return {ok:false,state:s,message:"Please wait "+Math.ceil((last+GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS-now)/1000)+" seconds before publishing another announcement."};
  const announcement:GovernmentAnnouncement={id:"announcement:"+req,requestId:req,authorId:id,authorName:txt(a.authorName,80)||"Government PRO",rank:2,text:raw,createdAt:now};
  return {ok:true,state:{...s,ledger:[...s.ledger],announcements:[...s.announcements,announcement].slice(-GOVERNMENT_ANNOUNCEMENT_LIMIT),payrollDayByAccount:{...s.payrollDayByAccount},lastAnnouncementAt:{...s.lastAnnouncementAt,[id]:now}},announcement,message:"Official announcement published."};
+}
+
+
+/** Credit a settled law-enforcement fine to the durable Rivers State treasury ledger. */
+export function recordCivicFine(s: Stage6State, a: {
+  requestId: string; actorId: string; actorName: string; targetId: string; targetName: string;
+  amount: number; offence: string; now: number;
+}): Stage6Result {
+  const target = String(a.targetName ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 80);
+  const offence = String(a.offence ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 80);
+  if (!target || !offence) return { ok: false, state: s, message: "A target and offence are required for the fine ledger." };
+  return append(s, {
+    requestId: "public-safety-fine:" + String(a.requestId ?? "").slice(0, 100),
+    kind: "public-safety-fine", direction: "credit", amount: a.amount,
+    actorId: a.actorId, actorName: a.actorName,
+    memo: "Public safety fine from " + offence + " against " + target, now: a.now,
+  });
 }

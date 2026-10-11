@@ -191,6 +191,7 @@ Verification:
 - [ ] Real-device visual review and a two-account session were not performed and are not claimed; they remain in the combined release review.
 
 ### Stage 7 — Police, Army, FRSC and Fire Service
+**Status: Implementation pushed to main; Stage 1–7 CI and production deployment are being verified for this release. Real-device/two-account checks are not claimed.**
 - Police ladder: Police Constable through Commissioner of Police. Army ladder: Private through Brigadier General. FRSC ladder: Cadet through Sector Commander. Fire Service ladder: Fire Trainee through Chief Fire Officer.
 - Build a shared incident system for reported crimes, traffic accidents, fires and large public-safety events; dispatch should create actionable world tasks.
 - Police patrol/respond, investigate, arrest and apply valid fines. Fines flow to the state treasury under logged rules.

@@ -55,6 +55,9 @@ jobs:
       - name: Test Stage 6 government treasury and civic finance
         run: npm run test:stage6 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 7 public-safety incident rules
+        run: npm run test:stage7 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 

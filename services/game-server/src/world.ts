@@ -101,22 +101,22 @@ export const WORKPLACES: readonly Workplace[] = [
   {
     id: "police-rivers", name: "Rivers State Police Service", kind: "police", zone: "Port Harcourt Centre",
     x: -28, z: -132, factionId: "police",
-    rankTitles: ladder("Recruit Constable", "Constable", "Corporal", "Sergeant", "Inspector", "Commissioner of Police"),
+    rankTitles: ladder("Police Recruit", "Police Constable", "Police Sergeant", "Police Inspector", "Chief Superintendent", "Commissioner of Police"),
   },
   {
     id: "frsc-rivers", name: "FRSC — Rivers Sector Command", kind: "frsc", zone: "Port Harcourt Centre",
     x: 30, z: 100, factionId: "frsc",
-    rankTitles: ladder("Road Safety Marshal", "Senior Marshal", "Assistant Route Commander", "Route Commander", "Sector Operations Officer", "Sector Commander"),
+    rankTitles: ladder("FRSC Cadet", "Road Safety Marshal", "Assistant Route Commander", "Deputy Route Commander", "Sector Operations Officer", "Sector Commander"),
   },
   {
     id: "fire-rivers", name: "Rivers State Fire & Rescue", kind: "fire", zone: "Port Harcourt Centre",
     x: -50.5, z: -132, factionId: "fire",
-    rankTitles: ladder("Firefighter Trainee", "Firefighter", "Crew Leader", "Station Officer", "Divisional Officer", "Chief Fire Officer"),
+    rankTitles: ladder("Fire Trainee", "Firefighter", "Crew Leader", "Station Officer", "Divisional Officer", "Chief Fire Officer"),
   },
   {
     id: "army-rivers", name: "Nigerian Army — Port Harcourt Garrison", kind: "military", zone: "Trans Amadi",
     x: 185, z: -150, factionId: "army",
-    rankTitles: ladder("Recruit", "Private", "Lance Corporal", "Corporal", "Sergeant", "Commanding Officer"),
+    rankTitles: ladder("Army Recruit", "Private", "Lance Corporal", "Corporal", "Major", "Brigadier General"),
   },
   {
     id: "transport-union", name: "Port Harcourt Transport Union", kind: "transport", zone: "Port Harcourt Centre",

@@ -95,7 +95,8 @@ import {
   hasValidParkTicket,
   isInsideParkGrounds,
 } from "./stage5";
-import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent } from "./stage6";
+import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent, recordCivicFine } from "./stage6";
+import { ARMY_WORKPLACE_ID, FIRE_WORKPLACE_ID, FRSC_WORKPLACE_ID, POLICE_WORKPLACE_ID, STAGE7_CHECKPOINTS, STAGE7_FINE_RULES, STAGE7_UNITS, activateStage7Checkpoint, arrestStage7Suspect, attemptStage7Escape, closeStage7Incident, createStage7State, deactivateStage7Checkpoint, dispatchStage7Incident, findBlockingStage7Checkpoint, isAuthorisedStage7CheckpointPass, isStage7Unit, issueStage7Fine, maintainStage7State, normalizeStage7State, reportStage7Incident, requestStage7Appeal, resolveStage7Fire, resolveStage7TrafficIncident, reviewStage7Appeal, stage7Distance, investigateStage7Incident, type Stage7UnitId } from "./stage7";
 
 const scrypt = promisify(scryptCb);
 
@@ -191,6 +192,7 @@ type FileStore = {
   stage4?: unknown;
   stage5?: unknown;
   stage6?: unknown;
+  stage7?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -225,6 +227,8 @@ let world: WorldState = newWorld(clock.dayKey());
 let stage4State = normalizeStage4State(null);
 let stage5State = normalizeStage5State(null);
 let stage6State = createStage6State();
+let stage7State = createStage7State();
+const stage7ReportCooldownAt = new Map<string, number>();
 let stage4MutationQueue: Promise<void> = Promise.resolve();
 
 // Balance-changing actions share one queue, so jobs, housing, transfers, sales and teller
@@ -451,6 +455,15 @@ async function saveStage6State(state = stage6State) {
     return;
   }
   fileStore.stage6 = state;
+  writeFileStore();
+}
+
+async function saveStage7State(state = stage7State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage7',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage7 = state;
   writeFileStore();
 }
 
@@ -827,6 +840,48 @@ function sendGovernmentResult(session: Session, action: string, ok: boolean, mes
   send(session.socket,{...governmentStatePayload(session),type:"governmentActionResult",action,ok,message});
 }
 function broadcastGovernmentStates() { for(const session of players.values())send(session.socket,governmentStatePayload(session)); }
+
+
+function stage7SessionIsPrivate(session: Session) {
+  return session.inHome || session.inCarpark || session.inStaffRoom || session.inWorkplaceInterior || session.inShopInterior || session.inApartmentInterior;
+}
+function publicSafetyStatePayload(session: Session) {
+  const employment = session.player.life.employment ?? null;
+  const id = employment?.workplaceId ?? "";
+  const isUnit = isStage7Unit(id);
+  const rank = isUnit ? Number(employment?.rank ?? 0) : 0;
+  const onDuty = !!isUnit && employment?.onDuty === true;
+  const uniform = !!isUnit && employment?.uniformWorkplaceId === id;
+  const ready = !!isUnit && onDuty && uniform;
+  const isAdmin = isFactionAdmin(session);
+  const canReviewAppeals = isAdmin || (id === POLICE_WORKPLACE_ID && rank >= 5 && onDuty && uniform);
+  const citizens = [...players.values()].filter(p => !stage7SessionIsPrivate(p)).map(p => ({ id: p.player.id, name: p.player.name, x: p.player.x, z: p.player.z }));
+  const appeals = canReviewAppeals ? Object.values(stage7State.detentions).filter(d => d.appealRequested).map(d => ({ targetId: d.accountId, targetName: d.accountName, incidentId: d.incidentId, reason: d.appealReason, arrestedByName: d.arrestedByName, arrestedAt: d.startedAt, remainingMs: Math.max(0, d.expiresAt - Date.now()) })) : [];
+  const detention = stage7State.detentions[session.player.id] ?? null;
+  return {
+    type: "stage7State", selfId: session.player.id, incidents: stage7State.incidents.slice(-80).reverse(), actions: stage7State.actions.slice(-40).reverse(),
+    checkpoints: stage7State.checkpoints, citizens, appeals,
+    myDetention: detention ? { ...detention, remainingMs: Math.max(0, detention.expiresAt - Date.now()), canAttemptEscape: Date.now() >= detention.canEscapeAt } : null,
+    workplaceId: isUnit ? id : null, unitName: isUnit ? STAGE7_UNITS[id as Stage7UnitId].label : "",
+    rank, rankTitle: isUnit ? workplaceRankTitle(id, rank) : "", onDuty, uniform, canRespond: ready,
+    canInvestigate: ready && id === POLICE_WORKPLACE_ID && rank >= 2,
+    canArrest: ready && id === POLICE_WORKPLACE_ID && rank >= 2,
+    canFine: ready && (id === POLICE_WORKPLACE_ID ? rank >= 2 : id === FRSC_WORKPLACE_ID && rank >= 1),
+    canResolveFire: ready && id === FIRE_WORKPLACE_ID,
+    canClearTraffic: ready && ((id === FRSC_WORKPLACE_ID && rank >= 2) || (id === POLICE_WORKPLACE_ID && rank >= 4)),
+    canCloseCase: ready && id === POLICE_WORKPLACE_ID && rank >= 4,
+    canActivateCheckpoint: ready && id === ARMY_WORKPLACE_ID && rank >= 2,
+    canReviewAppeals, isAdmin, treasuryBalance: stage6State.treasuryBalance,
+  };
+}
+function sendStage7Result(session: Session, action: string, ok: boolean, message: string) {
+  send(session.socket, { ...publicSafetyStatePayload(session), type: "stage7ActionResult", action, ok, message });
+}
+function broadcastStage7States() { for (const session of players.values()) send(session.socket, publicSafetyStatePayload(session)); }
+function stage7CanPassCheckpoint(session: Session) {
+  const e = session.player.life.employment;
+  return isAuthorisedStage7CheckpointPass(e?.workplaceId, e?.onDuty === true, !!e && e.uniformWorkplaceId === e.workplaceId);
+}
 
 function stage5PlayerAtHospital(session: Session, hospitalId: string) {
   return stage5AtWorkplace(session, hospitalId);
@@ -1360,6 +1415,9 @@ async function initStore() {
     const stage6Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage6' LIMIT 1");
     stage6State = normalizeStage6State(stage6Row.rows[0]?.value);
     await saveStage6State();
+    const stage7Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage7' LIMIT 1");
+    stage7State = normalizeStage7State(stage7Row.rows[0]?.value);
+    await saveStage7State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1387,6 +1445,8 @@ async function initStore() {
   await saveStage5State();
   stage6State = normalizeStage6State(fileStore.stage6);
   await saveStage6State();
+  stage7State = normalizeStage7State(fileStore.stage7);
+  await saveStage7State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -2013,6 +2073,10 @@ wss.on("connection", (socket) => {
         if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return;
 
         const now = Date.now();
+        const detention = stage7State.detentions[session.player.id];
+        if (detention && detention.expiresAt > now) return;
+        const restricted = findBlockingStage7Checkpoint(stage7State, x, z, now);
+        if (restricted && !stage7CanPassCheckpoint(session)) return;
         const employment = session.player.life.employment;
         const authorisedParkWorker = employment?.workplaceId === PARK_WORKPLACE_ID &&
           employment.onDuty === true && employment.uniformWorkplaceId === PARK_WORKPLACE_ID;
@@ -3330,6 +3394,159 @@ wss.on("connection", (socket) => {
           stage6State=r.state;await saveStage6State();sendGovernmentResult(session,"spending",true,"Authorized expenditure recorded in the state treasury ledger.");broadcastGovernmentStates();
         });return;
       }
+
+
+      if (message.type === "getStage7State") { send(socket, publicSafetyStatePayload(session)); return; }
+      if (message.type === "reportStage7Incident") {
+        await withMoneyMutation(async () => {
+          const reportTime = Date.now(), lastReport = stage7ReportCooldownAt.get(session.player.id) ?? 0;
+          if (reportTime - lastReport < 10000) { sendStage7Result(session, "report", false, "Please wait before submitting another public-safety report."); return; }
+          const r = reportStage7Incident(stage7State, { requestId: String(message.requestId ?? ""), kind: message.kind, description: String(message.description ?? ""), reporterId: session.player.id, reporterName: session.player.name, x: session.player.x, z: session.player.z, now: reportTime });
+          if (!r.ok) { sendStage7Result(session, "report", false, r.message); return; }
+          stage7ReportCooldownAt.set(session.player.id, reportTime);
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-report-save", error); sendStage7Result(session, "report", false, "The report could not be saved."); return; }
+          sendStage7Result(session, "report", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "dispatchStage7Incident") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment;
+          const r = dispatchStage7Incident(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, actorId: session.player.id, actorName: session.player.name, now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "dispatch", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-dispatch-save", error); sendStage7Result(session, "dispatch", false, "Dispatch could not be saved."); return; }
+          sendStage7Result(session, "dispatch", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "investigateStage7Incident") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, incident = stage7State.incidents.find(i => i.id === String(message.incidentId ?? ""));
+          const r = investigateStage7Incident(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, distanceToIncident: incident ? stage7Distance(session.player.x, session.player.z, incident.x, incident.z) : Infinity, reason: String(message.reason ?? ""), evidence: String(message.evidence ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "investigation", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-investigation-save", error); sendStage7Result(session, "investigation", false, "The investigation note could not be saved."); return; }
+          sendStage7Result(session, "investigation", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "arrestStage7Suspect") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, target = players.get(String(message.targetId ?? "")), incident = stage7State.incidents.find(i => i.id === String(message.incidentId ?? ""));
+          const privateTarget = !!target && (target.inHome || target.inCarpark || target.inStaffRoom || target.inWorkplaceInterior || target.inShopInterior || target.inApartmentInterior);
+          const r = arrestStage7Suspect(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, targetId: target?.player.id ?? String(message.targetId ?? ""), targetName: target?.player.name ?? "Citizen", distanceToTarget: target ? stage7Distance(session.player.x, session.player.z, target.player.x, target.player.z) : Infinity, distanceToIncident: incident ? stage7Distance(session.player.x, session.player.z, incident.x, incident.z) : Infinity, targetIsPrivate: privateTarget, reason: String(message.reason ?? ""), evidence: String(message.evidence ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "arrest", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-arrest-save", error); sendStage7Result(session, "arrest", false, "The arrest could not be saved."); return; }
+          if (target) send(target.socket, { ...publicSafetyStatePayload(target), type: "stage7Detained", message: r.message });
+          sendStage7Result(session, "arrest", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "issueStage7Fine") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, target = players.get(String(message.targetId ?? "")), incident = stage7State.incidents.find(i => i.id === String(message.incidentId ?? ""));
+          const privateTarget = !!target && (target.inHome || target.inCarpark || target.inStaffRoom || target.inWorkplaceInterior || target.inShopInterior || target.inApartmentInterior);
+          if (!target) { sendStage7Result(session, "fine", false, "The citizen must be online for a roadside fine to be settled."); return; }
+          const r = issueStage7Fine(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, targetId: target.player.id, targetName: target.player.name, targetCash: target.player.cash, distanceToTarget: stage7Distance(session.player.x, session.player.z, target.player.x, target.player.z), distanceToIncident: incident ? stage7Distance(session.player.x, session.player.z, incident.x, incident.z) : Infinity, targetIsPrivate: privateTarget, offence: message.offence, amount: Number(message.amount), reason: String(message.reason ?? ""), evidence: String(message.evidence ?? ""), now: Date.now() });
+          if (!r.ok || !r.fine) { sendStage7Result(session, "fine", false, r.message); return; }
+          const treasury = recordCivicFine(stage6State, { requestId: String(message.requestId ?? ""), actorId: session.player.id, actorName: session.player.name, targetId: target.player.id, targetName: target.player.name, amount: r.fine.amount, offence: STAGE7_FINE_RULES[r.fine.offence].label, now: Date.now() });
+          if (!treasury.ok) { sendStage7Result(session, "fine", false, treasury.message); return; }
+          const previousCash = target.player.cash, previousAccountCash = target.account.cash;
+          try {
+            if (pool) {
+              const client = await pool.connect();
+              try {
+                await client.query("BEGIN");
+                await client.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage6',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(treasury.state), Date.now()]);
+                await client.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage7',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(r.state), Date.now()]);
+                await client.query("UPDATE nrs_accounts SET cash=$1, updated_at=$2 WHERE id=$3", [previousCash-r.fine.amount, Date.now(), target.player.id]);
+                await client.query("COMMIT");
+              } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+            } else {
+              target.player.cash = previousCash-r.fine.amount; target.account.cash = target.player.cash;
+              target.account.updatedAt = Date.now(); fileStore.accounts[target.account.id] = target.account;
+              fileStore.stage6 = treasury.state; fileStore.stage7 = r.state; writeFileStore();
+            }
+            target.player.cash = previousCash-r.fine.amount; target.account.cash = target.player.cash; target.account.updatedAt = Date.now();
+            stage6State = treasury.state; stage7State = r.state;
+          } catch (error) {
+            target.player.cash = previousCash; target.account.cash = previousAccountCash;
+            console.error("stage7-fine-transaction", error); sendStage7Result(session, "fine", false, "Fine settlement could not be committed. Neither citizen cash nor treasury was changed."); return;
+          }
+          send(target.socket, { ...publicSafetyStatePayload(target), type: "stage7ActionResult", action: "fine-paid", ok: true, message: "Roadside fine of ₦" + r.fine.amount.toLocaleString("en-NG") + " settled. Receipt: " + String(message.requestId ?? "") });
+          sendStage7Result(session, "fine", true, r.message); broadcastStage7States(); broadcastGovernmentStates();
+        }); return;
+      }
+      if (message.type === "resolveStage7Fire") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, incident = stage7State.incidents.find(i => i.id === String(message.incidentId ?? ""));
+          const r = resolveStage7Fire(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, distanceToIncident: incident ? stage7Distance(session.player.x, session.player.z, incident.x, incident.z) : Infinity, outcome: String(message.outcome ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "fire", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-fire-save", error); sendStage7Result(session, "fire", false, "Fire response outcome could not be saved."); return; }
+          sendStage7Result(session, "fire", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "resolveStage7TrafficIncident") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, incident = stage7State.incidents.find(i => i.id === String(message.incidentId ?? ""));
+          const r = resolveStage7TrafficIncident(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, distanceToIncident: incident ? stage7Distance(session.player.x, session.player.z, incident.x, incident.z) : Infinity, outcome: String(message.outcome ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "traffic-clear", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-traffic-save", error); sendStage7Result(session, "traffic-clear", false, "Traffic response could not be saved."); return; }
+          sendStage7Result(session, "traffic-clear", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "closeStage7Incident") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, incident = stage7State.incidents.find(i => i.id === String(message.incidentId ?? ""));
+          const r = closeStage7Incident(stage7State, { requestId: String(message.requestId ?? ""), incidentId: String(message.incidentId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, distanceToIncident: incident ? stage7Distance(session.player.x, session.player.z, incident.x, incident.z) : Infinity, reason: String(message.reason ?? ""), evidence: String(message.evidence ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "close-case", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-close-save", error); sendStage7Result(session, "close-case", false, "Case closure could not be saved."); return; }
+          sendStage7Result(session, "close-case", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "activateStage7Checkpoint") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment, cp = STAGE7_CHECKPOINTS.find(c => c.id === String(message.checkpointId ?? ""));
+          const r = activateStage7Checkpoint(stage7State, { requestId: String(message.requestId ?? ""), checkpointId: String(message.checkpointId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, distanceToCheckpoint: cp ? stage7Distance(session.player.x, session.player.z, cp.x, cp.z) : Infinity, now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "checkpoint-activate", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-checkpoint-save", error); sendStage7Result(session, "checkpoint-activate", false, "Checkpoint activation could not be saved."); return; }
+          sendStage7Result(session, "checkpoint-activate", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "deactivateStage7Checkpoint") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment;
+          const r = deactivateStage7Checkpoint(stage7State, { requestId: String(message.requestId ?? ""), checkpointId: String(message.checkpointId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: !!e && e.uniformWorkplaceId === e.workplaceId, isAdmin: isFactionAdmin(session), reason: String(message.reason ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "checkpoint-deactivate", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-checkpoint-close-save", error); sendStage7Result(session, "checkpoint-deactivate", false, "Checkpoint closure could not be saved."); return; }
+          sendStage7Result(session, "checkpoint-deactivate", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "requestStage7Appeal") {
+        await withMoneyMutation(async () => {
+          const r = requestStage7Appeal(stage7State, { requestId: String(message.requestId ?? ""), actorId: session.player.id, actorName: session.player.name, reason: String(message.reason ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "appeal", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-appeal-save", error); sendStage7Result(session, "appeal", false, "Appeal could not be saved."); return; }
+          sendStage7Result(session, "appeal", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "reviewStage7Appeal") {
+        await withMoneyMutation(async () => {
+          const e = session.player.life.employment;
+          const r = reviewStage7Appeal(stage7State, { requestId: String(message.requestId ?? ""), actorId: session.player.id, actorName: session.player.name, workplaceId: e?.workplaceId, rank: Number(e?.rank), onDuty: e?.onDuty === true, uniform: e?.uniformWorkplaceId === e?.workplaceId, isAdmin: isFactionAdmin(session), targetId: String(message.targetId ?? ""), decision: message.decision === "release" ? "release" : "deny", reason: String(message.reason ?? ""), now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "appeal-review", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-appeal-review-save", error); sendStage7Result(session, "appeal-review", false, "Appeal review could not be saved."); return; }
+          const target = players.get(String(message.targetId ?? ""));
+          if (target) send(target.socket, { ...publicSafetyStatePayload(target), type: "stage7Detained", message: r.message });
+          sendStage7Result(session, "appeal-review", true, r.message); broadcastStage7States();
+        }); return;
+      }
+      if (message.type === "attemptStage7Escape") {
+        await withMoneyMutation(async () => {
+          const target = session;
+          const nearby = [...players.values()].filter(p => p.player.id !== target.player.id && p.player.life.employment?.workplaceId === POLICE_WORKPLACE_ID && p.player.life.employment?.onDuty === true && p.player.life.employment?.uniformWorkplaceId === POLICE_WORKPLACE_ID && !stage7SessionIsPrivate(p) && stage7Distance(p.player.x, p.player.z, target.player.x, target.player.z) <= 20).length;
+          const r = attemptStage7Escape(stage7State, { requestId: String(message.requestId ?? ""), actorId: target.player.id, actorName: target.player.name, nearbyOfficerCount: nearby, now: Date.now() });
+          if (!r.ok) { sendStage7Result(session, "escape", false, r.message); return; }
+          try { await saveStage7State(r.state); stage7State = r.state; } catch (error) { console.error("stage7-escape-save", error); sendStage7Result(session, "escape", false, "Escape result could not be saved."); return; }
+          sendStage7Result(session, "escape", true, r.message); broadcastStage7States();
+        }); return;
+      }
+
 
       if (message.type === "getWorkplaces") {
         sendWorkplaceState(session);
@@ -5114,6 +5331,8 @@ setInterval(() => {
       ? { forward: 0, strafe: 0 }
       : session.input;
 
+    const detention = stage7State.detentions[session.player.id];
+    if (detention && detention.expiresAt > now) { session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 }; continue; }
     const length = Math.hypot(input.forward, input.strafe);
 
     if (length > 0.01) {
@@ -5123,15 +5342,19 @@ setInterval(() => {
       const velocityX = s * MOVE_SPEED;
       const velocityZ = -f * MOVE_SPEED;
 
-      session.player.x = Math.max(
-        -WORLD_LIMIT,
-        Math.min(WORLD_LIMIT, session.player.x + velocityX * dt),
-      );
-
-      session.player.z = Math.max(
-        -WORLD_LIMIT,
-        Math.min(WORLD_LIMIT, session.player.z + velocityZ * dt),
-      );
+      const nextX = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, session.player.x + velocityX * dt));
+      const nextZ = Math.max(-WORLD_LIMIT, Math.min(WORLD_LIMIT, session.player.z + velocityZ * dt));
+      const blockedCheckpoint = findBlockingStage7Checkpoint(stage7State, nextX, nextZ, now);
+      if (blockedCheckpoint && !stage7CanPassCheckpoint(session)) {
+        session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
+        if (!session.parkGateNoticeAt || now - session.parkGateNoticeAt > 5000) {
+          session.parkGateNoticeAt = now;
+          send(session.socket, { type: "stage7CheckpointBlocked", message: "Restricted military checkpoint: entry requires an authorised on-duty uniformed response unit." });
+        }
+        continue;
+      }
+      session.player.x = nextX;
+      session.player.z = nextZ;
 
       const targetYaw = Math.atan2(velocityX, velocityZ);
       let delta = targetYaw - session.player.yaw;
@@ -5158,6 +5381,24 @@ setInterval(() => {
     void persistSession(session).catch((error) => console.error("periodic-save", error));
   }
 }, 5000);
+
+setInterval(() => {
+  const pending = maintainStage7State(stage7State, Date.now());
+  if (!pending.releasedIds.length && !pending.expiredCheckpointIds.length) return;
+  void withMoneyMutation(async () => {
+    const latest = maintainStage7State(stage7State, Date.now());
+    if (!latest.releasedIds.length && !latest.expiredCheckpointIds.length) return;
+    try {
+      await saveStage7State(latest.state);
+      stage7State = latest.state;
+      for (const id of latest.releasedIds) {
+        const citizen = players.get(id);
+        if (citizen) send(citizen.socket, { ...publicSafetyStatePayload(citizen), type: "stage7Detained", message: "Your temporary custody period expired. You have been released." });
+      }
+      broadcastStage7States();
+    } catch (error) { console.error("stage7-maintenance-save", error); }
+  });
+}, 1000);
 
 // Checks twice a minute whether Nigeria time has crossed midnight.
 setInterval(() => {

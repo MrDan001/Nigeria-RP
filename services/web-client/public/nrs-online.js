@@ -531,6 +531,7 @@
         // Fetch ticket/staff credentials immediately so the local park gate opens
         // correctly after login, not only after a player opens the park menu.
         send({ type: "getParkState" });
+        send({ type: "getStage7State" });
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
         return;
@@ -689,6 +690,11 @@
           window.dispatchEvent(new CustomEvent("nrs-government-action-result", { detail: message }));
           if(message.message)sys(message.message);
         }
+      } else if (message.type === "stage7State" || message.type === "stage7ActionResult" || message.type === "stage7Detained" || message.type === "stage7CheckpointBlocked") {
+        N.stage7State = { ...(N.stage7State || {}), ...message };
+        window.dispatchEvent(new CustomEvent("nrs-stage7-state", { detail: N.stage7State }));
+        if (message.type === "stage7ActionResult") window.dispatchEvent(new CustomEvent("nrs-stage7-action-result", { detail: message }));
+        if ((message.type === "stage7Detained" || message.type === "stage7CheckpointBlocked") && message.message) sys(message.message);
       } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
         N.workplaceState = message;
         N.workplaces = message.workplaces || N.workplaces || [];
@@ -996,6 +1002,20 @@
     send({ type: "purchaseHospitalMedicine", hospitalId, workerId, medicineId, quantity, requestId });
   N.getParkState = () => send({ type: "getParkState" });
   N.getGovernmentState = () => send({ type: "getGovernmentState" });
+  N.getStage7State = () => send({ type: "getStage7State" });
+  N.reportStage7Incident = (kind, description, requestId = stage4RequestId("stage7-report")) => send({ type: "reportStage7Incident", kind, description, requestId });
+  N.dispatchStage7Incident = (incidentId, requestId = stage4RequestId("stage7-dispatch")) => send({ type: "dispatchStage7Incident", incidentId, requestId });
+  N.investigateStage7Incident = (incidentId, reason, evidence, requestId = stage4RequestId("stage7-investigation")) => send({ type: "investigateStage7Incident", incidentId, reason, evidence, requestId });
+  N.arrestStage7Suspect = (incidentId, targetId, reason, evidence, requestId = stage4RequestId("stage7-arrest")) => send({ type: "arrestStage7Suspect", incidentId, targetId, reason, evidence, requestId });
+  N.issueStage7Fine = (incidentId, targetId, offence, amount, reason, evidence, requestId = stage4RequestId("stage7-fine")) => send({ type: "issueStage7Fine", incidentId, targetId, offence, amount, reason, evidence, requestId });
+  N.resolveStage7Fire = (incidentId, outcome, requestId = stage4RequestId("stage7-fire")) => send({ type: "resolveStage7Fire", incidentId, outcome, requestId });
+  N.resolveStage7TrafficIncident = (incidentId, outcome, requestId = stage4RequestId("stage7-traffic")) => send({ type: "resolveStage7TrafficIncident", incidentId, outcome, requestId });
+  N.closeStage7Incident = (incidentId, reason, evidence, requestId = stage4RequestId("stage7-close")) => send({ type: "closeStage7Incident", incidentId, reason, evidence, requestId });
+  N.activateStage7Checkpoint = (checkpointId, requestId = stage4RequestId("stage7-checkpoint")) => send({ type: "activateStage7Checkpoint", checkpointId, requestId });
+  N.deactivateStage7Checkpoint = (checkpointId, reason, requestId = stage4RequestId("stage7-checkpoint-close")) => send({ type: "deactivateStage7Checkpoint", checkpointId, reason, requestId });
+  N.requestStage7Appeal = (reason, requestId = stage4RequestId("stage7-appeal")) => send({ type: "requestStage7Appeal", reason, requestId });
+  N.reviewStage7Appeal = (targetId, decision, reason, requestId = stage4RequestId("stage7-review")) => send({ type: "reviewStage7Appeal", targetId, decision, reason, requestId });
+  N.attemptStage7Escape = (requestId = stage4RequestId("stage7-escape")) => send({ type: "attemptStage7Escape", requestId });
   N.claimGovernmentPayroll = () => send({ type: "claimGovernmentPayroll", requestId: stage4RequestId("gov-payroll") });
   N.publishGovernmentAnnouncement = (text, requestId = stage4RequestId("gov-notice")) => send({ type: "publishGovernmentAnnouncement", text, requestId });
   N.approveGovernmentSpending = (amount, memo, requestId = stage4RequestId("gov-spend")) => send({ type: "approveGovernmentSpending", amount, memo, requestId });
