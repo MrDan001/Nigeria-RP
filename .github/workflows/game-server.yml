@@ -82,6 +82,9 @@ jobs:
       - name: Test Stage 15 city and inter-city travel rules
         run: npm run test:stage15 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 16 city environment catalogue
+        run: npm run test:stage16 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
