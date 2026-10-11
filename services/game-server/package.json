@@ -16,7 +16,8 @@
     "test:stage6": "tsx src/test-stage6.ts",
     "test:stage7": "tsx src/test-stage7.ts",
     "test:stage8": "tsx src/test-stage8.ts",
-    "test:stage9": "tsx src/test-stage9.ts"
+    "test:stage9": "tsx src/test-stage9.ts",
+    "test:stage10": "tsx src/test-stage10.ts"
   },
   "engines": {
     "node": ">=20.9.0"
@@ -27,9 +28,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.4",
     "@types/ws": "^8.5.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.9.0",
-    "@types/pg": "^8.15.4"
+    "typescript": "^5.9.0"
   }
 }
