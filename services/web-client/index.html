@@ -3632,6 +3632,9 @@ function renderStage8Notification(d){
  if(!stage8FeedInitialized){
   published.forEach(s=>stage8SeenPublishedIds.add(String(s.id)));
   stage8FeedInitialized=true;
+  const now=Date.now(),recent=published.filter(s=>{const at=Number(s.publishedAt||0);return at>0&&at<=now+30000&&now-at<=180000;});
+  recent.sort((a,b)=>Number(b.publishedAt||b.createdAt||0)-Number(a.publishedAt||a.createdAt||0));
+  if(recent.length)showStage8Notification(recent[0]);
   return;
  }
  const unseen=published.filter(s=>!stage8SeenPublishedIds.has(String(s.id)));
