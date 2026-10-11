@@ -56,6 +56,7 @@ test("hospital rank permissions distinguish intake from clinical treatment", () 
   assert.equal(hospitalRankCanTreat(2), false);
   assert.equal(hospitalRankCanTreat(3), true);
   assert.equal(hospitalRankCanTreat(6), true);
+  assert.equal(hospitalRankCanTreat(2), false);
   assert.equal(hospitalRankCanTreat(7), false);
 });
 
@@ -105,6 +106,12 @@ test("authorized nurse completes on-site care and patient pays only the fixed fe
   const created = careRequest(state);
   assert.equal(created.ok, true);
   if (!created.ok) return;
+  const triaged = triageHospitalRequest({
+    state, requestId: created.request.id, workerId: "aide-1", workerRank: 2,
+    hospitalId: "hospital-main", onDuty: true, uniform: true, atHospital: true,
+    patientAtHospital: true, now: NOW + 3,
+  });
+  assert.equal(triaged.ok, true);
   const patient = { hp: 50, cash: 2_000 };
   const result = completeHospitalTreatment({
     state, requestId: created.request.id, patientId: "patient-1", workerId: "nurse-1",
@@ -147,7 +154,7 @@ test("ambulance requests must be severe, are assigned by a real dispatcher and r
   assert.equal(created.ok, true);
   if (!created.ok) return;
   const dispatch = dispatchHospitalAmbulance({
-    state, requestId: created.request.id, workerId: "dispatcher", workerRank: 2,
+    state, requestId: created.request.id, workerId: "dispatcher", workerRank: 3,
     hospitalId: "hospital-main", onDuty: true, uniform: true, atHospital: true, now: NOW + 1,
   });
   assert.equal(dispatch.ok, true);
