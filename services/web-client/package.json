@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/assemble-game.mjs && node scripts/check-syntax.mjs && vite build",
     "preview": "vite preview",
-    "typecheck": "node scripts/check-syntax.mjs",
+    "typecheck": "node scripts/assemble-game.mjs && node scripts/check-syntax.mjs",
     "android:prepare": "npm run build && cap sync android"
   },
   "devDependencies": {
