@@ -33,6 +33,10 @@ The Stage 2 CI regression mismatch was a stale assertion: the current authoritat
 
 Automated acceptance remains only one part of the Stage 3 gate. The deployed Android and two-account checks below remain unchecked until they are actually performed.
 
+### Closeout status — 11 October 2026
+
+Automated Stage 3 implementation and deployment gates have passed. **The Stage 3 release is deployed, but the full acceptance gate remains open until the two-account and Android gameplay checks above are actually performed.** Do not mark the stage formally complete or begin Stage 4 feature implementation based only on automated tests; verify the live workplace routes, permission checks and persisted payouts first.
+
 ## Acceptance checklist
 
 ### Authorization, ranks and tasks
@@ -57,13 +61,13 @@ Automated acceptance remains only one part of the Stage 3 gate. The deployed And
 
 ### Build/deployment/release gate
 
-- [ ] `npm run typecheck`
-- [ ] `npm run test:stage1 --workspace nigeria-rp-game-server`
-- [ ] `npm run test:stage2 --workspace nigeria-rp-game-server`
-- [ ] Add and run the appropriate Stage 3 regression tests for the high-risk permission/task/payout flows.
-- [ ] `npm run build`
-- [ ] GitHub **Browser Client Build** and **Game Server CI** workflows pass.
-- [ ] Railway deployment is successful and healthy.
+- [x] `npm run typecheck` — passed in Game Server CI.
+- [x] `npm run test:stage1 --workspace nigeria-rp-game-server` — 22 checks passed.
+- [x] `npm run test:stage2 --workspace nigeria-rp-game-server` — 7 checks passed; catalogue assertion aligned to the existing 33 homes without changing housing geometry.
+- [x] Add and run the Stage 3 regression tests for high-risk permission/task/payout flows — 8 checks passed.
+- [x] `npm run build` — game-server and browser-client builds passed.
+- [x] GitHub **Browser Client Build** and **Game Server CI** workflows pass on merged commit `a9caaa0e7cd21b1174479cbf3ac131b3da45d6f4`.
+- [x] Railway production deployment completed successfully on 11 October 2026 (deployment `cbcc23c9-5f2d-4c4b-80a6-3b6ee280b5e6`).
 - [ ] Real Android/two-account gameplay checks above are completed.
 - [ ] The user approves Stage 3 completion and transition.
 
