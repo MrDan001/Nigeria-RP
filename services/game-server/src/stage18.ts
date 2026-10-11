@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 export const STAGE18_BET_MIN_STAKE = 10;
 export const STAGE18_BET_MAX_STAKE = 50_000_000;
 export const STAGE18_BET_CLOSE_HOUR = 22;
@@ -111,16 +113,15 @@ export function stage18Fixtures(date: string): Stage18Fixture[] {
   });
 }
 
-function scoreSeed(date: string, fixtureId: string, segment: string): number {
-  return seed(date + "|" + fixtureId + "|" + segment);
-}
-
 export function stage18ResultsForDate(date: string): Stage18Outcome[] {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) throw new Error("INVALID_STAGE18_DATE");
   return stage18Fixtures(date).map((fixture) => {
-    const resultRoll = random(scoreSeed(date, fixture.id, "result"));
-    let outcome: Stage18Pick = resultRoll < 0.44 ? "home" : resultRoll < 0.70 ? "draw" : "away";
-    let homeScore = Math.floor(random(scoreSeed(date, fixture.id, "home-score")) * 4);
-    let awayScore = Math.floor(random(scoreSeed(date, fixture.id, "away-score")) * 4);
+    // Results are generated only at the server-side cutoff and persisted in PostgreSQL.
+    // Cryptographic randomness prevents anyone from precomputing a ticket winner from source code.
+    const resultRoll = randomInt(100);
+    const outcome: Stage18Pick = resultRoll < 44 ? "home" : resultRoll < 70 ? "draw" : "away";
+    let homeScore = randomInt(4);
+    let awayScore = randomInt(4);
     if (outcome === "home" && homeScore <= awayScore) homeScore = awayScore + 1;
     if (outcome === "away" && awayScore <= homeScore) awayScore = homeScore + 1;
     if (outcome === "draw") awayScore = homeScore;
