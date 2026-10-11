@@ -34,7 +34,7 @@ Use the existing workplace IDs and exteriors. Do not create replacement building
 ### Visitor ↔ City Park staff interaction
 - Visitors at the park can view staff currently on duty, buy a daily visitor pass from another on-duty Ticket Seller, and receive a receipt.
 - Visitors can request visitor assistance, lost-and-found help, or first-aid assistance. Staff see the on-site queue, can handle requests when authorised and close enough, and the visitor receives a completion notice.
-- The park UI explicitly describes the pass as a daily visitor pass: **physical gate enforcement is not implemented yet**, so the interface does not claim that a gate is locked or physically blocks entry.
+- The park UI describes the pass as a daily visitor pass that opens the main gate. The client displays a perimeter/fence/gate and applies local collision; the server rechecks the current-day pass on attempted entry. Park staff on duty and in uniform receive staff access.
 - Existing generic park task types (groundskeeping and visitor assistance) remain available through the common workplace task engine.
 
 ### User experience and safety
@@ -61,7 +61,7 @@ The suite runs in Game Server CI as `npm run test:stage5 --workspace nigeria-rp-
 
 - [x] Game Server CI passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`, including typecheck/build and Stage 1–5 regression suites.
 - [x] Browser Client Build passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`.
-- [ ] Android debug APK build for commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61` was still running at the last check; the immediately preceding gate/geometry revision passed Android build.
+- [x] Android debug APK build passed on commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`.
 - [x] Railway deployed commit `44d5a3f09da2166c82b71c8def08a7c6b62aac61`; the application service reports SUCCESS, and PostgreSQL is healthy.
 - [x] Implemented a visible ticketed City Park perimeter and gate, local collision for the fence/gate leaves, and server-side position validation against a current-day pass. On-duty park workers in uniform receive staff access.
 - [x] Homeless respawn now sends a player to the public City Park gate approach outside ticketed grounds without clearing or replacing their housing/lease record.
