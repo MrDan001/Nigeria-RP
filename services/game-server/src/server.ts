@@ -800,6 +800,7 @@ function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
       ...request,
       hospitalName: findWorkplace(request.hospitalId)?.name ?? request.hospitalId,
       workerName: request.assignedWorkerId ? (players.get(request.assignedWorkerId)?.player.name ?? request.assignedWorkerId.slice(0, 8)) : null,
+      triageWorkerName: request.triagedBy ? (players.get(request.triagedBy)?.player.name ?? request.triagedBy.slice(0, 8)) : null,
     }));
   const activeStaffRequests = member && onDuty && uniform && hospitalRankCanTriage(rank)
     ? stage5State.hospital.requests.filter(request =>
@@ -895,7 +896,8 @@ function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
     canWorkPharmacy: member && hospitalRankCanTriage(rank) && onDuty && uniform && atHospital,
     canUsePharmacy: atHospital,
     canRequestCare: atHospital && session.player.hp < 100 && !openCareRequest,
-    canRequestAmbulance: !stage5PrivateContext(session) && session.player.hp <= 80 && session.player.hp < 100 && !openAmbulanceRequest,
+    canRequestAmbulance: !stage5PrivateContext(session) && !session.inWorkplaceInterior &&
+      session.player.hp <= 80 && session.player.hp < 100 && !openAmbulanceRequest,
     hp: session.player.hp,
     cash: session.player.cash,
     availableWorkers,
@@ -921,7 +923,8 @@ function parkStatePayload(session: Session) {
   const currentTicket = stage5State.park.ticketsByVisitor[session.player.id];
   const ticket = currentTicket?.dayKey === today ? currentTicket : null;
   const availableWorkers = [...players.values()]
-    .filter(candidate => candidate.player.life.employment?.workplaceId === PARK_WORKPLACE_ID &&
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === PARK_WORKPLACE_ID &&
       candidate.player.life.employment.onDuty === true &&
       candidate.player.life.employment.uniformWorkplaceId === PARK_WORKPLACE_ID &&
       !stage5PrivateContext(candidate) && stage5AtWorkplace(candidate, PARK_WORKPLACE_ID))
