@@ -1234,7 +1234,7 @@ wss.on("connection", (socket) => {
 
       if (!authenticated) {
         try {
-          if (message.type === "authRegister") {          if (message.type === "selectCharacter") {
+          if (message.type === "selectCharacter") {
             const owner = await getReadyOwner();
             const ownerId = String(owner.ownerId || owner.id);
             const selected = await findAccountById(String(message.characterId ?? "").trim());
@@ -1250,7 +1250,7 @@ wss.on("connection", (socket) => {
             return;
           }
 
-
+          if (message.type === "authRegister") {
             const email = sanitizeEmail(message.email);
             const username = sanitizeUsername(message.username);
             const password = String(message.password ?? "");
