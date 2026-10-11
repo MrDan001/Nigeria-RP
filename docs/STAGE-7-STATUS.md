@@ -1,7 +1,7 @@
 # Stage 7 — Police, Army, FRSC & Fire Service
 
 **Release:** Stage 7: Police, Army, FRSC and Fire Service  
-**Status:** Implemented on main; automated regression and deployment verification follows the release commit.
+**Status: DEPLOYED — Railway production succeeded on 11 October 2026 at commit `3d50df0da4a1cfb749bbc56d9a844c2a6ca1d29e`. Stage 1–7 regression (including 13 Stage 7 tests), typecheck, server/browser builds, Browser Client Build and Android debug-APK workflows passed.
 
 ## Scope delivered
 
@@ -17,4 +17,4 @@
 
 ## Verification boundary
 
-The Game Server CI runs the Stage 1–7 domain suites, then typecheck and build. Browser-client and Android debug-APK workflows are also expected to run after the main push. Real-device visual checks and a live two-account session are not claimed unless performed explicitly.
+The Game Server CI for `3d50df0da4a1cfb749bbc56d9a844c2a6ca1d29e` passed Stage 1–7 suites, including 13 Stage 7 tests, typecheck and production builds. Browser Client Build and Android debug-APK workflows passed. Railway reports the service online with one running replica, successful `/` health check, PostgreSQL online and no pending changes. Deployment: `79abcb4f-0a1c-485d-ae0f-929fc0d16c4a`. Real-device visual checks and a live two-account session remain unclaimed.
