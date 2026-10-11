@@ -66,6 +66,335 @@ async function runMidnight() {
   await saveWorld();
 }
 
+
+type Stage18SelectionRecord = { fixtureId: string; home: string; away: string; pick: Stage18Pick; odds: number };
+
+function stage18ReadSelections(value: unknown): Stage18SelectionRecord[] {
+  let input = value;
+  if (typeof input === "string") {
+    try { input = JSON.parse(input); } catch { return []; }
+  }
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is Stage18SelectionRecord =>
+    !!item && typeof item === "object" &&
+    typeof (item as any).fixtureId === "string" &&
+    typeof (item as any).home === "string" &&
+    typeof (item as any).away === "string" &&
+    ["home", "draw", "away"].includes((item as any).pick) &&
+    Number.isFinite(Number((item as any).odds))
+  );
+}
+
+function stage18TicketPayload(row: any) {
+  return {
+    id: String(row.id),
+    date: String(row.bet_date),
+    stake: Number(row.stake),
+    selections: stage18ReadSelections(row.selections),
+    combinedOdds: Number(row.combined_odds),
+    potentialReturn: Number(row.potential_return),
+    payout: Number(row.payout ?? 0),
+    status: String(row.status),
+    placedAt: Number(row.placed_at),
+    settledAt: row.settled_at == null ? null : Number(row.settled_at),
+  };
+}
+
+function syncStage18ActiveCash(accountId: string, cashValue: number) {
+  const session = players.get(accountId);
+  if (!session) return;
+  const cash = Math.max(0, Math.floor(Number(cashValue) || 0));
+  session.player.cash = cash;
+  session.account.cash = cash;
+  session.account.updatedAt = Math.max(Date.now(), Number(session.account.updatedAt || 0) + 1);
+  send(session.socket, { type: "bettingBalanceUpdate", cash });
+}
+
+async function settleStage18Bets(betDate: string): Promise<void> {
+  if (!pool) return;
+  const client = await pool.connect();
+  const notices: Array<{ accountId: string; ticket: any }> = [];
+  const balances = new Map<string, number>();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["nrs-stage18-settle:" + betDate]);
+
+    const resultCount = await client.query(
+      "SELECT COUNT(*)::int AS count FROM nrs_betting_results WHERE bet_date=$1",
+      [betDate],
+    );
+    if (Number(resultCount.rows[0]?.count || 0) !== STAGE18_MAX_SELECTIONS) {
+      for (const result of stage18ResultsForDate(betDate)) {
+        await client.query(
+          "INSERT INTO nrs_betting_results (bet_date, fixture_id, outcome, home_score, away_score, recorded_at) " +
+          "VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (bet_date, fixture_id) DO NOTHING",
+          [betDate, result.fixtureId, result.outcome, result.homeScore, result.awayScore, Date.now()],
+        );
+      }
+    }
+
+    const resultRows = await client.query(
+      "SELECT fixture_id, outcome, home_score, away_score FROM nrs_betting_results WHERE bet_date=$1",
+      [betDate],
+    );
+    const outcomes = new Map<string, string>();
+    for (const row of resultRows.rows) outcomes.set(String(row.fixture_id), String(row.outcome));
+
+    const openTickets = await client.query(
+      "SELECT id, account_id, bet_date, stake, selections, combined_odds, potential_return, payout, status, placed_at, settled_at " +
+      "FROM nrs_betting_tickets WHERE bet_date=$1 AND status='OPEN' FOR UPDATE",
+      [betDate],
+    );
+
+    for (const row of openTickets.rows) {
+      const selections = stage18ReadSelections(row.selections);
+      const won = selections.length > 0 && selections.every((selection) => outcomes.get(selection.fixtureId) === selection.pick);
+      const payout = won ? Number(row.potential_return) : 0;
+      const now = Date.now();
+      let cashAfter = balances.get(String(row.account_id));
+      if (payout > 0) {
+        const wallet = await client.query(
+          "UPDATE nrs_accounts SET cash=cash+$1, updated_at=GREATEST(updated_at+1,$2) WHERE id=$3 RETURNING cash",
+          [payout, now, String(row.account_id)],
+        );
+        if (!wallet.rows[0]) throw new Error("STAGE18_SETTLEMENT_ACCOUNT_MISSING");
+        cashAfter = Number(wallet.rows[0].cash);
+        balances.set(String(row.account_id), cashAfter);
+        await client.query(
+          "INSERT INTO nrs_betting_wallet_ledger (ticket_id, account_id, entry_type, amount, balance_after, created_at) " +
+          "VALUES ($1,$2,'PAYOUT',$3,$4,$5)",
+          [String(row.id), String(row.account_id), payout, cashAfter, now],
+        );
+      }
+      await client.query(
+        "UPDATE nrs_betting_tickets SET status=$2, payout=$3, settled_at=$4 WHERE id=$1 AND status='OPEN'",
+        [String(row.id), won ? "WON" : "LOST", payout, now],
+      );
+      notices.push({
+        accountId: String(row.account_id),
+        ticket: {
+          id: String(row.id),
+          date: String(row.bet_date),
+          stake: Number(row.stake),
+          selections,
+          combinedOdds: Number(row.combined_odds),
+          potentialReturn: Number(row.potential_return),
+          payout,
+          status: won ? "WON" : "LOST",
+          placedAt: Number(row.placed_at),
+          settledAt: now,
+        },
+      });
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch {}
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const accountIds = [...new Set(notices.map((notice) => notice.accountId))];
+  for (const accountId of accountIds) {
+    const result = await pool.query("SELECT cash FROM nrs_accounts WHERE id=$1", [accountId]);
+    if (result.rows[0]) {
+      const cash = Number(result.rows[0].cash);
+      balances.set(accountId, cash);
+      syncStage18ActiveCash(accountId, cash);
+    }
+  }
+  for (const notice of notices) {
+    const session = players.get(notice.accountId);
+    if (session) {
+      send(session.socket, {
+        type: "bettingSettlementNotice",
+        ticket: notice.ticket,
+        cash: balances.get(notice.accountId) ?? session.player.cash,
+        message: notice.ticket.status === "WON"
+          ? "Ticket settled as a winner. " + "₦" + Number(notice.ticket.payout).toLocaleString("en-NG") + " credited to your cash balance."
+          : "Ticket settled. This ticket did not win.",
+      });
+    }
+  }
+}
+
+async function runStage18BettingSettlement(): Promise<void> {
+  if (!pool) return;
+  const clock = stage18NigeriaClock();
+  const pending = await pool.query(
+    "SELECT DISTINCT bet_date FROM nrs_betting_tickets WHERE status='OPEN' AND bet_date < $1 ORDER BY bet_date",
+    [clock.date],
+  );
+  const days = pending.rows.map((row: any) => String(row.bet_date));
+  if (clock.isClosed && !days.includes(clock.date)) days.push(clock.date);
+  for (const betDate of days) {
+    if (betDate < clock.date || clock.isClosed) await settleStage18Bets(betDate);
+  }
+}
+
+async function sendStage18BettingState(session: Session, requestId = ""): Promise<void> {
+  if (!pool) {
+    send(session.socket, { type: "bettingState", ok: false, requestId, message: "Sports betting is temporarily unavailable. Please try again shortly." });
+    return;
+  }
+  const clock = stage18NigeriaClock();
+  if (clock.isClosed) await settleStage18Bets(clock.date);
+
+  const [wallet, ticketRows, resultRows] = await Promise.all([
+    pool.query("SELECT cash FROM nrs_accounts WHERE id=$1", [session.player.id]),
+    pool.query(
+      "SELECT id, bet_date, stake, selections, combined_odds, potential_return, payout, status, placed_at, settled_at " +
+      "FROM nrs_betting_tickets WHERE account_id=$1 ORDER BY placed_at DESC LIMIT 30",
+      [session.player.id],
+    ),
+    pool.query(
+      "SELECT fixture_id, outcome, home_score, away_score FROM nrs_betting_results WHERE bet_date=$1 ORDER BY fixture_id",
+      [clock.date],
+    ),
+  ]);
+  if (!wallet.rows[0]) {
+    send(session.socket, { type: "bettingState", ok: false, requestId, message: "Your player account could not be loaded. Please reconnect." });
+    return;
+  }
+  const cash = Number(wallet.rows[0].cash);
+  syncStage18ActiveCash(session.player.id, cash);
+  send(session.socket, {
+    type: "bettingState",
+    ok: true,
+    requestId,
+    date: clock.date,
+    serverTime: clock.isoTime,
+    closeHour: STAGE18_BET_CLOSE_HOUR,
+    isClosed: clock.isClosed,
+    cash,
+    fixtures: stage18Fixtures(clock.date),
+    results: resultRows.rows.map((row: any) => ({
+      fixtureId: String(row.fixture_id),
+      outcome: String(row.outcome),
+      homeScore: Number(row.home_score),
+      awayScore: Number(row.away_score),
+    })),
+    tickets: ticketRows.rows.map(stage18TicketPayload),
+  });
+}
+
+async function placeStage18BettingTicket(session: Session, message: any): Promise<void> {
+  const requestId = String(message.requestId ?? "").trim().slice(0, 128);
+  const fail = (messageText: string, cash?: number) => send(session.socket, {
+    type: "bettingTicketResult",
+    ok: false,
+    requestId,
+    message: messageText,
+    cash: cash ?? session.player.cash,
+  });
+  if (!pool) return fail("Sports betting requires the secure game wallet. Please try again shortly.");
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(requestId)) return fail("The ticket reference is invalid. Please try again.");
+  const clock = stage18NigeriaClock();
+  if (clock.isClosed) return fail("Today's betting has closed at 10:00 PM. New fixtures open tomorrow.");
+
+  const stake = Number(message.stake);
+  if (!Number.isSafeInteger(stake) || stake < STAGE18_BET_MIN_STAKE || stake > STAGE18_BET_MAX_STAKE) {
+    return fail("Enter a whole-number stake from ₦10 to ₦50,000,000.");
+  }
+  if (!Array.isArray(message.selections) || message.selections.length < 1 || message.selections.length > STAGE18_MAX_SELECTIONS) {
+    return fail("Choose between 1 and 9 games for your ticket.");
+  }
+
+  const fixtures = stage18Fixtures(clock.date);
+  const fixtureMap = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
+  const seen = new Set<string>();
+  const selections: Stage18SelectionRecord[] = [];
+  let combinedOdds = 1;
+  for (const raw of message.selections) {
+    if (!raw || typeof raw !== "object") return fail("One of your selections is invalid.");
+    const fixtureId = String((raw as any).fixtureId ?? "").slice(0, 32);
+    const pick = String((raw as any).pick ?? "") as Stage18Pick;
+    const fixture = fixtureMap.get(fixtureId);
+    if (!fixture || !["home", "draw", "away"].includes(pick) || seen.has(fixtureId)) {
+      return fail("One of your selections is invalid. Refresh the fixtures and try again.");
+    }
+    seen.add(fixtureId);
+    const odds = fixture.odds[pick];
+    combinedOdds *= odds;
+    selections.push({ fixtureId, home: fixture.home, away: fixture.away, pick, odds });
+  }
+  combinedOdds = Number(combinedOdds.toFixed(2));
+  const potentialReturn = Math.round(stake * combinedOdds);
+  if (!Number.isSafeInteger(potentialReturn) || potentialReturn < stake || potentialReturn > Number.MAX_SAFE_INTEGER) {
+    return fail("This ticket's potential return is outside the supported balance range.");
+  }
+
+  const client = await pool.connect();
+  let cashAfter = 0;
+  let ticket: any = null;
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT id FROM nrs_accounts WHERE id=$1 FOR UPDATE", [session.player.id]);
+    const duplicate = await client.query(
+      "SELECT id, bet_date, stake, selections, combined_odds, potential_return, payout, status, placed_at, settled_at " +
+      "FROM nrs_betting_tickets WHERE account_id=$1 AND request_id=$2 LIMIT 1",
+      [session.player.id, requestId],
+    );
+    if (duplicate.rows[0]) {
+      const wallet = await client.query("SELECT cash FROM nrs_accounts WHERE id=$1", [session.player.id]);
+      cashAfter = Number(wallet.rows[0]?.cash ?? session.player.cash);
+      ticket = stage18TicketPayload(duplicate.rows[0]);
+      await client.query("COMMIT");
+      syncStage18ActiveCash(session.player.id, cashAfter);
+      send(session.socket, { type: "bettingTicketResult", ok: true, duplicate: true, requestId, message: "This ticket was already received.", ticket, cash: cashAfter });
+      return;
+    }
+    const wallet = await client.query("SELECT cash FROM nrs_accounts WHERE id=$1", [session.player.id]);
+    if (!wallet.rows[0]) throw new Error("STAGE18_ACCOUNT_NOT_FOUND");
+    const currentCash = Number(wallet.rows[0].cash);
+    if (currentCash < stake) {
+      await client.query("ROLLBACK");
+      syncStage18ActiveCash(session.player.id, currentCash);
+      return fail("Insufficient funds. Your current cash balance is ₦" + currentCash.toLocaleString("en-NG") + ".", currentCash);
+    }
+    const now = Date.now();
+    const debit = await client.query(
+      "UPDATE nrs_accounts SET cash=cash-$2, updated_at=GREATEST(updated_at+1,$3) WHERE id=$1 AND cash >= $2 RETURNING cash",
+      [session.player.id, stake, now],
+    );
+    if (!debit.rows[0]) throw new Error("STAGE18_DEBIT_REJECTED");
+    cashAfter = Number(debit.rows[0].cash);
+    const id = randomUUID();
+    const inserted = await client.query(
+      "INSERT INTO nrs_betting_tickets (id, account_id, request_id, bet_date, stake, selections, combined_odds, potential_return, payout, status, placed_at) " +
+      "VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,0,'OPEN',$9) " +
+      "RETURNING id, bet_date, stake, selections, combined_odds, potential_return, payout, status, placed_at, settled_at",
+      [id, session.player.id, requestId, clock.date, stake, JSON.stringify(selections), combinedOdds, potentialReturn, now],
+    );
+    await client.query(
+      "INSERT INTO nrs_betting_wallet_ledger (ticket_id, account_id, entry_type, amount, balance_after, created_at) " +
+      "VALUES ($1,$2,'STAKE',$3,$4,$5)",
+      [id, session.player.id, -stake, cashAfter, now],
+    );
+    ticket = stage18TicketPayload(inserted.rows[0]);
+    await client.query("COMMIT");
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch {}
+    console.error("stage18-betting-place", error);
+    return fail("The ticket could not be committed. No stake was taken; please refresh and try again.");
+  } finally {
+    client.release();
+  }
+
+  syncStage18ActiveCash(session.player.id, cashAfter);
+  send(session.socket, {
+    type: "bettingTicketResult",
+    ok: true,
+    duplicate: false,
+    requestId,
+    ticket,
+    cash: cashAfter,
+    message: "Ticket placed for ₦" + stake.toLocaleString("en-NG") + ". Potential return: ₦" + potentialReturn.toLocaleString("en-NG") + ".",
+  });
+  await sendStage18BettingState(session, requestId);
+}
+
 async function initStore() {
   if (DATABASE_URL) {
     pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
@@ -105,6 +434,47 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'port-harcourt'");
     await pool.query(
       "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
+    );
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_betting_tickets (" +
+      "id TEXT PRIMARY KEY," +
+      "account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE," +
+      "request_id TEXT NOT NULL," +
+      "bet_date TEXT NOT NULL," +
+      "stake BIGINT NOT NULL CHECK (stake >= 10)," +
+      "selections JSONB NOT NULL," +
+      "combined_odds NUMERIC(20,2) NOT NULL," +
+      "potential_return BIGINT NOT NULL CHECK (potential_return >= 0)," +
+      "payout BIGINT NOT NULL DEFAULT 0 CHECK (payout >= 0)," +
+      "status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','WON','LOST'))," +
+      "placed_at BIGINT NOT NULL," +
+      "settled_at BIGINT," +
+      "UNIQUE (account_id, request_id)" +
+      ")",
+    );
+    await pool.query("CREATE INDEX IF NOT EXISTS nrs_betting_tickets_date_status_idx ON nrs_betting_tickets(bet_date,status)");
+    await pool.query("CREATE INDEX IF NOT EXISTS nrs_betting_tickets_account_placed_idx ON nrs_betting_tickets(account_id,placed_at DESC)");
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_betting_results (" +
+      "bet_date TEXT NOT NULL," +
+      "fixture_id TEXT NOT NULL," +
+      "outcome TEXT NOT NULL CHECK (outcome IN ('home','draw','away'))," +
+      "home_score INTEGER NOT NULL CHECK (home_score >= 0)," +
+      "away_score INTEGER NOT NULL CHECK (away_score >= 0)," +
+      "recorded_at BIGINT NOT NULL," +
+      "PRIMARY KEY (bet_date,fixture_id)" +
+      ")",
+    );
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS nrs_betting_wallet_ledger (" +
+      "ticket_id TEXT NOT NULL REFERENCES nrs_betting_tickets(id) ON DELETE CASCADE," +
+      "account_id TEXT NOT NULL REFERENCES nrs_accounts(id) ON DELETE CASCADE," +
+      "entry_type TEXT NOT NULL CHECK (entry_type IN ('STAKE','PAYOUT'))," +
+      "amount BIGINT NOT NULL," +
+      "balance_after BIGINT NOT NULL," +
+      "created_at BIGINT NOT NULL," +
+      "PRIMARY KEY (ticket_id,entry_type)" +
+      ")",
     );
     const worldRow = await pool.query("SELECT value FROM nrs_world WHERE key='world' LIMIT 1");
     world = normalizeWorld(worldRow.rows[0]?.value, clock.dayKey());
@@ -881,6 +1251,29 @@ wss.on("connection", (socket) => {
           stage17Passport: stage17Passport(stage17State, session.player.id, session.player.cityId),
           cash: session.player.cash,
           recentTrips: stage15State.ledger.filter((entry) => entry.accountId === session.player.id).slice(-12).reverse(),
+        });
+        return;
+      }
+
+      if (message.type === "bettingStateRequest") {
+        const requestId = String(message.requestId ?? "").trim().slice(0, 128);
+        await withMoneyMutation(async () => {
+          try { await sendStage18BettingState(session, requestId); }
+          catch (error) {
+            console.error("stage18-betting-state", error);
+            send(socket, { type: "bettingState", ok: false, requestId, message: "Betting data could not be loaded. Please try again." });
+          }
+        });
+        return;
+      }
+
+      if (message.type === "placeBettingTicket") {
+        await withMoneyMutation(async () => {
+          try { await placeStage18BettingTicket(session, message); }
+          catch (error) {
+            console.error("stage18-betting-request", error);
+            send(socket, { type: "bettingTicketResult", ok: false, requestId: String(message.requestId ?? ""), message: "The ticket request could not be processed. Please refresh and try again.", cash: session.player.cash });
+          }
         });
         return;
       }
