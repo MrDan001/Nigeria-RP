@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Project status — 11 October 2026:** Stage 7 is deployed on Railway at commit `3d50df0da4a1cfb749bbc56d9a844c2a6ca1d29e`; its 13 tests plus Stage 1–7 regression, typecheck, server/browser builds and Android debug-APK workflow passed. Stage 8 — Rivers News Network — is implemented on `main`; verification and Railway rollout for this release are pending. Real-device/two-account checks remain explicitly unclaimed. Keep the Face-Me-I-Face-You visibility fix protected.
+> **Project status — 11 October 2026:** Stage 10's food-shop/service transaction engine and Stage 11's personal-services/property-repair/utilities engine have been added to `main` as server-authoritative domain foundations, with deterministic tests and CI coverage. Their live player/server integration and end-to-end gameplay acceptance remain open. Railway deployment and passing CI must be verified for each current release; real Android/two-account checks are not claimed unless performed.
 
 > **Gate rule:** The user has explicitly asked to continue through the stages without requiring a second human tester. Use deterministic automated tests for replay, rank, balance and multi-account domain scenarios. Do not claim an unperformed two-account/Android live check as complete; record it as a manual limitation while proceeding with the next approved stage.
 
@@ -219,6 +219,7 @@ Acceptance: unapproved stories do not publish; editorial permissions and rate li
 Acceptance: a driver cannot claim a pickup/drop-off or delivery from an invalid location; fare settlements are consistent for both sides; vehicle ownership and fuel persist.
 
 ### Stage 10 — Food businesses and everyday shops
+**Status: DOMAIN FOUNDATION PUSHED TO MAIN — live server/player UI and persistent cash/inventory integration remain outstanding; see [Stage 10 status](STAGE-10-STATUS.md).**
 - Mama Put, restaurants (cook/waiter), bakery and suya spots; supermarkets (cashier), pharmacy attendant, phone repair and tailor.
 - Reuse product stock, orders, service appointments, tills, inventory and server settlement rather than creating separate client-only economy code for every shop.
 - Show clear prices, orders and receipts, with stock/ingredient needs where relevant.
@@ -226,6 +227,7 @@ Acceptance: a driver cannot claim a pickup/drop-off or delivery from an invalid 
 Acceptance: a sale, meal or repair requires valid stock/service and a successful server transaction; no duplicate item grants or free client-authored sales.
 
 ### Stage 11 — Personal services, property services and utilities
+**Status: SERVER-AUTHORITATIVE DOMAIN FOUNDATION PUSHED TO MAIN — live server/player integration and acceptance remain outstanding; see [Stage 11 status](STAGE-11-STATUS.md).**
 - Mechanic, car wash, filling-station attendant, barber/salon and courier jobs.
 - Add electrician/NEPA lineman and plumber roles; household repair calls are linked to the correct property and issue.
 - Repair/maintenance orders, fuel purchases, courier deliveries and utility payments use the shared job and transaction framework.
