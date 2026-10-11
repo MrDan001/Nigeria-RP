@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Project status — 11 October 2026:** Stages 0–5 are treated as complete for sequencing at the user's direction; integrated regression across Stages 1–6 is scheduled after Stage 6. **Stage 6 — Rivers State Government & Civic Finance — is active.** Keep the Face-Me-I-Face-You building visibility fix as a protected regression boundary. Manual Android/two-account checks are not claimed unless recorded.
+> **Project status — 11 October 2026:** Stages 0–5 are marked done for sequencing at the user's direction. Stage 6 — Rivers State Government & Civic Finance — is deployed to Railway under the named Stage 6 release. Stage 1–6 domain regression, server typecheck/build, browser build and Android debug-APK build passed. Real-device/two-account checks remain unclaimed. Keep the Face-Me-I-Face-You visibility fix protected.
 
 > **Gate rule:** The user has explicitly asked to continue through the stages without requiring a second human tester. Use deterministic automated tests for replay, rank, balance and multi-account domain scenarios. Do not claim an unperformed two-account/Android live check as complete; record it as a manual limitation while proceeding with the next approved stage.
 
@@ -58,7 +58,7 @@ Checkboxes are evidence still required—not merely a list of UI elements.
 - Each stage must include repeatable tests for valid actions, forged requests, duplicate/replayed requests, disconnects and reconnects. A green build does not replace live phone testing.
 
 ### Stage 0 — Repository, server and delivery foundation
-**Status: Foundation exists; maintain it.**
+**Status: DONE FOR SEQUENCING AT THE USER'S DIRECTION — server/browser build and Railway health checks passed; backup/recovery acceptance remains part of the combined release checklist.**
 
 Scope: repository/docs, CI, Railway-hosted game server, browser delivery, persistence configuration and local development instructions.
 
@@ -69,7 +69,7 @@ Acceptance:
 - [ ] Persistence, backup/recovery and rollback instructions are documented.
 
 ### Stage 1 — Citizen accounts, saved life and multiplayer
-**Status: Core code exists; real-player verification is still required.**
+**Status: DONE FOR SEQUENCING AT THE USER'S DIRECTION — automated Stage 1 regression passed in Stage 6 CI; real-account relogin and multiplayer visual checks remain unclaimed.**
 
 Scope:
 - Create account: Email, Username in `Firstname_lastname` form, Password, Repeat password.
@@ -127,7 +127,7 @@ Acceptance:
 **Gate/status note:** Stage 3 was explicitly approved by the user on 10 October 2026 and is already active. Continue to retain the unchecked Stage 2 items as housing regression/closeout checks; do not claim Stage 2 is fully accepted until those specific checks are completed. Do not broaden the housing scope while implementing Stage 3 unless a verified blocker requires it.
 
 ### Stage 3 — Workplace locations and reusable jobs/ranks engine
-**Status: COMPLETE / ACCEPTED by the user on 11 October 2026.** Automated permissions, payout and regression checks are part of CI. Two-account Android live acceptance was intentionally not made a blocker because the user is the sole tester; keep that limitation explicit rather than claiming it was manually performed.
+**Status: DONE FOR SEQUENCING AT THE USER'S DIRECTION — automated Stage 3 regression passed in Stage 6 CI; manual multiplayer visual checks remain unclaimed.** Automated permissions, payout and regression checks are part of CI. Two-account Android live acceptance was intentionally not made a blocker because the user is the sole tester; keep that limitation explicit rather than claiming it was manually performed.
 
 - Place and label real workplace buildings and doors at aligned server/client coordinates.
 - Build the reusable server-authoritative job service: six titled ranks, rosters, rank-1 hiring/onboarding, clock in/out, shifts, tasks, payout and history.
@@ -142,7 +142,7 @@ Acceptance / closeout:
 - [ ] Two-account and Android visual acceptance was not performed because the user is the only available tester; this is documented and does not block progression by agreement.
 
 ### Stage 4 — Market salespeople and bank tellers
-**Status: IMPLEMENTED AND DEPLOYED.** The server-authoritative market catalogue/sales/stock/till/commission flows, manager restocking, bank deposits/withdrawals, receipts and transaction history are wired into the existing workplace cards. The Stage 4 domain suite and server/browser build checks passed on the accepted implementation checkpoint; see [Stage 4 status](STAGE-4-STATUS.md). Solo visual review remains a final user-facing check.
+**Status: DONE FOR SEQUENCING AT THE USER'S DIRECTION — market/bank regression passed in Stage 6 CI; Stage 4 was previously deployed to Railway.** The server-authoritative market catalogue/sales/stock/till/commission flows, manager restocking, bank deposits/withdrawals, receipts and transaction history are wired into the existing workplace cards. The Stage 4 domain suite and server/browser build checks passed on the accepted implementation checkpoint; see [Stage 4 status](STAGE-4-STATUS.md). Solo visual review remains a final user-facing check.
 - Market ranks: Hawker, Stall Assistant, Sales Rep, Senior Sales, Market Supervisor, Market Chairman.
 - Bank ranks: Trainee, Teller, Senior Teller, Loan Officer, Operations Manager, Branch Manager.
 - At the market, customers arrive and request listed goods. Staff fulfil the correct order from valid stock and earn commission; stock and cash changes are server-authoritative.
@@ -152,7 +152,7 @@ Acceptance / closeout:
 Acceptance: customers receive the right goods; cash, bank balances, stock and commissions reconcile; replayed sales/withdrawals do not duplicate value.
 
 ### Stage 5 — Hospital and parks
-**Status: COMPLETE FOR SEQUENCING AT THE USER'S DIRECTION.** Stage 5 features are deployed; integrated regression across Stages 1–6 and remaining solo Android visual checks are grouped with the planned test. The existing Mile One General Hospital, Princess Hospital and City Park locations are reused.
+**Status: DONE FOR SEQUENCING AT THE USER'S DIRECTION — automated Stage 5 regression passed in Stage 6 CI; real-device visual checks remain unclaimed.** Stage 5 features are deployed; integrated regression across Stages 1–6 and remaining solo Android visual checks are grouped with the planned test. The existing Mile One General Hospital, Princess Hospital and City Park locations are reused.
 
 - Hospital ranks: Orderly, Nurse Aide, Nurse, Senior Nurse, Doctor, Chief Medical Director.
 - Park ranks: Cleaner, Gate Attendant, Ticket Seller, Ranger, Operations Officer, Park Director.
@@ -172,21 +172,23 @@ Acceptance:
 - [ ] Remaining solo Android visual checks are not claimed as performed.
 
 ### Stage 6 — Rivers State government and civic finance
-**Status: IMPLEMENTED IN CODE — automated suite and CI/deployment verification pending.**
-- Rank 6: Governor (boss). Rank 5: Deputy Governor. Rank 4: Secretary to the State Government, Chief of Staff and Speaker. Rank 3: Commissioners, Senators and LGA Chairmen. Rank 2: Vice Chairmen, Special Advisers and PRO. Rank 1: Councillors, Assistants and Clerks.
-- Government staff use the shared work system. The Governor is the only in-game official allowed to promote/demote/fire this workplace's staff, with rank rules enforced server-side.
-- State treasury tracks authorized income and spending. Rent from vacant government-owned houses is collected into the treasury; approved government staff payroll is paid from it.
-- PRO tools publish rate-limited official announcements; the other roles receive simple, auditable duties appropriate to their authority.
-- Citizen funds and the government treasury must remain separate and auditable.
+**Status: DONE — deployed to Railway; Stage 1–6 automated regression, server typecheck/build, browser build and Android debug-APK build all passed.** Railway release label: **Stage 6: Rivers State Government and Civic Finance**.
 
-- Reuse the existing Rivers State Government workplace and six-rank ladder. Daily payroll and government duty pay debit the persistent state treasury; public-housing rent payments credit it. Citizen funds remain separate.
-- Daily payroll is computed from rank by the server, claimable once per Nigeria-time game day and blocked if the treasury cannot cover it.
-- Rank-2 officials can publish rate-limited official announcements. The shared job model groups Vice Chairman, Special Adviser and PRO at Rank 2, so those sub-posts cannot yet be distinguished.
-- The appointed Rank-6 Governor is the only ordinary in-game official allowed to authorize expenditure or manage government staff; the existing protected admin override remains.
-- Opening allocation and each rent, payroll, duty-pay and spending movement are recorded in a bounded ledger with actor, purpose, time, direction and resulting balance.
-- Treasury starts with a fixed, recorded ₦5,000,000 opening allocation; clients cannot set the treasury balance.
+- Reuses the Rivers State Government workplace and six-rank ladder: Councillor/Assistant/Clerk; Vice Chairman/Special Adviser/PRO; Commissioner/Senator/LGA Chairman; Secretary to the State Government/Chief of Staff/Speaker; Deputy Governor; Governor.
+- The appointed Rank-6 Governor is the only ordinary in-game official who can authorize state spending and manage government staff; protected admin override remains available.
+- The durable treasury starts with a recorded ₦5,000,000 opening allocation. Public-housing rent credits it; government daily payroll and government task pay debit it. Citizen cash and bank balances remain separate.
+- Daily payroll is server-calculated by rank, claimable once per Nigeria-time game day and refused when the treasury cannot cover it.
+- Rank-2 officials can publish rate-limited official announcements. The shared job model still groups Vice Chairman, Special Adviser and PRO into Rank 2, so the exact sub-posts cannot yet be distinguished.
+- Governor-authorized expenditures require a purpose, are capped at ₦1,000,000 per transaction, and are rejected for invalid amounts, replayed transaction references or insufficient treasury funds.
+- Transactions record actor, purpose, time, direction and resulting balance. State is saved through the existing PostgreSQL world-state store with a file-store fallback.
 
-Acceptance: only authorized ranks can issue notices or civic actions; rent and payroll transactions reconcile to treasury records; no client can mint or redirect public funds.
+Verification:
+- [x] Stage 1–6 Game Server CI suites passed, including Stage 6 treasury/replay/payroll/announcement/spending tests.
+- [x] Game server typecheck/build passed.
+- [x] Browser client production build passed.
+- [x] Android debug-APK build and artifact upload passed in GitHub Actions.
+- [x] Railway production deployed commit `f4e795c446bdc5927b9cc3ec30f72bafa32fdee4`; runtime started on port 8080 and PostgreSQL storage initialized.
+- [ ] Real-device visual review and a two-account session were not performed and are not claimed; they remain in the combined release review.
 
 ### Stage 7 — Police, Army, FRSC and Fire Service
 - Police ladder: Police Constable through Commissioner of Police. Army ladder: Private through Brigadier General. FRSC ladder: Cadet through Sector Commander. Fire Service ladder: Fire Trainee through Chief Fire Officer.

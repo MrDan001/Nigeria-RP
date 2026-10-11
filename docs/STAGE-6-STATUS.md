@@ -14,4 +14,4 @@ Stage 6 automated tests cover rent credits and replay, treasury-funded governmen
 
 Railway commit/deployment label: **Stage 6: Rivers State Government and Civic Finance**. Deployed commit: `f4e795c446bdc5927b9cc3ec30f72bafa32fdee4`.
 
-Android debug-APK was still in progress at last check; real-device and two-account review are not claimed as performed.
+Android debug-APK build and artifact upload passed in GitHub Actions. Real-device and two-account review are not claimed as performed.
