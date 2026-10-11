@@ -260,6 +260,13 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-count b{font-size:.9rem}
 #modal.work-menu .wm-count small{color:#9cb1c1;font-size:.52rem}
 #modal.work-menu .wm-meta{display:flex;justify-content:space-between;gap:.35rem;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08);padding:.5rem 0;margin-top:.45rem;color:#96aebe;font-size:.59rem}
+#modal.work-menu .wm-rank-ladder{margin:.25rem 0 .45rem;border:1px solid rgba(132,177,210,.16);border-radius:.45rem;background:rgba(7,20,32,.28)}
+#modal.work-menu .wm-rank-ladder summary{cursor:pointer;padding:.4rem .5rem;color:#a9cce3;font-size:.61rem;font-weight:800}
+#modal.work-menu .wm-rank-list{display:grid;gap:.22rem;padding:.05rem .5rem .5rem}
+#modal.work-menu .wm-rank-row{display:grid;grid-template-columns:2.65rem minmax(0,1fr) auto;align-items:center;gap:.3rem;font-size:.58rem}
+#modal.work-menu .wm-rank-row>span{color:#8ba9bd}
+#modal.work-menu .wm-rank-row>b{min-width:0;overflow-wrap:anywhere;color:#d5e1ea;font-weight:700}
+#modal.work-menu .wm-rank-row>small{white-space:nowrap;color:#8df0b9;font-weight:800}
 #modal.work-menu .wm-card button{border:1px solid rgba(255,255,255,.13);border-radius:.45rem;padding:.5rem .6rem;background:#197fc9;color:#fff;font-weight:800;font-size:.7rem;line-height:1.2}
 #modal.work-menu .wm-card button.subtle{background:rgba(255,255,255,.065);color:#d0dbe4}
 #modal.work-menu .wm-card button.danger{background:rgba(175,56,56,.22);color:#ffb9b9}
@@ -3308,7 +3315,8 @@ function renderWorkplaceMenu(data){
    management='<div class="wm-management"><h4>Staff management</h4>'+(staff||'<p class="wm-note">No other online staff yet.</p>')+(applications?'<h4>Applications</h4>'+applications:'')+(free?'<div class="wm-hire"><select id="wmHirePlayer">'+free+'</select><button data-staff-hire="1">Hire player</button></div>':'')+'</div>';
   }
   const faction=w.faction||{};
-  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
+  const rankLadder='<details class="wm-rank-ladder"><summary>View six-rank ladder & pay</summary><div class="wm-rank-list">'+(w.rankTitles||[]).map((titles,i)=>'<div class="wm-rank-row"><span>Rank '+(i+1)+'</span><b>'+safeText((titles||[]).join(' / ')||('Rank '+(i+1)))+'</b><small>'+Number(w.rankMultipliers?.[i]??1)+'× pay</small></div>').join('')+'</div></details>';
+  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
  panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
