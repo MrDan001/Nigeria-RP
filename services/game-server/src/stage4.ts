@@ -61,6 +61,7 @@ export type MarketState = {
   till: number;
   commissions: Record<string, number>;
   completedOrderIds: Record<string, true>;
+  completedRestockIds: Record<string, true>;
   history: MarketSale[];
 };
 
@@ -137,6 +138,7 @@ export function createMarketState(): MarketState {
     till: 0,
     commissions: {},
     completedOrderIds: {},
+    completedRestockIds: {},
     history: [],
   };
 }
@@ -146,8 +148,16 @@ export function restockMarketStock(args: {
   productId: string;
   quantity: number;
   managerRank: number;
+  requestId?: string;
+  idempotencyKey?: string;
 }): { ok: true; result: MarketRestockResult } | { ok: false; reason: string } {
   const { state, productId, quantity, managerRank } = args;
+  const requestId = String(args.requestId ?? "");
+  const idempotencyKey = String(args.idempotencyKey ?? requestId);
+  if (!requestId || requestId.length > 100 || !idempotencyKey || idempotencyKey.length > 128) {
+    return { ok: false, reason: "invalid_request_id" };
+  }
+  if (state.completedRestockIds[idempotencyKey]) return { ok: false, reason: "duplicate_restock" };
   if (!Number.isInteger(managerRank) || managerRank < 5 || managerRank > MARKET_RANKS.length) {
     return { ok: false, reason: "unauthorized_manager" };
   }
@@ -165,6 +175,7 @@ export function restockMarketStock(args: {
   if (till < totalCost) return { ok: false, reason: "insufficient_till" };
   state.stock[productId] = stock + quantity;
   state.till = till - totalCost;
+  state.completedRestockIds[idempotencyKey] = true;
   return {
     ok: true,
     result: {
@@ -346,7 +357,11 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
   }
   const completedOrderIds: Record<string, true> = {};
   if (marketRaw.completedOrderIds && typeof marketRaw.completedOrderIds === "object" && !Array.isArray(marketRaw.completedOrderIds)) {
-    for (const id of Object.keys(marketRaw.completedOrderIds as Record<string, unknown>).slice(-5000)) completedOrderIds[id.slice(0, 100)] = true;
+    for (const id of Object.keys(marketRaw.completedOrderIds as Record<string, unknown>).slice(-5000)) completedOrderIds[id.slice(0, 128)] = true;
+  }
+  const completedRestockIds: Record<string, true> = {};
+  if (marketRaw.completedRestockIds && typeof marketRaw.completedRestockIds === "object" && !Array.isArray(marketRaw.completedRestockIds)) {
+    for (const id of Object.keys(marketRaw.completedRestockIds as Record<string, unknown>).slice(-5000)) completedRestockIds[id.slice(0, 128)] = true;
   }
   const completedTransactionIds: Record<string, true> = {};
   if (bankRaw.completedTransactionIds && typeof bankRaw.completedTransactionIds === "object" && !Array.isArray(bankRaw.completedTransactionIds)) {
@@ -403,6 +418,7 @@ export function normalizeStage4State(input: unknown): { market: MarketState; ban
       till: Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(Number(marketRaw.till) || 0))),
       commissions: Object.fromEntries(Object.entries(commissions).map(([id, amount]) => [id, Math.min(Number.MAX_SAFE_INTEGER, amount)])),
       completedOrderIds,
+      completedRestockIds,
       history: marketHistory.filter(sale => sale.total === findMarketProduct(sale.productId)!.unitPrice * sale.quantity &&
         sale.commission === Math.floor(sale.total * MARKET_COMMISSION_RATE) &&
         sale.tillCredit === sale.total - sale.commission).slice(-MAX_TRANSACTION_HISTORY),
