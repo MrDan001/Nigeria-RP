@@ -317,15 +317,15 @@
     for(const x of [-2.8,-.9,1.0,2.8])box(.9,.72,.08,glass,x,1.9,-1.29,coach);
     for(const x of [-2.7,2.7]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.48,.48,.2,12),dark);wheel.rotation.z=Math.PI/2;wheel.position.set(x,.53,1.22);coach.add(wheel);}
     addReadableBoard(coach,0,3.1,-1.32,4.7,.55,["WATERLINES"],"#0b3e2e",0);
-    if(typeof boxes!=="undefined"&&Array.isArray(boxes))boxes.push({x:-178,z:164,hw:9.5,hd:4.2,h:4.2},{x:259,z:-157,hw:9,hd:4.5,h:4.2});
-    addFlat(112,30,0x454d56,302,-177);
+    if(typeof boxes!=="undefined"&&Array.isArray(boxes))boxes.push({x:-178,z:164,hw:9.5,hd:4.2,h:4.2},{x:220,z:-220,hw:9,hd:4.5,h:4.2});
+    addFlat(112,30,0x454d56,266,-177);
     const runwayWhite=new THREE.MeshLambertMaterial({color:0xf4f2e9});
-    for(let x=258;x<=346;x+=22){const marker=new THREE.Mesh(new THREE.BoxGeometry(1.3,.04,.6),runwayWhite);marker.position.set(x,.065,-177);scene.add(marker);}
-    const airport=new THREE.Group();airport.position.set(259,0,-157);scene.add(airport);
+    for(let x=222;x<=310;x+=22){const marker=new THREE.Mesh(new THREE.BoxGeometry(1.3,.04,.6),runwayWhite);marker.position.set(x,.065,-177);scene.add(marker);}
+    const airport=new THREE.Group();airport.position.set(220,0,-220);scene.add(airport);
     box(18,4.2,9,white,0,2.1,0,airport);box(18.6,.55,9.6,blue,0,4.35,0,airport);
     box(6,2.6,.12,glass,-5,2.0,-4.55,airport);box(6,2.6,.12,glass,4,2.0,-4.55,airport);
     addReadableBoard(airport,0,5.65,-5.0,15.5,1.5,["NRS REGIONAL AIRPORT","DEPARTURES · TICKET COUNTER"],"#16496f",Math.PI);
-    const plane=new THREE.Group();plane.position.set(304,.3,-177);plane.rotation.y=Math.PI/2;scene.add(plane);
+    const plane=new THREE.Group();plane.position.set(235,.3,-177);plane.rotation.y=Math.PI/2;scene.add(plane);
     const fuselage=new THREE.Mesh(new THREE.CylinderGeometry(.48,.55,11,14),white);fuselage.rotation.z=Math.PI/2;plane.add(fuselage);
     box(8,.16,2.4,blue,0,.3,0,plane);box(2.3,.12,1.1,white,-4.5,.2,0,plane);box(2.1,.1,.9,white,4.8,.18,0,plane);
     const nearby=document.createElement("button");nearby.id="nrsTravelNearby";nearby.hidden=true;nearby.textContent="Open ticket counter";
@@ -339,7 +339,7 @@
       try{
         const px=Number(pos.x)||0,pz=Number(pos.z)||0;
         if(Math.hypot(px+178,pz-145)<17)current="bus";
-        else if(Math.hypot(px-259,pz+157)<18)current="airport";
+        else if(Math.hypot(px-220,pz+220)<18)current="airport";
       }catch(_){}
       nearbyMode=current==="airport"?"airport":"day-bus";
       nearby.hidden=!current;
