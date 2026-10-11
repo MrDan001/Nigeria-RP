@@ -91,6 +91,9 @@ import {
   purchaseHospitalMedicine,
   resolveParkHelpRequest,
   triageHospitalRequest,
+  PARK_GATE_APPROACH,
+  hasValidParkTicket,
+  isInsideParkGrounds,
 } from "./stage5";
 
 const scrypt = promisify(scryptCb);
@@ -177,6 +180,7 @@ type Session = {
   currentHomeId?: string | null;
   carparkVehicle: CarparkVehicleTrack | null;
   workTask: { workplaceId: string; taskId: string; startedAt: number } | null;
+  parkGateNoticeAt?: number;
 };
 
 type FileStore = {
@@ -1954,6 +1958,34 @@ wss.on("connection", (socket) => {
         if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > WORLD_LIMIT || Math.abs(z) > WORLD_LIMIT) return;
 
         const now = Date.now();
+        const employment = session.player.life.employment;
+        const authorisedParkWorker = employment?.workplaceId === PARK_WORKPLACE_ID &&
+          employment.onDuty === true && employment.uniformWorkplaceId === PARK_WORKPLACE_ID;
+        const validDailyPass = hasValidParkTicket(stage5State, session.player.id, clock.dayKey());
+        if (isInsideParkGrounds(x, z) && !validDailyPass && !authorisedParkWorker) {
+          // A ticket is required to enter the enclosed grounds, not to leave them.
+          // If this session is already inside without a current pass (for example after
+          // reconnecting after midnight), return it to the public gate approach.
+          const alreadyInside = isInsideParkGrounds(session.player.x, session.player.z);
+          if (alreadyInside) {
+            session.player.x = PARK_GATE_APPROACH.x;
+            session.player.z = PARK_GATE_APPROACH.z;
+          }
+          session.lastSyncAt = now;
+          session.rejectedSyncs = 0;
+          send(socket, { type: "posCorrect", x: session.player.x, z: session.player.z });
+          if (now - Number(session.parkGateNoticeAt ?? 0) >= 2500) {
+            session.parkGateNoticeAt = now;
+            send(socket, {
+              type: "parkGateResult",
+              ok: false,
+              message: "City Park entry requires a valid pass for today. Buy a daily pass from an on-duty Ticket Seller at the main entrance. Park employees on duty and in uniform may enter with their staff credentials.",
+            });
+            send(socket, parkStatePayload(session));
+          }
+          return;
+        }
+
         const elapsed = Math.min(SYNC_MAX_ELAPSED, Math.max(0, (now - session.lastSyncAt) / 1000));
         const allowed = SYNC_SLACK + SYNC_MAX_SPEED * elapsed;
         const moved = Math.hypot(x - session.player.x, z - session.player.z);
