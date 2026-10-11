@@ -287,6 +287,7 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-person b{font-size:.7rem;overflow-wrap:anywhere}
 #modal.work-menu .wm-person small{color:#9eb4c4;font-size:.58rem}
 #modal.work-menu .wm-person>div{display:flex;gap:.2rem;flex-wrap:wrap;justify-content:flex-end}
+#modal.work-menu .wm-work-history .wm-person>strong{color:#8df0b9;font-size:.68rem;white-space:nowrap}
 #modal.work-menu .wm-person button{padding:.3rem .4rem;font-size:.58rem}
 #modal.work-menu .wm-hire{display:flex;gap:.35rem;margin-top:.4rem}
 #modal.work-menu .wm-hire select{min-width:0;flex:1;border:1px solid rgba(255,255,255,.16);border-radius:.4rem;background:#1a2d3f;color:#fff;padding:.4rem;font-size:.65rem}
@@ -3285,8 +3286,8 @@ function renderWorkplaceMenu(data){
  // remains the central directory. This is also reflected in the rendered card list.
  const places=focus?allPlaces.filter(w=>w.id===focus):allPlaces;
  const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
- const workHistory=employment?(data.workHistory||[]).slice(-5).reverse():[];
- const historyPanel=employment?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4>'+(workHistory.length?workHistory.map(entry=>'<div class="wm-person"><span><b>'+safeText(entry.taskTitle||'Work task')+'</b><small>'+safeText(allPlaces.find(w=>w.id===entry.workplaceId)?.name||entry.workplaceId||'Workplace')+' · Rank '+Number(entry.rank||1)+' · '+new Date(Number(entry.paidAt)||0).toLocaleString('en-NG')+'</small></span><strong>+₦'+Number(entry.amount||0).toLocaleString('en-NG')+'</strong></div>').join(''):'<p class="wm-note">Your completed task receipts will appear here after your first paid task.</p>')+'</section>':'';
+ const workHistory=(data.workHistory||[]).slice(-5).reverse();
+ const historyPanel=workHistory.length?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4>'+workHistory.map(entry=>'<div class="wm-person"><span><b>'+safeText(entry.taskTitle||'Work task')+'</b><small>'+safeText(allPlaces.find(w=>w.id===entry.workplaceId)?.name||entry.workplaceId||'Workplace')+' · Rank '+Number(entry.rank||1)+' · '+new Date(Number(entry.paidAt)||0).toLocaleString('en-NG')+'</small></span><strong>+₦'+Number(entry.amount||0).toLocaleString('en-NG')+'</strong></div>').join('')+'</section>':employment?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4><p class="wm-note">Your completed task receipts will appear here after your first paid task.</p></section>':'';
  let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
  let cards=places.map(w=>{
   const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
