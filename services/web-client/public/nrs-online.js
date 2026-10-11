@@ -578,6 +578,49 @@
         S.jobCb = null;
         if (message.ok && message.job) job = message.job;
         cb?.(message);
+      } else if (message.type === "marketState" || message.type === "marketSaleResult" ||
+                 message.type === "marketSaleNotice" || message.type === "marketCommissionResult") {
+        if (message.products || message.availableSellers || message.salesHistory) {
+          N.marketState = { ...(N.marketState || {}), ...message };
+          window.dispatchEvent(new CustomEvent("nrs-market-state", { detail: N.marketState }));
+        }
+        if (message.cash !== undefined) {
+          cash = Number(message.cash) || 0;
+          N.cash = cash;
+          money();
+        }
+        if (message.inventory && typeof message.inventory === "object") {
+          for (const key of Object.keys(inv)) delete inv[key];
+          Object.assign(inv, message.inventory);
+        }
+        if (message.type === "marketSaleResult") {
+          window.dispatchEvent(new CustomEvent("nrs-market-sale-result", { detail: message }));
+        } else if (message.type === "marketCommissionResult") {
+          window.dispatchEvent(new CustomEvent("nrs-market-commission-result", { detail: message }));
+        } else if (message.type === "marketSaleNotice") {
+          window.dispatchEvent(new CustomEvent("nrs-market-sale-notice", { detail: message }));
+          if (message.message) sys(message.message);
+        }
+      } else if (message.type === "bankState" || message.type === "bankTransactionResult" || message.type === "bankReceipt") {
+        if (message.transactions || message.nearbyCustomers || message.availableTellers || message.type === "bankState") {
+          N.bankState = { ...(N.bankState || {}), ...message };
+          window.dispatchEvent(new CustomEvent("nrs-bank-state", { detail: N.bankState }));
+        }
+        if (message.cash !== undefined) {
+          cash = Number(message.cash) || 0;
+          N.cash = cash;
+        }
+        if (message.bank !== undefined) {
+          bank = Number(message.bank) || 0;
+          N.bank = bank;
+        }
+        if (message.cash !== undefined || message.bank !== undefined) money();
+        if (message.type === "bankTransactionResult") {
+          window.dispatchEvent(new CustomEvent("nrs-bank-transaction-result", { detail: message }));
+        } else if (message.type === "bankReceipt") {
+          window.dispatchEvent(new CustomEvent("nrs-bank-receipt", { detail: message }));
+          if (message.message) sys(message.message);
+        }
       } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
         N.workplaceState = message;
         N.workplaces = message.workplaces || N.workplaces || [];
@@ -859,6 +902,15 @@
 
   // Stage 3 careers and factions are server-authoritative; this bridge only sends requests.
   N.getWorkplaces = () => send({ type: "getWorkplaces" });
+  const stage4RequestId = (prefix) => prefix + "-" +
+    (globalThis.crypto?.randomUUID?.() || (Date.now().toString(36) + "-" + Math.random().toString(36).slice(2)));
+  N.getMarketState = () => send({ type: "getMarketState" });
+  N.placeMarketOrder = (sellerId, productId, quantity, orderId = stage4RequestId("market")) =>
+    send({ type: "marketSale", sellerId, productId, quantity, orderId });
+  N.claimMarketCommission = () => send({ type: "claimMarketCommission" });
+  N.getBankState = () => send({ type: "getBankState" });
+  N.processBankTransaction = (customerId, transactionType, amount, requestId = stage4RequestId("bank")) =>
+    send({ type: "bankTransaction", customerId, transactionType, amount, requestId });
   N.getRichestPlayers = () => send({ type: "getRichestPlayers" });
   N.applyWorkplace = (workplaceId) => send({ type: "applyWorkplace", workplaceId });
   N.leaveWorkplace = () => send({ type: "leaveWorkplace" });
