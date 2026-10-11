@@ -49,6 +49,9 @@ jobs:
       - name: Test Stage 4 market and bank rules
         run: npm run test:stage4 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 5 hospital and park interactions
+        run: npm run test:stage5 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
