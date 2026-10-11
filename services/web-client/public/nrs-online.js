@@ -521,6 +521,18 @@
       let message;
       try { message = JSON.parse(event.data); } catch { return; }
 
+      // Betting replies arrive through the authenticated game-server socket.
+      // Keep the shared HUD balance in sync and publish them to the betting app.
+      if (typeof message.type === "string" && message.type.startsWith("betting")) {
+        if (message.cash !== undefined && Number.isFinite(Number(message.cash))) {
+          cash = Math.max(0, Math.floor(Number(message.cash)));
+          N.cash = cash;
+          money();
+        }
+        window.dispatchEvent(new CustomEvent("nrs-betting-message", { detail: message }));
+        return;
+      }
+
       if (message.type === "richestPlayers") {
         N.richestPlayers = Array.isArray(message.players) ? message.players : [];
         window.dispatchEvent(new CustomEvent("nrs-richest-players", { detail: message }));
