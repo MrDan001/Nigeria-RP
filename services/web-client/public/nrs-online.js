@@ -16,6 +16,7 @@
     id: null,
     name: "",
     level: 1,
+    cityId: "port-harcourt",
     displayId: "000",
     token: readToken(),
     initialConnection: true,
@@ -268,6 +269,8 @@
     S.id = player.id;
     S.name = String(player.name || "Player");
     S.level = Math.max(1, Math.floor(Number(player.level) || 1));
+    S.cityId = String(player.cityId || "port-harcourt");
+    N.cityId = S.cityId;
     S.displayId = String(player.sessionId || player.displayId || "000").padStart(3, "0");
     N.playerIdentity = { id: S.id, name: S.name, level: S.level, sessionId: S.displayId };
     S.authed = true;
@@ -399,6 +402,11 @@
 
   function remote(player) {
     if (!player || !player.id || player.id === S.id) return;
+    const remoteCity = String(player.cityId || "port-harcourt");
+    if (remoteCity !== String(S.cityId || "port-harcourt")) {
+      remove(player.id);
+      return;
+    }
 
     let group = S.remotes.get(player.id);
     if (!group) {
@@ -418,6 +426,7 @@
         name: playerName,
         level: playerLevel,
         sessionId,
+        cityId: remoteCity,
         workplaceId: player.workplaceId || null,
         onDuty: player.onDuty === true,
         uniformWorkplaceId: player.uniformWorkplaceId || null
@@ -434,6 +443,7 @@
     group.userData.level = nextLevel;
     group.userData.sessionId = nextSessionId;
     group.userData.playerId = String(player.id);
+    group.userData.cityId = remoteCity;
     group.userData.workplaceId = player.workplaceId || null;
     group.userData.onDuty = player.onDuty === true;
     group.userData.uniformWorkplaceId = player.uniformWorkplaceId || null;
@@ -533,8 +543,9 @@
         send({ type: "getParkState" });
         send({ type: "getStage7State" });
         send({ type: "getStage9State" });
+        send({ type: "getStage15TravelState" });
         $("nrsError").textContent = "";
-        status("Account loaded. Welcome to Port Harcourt.");
+        status("Account loaded. Welcome back to your saved city.");
         return;
       }
 
@@ -556,7 +567,30 @@
 
       if (!S.authed) return;
 
-      if (message.type === "snapshot") {
+      if (message.type === "stage15TravelState") {
+        N.stage15TravelState = message;
+        N.cityId = String(message.cityId || N.cityId || "port-harcourt");
+        S.cityId = N.cityId;
+        window.dispatchEvent(new CustomEvent("nrs-stage15-travel-state", { detail: message }));
+      } else if (message.type === "stage15TravelResult") {
+        if (message.ok) {
+          S.cityId = String(message.cityId || "port-harcourt");
+          N.cityId = S.cityId;
+          cash = Math.max(0, Number(message.cash) || 0);
+          N.cash = cash;
+          money();
+          if (Number.isFinite(Number(message.x)) && Number.isFinite(Number(message.z)) && !inside) {
+            pos.set(Number(message.x), 0, Number(message.z));
+            vel.set(0, 0, 0);
+            face = Number(message.yaw) || Math.PI;
+          }
+          snapshot(message.players || [], message.onlineCount);
+          window.dispatchEvent(new CustomEvent("nrs-city-changed", { detail: message }));
+          send({ type: "getStage15TravelState" });
+        }
+        window.dispatchEvent(new CustomEvent("nrs-stage15-travel-result", { detail: message }));
+        if (message.message) sys(message.message);
+      } else if (message.type === "snapshot") {
         snapshot(message.players || [], message.onlineCount);
       } else if (message.type === "playerJoined") {
         if (message.player?.id !== S.id) remote(message.player);
@@ -1022,6 +1056,9 @@
   N.getStage7State = () => send({ type: "getStage7State" });
   N.getStage8State = () => send({ type: "getStage8State" });
   N.getStage9State = () => send({ type: "getStage9State" });
+  N.getStage15TravelState = () => send({ type: "getStage15TravelState" });
+  N.travelStage15City = (routeId, passengers = 1, requestId = stage4RequestId("city-travel")) =>
+    send({ type: "travelCity", routeId, passengers: Number(passengers), requestId });
   N.checkoutStage9Vehicle = (vehicleId, requestId = stage4RequestId("stage9-checkout")) => send({type:"checkoutStage9Vehicle",vehicleId,requestId});
   N.returnStage9Vehicle = (requestId = stage4RequestId("stage9-return")) => send({type:"returnStage9Vehicle",requestId});
   N.refuelStage9Vehicle = (litres, requestId = stage4RequestId("stage9-fuel")) => send({type:"refuelStage9Vehicle",litres,requestId});
@@ -1262,6 +1299,161 @@
 
   window.addEventListener("blur", stopMoving);
   document.addEventListener("visibilitychange", () => { if (document.hidden) stopMoving(); });
+
+  // Stage 15 inter-city travel terminal. The server is authoritative for routes, fares,
+  // balance checks, replay protection and the persisted destination city.
+  const cityTravelStyle = document.createElement("style");
+  cityTravelStyle.textContent = `
+    #nrsCityBadge{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:12px;z-index:8000;
+      max-width:45vw;padding:7px 10px;border:1px solid rgba(108,190,255,.35);border-radius:999px;
+      background:rgba(6,17,31,.9);color:#e7f4ff;font:700 11px/1.2 system-ui,sans-serif;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;box-shadow:0 8px 22px rgba(0,0,0,.22)}
+    #nrsTravelOpen{position:fixed;top:calc(env(safe-area-inset-top,0px) + 54px);right:12px;z-index:8001;
+      border:1px solid rgba(111,205,255,.5);border-radius:13px;padding:10px 13px;background:linear-gradient(135deg,#0b6ea8,#124a77);
+      color:#fff;font:800 12px system-ui,sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.32);touch-action:manipulation}
+    #nrsTravelModal[hidden],#nrsTravelArrival[hidden]{display:none!important}
+    #nrsTravelModal{position:fixed;inset:0;z-index:95000;display:grid;place-items:center;padding:16px;
+      background:rgba(1,7,14,.78);backdrop-filter:blur(10px);font-family:system-ui,sans-serif;color:#f4f8ff;box-sizing:border-box}
+    #nrsTravelModal .card{width:min(470px,100%);max-height:min(82vh,720px);overflow:auto;box-sizing:border-box;
+      padding:20px;border:1px solid rgba(130,203,255,.24);border-radius:22px;
+      background:linear-gradient(155deg,#101f32,#08121f 72%);box-shadow:0 26px 85px rgba(0,0,0,.55)}
+    #nrsTravelModal .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    #nrsTravelModal h2{font-size:19px;letter-spacing:-.02em;margin:0 0 5px}
+    #nrsTravelModal .sub{font-size:12px;color:#adc1d8;line-height:1.45;margin:0 0 16px}
+    #nrsTravelModal .close{border:1px solid #33465d;border-radius:10px;background:#17283b;color:#fff;padding:7px 11px}
+    #nrsTravelModal .wallet{display:flex;justify-content:space-between;gap:10px;margin:12px 0;padding:11px 12px;border-radius:12px;
+      background:rgba(60,139,190,.12);border:1px solid rgba(103,181,235,.17);font-size:12px}
+    #nrsTravelRoutes{display:grid;gap:8px}
+    #nrsTravelRoutes .route{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;
+      padding:12px;border-radius:13px;border:1px solid #263d55;background:#0d1b2b;color:#edf6ff;touch-action:manipulation}
+    #nrsTravelRoutes .route:disabled{opacity:.43}
+    #nrsTravelRoutes .route strong{display:block;font-size:13px}
+    #nrsTravelRoutes .route small{display:block;margin-top:4px;font-size:11px;color:#a8bdd2}
+    #nrsTravelRoutes .price{white-space:nowrap;color:#8bd7ff;font-size:13px;font-weight:800}
+    #nrsTravelModal .controls{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0}
+    #nrsTravelPassengers{max-width:110px;border:1px solid #38516a;border-radius:10px;background:#0b1726;color:#fff;padding:9px}
+    #nrsTravelStatus{min-height:18px;font-size:12px;color:#9edcff;line-height:1.4;margin-top:10px}
+    #nrsTravelArrival{position:fixed;inset:0;z-index:96000;display:grid;place-items:center;padding:24px;
+      background:radial-gradient(ellipse at center,rgba(16,69,99,.95),rgba(2,8,17,.98));color:#fff;text-align:center;
+      font-family:system-ui,sans-serif;pointer-events:none}
+    #nrsTravelArrival .title{font-size:clamp(25px,7vw,40px);font-weight:900;letter-spacing:-.035em}
+    #nrsTravelArrival .desc{font-size:13px;color:#b6e2ff;margin-top:10px}
+    @media(max-width:480px){#nrsTravelModal .card{padding:16px;border-radius:18px}#nrsTravelOpen{top:calc(env(safe-area-inset-top,0px) + 52px);padding:9px 11px}}
+  `;
+  document.head.appendChild(cityTravelStyle);
+
+  const cityBadge = document.createElement("div");
+  cityBadge.id = "nrsCityBadge";
+  cityBadge.textContent = "CITY · PORT HARCOURT";
+  document.body.appendChild(cityBadge);
+
+  const travelOpen = document.createElement("button");
+  travelOpen.id = "nrsTravelOpen";
+  travelOpen.type = "button";
+  travelOpen.textContent = "🚌 Inter-city travel";
+  document.body.appendChild(travelOpen);
+
+  const travelModal = document.createElement("div");
+  travelModal.id = "nrsTravelModal";
+  travelModal.hidden = true;
+  travelModal.innerHTML = `
+    <section class="card" role="dialog" aria-modal="true" aria-labelledby="nrsTravelTitle">
+      <div class="head"><div><h2 id="nrsTravelTitle">Inter-city travel</h2><p class="sub">Book a verified route. Fares and destination changes are confirmed by the server.</p></div><button class="close" id="nrsTravelClose" type="button">Close</button></div>
+      <div class="wallet"><span>Current city<br><strong id="nrsTravelCity">Port Harcourt</strong></span><span>Available cash<br><strong id="nrsTravelCash">₦0</strong></span></div>
+      <div class="controls"><label for="nrsTravelPassengers">Passengers</label><select id="nrsTravelPassengers"><option value="1">1 passenger</option><option value="2">2 passengers</option><option value="3">3 passengers</option><option value="4">4 passengers</option><option value="5">5 passengers</option><option value="6">6 passengers</option></select></div>
+      <div id="nrsTravelRoutes" aria-live="polite"><p class="sub">Loading routes…</p></div>
+      <div id="nrsTravelStatus" role="status"></div>
+    </section>`;
+  document.body.appendChild(travelModal);
+
+  const travelArrival = document.createElement("div");
+  travelArrival.id = "nrsTravelArrival";
+  travelArrival.hidden = true;
+  travelArrival.innerHTML = '<div><div class="title" id="nrsTravelArrivalTitle">Arriving…</div><div class="desc" id="nrsTravelArrivalDesc">Restoring your saved city instance</div></div>';
+  document.body.appendChild(travelArrival);
+
+  const formatNaira = (amount) => "₦" + Math.max(0, Number(amount) || 0).toLocaleString("en-NG");
+  const cityName = (id, cities) => (cities || []).find((city) => city.id === id)?.name || (id === "port-harcourt" ? "Port Harcourt" : String(id || "Port Harcourt"));
+  function renderTravelState(data = N.stage15TravelState || {}) {
+    const cities = Array.isArray(data.cities) ? data.cities : [];
+    const routes = Array.isArray(data.routes) ? data.routes : [];
+    const currentCityId = String(data.cityId || N.cityId || "port-harcourt");
+    const currentCityName = data.currentCity?.name || cityName(currentCityId, cities);
+    N.cityId = currentCityId;
+    S.cityId = currentCityId;
+    cityBadge.textContent = "CITY · " + currentCityName.toUpperCase();
+    $("nrsTravelCity").textContent = currentCityName;
+    $("nrsTravelCash").textContent = formatNaira(data.cash ?? N.cash);
+    const passengers = Math.max(1, Math.min(6, Number($("nrsTravelPassengers").value) || 1));
+    const routesBox = $("nrsTravelRoutes");
+    routesBox.replaceChildren();
+    const outbound = routes.filter((route) => route.fromCityId === currentCityId);
+    if (!outbound.length) {
+      const empty = document.createElement("p");
+      empty.className = "sub";
+      empty.textContent = "No departures are available from this city. Refresh or check another route later.";
+      routesBox.appendChild(empty);
+      return;
+    }
+    for (const route of outbound) {
+      const destinationName = cityName(route.toCityId, cities);
+      const fare = Number(route.baseFareNaira) * passengers;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "route";
+      button.disabled = Number(data.cash ?? N.cash ?? 0) < fare;
+      const detail = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = destinationName;
+      const meta = document.createElement("small");
+      meta.textContent = Number(route.distanceKm).toLocaleString() + " km · " + Math.floor(Number(route.durationMinutes) / 60) + "h " + (Number(route.durationMinutes) % 60) + "m · up to " + route.capacity + " passengers";
+      detail.append(title, meta);
+      const price = document.createElement("span");
+      price.className = "price";
+      price.textContent = formatNaira(fare);
+      button.append(detail, price);
+      button.addEventListener("click", () => {
+        const statusEl = $("nrsTravelStatus");
+        statusEl.textContent = "Confirming seat and fare with the server…";
+        for (const item of routesBox.querySelectorAll("button")) item.disabled = true;
+        N.travelStage15City(route.id, passengers);
+      });
+      routesBox.appendChild(button);
+    }
+  }
+  function openTravelTerminal() {
+    if (!S.authed || !S.open) {
+      $("nrsTravelStatus").textContent = "Log in and connect to the game before travelling.";
+    } else {
+      $("nrsTravelStatus").textContent = "Checking live routes and available cash…";
+      N.getStage15TravelState();
+    }
+    travelModal.hidden = false;
+  }
+  travelOpen.addEventListener("click", openTravelTerminal);
+  $("nrsTravelClose").addEventListener("click", () => { travelModal.hidden = true; });
+  travelModal.addEventListener("click", (event) => { if (event.target === travelModal) travelModal.hidden = true; });
+  $("nrsTravelPassengers").addEventListener("change", () => renderTravelState());
+  window.addEventListener("keydown", (event) => { if (event.key === "Escape") travelModal.hidden = true; });
+  window.addEventListener("nrs-stage15-travel-state", (event) => renderTravelState(event.detail));
+  window.addEventListener("nrs-stage15-travel-result", (event) => {
+    const result = event.detail || {};
+    $("nrsTravelStatus").textContent = result.message || (result.ok ? "Travel completed." : "Travel was not completed.");
+    if (!result.ok) {
+      N.getStage15TravelState();
+      return;
+    }
+    travelModal.hidden = true;
+    $("nrsTravelArrivalTitle").textContent = "Welcome to " + (result.cityName || cityName(result.cityId, (N.stage15TravelState || {}).cities));
+    $("nrsTravelArrivalDesc").textContent = "Destination saved · Fare paid " + formatNaira(result.fareNaira);
+    travelArrival.hidden = false;
+    window.setTimeout(() => { travelArrival.hidden = true; }, 1700);
+    cityBadge.textContent = "CITY · " + String(result.cityName || result.cityId || "").toUpperCase();
+  });
+  window.addEventListener("nrs-city-changed", (event) => {
+    const result = event.detail || {};
+    cityBadge.textContent = "CITY · " + String(result.cityName || cityName(result.cityId, (N.stage15TravelState || {}).cities)).toUpperCase();
+  });
 
   setVisible(false);
   connect();
