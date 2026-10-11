@@ -10,6 +10,7 @@ import {
   createMarketState,
   normalizeStage4State,
   rankTitle,
+  restockMarketStock,
   settleBankTransaction,
   settleMarketSale,
 } from "./stage4";
@@ -35,6 +36,23 @@ test("market and bank each expose the required six ranks", () => {
   assert.equal(rankTitle(BANK_RANKS, 6), "Branch Manager");
   assert.equal(rankTitle(BANK_RANKS, 0), "");
   assert.equal(rankTitle(BANK_RANKS, 7), "");
+});
+
+test("market supervisors and chairmen can restock from the market till", () => {
+  const state = createMarketState();
+  state.till = 100_000;
+  const result = restockMarketStock({ state, productId: "bread", quantity: 10, managerRank: 5 });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.result.totalCost, 15_000);
+  assert.equal(result.result.remainingStock, 70);
+  assert.equal(state.till, 85_000);
+  assert.equal(restockMarketStock({ state, productId: "bread", quantity: 1, managerRank: 4 }).ok, false);
+  assert.equal(restockMarketStock({ state, productId: "bread", quantity: 500, managerRank: 6 }).ok, false);
+  state.till = 100;
+  const lowFunds = restockMarketStock({ state, productId: "rice-5kg", quantity: 1, managerRank: 6 });
+  assert.equal(lowFunds.ok, false);
+  assert.equal(state.stock["rice-5kg"], 40);
 });
 
 test("market sale settles against server-owned stock and customer cash", () => {
