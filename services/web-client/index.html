@@ -3642,7 +3642,7 @@ function renderParkConsole(data){
   '<section class="s4-card"><h3>🎟 Daily visitor pass</h3><p class="s4-muted">Entry pass costs '+stage5Money(data.ticketPrice||500)+'. Choose a real on-duty Ticket Seller who is present at the park.</p>'+
   (ticketSellers.length?'<label class="s4-field">Ticket seller<select id="s5ParkSeller">'+sellerOptions+'</select></label>':'<div class="s4-empty">No Ticket Seller is available at the park right now.</div>')+
   '<button data-park-ticket="1" '+(!data.atPark||!ticketSellers.length||!!data.ticket?'disabled':'')+'>'+(data.ticket?'Pass already valid today':'Buy today’s visitor pass')+'</button>'+
-  '<p class="s4-muted">This feature issues a daily pass and receipt. Physical entry-gate enforcement is not yet part of this stage.</p></section>'+
+  '<p class="s4-muted">Your pass opens the main entrance gate for today. Entry is checked by the game server. Park employees on duty and in uniform can enter using their staff access.</p></section>'+
   '<div class="s4-sectiontitle">Ask park staff for help <small>VISITOR SUPPORT</small></div>'+
   '<div class="s4-card"><p class="s4-muted">Select the closest option. Your request is visible to on-duty staff at the park and stays open until handled.</p>'+requestButtons+
   '<div class="s4-sectiontitle">Your requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestHtml+'</div>'+
