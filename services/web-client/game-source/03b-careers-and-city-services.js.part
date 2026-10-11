@@ -4,7 +4,7 @@ const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','
 let forbesBoardOpen=false;
 function openForbesBoard(){
  forbesBoardOpen=true;
- panel('<div class="wm-head"><span>🏆</span><div><small>RIVERS NEWS NETWORK · FORBES</small><h2>Top 10 Richest Players</h2><p>Live ranking by total cash plus bank balance.</p></div></div><p class="forbes-intro">Player rankings reflect each citizen's combined cash and bank balance.</p><div id="forbesRanking" class="forbes-ranking"><p class="wm-loading">Loading the richest citizens…</p></div><button id="forbesRefresh" class="forbes-refresh" type="button">Refresh rankings</button>');
+ panel('<div class="wm-head"><span>🏆</span><div><small>RIVERS NEWS NETWORK · FORBES</small><h2>Top 10 Richest Players</h2><p>Live ranking by total cash plus bank balance.</p></div></div><p class="forbes-intro">Player rankings show combined cash and bank balances.</p><div id="forbesRanking" class="forbes-ranking"><p class="wm-loading">Loading the richest citizens…</p></div><button id="forbesRefresh" class="forbes-refresh" type="button">Refresh rankings</button>');
  modal.classList.add('forbes-menu');
  $('forbesRefresh').onclick=()=>window.NRS?.getRichestPlayers();
  window.NRS?.getRichestPlayers();
