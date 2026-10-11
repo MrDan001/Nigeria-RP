@@ -1,8 +1,8 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Project status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance is verified. The Face-Me-I-Face-You visibility defect was fixed in commit `6ccc856` and the user confirmed the buildings now appear in the live Railway game; this closes that specific visual defect, not the full housing or Stage 3 acceptance checklist. See [the roadmap](ROADMAP.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
+> **Project status — 11 October 2026:** Stage 3 was accepted by the user; Stage 4 market/bank services were implemented and deployed to Railway; **Stage 5 (hospital, ambulance and City Park citizen-to-worker services) is active**. Current Stage 5 implementation includes patient request/triage/treatment queues, ambulance dispatch, pharmacy purchases and receipts, park tickets and visitor-help requests. See [Stage 5 status](STAGE-5-STATUS.md), [the short roadmap](ROADMAP.md) and the [master handoff](MASTER-DOCUMENT.md). The Face-Me-I-Face-You visibility fix remains a protected regression boundary.
 
-> **Gate rule:** Stage 3 was explicitly approved on 10 October 2026 and is already in progress. The remaining Stage 2 checks are important housing regressions/closeout items; they do not retroactively cancel that approval. Stage 4 is next only after Stage 3's own acceptance is completed and approved.
+> **Gate rule:** The user has explicitly asked to continue through the stages without requiring a second human tester. Use deterministic automated tests for replay, rank, balance and multi-account domain scenarios. Do not claim an unperformed two-account/Android live check as complete; record it as a manual limitation while proceeding with the next approved stage.
 
 **Purpose:** Single practical handoff for a developer joining this repository: current state, implementation sequence, dependencies, tests and the next approved task. Read this before changing gameplay.
 
@@ -127,7 +127,7 @@ Acceptance:
 **Gate/status note:** Stage 3 was explicitly approved by the user on 10 October 2026 and is already active. Continue to retain the unchecked Stage 2 items as housing regression/closeout checks; do not claim Stage 2 is fully accepted until those specific checks are completed. Do not broaden the housing scope while implementing Stage 3 unless a verified blocker requires it.
 
 ### Stage 3 — Workplace locations and reusable jobs/ranks engine
-**Status: ACTIVE — explicitly approved on 10 October 2026; implementation is present but acceptance and live verification are still outstanding.**
+**Status: COMPLETE / ACCEPTED by the user on 11 October 2026.** Automated permissions, payout and regression checks are part of CI. Two-account Android live acceptance was intentionally not made a blocker because the user is the sole tester; keep that limitation explicit rather than claiming it was manually performed.
 
 - Place and label real workplace buildings and doors at aligned server/client coordinates.
 - Build the reusable server-authoritative job service: six titled ranks, rosters, rank-1 hiring/onboarding, clock in/out, shifts, tasks, payout and history.
@@ -135,18 +135,14 @@ Acceptance:
 - Enforce one main job per citizen; keep simple delivery gigs open to all. Rank-based pay uses the shared multipliers above.
 - Add a Work tab and contextual workplace actions; persist work state across logout and reconnect.
 
-Acceptance:
-- [ ] Two-account application, hiring/approval and roster flow works end to end.
-- [ ] All six rank titles and configured pay multipliers match server results.
-- [ ] Only the assigned boss or explicitly authorized admin can promote/demote/fire; ordinary clients cannot claim boss identity.
-- [ ] On-duty/uniform requirements and clock-in/out transitions are enforced by the server.
-- [ ] Tasks require valid context/proximity and cannot be replayed for duplicate payout.
-- [ ] Work state survives refresh, logout and reconnect.
-- [ ] Workplace entrances, reception/staff-room routing and avatar nameplates are visually checked on Android with one and two accounts.
-- [ ] Stage 1/2 regression tests, server typecheck/build, browser build and both CI workflows pass; user approves Stage 3 before Stage 4 starts.
+Acceptance / closeout:
+- [x] Workplace, roster, rank, duty/uniform, task/payout and history paths are implemented and protected by server validation and deterministic regression tests.
+- [x] Stage 1–3 automated regression, typecheck/build and CI passed on the accepted Stage 3 checkpoint.
+- [x] User explicitly accepted Stage 3 and approved moving to Stage 4.
+- [ ] Two-account and Android visual acceptance was not performed because the user is the only available tester; this is documented and does not block progression by agreement.
 
 ### Stage 4 — Market salespeople and bank tellers
-**Status: NEXT after Stage 3 acceptance. Some bank transaction, market/storefront and interior groundwork already exists in source; none of it counts as complete until this stage's end-to-end acceptance checks pass.**
+**Status: IMPLEMENTED AND DEPLOYED.** The server-authoritative market catalogue/sales/stock/till/commission flows, manager restocking, bank deposits/withdrawals, receipts and transaction history are wired into the existing workplace cards. The Stage 4 domain suite and server/browser build checks passed on the accepted implementation checkpoint; see [Stage 4 status](STAGE-4-STATUS.md). Solo visual review remains a final user-facing check.
 - Market ranks: Hawker, Stall Assistant, Sales Rep, Senior Sales, Market Supervisor, Market Chairman.
 - Bank ranks: Trainee, Teller, Senior Teller, Loan Officer, Operations Manager, Branch Manager.
 - At the market, customers arrive and request listed goods. Staff fulfil the correct order from valid stock and earn commission; stock and cash changes are server-authoritative.
@@ -156,14 +152,23 @@ Acceptance:
 Acceptance: customers receive the right goods; cash, bank balances, stock and commissions reconcile; replayed sales/withdrawals do not duplicate value.
 
 ### Stage 5 — Hospital and parks
-**Scope note:** the two requested hospital exteriors (Mile One General Hospital in Mile 1 and Princess Hospital along Trans Amadi Road) were added as Stage 3 location/content work. This stage covers their validated clinical workflows and the park gameplay, not merely the buildings.
+**Status: ACTIVE — citizen-to-worker interaction flows are implemented; final integration, regression, production and solo-device verification remain in progress.** The existing Mile One General Hospital, Princess Hospital and City Park locations are reused.
+
 - Hospital ranks: Orderly, Nurse Aide, Nurse, Senior Nurse, Doctor, Chief Medical Director.
 - Park ranks: Cleaner, Gate Attendant, Ticket Seller, Ranger, Operations Officer, Park Director.
-- Build hospital triage, treatment, ambulance dispatch, medicine/pharmacy trips and injury care. Hurt citizens must pay valid treatment costs through the server settlement flow.
-- Build park entry/ticket sales, visitor-care duties, cleaning/ranger tasks and park activity.
-- Use the same workplace roster and rank permissions; emergency or healing actions need a valid place, patient and authorized worker.
+- Hospital panels allow patients to request care or an ambulance, follow status, meet available staff and use a staffed pharmacy; workers receive an on-site queue and must triage before regular treatment. Ambulance dispatch requires a Nurse-or-higher responder, and field treatment requires the assigned worker to reach the patient in a public area.
+- City Park visitors can buy a daily pass from a real on-duty ticket seller, request help/lost-and-found/first-aid assistance, and receive completion notices. Park workers receive the visitor-request queue. The current daily pass is a receipt-backed ticket; physical gate enforcement is still open.
+- Hospital treatment, pharmacy sales, park tickets and assistance requests are server-authoritative, persist through the existing store and have deterministic Stage 5 tests. Old contextual treatment that bypassed the hospital request workflow is disabled.
+- Existing park work tasks (groundskeeping/visitor assistance) use the shared employment system.
 
-Acceptance: health/treatment persists; unauthorized or remote healing is rejected; ticket sales reconcile; homeless respawn routes to a designated public park/parking point without deleting property.
+Acceptance:
+- [x] Server domain and account-scoped hospital/park workflows are implemented.
+- [x] Stage 5 regression suite is registered in CI; latest check results are tracked by commit before claiming final acceptance.
+- [ ] Final full CI and Railway health verification on the final Stage 5 commit.
+- [ ] Solo Android visual check of patient status, triage-to-treatment flow, pharmacy receipt, park visitor-pass and help panels.
+- [ ] Implement or explicitly defer physical park-gate enforcement.
+- [ ] Verify homeless respawn routing to a designated public park/parking point without deleting property.
+- [ ] User accepts Stage 5.
 
 ### Stage 6 — Rivers State government and civic finance
 - Rank 6: Governor (boss). Rank 5: Deputy Governor. Rank 4: Secretary to the State Government, Chief of Staff and Speaker. Rank 3: Commissioners, Senators and LGA Chairmen. Rank 2: Vice Chairmen, Special Advisers and PRO. Rank 1: Councillors, Assistants and Clerks.
