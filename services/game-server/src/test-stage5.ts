@@ -15,6 +15,8 @@ import {
   hospitalRankCanDispatch,
   hospitalRankCanTreat,
   hospitalRankCanTriage,
+  hasValidParkTicket,
+  isInsideParkGrounds,
   normalizeStage5State,
   parkRankCanSellTickets,
   purchaseHospitalMedicine,
@@ -263,6 +265,25 @@ test("pharmacy blocks self-service, off-duty workers, invalid fractional quantit
   assert.equal(purchaseHospitalMedicine({ ...base, customerCash: 1, idempotencyKey: "pharm-hash-d" }).ok, false);
   state.hospital.pharmacyStock["hospital-main:paracetamol"] = 0;
   assert.equal(purchaseHospitalMedicine({ ...base, idempotencyKey: "pharm-hash-e" }).ok, false);
+});
+
+test("physical park grounds boundaries are defined and a pass is valid only for its issue day", () => {
+  const state = createStage5State();
+  assert.equal(isInsideParkGrounds(-40, 30), true);
+  assert.equal(isInsideParkGrounds(-51, 30), false);
+  assert.equal(isInsideParkGrounds(-30, 22.99), false);
+  assert.equal(isInsideParkGrounds(-30, 42), false);
+  assert.equal(hasValidParkTicket(state, "visitor", "2026-10-11"), false);
+
+  const ticket = buyParkTicket({
+    state, requestId: "gate-ticket", idempotencyKey: "gate-ticket-key",
+    visitorId: "visitor", sellerId: "seller", sellerRank: 3, sellerOnDuty: true,
+    sellerUniform: true, visitorAtPark: true, sellerAtPark: true, visitorCash: 1_000,
+    dayKey: "2026-10-11", now: NOW,
+  });
+  assert.equal(ticket.ok, true);
+  assert.equal(hasValidParkTicket(state, "visitor", "2026-10-11"), true);
+  assert.equal(hasValidParkTicket(state, "visitor", "2026-10-12"), false);
 });
 
 test("park tickets reconcile visitor cash and park till, and replay/daily double sale are rejected", () => {
