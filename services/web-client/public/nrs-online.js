@@ -1379,9 +1379,128 @@
 
   const formatNaira = (amount) => "₦" + Math.max(0, Number(amount) || 0).toLocaleString("en-NG");
   const cityName = (id, cities) => (cities || []).find((city) => city.id === id)?.name || (id === "port-harcourt" ? "Port Harcourt" : String(id || "Port Harcourt"));
+  let stage16LandmarkRoot = null;
+  function renderStage16Landmarks(environment) {
+    if (!environment || typeof THREE === "undefined" || typeof scene === "undefined") return;
+    if (stage16LandmarkRoot) {
+      scene.remove(stage16LandmarkRoot);
+      stage16LandmarkRoot.traverse((node) => {
+        if (!node.isMesh) return;
+        node.geometry?.dispose?.();
+        if (Array.isArray(node.material)) node.material.forEach((material) => material?.dispose?.());
+        else node.material?.dispose?.();
+      });
+      stage16LandmarkRoot = null;
+    }
+
+    const root = new THREE.Group();
+    const profile = String(environment.profile || "coastal-industrial");
+    const accent = Number(environment.accentHex) || 0x31b8e8;
+    const concrete = new THREE.MeshLambertMaterial({ color: 0xb6afa0 });
+    const accentMat = new THREE.MeshLambertMaterial({ color: accent });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x374450 });
+    const water = new THREE.MeshLambertMaterial({ color: 0x286f89, transparent: true, opacity: 0.78 });
+    const greenery = new THREE.MeshLambertMaterial({ color: 0x398258 });
+    const roof = new THREE.MeshLambertMaterial({ color: profile === "commercial-hub" ? 0xce873c : 0x95583d });
+    const make = (geometry, material, x, y, z, sx = 1, sy = 1, sz = 1, rotY = 0) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      mesh.scale.set(sx, sy, sz);
+      mesh.rotation.y = rotY;
+      root.add(mesh);
+      return mesh;
+    };
+    const box = (material, x, y, z, sx, sy, sz, rotY = 0) =>
+      make(new THREE.BoxGeometry(1, 1, 1), material, x, y, z, sx, sy, sz, rotY);
+    const cyl = (material, x, y, z, radiusTop, radiusBottom, height, segments = 10) =>
+      make(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material, x, y, z);
+    const sphere = (material, x, y, z, sx, sy, sz) =>
+      make(new THREE.SphereGeometry(1, 12, 8), material, x, y, z, sx, sy, sz);
+    const cone = (material, x, y, z, radius, height, segments = 8) =>
+      make(new THREE.ConeGeometry(radius, height, segments), material, x, y, z);
+
+    // These are lightweight, locally rendered landmark silhouettes, not just labels.
+    // They intentionally avoid physics/road edits so older gameplay geometry stays intact.
+    if (profile === "coastal-industrial") {
+      // Port cranes and stacked freight containers.
+      box(dark, -5, 5.2, 0, .65, 10.4, .65); box(dark, 1.4, 5.2, 0, .65, 10.4, .65);
+      box(accentMat, -1.8, 10.1, 0, 7.8, .55, .7); box(dark, -1.8, 7.7, .5, .2, 4.8, .2);
+      box(new THREE.MeshLambertMaterial({ color: 0xd08c4c }), -5, .7, 4, 4.4, 1.4, 2.2);
+      box(accentMat, -.3, .7, 4, 4.2, 1.4, 2.2);
+      box(roof, -5, 2.1, 4, 4.5, .15, 2.3); box(roof, -.3, 2.1, 4, 4.3, .15, 2.3);
+      box(water, 5.2, .05, 3, 3.2, .12, 10);
+    } else if (profile === "commercial-hub") {
+      // Open-front market stalls under a broad market canopy.
+      box(concrete, -4, 2.3, 2, 3.2, 4.6, 2.6); box(concrete, 4, 2.3, 2, 3.2, 4.6, 2.6);
+      box(roof, 0, 4.8, 2, 12, .55, 4.6);
+      for (const x of [-4.6, -1.6, 1.6, 4.6]) {
+        box(accentMat, x, 1.25, -.7, 1.8, 2.5, .35);
+        box(dark, x, .3, -.2, 2.1, .3, 1.1);
+      }
+      box(accentMat, 0, 3.1, 4.6, 7.5, .45, .35);
+    } else if (profile === "cultural-capital") {
+      // Cultural hall with a central dome and columned facade.
+      box(concrete, 0, 2.2, 2, 11, 4.4, 5.5);
+      cyl(accentMat, 0, 4.8, 2, 2.8, 3.2, 1, 14);
+      sphere(roof, 0, 5.8, 2, 2.7, 1.45, 2.7);
+      for (const x of [-4, -2, 2, 4]) cyl(concrete, x, 2.05, -.9, .19, .19, 3.9, 8);
+      cone(accentMat, 0, 7.35, 2, .45, .85, 8);
+      box(dark, 0, .6, -1.1, 2.2, 1.2, .15);
+    } else if (profile === "garden-city") {
+      // A simplified stadium bowl, corner floodlights and entry pylons.
+      cyl(concrete, 0, 1.4, 2, 6.2, 7.2, 2.8, 20);
+      cyl(greenery, 0, 2.65, 2, 4.5, 4.5, .15, 20);
+      cyl(accentMat, 0, 2.85, 2, 2.8, 2.8, .12, 20);
+      for (const x of [-7.1, 7.1]) {
+        box(dark, x, 5, 0, .3, 10, .3);
+        box(accentMat, x, 10.1, 0, 1.15, .45, .7);
+      }
+      box(concrete, -2, 2.1, 7, 1, 4.2, .8); box(concrete, 2, 2.1, 7, 1, 4.2, .8);
+      box(accentMat, 0, 4.35, 7, 5, .45, .8);
+    } else if (profile === "river-port") {
+      // River-facing loading crane, dock and industrial containers.
+      box(dark, -4, 4.6, 0, .55, 9.2, .55); box(dark, 4, 4.6, 0, .55, 9.2, .55);
+      box(accentMat, 0, 9.2, 0, 9, .6, .65);
+      box(dark, 0, 5.6, .2, .18, 6.3, .18);
+      box(new THREE.MeshLambertMaterial({ color: 0xd9a64a }), -3, 1, 3.5, 4, 2, 2.4);
+      box(roof, 1.2, 1, 3.5, 4, 2, 2.4);
+      box(water, 7, .03, 2, 3.5, .12, 12);
+      for (let z = -4; z <= 5; z += 3) cyl(dark, 7, .65, z, .14, .2, 1.3, 8);
+    } else if (profile === "delta-wetlands") {
+      // Raised creek-side pavilion, reflective channel, and mangrove silhouettes.
+      box(water, 0, .04, 3, 12, .12, 8);
+      for (const x of [-4, -1.4, 1.4, 4]) cyl(roof, x, 1.6, 2, .16, .21, 3.1, 7);
+      box(concrete, 0, 3.2, 2, 10.2, .35, 4.5);
+      box(accentMat, 0, 4, 2, 10.8, .3, 4.8);
+      box(roof, 0, 4.9, 2, 11, .45, 5);
+      for (const x of [-7, 7]) {
+        cyl(roof, x, 1.5, 1, .18, .22, 3, 7);
+        sphere(greenery, x, 3.4, 1, 1.7, 2.2, 1.7);
+        for (let n = 0; n < 3; n++) cyl(greenery, x + (n - 1) * .55, 2.8, 1.4, .06, .1, 1.6, 5);
+      }
+    } else if (profile === "royal-heritage") {
+      // Palace compound gate with traditional tapered towers.
+      box(concrete, 0, 2.25, 2, 11.5, 4.5, .9);
+      box(dark, 0, 1.5, 1.45, 3.2, 3, .15);
+      for (const x of [-4.6, 4.6]) {
+        box(accentMat, x, 4, 2, 1.9, 8, 1.6);
+        cone(roof, x, 8.6, 2, 1.55, 1.5, 6);
+        box(roof, x, 1.3, 1.35, 2.1, .25, 1.9);
+      }
+      box(accentMat, 0, 5.1, 2, 4, .45, 1.2);
+      for (const x of [-2.5, 2.5]) cyl(concrete, x, 2.7, 1, .22, .28, 5.2, 10);
+    }
+
+    root.position.set(0, 0, 0);
+    root.userData.stage16CityId = environment.cityId;
+    scene.add(root);
+    stage16LandmarkRoot = root;
+  }
+
   function applyCityEnvironment(environment) {
     if (!environment) return;
     N.cityEnvironment = environment;
+    renderStage16Landmarks(environment);
     const accent = /^#[0-9a-f]{6}$/i.test(String(environment.accentCss || "")) ? environment.accentCss : "#31b8e8";
     cityBadge.style.borderColor = accent;
     cityBadge.style.boxShadow = "0 8px 22px " + accent + "25";
