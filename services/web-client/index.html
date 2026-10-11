@@ -476,6 +476,25 @@ flat(500,500,M(0x5d7a45),0,0,0);flatW(10,500,asphalt2,0,.03,0,8);
 [-6.5,6.5].forEach(x=>flat(3,500,pavement,x,.04,0));
 const boxes=[],bld=[];
 
+// Keep these coordinates in sync with services/game-server/src/stage5.ts.
+// Access is personalised client-side for collision feel, then enforced again by the server.
+const PARK_GATE_BOUNDS={minX:-50,maxX:-26,minZ:23,maxZ:41,gateX:-33,gateZ:23,gateWidth:4.5,approachX:-33,approachZ:21.5};
+const PARK_GATE_VISUALS=[];
+function hasParkGateAccessClient(){
+ const n=window.NRS||{};
+ const pass=n.parkState?.ticket;
+ if(pass?.dayKey && (!n.today || pass.dayKey===n.today))return true;
+ const employment=n.life?.employment||{};
+ return employment.workplaceId==='park-main'&&employment.onDuty===true&&employment.uniformWorkplaceId==='park-main';
+}
+function updateParkGateVisual(){
+ const open=hasParkGateAccessClient();
+ for(const leaf of PARK_GATE_VISUALS)leaf.visible=!open;
+}
+window.addEventListener('nrs-park-state',updateParkGateVisual);
+window.addEventListener('nrs-workplaces',updateParkGateVisual);
+window.addEventListener('nrs-life',updateParkGateVisual);
+
 function apartmentRoadSegments(){
  const roads=[];
  HR.forEach(r=>roads.push({axis:'h',fixed:r[0],lo:r[2],hi:r[3],half:5,id:r[1],main:true}));
@@ -1567,9 +1586,10 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  const k=1-Math.exp(-dt*10);vel.x+=(tx-vel.x)*k;vel.z+=(tz-vel.z)*k;
  const moveX=vel.x*dt,moveZ=vel.z*dt,collisionSteps=Math.max(1,Math.min(128,Math.ceil(Math.max(Math.abs(moveX),Math.abs(moveZ))/.08)));
  const stepX=moveX/collisionSteps,stepZ=moveZ/collisionSteps;
+ const parkGateAccess=hasParkGateAccessClient();
  for(let step=0;step<collisionSteps;step++){
   pos.x+=stepX;pos.z+=stepZ;
-  for(const b of boxes){if(b.hw<=0||b.hd<=0||(b.owner&&!b.owner.g.visible))continue;
+  for(const b of boxes){if(b.hw<=0||b.hd<=0||(b.owner&&!b.owner.g.visible)||(b.parkAccessBarrier&&parkGateAccess))continue;
    const e=objectHalfExtents(b),ox=pos.x-b.x,oz=pos.z-b.z,px=e.hw+.12-Math.abs(ox),pz=e.hd+.12-Math.abs(oz);
    if(px>0&&pz>0){if(px<pz)pos.x+=Math.sign(ox||stepX||1)*px;else pos.z+=Math.sign(oz||stepZ||1)*pz;}
   }
@@ -2384,6 +2404,51 @@ function buildWorkplaceEntrance(w){
     organizationBox(.12,.85,.12,w.x-8+side*5-1.05,.43,w.z+15,0x424b4a);
     organizationBox(.12,.85,.12,w.x-8+side*5+1.05,.43,w.z+15,0x424b4a);
    });
+
+   // Ticketed, walk-in visitor grounds. The south fence has one aligned entrance
+   // on the paved path; ticket holders and on-duty park staff see an open gate.
+   const left=PARK_GATE_BOUNDS.minX,right=PARK_GATE_BOUNDS.maxX;
+   const near=PARK_GATE_BOUNDS.minZ,far=PARK_GATE_BOUNDS.maxZ;
+   const gateX=PARK_GATE_BOUNDS.gateX,gateZ=PARK_GATE_BOUNDS.gateZ;
+   const gateHalf=PARK_GATE_BOUNDS.gateWidth/2;
+   const gateLeft=gateX-gateHalf,gateRight=gateX+gateHalf;
+   const railColor=0x607d60,postColor=0x293b32;
+   const parkBarrier=(x,z,hw,hd)=>boxes.push({x,z,hw,hd,parkAccessBarrier:true});
+   const railX=(x1,x2,z)=>{
+    if(x2<=x1)return;
+    const cx=(x1+x2)/2,len=x2-x1;
+    organizationBox(len,.12,.13,cx,.48,z,railColor);
+    organizationBox(len,.13,.14,cx,1.15,z,palette.trim);
+    parkBarrier(cx,z,len/2,.18);
+   };
+   const railZ=(x,z1,z2)=>{
+    if(z2<=z1)return;
+    const cz=(z1+z2)/2,len=z2-z1;
+    organizationBox(.13,.12,len,x,.48,cz,railColor);
+    organizationBox(.14,.13,len,x,1.15,cz,palette.trim);
+    parkBarrier(x,cz,.18,len/2);
+   };
+   const post=(x,z)=>{
+    organizationBox(.18,1.55,.18,x,.78,z,postColor);
+    organizationBox(.25,.13,.25,x,1.58,z,palette.accent);
+    parkBarrier(x,z,.17,.17);
+   };
+   railX(left,gateLeft,near);railX(gateRight,right,near);railX(left,right,far);
+   railZ(left,near,far);railZ(right,near,far);
+   for(let x=left;x<=right+.01;x+=2.2){post(x,near);post(x,far);}
+   for(let z=near;z<=far+.01;z+=2.2){post(left,z);post(right,z);}
+   for(const x of [gateX-PARK_GATE_BOUNDS.gateWidth/4,gateX+PARK_GATE_BOUNDS.gateWidth/4]){
+    const leafWidth=PARK_GATE_BOUNDS.gateWidth/2-.06;
+    const leaf=organizationBox(leafWidth,1.45,.16,x,.75,gateZ,palette.trim);
+    PARK_GATE_VISUALS.push(leaf);
+    for(let bar=1;bar<=3;bar++){
+     const vertical=organizationBox(.07,1.28,.19,x-leafWidth/2+leafWidth*bar/4,.76,gateZ,palette.accent);
+     PARK_GATE_VISUALS.push(vertical);
+    }
+   }
+   parkBarrier(gateX,gateZ,gateHalf,.22);
+   updateParkGateVisual();
+
    organizationBox(1.3,.85,.25,w.x-10,1.0,w.z+7,0x8b8f87);
   }else if(w.id==='news-main'){
    organizationEntranceZ(w,palette,{frontZ,doorWidth:3.8,doorHeight:2.8,columns:4,signWidth:15,signHeight:1.5,signY:10.7,subtitle:p.subtitle});
