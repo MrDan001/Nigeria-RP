@@ -866,7 +866,7 @@ function syncHouseExteriors(houses){
 let houseVisualCheckT=0;
 function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
 
-const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),mat=new THREE.MeshBasicMaterial({map:tex(512,Math.round(512*h/w),fn),fog:true});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=.012;board.add(back);return board;};
+const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(512,Math.round(512*h/w),fn),frontMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map),fog:true,side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
 const flag=(x,z)=>{add(new THREE.CylinderGeometry(.06,.06,8,6),M(0x888888),x,4,z);
  add(new THREE.PlaneGeometry(2.4,1.4),new THREE.MeshBasicMaterial({map:tex(30,14,(g,w,h)=>{g.fillStyle='#0a8f4a';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.fillRect(10,0,10,h);}),side:THREE.DoubleSide}),x+1.2,7,z).rotation.y=Math.PI/2;};
@@ -1829,7 +1829,8 @@ modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.i;
 let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
-const mini=(t,x,y,z,w,bg)=>{const board=new THREE.Group();board.position.set(x,y,z);scene.add(board);const geo=new THREE.PlaneGeometry(w,w/4),map=tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);}),mat=new THREE.MeshBasicMaterial({map,side:THREE.FrontSide});const front=new THREE.Mesh(geo,mat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,mat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
+function mirrorSignTexture(texture){const back=texture.clone();back.wrapS=THREE.ClampToEdgeWrapping;back.center.set(0,0);back.repeat.set(-1,1);back.offset.set(1,0);back.needsUpdate=true;return back;}
+const mini=(t,x,y,z,w,bg)=>{const board=new THREE.Group();board.position.set(x,y,z);scene.add(board);const geo=new THREE.PlaneGeometry(w,w/4),map=tex(256,64,(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';fit(g,t,26,240);g.fillText(t,W/2,H*.64);}),frontMat=new THREE.MeshBasicMaterial({map,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map),side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
 const WORKPLACE_SIGNBOARDS={};
 function updateWorkplaceOccupantSigns(workplaces){
  if(!Array.isArray(workplaces))return;
@@ -1842,14 +1843,14 @@ function updateWorkplaceOccupantSigns(workplaces){
   const line=occupant?(title.toUpperCase()+': '+occupant):'LEADERSHIP POSITION OPEN';let size=20;ctx.font='800 '+size+'px system-ui';
   while(size>12&&ctx.measureText(line).width>canvas.width-18){size--;ctx.font='800 '+size+'px system-ui';}
   ctx.fillStyle=occupant?'#dbf7e7':'#ffe3a3';ctx.fillText(line,canvas.width/2,80,canvas.width-18);
-  ctx.font='600 13px system-ui';ctx.fillStyle='#e4ecf1';ctx.fillText('OFFICIAL FACILITY SIGN',canvas.width/2,108,canvas.width-18);sign.texture.needsUpdate=true;
+  ctx.font='600 13px system-ui';ctx.fillStyle='#e4ecf1';ctx.fillText('OFFICIAL FACILITY SIGN',canvas.width/2,108,canvas.width-18);sign.texture.needsUpdate=true;if(sign.backBoard?.material?.map)sign.backBoard.material.map.needsUpdate=true;
  });
 }
 function addWorkplaceOccupantSign(site){
  const canvas=document.createElement('canvas');canvas.width=640;canvas.height=128;const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
  const sx=site.x+site.w/2+1.25,sz=site.z+site.d/2+2.8;add(new THREE.CylinderGeometry(.065,.09,1.6,8),M(0x68737b),sx,.8,sz);
  const boardMat=new THREE.MeshBasicMaterial({map:texture,side:THREE.FrontSide});const board=new THREE.Mesh(new THREE.PlaneGeometry(4.8,.96),boardMat);board.position.set(sx,2.0,sz);scene.add(board);
- const backBoard=new THREE.Mesh(new THREE.PlaneGeometry(4.8,.96),boardMat);backBoard.rotation.y=Math.PI;backBoard.position.copy(board.position);scene.add(backBoard);
+ const backBoard=new THREE.Mesh(new THREE.PlaneGeometry(4.8,.96),new THREE.MeshBasicMaterial({map:mirrorSignTexture(texture),side:THREE.FrontSide}));backBoard.rotation.y=Math.PI;backBoard.position.copy(board.position);scene.add(backBoard);
  WORKPLACE_SIGNBOARDS[site.id]={site,canvas,ctx,texture,board,backBoard};updateWorkplaceOccupantSigns(window.NRS?.workplaces||[]);
 }
 function buildHospital(site){
@@ -2010,15 +2011,18 @@ function organizationBlockX(site,orientation,w,d,h,floors,palette,kind,doorWidth
  return {x:cx,z:cz,faceX,faceZ:null,w,d,h,block,orientation,frontZ:cz+d/2};
 }
 function organizationSign(name,palette,w,h,x,y,z,rotationY,subtitle){
- const map=tex(1024,224,(g,W,H)=>{
-  g.fillStyle='#'+Number(palette.trim).toString(16).padStart(6,'0');g.fillRect(0,0,W,H);
-  g.fillStyle='#'+Number(palette.accent).toString(16).padStart(6,'0');g.fillRect(0,0,W,13);g.fillRect(0,H-13,W,13);
-  g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=5;g.strokeRect(8,8,W-16,H-16);
-  g.textAlign='center';g.fillStyle='#fff';g.font='bold 47px system-ui';g.fillText(name.toUpperCase(),W/2,84,W-38);
-  g.fillStyle='#eaf7f4';g.font='bold 25px system-ui';g.fillText((subtitle||'MAIN ENTRANCE').toUpperCase(),W/2,157,W-38);
- });
- const mapMat=new THREE.MeshBasicMaterial({map,side:THREE.DoubleSide,fog:false});
- const board=add(new THREE.PlaneGeometry(w,h),mapMat,x,y,z);board.rotation.y=rotationY||0;return board;
+  const map=tex(1024,224,(g,W,H)=>{
+   g.fillStyle='#'+Number(palette.trim).toString(16).padStart(6,'0');g.fillRect(0,0,W,H);
+   g.fillStyle='#'+Number(palette.accent).toString(16).padStart(6,'0');g.fillRect(0,0,W,13);g.fillRect(0,H-13,W,13);
+   g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=5;g.strokeRect(8,8,W-16,H-16);
+   g.textAlign='center';g.fillStyle='#fff';g.font='bold 47px system-ui';g.fillText(name.toUpperCase(),W/2,84,W-38);
+   g.fillStyle='#eaf7f4';g.font='bold 25px system-ui';g.fillText((subtitle||'MAIN ENTRANCE').toUpperCase(),W/2,157,W-38);
+  });
+  const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=rotationY||0;scene.add(board);
+  const geo=new THREE.PlaneGeometry(w,h);
+  const front=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map,side:THREE.FrontSide,fog:false}));front.position.z=.012;board.add(front);
+  const back=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:mirrorSignTexture(map),side:THREE.FrontSide,fog:false}));back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);
+  return board;
 }
 function organizationBox(w,h,d,x,y,z,color){
  return add(new THREE.BoxGeometry(w,h,d),M(color),x,y,z);
@@ -2896,7 +2900,7 @@ function renderApartmentHall(d,ret){
  const titleTex=apartmentText(buildingName.toUpperCase());
  A(new THREE.PlaneGeometry(9.2,1.55),new THREE.MeshBasicMaterial({map:titleTex,side:THREE.DoubleSide}),0,2.72,-11.72);
  const floorTex=apartmentText('FLOOR '+floor+' / '+floors,'#293d47','#f7e5bf');
- A(new THREE.PlaneGeometry(3.2,.72),new THREE.MeshBasicMaterial({map:floorTex,side:THREE.DoubleSide}),0,2.26,11.62);
+ const floorIndicator=A(new THREE.PlaneGeometry(3.2,.72),new THREE.MeshBasicMaterial({map:floorTex,side:THREE.FrontSide}),0,2.26,11.62);floorIndicator.rotation.y=Math.PI;
  const firstRoom=(floor-1)*APARTMENT_ROOMS_PER_FLOOR+1;
  const numbers=(d.rooms||Array.from({length:APARTMENT_ROOMS_PER_FLOOR},(_,i)=>({roomNumber:firstRoom+i,vacant:true,occupiedByMe:false})));
  const pois=[],doorZ=[-7.2,-4.0,-.8,2.4,5.6];
