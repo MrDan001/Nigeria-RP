@@ -1,12 +1,12 @@
 (function () {
   "use strict";
 
-  const SESSION_KEY = "nrs_rp_session_v2";
-  // Remove the old overlay's token so it cannot interfere with the new flow.
-  try {
-    localStorage.removeItem("nrs_session_token");
-    localStorage.removeItem(SESSION_KEY); // tokens now live in sessionStorage only
-  } catch {}
+  const SESSION_KEY = "nrs_rp_account_session_v3";
+  const LEGACY_SESSION_KEY = "nrs_rp_session_v2";
+  const EMAIL_KEY = "nrs_rp_saved_email_v1";
+  const LAST_CHARACTER_KEY = "nrs_rp_last_character_v1";
+  const LAST_OWNER_KEY = "nrs_rp_last_owner_v1";
+  try { localStorage.removeItem("nrs_session_token"); } catch {}
 
   const N = window.NRS = window.NRS || {};
   const S = N.session = {
@@ -14,6 +14,9 @@
     open: false,
     authed: false,
     id: null,
+    ownerId: null,
+    accountReady: false,
+    characters: [],
     name: "",
     level: 1,
     cityId: "port-harcourt",
@@ -41,15 +44,31 @@
   const $ = (id) => document.getElementById(id);
 
   function readToken() {
-    try { return sessionStorage.getItem(SESSION_KEY) || ""; } catch { return ""; }
+    try {
+      const saved = localStorage.getItem(SESSION_KEY) || "";
+      if (saved) return saved;
+      const legacy = sessionStorage.getItem(LEGACY_SESSION_KEY) || "";
+      if (legacy) localStorage.setItem(SESSION_KEY, legacy);
+      sessionStorage.removeItem(LEGACY_SESSION_KEY);
+      return legacy;
+    } catch { return ""; }
   }
 
   function writeToken(token) {
     S.token = token || "";
     try {
-      if (S.token) sessionStorage.setItem(SESSION_KEY, S.token);
-      else sessionStorage.removeItem(SESSION_KEY);
+      if (S.token) localStorage.setItem(SESSION_KEY, S.token);
+      else localStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(LEGACY_SESSION_KEY);
     } catch {}
+  }
+
+  function rememberedEmail() {
+    try { return localStorage.getItem(EMAIL_KEY) || ""; } catch { return ""; }
+  }
+
+  function rememberedCharacterId() {
+    try { return localStorage.getItem(LAST_CHARACTER_KEY) || ""; } catch { return ""; }
   }
 
   function setVisible(show) {
@@ -125,6 +144,21 @@
     }
     #nrsAccount .submit:disabled{opacity:.52;cursor:wait}
     #nrsAccount .status{text-align:center;margin-top:11px;min-height:18px;color:rgba(255,255,255,.45);font-size:9px}
+    #nrsCharacterView[hidden],#nrsCreateCharacterPanel[hidden]{display:none!important}
+    #nrsAccount .accountSummary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;color:#a7bfd3;font-size:9px;overflow-wrap:anywhere}
+    #nrsAccount .accountSummary strong{color:#8ee9bb;font-size:9px;white-space:nowrap}
+    #nrsAccount .characterList{display:grid;gap:9px;margin:14px 0}
+    #nrsAccount .characterCard{padding:12px;border:1px solid rgba(255,255,255,.13);border-radius:13px;background:linear-gradient(135deg,#12283a,#0a1622)}
+    #nrsAccount .characterCard .characterHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    #nrsAccount .characterCard strong{display:block;font-size:14px;overflow-wrap:anywhere}
+    #nrsAccount .characterCard small{display:block;margin-top:4px;color:#9cb1c3;font-size:9px;line-height:1.4}
+    #nrsAccount .characterCard .characterLevel{color:#8ce5b6;font-size:9px;font-weight:900;white-space:nowrap}
+    #nrsAccount .characterCard .continueButton{width:100%;min-height:38px;margin-top:10px;border:1px solid #3b9ee6;border-radius:9px;background:#12446a;color:#fff;font-size:10px;font-weight:900;touch-action:manipulation}
+    #nrsAccount .characterCard .continueButton:disabled{opacity:.55}
+    #nrsAccount .subtleButton{width:100%;min-height:38px;margin-top:8px;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:#142333;color:#d7e4ef;font-size:10px;font-weight:800;touch-action:manipulation}
+    #nrsAccount .characterStatus{text-align:center;min-height:19px;margin-top:10px;color:#b7d6e8;font-size:10px;line-height:1.35}
+    #nrsAccount #nrsCreateCharacterForm{display:grid;gap:9px;margin:12px 0}
+    #nrsAccount #nrsCharacterName{padding-right:12px}
     @media(max-width:480px){
       #nrsAccount{padding:10px}
       #nrsAccount .card{width:100%;padding:19px 16px 16px;border-radius:18px}
@@ -137,7 +171,7 @@
   const auth = document.createElement("div");
   auth.id = "nrsAccount";
   auth.innerHTML = `
-    <div class="card">
+    <div class="card" id="nrsLoginCard">
       <div class="brand">
         <div class="logo">N</div>
         <div><strong>NIGERIA ROLEPLAY</strong><small>PORT HARCOURT • ONLINE WORLD</small></div>
@@ -195,6 +229,30 @@
       <div class="status" id="nrsStatus">Connecting securely to the game server…</div>
     </div>
   `;
+    <div class="card" id="nrsCharacterView" hidden>
+      <div class="brand">
+        <div class="logo">N</div>
+        <div><strong>NIGERIA ROLEPLAY</strong><small>PORT HARCOURT • ONLINE WORLD</small></div>
+      </div>
+      <div class="eyebrow">ACCOUNT REMEMBERED ON THIS DEVICE</div>
+      <h1>Choose your character</h1>
+      <p class="copy">You're signed in. Continue with a saved character or create another one. Each account can have up to three characters.</p>
+      <div class="accountSummary"><span id="nrsCharacterEmail"></span><strong id="nrsCharacterCount">0 / 3 characters</strong></div>
+      <div id="nrsCharacterList" class="characterList"></div>
+      <div id="nrsCreateCharacterPanel" hidden>
+        <form id="nrsCreateCharacterForm">
+          <label class="field"><span>New character name</span>
+            <input id="nrsCharacterName" name="characterName" type="text" autocomplete="off" maxlength="31" pattern="[A-Za-z]+_[A-Za-z]+" placeholder="Firstname_lastname" required>
+          </label>
+          <div class="hint">Use a unique Firstname_lastname. Character names cannot be the same as another player's name.</div>
+          <button class="submit" id="nrsCreateCharacterSubmit" type="submit">CREATE CHARACTER</button>
+          <button class="subtleButton" id="nrsCancelCreate" type="button">Cancel</button>
+        </form>
+      </div>
+      <button class="submit" id="nrsCreateCharacterButton" type="button">＋ CREATE NEW CHARACTER</button>
+      <button class="subtleButton" id="nrsSwitchAccount" type="button">USE ANOTHER ACCOUNT</button>
+      <div class="characterStatus" id="nrsCharacterStatus" role="status" aria-live="polite"></div>
+    </div>
   document.body.appendChild(auth);
 
   const status = (message) => { $("nrsStatus").textContent = message || ""; };
@@ -248,6 +306,135 @@
 
   // Start in LOGIN mode explicitly. Create Account is opt-in via its tab.
   setMode(false);
+  try { $("nrsEmail").value = rememberedEmail(); } catch {}
+
+  function showLoginView(message = "") {
+    S.accountReady = false;
+    S.ownerId = null;
+    $("nrsCharacterView").hidden = true;
+    $("nrsLoginCard").hidden = false;
+    auth.hidden = false;
+    setVisible(false);
+    if (message) $("nrsError").textContent = message;
+    if (!$("nrsEmail").value) $("nrsEmail").value = rememberedEmail();
+    $("nrsStatus").textContent = "Log in to open your saved characters.";
+  }
+
+  function renderCharacterSelection(data) {
+    if (data.token) writeToken(data.token);
+    const account = data.account || {};
+    const email = String(account.email || rememberedEmail() || "");
+    const ownerId = String(account.id || "");
+    const characters = Array.isArray(data.characters) ? data.characters : [];
+    const maxCharacters = Math.max(1, Math.min(3, Number(data.maxCharacters) || 3));
+    S.accountReady = true;
+    S.ownerId = ownerId;
+    S.characters = characters;
+    try {
+      if (email) localStorage.setItem(EMAIL_KEY, email);
+      const priorOwner = localStorage.getItem(LAST_OWNER_KEY) || "";
+      if (ownerId && priorOwner && priorOwner !== ownerId) localStorage.removeItem(LAST_CHARACTER_KEY);
+      if (ownerId) localStorage.setItem(LAST_OWNER_KEY, ownerId);
+    } catch {}
+
+    $("nrsLoginCard").hidden = true;
+    $("nrsCharacterView").hidden = false;
+    auth.hidden = false;
+    setVisible(false);
+    $("nrsCharacterEmail").textContent = email ? "Signed in as " + email : "Account remembered on this device";
+    $("nrsCharacterCount").textContent = characters.length + " / " + maxCharacters + " characters";
+    const list = $("nrsCharacterList");
+    list.replaceChildren();
+    if (!characters.length) {
+      const empty = document.createElement("p");
+      empty.className = "copy";
+      empty.textContent = "No characters yet. Create your first character below.";
+      list.appendChild(empty);
+    }
+    for (const character of characters) {
+      const card = document.createElement("section");
+      card.className = "characterCard";
+      const heading = document.createElement("div");
+      heading.className = "characterHeading";
+      const nameBlock = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = String(character.name || "Citizen");
+      const city = document.createElement("small");
+      city.textContent = "City: " + String(character.cityId || "port-harcourt").replace(/-/g, " ");
+      nameBlock.append(name, city);
+      const level = document.createElement("span");
+      level.className = "characterLevel";
+      level.textContent = "LEVEL " + Math.max(1, Number(character.level) || 1);
+      heading.append(nameBlock, level);
+      const details = document.createElement("small");
+      details.textContent = "Cash ₦" + Math.max(0, Number(character.cash) || 0).toLocaleString("en-NG") +
+        " · Bank ₦" + Math.max(0, Number(character.bank) || 0).toLocaleString("en-NG");
+      const continueButton = document.createElement("button");
+      continueButton.type = "button";
+      continueButton.className = "continueButton";
+      continueButton.textContent = "CONTINUE AS " + String(character.name || "CITIZEN").toUpperCase();
+      continueButton.addEventListener("click", () => {
+        if (!S.open || !S.token) {
+          $("nrsCharacterStatus").textContent = "Connecting to the game server. Please try again in a moment.";
+          return;
+        }
+        continueButton.disabled = true;
+        $("nrsCharacterStatus").textContent = "Loading " + String(character.name || "your character") + "…";
+        send({ type: "selectCharacter", token: S.token, characterId: character.id });
+      });
+      card.append(heading, details, continueButton);
+      list.appendChild(card);
+    }
+    $("nrsCreateCharacterButton").disabled = characters.length >= maxCharacters;
+    $("nrsCreateCharacterButton").textContent = characters.length >= maxCharacters
+      ? "CHARACTER LIMIT REACHED (3/3)" : "＋ CREATE NEW CHARACTER";
+    $("nrsCreateCharacterButton").hidden = characters.length >= maxCharacters;
+    $("nrsCreateCharacterPanel").hidden = true;
+    $("nrsCharacterName").value = "";
+    $("nrsCreateCharacterSubmit").disabled = false;
+    $("nrsCharacterStatus").textContent = data.message ||
+      "Choose a character to continue, or create another character (" + (maxCharacters - characters.length) + " slot(s) left).";
+  }
+
+  $("nrsCreateCharacterButton").addEventListener("click", () => {
+    if (!S.accountReady || S.characters.length >= 3) return;
+    $("nrsCreateCharacterPanel").hidden = false;
+    $("nrsCreateCharacterButton").hidden = true;
+    $("nrsCharacterName").focus();
+  });
+  $("nrsCancelCreate").addEventListener("click", () => {
+    $("nrsCreateCharacterPanel").hidden = true;
+    $("nrsCreateCharacterButton").hidden = S.characters.length >= 3;
+    $("nrsCharacterStatus").textContent = "Choose an existing character or create another one.";
+  });
+  $("nrsCreateCharacterForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const username = $("nrsCharacterName").value.trim();
+    if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) {
+      $("nrsCharacterStatus").textContent = "Use Firstname_lastname with letters only.";
+      return;
+    }
+    if (S.characters.length >= 3) {
+      $("nrsCharacterStatus").textContent = "One account can have a maximum of three characters.";
+      return;
+    }
+    if (!S.open || !S.token || !S.accountReady) {
+      $("nrsCharacterStatus").textContent = "Your account is reconnecting. Please wait a moment.";
+      return;
+    }
+    $("nrsCreateCharacterSubmit").disabled = true;
+    $("nrsCharacterStatus").textContent = "Creating your new character…";
+    send({ type: "createCharacter", token: S.token, username });
+  });
+  $("nrsSwitchAccount").addEventListener("click", () => {
+    const email = $("nrsCharacterEmail").textContent.replace(/^Signed in as /, "");
+    writeToken("");
+    try { localStorage.removeItem(LAST_CHARACTER_KEY); localStorage.removeItem(LAST_OWNER_KEY); } catch {}
+    $("nrsEmail").value = email || rememberedEmail();
+    showLoginView();
+    setMode(false);
+  });
+
 
   function send(message) {
     if (S.ws?.readyState === WebSocket.OPEN) S.ws.send(JSON.stringify(message));
@@ -275,6 +462,10 @@
     N.playerIdentity = { id: S.id, name: S.name, level: S.level, sessionId: S.displayId };
     S.authed = true;
     writeToken(S.token);
+    try {
+      localStorage.setItem(LAST_CHARACTER_KEY, S.id);
+      localStorage.setItem(LAST_OWNER_KEY, String(S.ownerId || S.id));
+    } catch {}
     window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: N.playerIdentity }));
 
     cash = Number(player.cash) || 0;
@@ -505,14 +696,18 @@
 
       S.initialConnection = false;
 
-      // Auto-resume ONLY when a logged-in session was dropped mid-play.
-      // Any other connect (fresh load, dropped login screen) stays on the gate.
-      if (S.resume && S.token) {
-        S.resume = false;
-        status("Restoring your account…");
-        send({ type: "authResume", token: S.token });
+      const reconnectGameplay = S.resume;
+      S.resume = false;
+      if (S.token) {
+        status(reconnectGameplay ? "Restoring your character…" : "Restoring your saved account…");
+        const lastCharacterId = reconnectGameplay ? rememberedCharacterId() : "";
+        send({
+          type: "authResume",
+          token: S.token,
+          characterSelection: true,
+          ...(lastCharacterId ? { characterId: lastCharacterId } : {})
+        });
       } else {
-        S.resume = false;
         status("Ready — log in or create your citizen account.");
       }
     };
@@ -561,16 +756,37 @@
         return;
       }
 
+      if (message.type === "authCharacters") {
+        renderCharacterSelection(message);
+        $("nrsSubmit").disabled = false;
+        return;
+      }
+
       if (message.type === "authError") {
-        if (message.code === "INVALID_SESSION") writeToken("");
+        if (S.accountReady && message.code !== "INVALID_SESSION") {
+          $("nrsCharacterStatus").textContent = message.message || "That request could not be completed.";
+          $("nrsCreateCharacterSubmit").disabled = false;
+          for (const button of $("nrsCharacterList").querySelectorAll("button")) button.disabled = false;
+          return;
+        }
+        if (message.code === "INVALID_SESSION") {
+          writeToken("");
+          try { localStorage.removeItem(LAST_CHARACTER_KEY); localStorage.removeItem(LAST_OWNER_KEY); } catch {}
+        }
         S.authed = false;
         S.id = null;
         S.name = "";
         S.level = 1;
         N.playerIdentity = null;
+        S.accountReady = false;
+        S.ownerId = null;
+        S.characters = [];
         window.dispatchEvent(new CustomEvent("nrs-player-identity", { detail: null }));
+        $("nrsCharacterView").hidden = true;
+        $("nrsLoginCard").hidden = false;
         auth.hidden = false;
         setVisible(false);
+        $("nrsEmail").value = rememberedEmail() || $("nrsEmail").value;
         $("nrsSubmit").disabled = false;
         $("nrsError").textContent = message.message || "Authentication failed. Please try again.";
         status("Please check your details and try again.");
@@ -979,13 +1195,15 @@
     }
 
     $("nrsSubmit").disabled = true;
+    try { localStorage.setItem(EMAIL_KEY, email); } catch {}
     status(registerMode ? "Creating your account…" : "Logging you in…");
 
     send({
       type: registerMode ? "authRegister" : "authLogin",
       email,
       ...(registerMode ? { username } : {}),
-      password
+      password,
+      characterSelection: true
     });
   });
 

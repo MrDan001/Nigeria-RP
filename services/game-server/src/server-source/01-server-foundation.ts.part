@@ -113,6 +113,8 @@ type FuelMap = Record<string, number>;
 
 type Account = {
   id: string;
+  /** Login-owner ID; the first character's ID remains the stable owner ID. */
+  ownerId: string;
   username: string;
   usernameLower: string;
   email: string;
@@ -214,7 +216,7 @@ const TICK_RATE = 20;
 const SNAPSHOT_RATE = 10;
 const MOVE_SPEED = 4.5; // matches the client's normal walk top speed; posSync corrects sprint/crouch
 const WORLD_LIMIT = 500;
-const SESSION_DAYS = 30;
+const SESSION_DAYS = 365; // remember this device for a year without storing the password
 const INPUT_TIMEOUT_MS = 400;
 const FUEL_TANK = 40; // litres, must match the client
 // Naira per litre, by station brand. NNPC is cheapest, then Restopark, then DBase, Hydropet is dearest.
@@ -347,6 +349,7 @@ function normalizeJob(value: unknown): JobState {
 function normalizeAccount(account: Account): Account {
   return {
     ...account,
+    ownerId: typeof account.ownerId === "string" && account.ownerId ? account.ownerId : account.id,
     email: typeof account.email === "string" ? account.email : "",
     emailLower: typeof account.emailLower === "string" ? account.emailLower : "",
     cash: Math.max(0, Math.floor(Number(account.cash) || 0)),

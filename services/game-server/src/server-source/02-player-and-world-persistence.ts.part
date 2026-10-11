@@ -411,6 +411,7 @@ async function initStore() {
     await pool.query(
       "CREATE TABLE IF NOT EXISTS nrs_accounts (" +
       "id TEXT PRIMARY KEY," +
+      "owner_id TEXT," +
       "username TEXT NOT NULL," +
       "username_lower TEXT NOT NULL UNIQUE," +
       "email TEXT," +
@@ -442,6 +443,7 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS fuel JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'port-harcourt'");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS owner_id TEXT");
     await pool.query(
       "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
     );
@@ -520,9 +522,12 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
     await pool.query("UPDATE nrs_accounts SET email_lower=LOWER(email) WHERE email_lower IS NULL OR email_lower=''");
+    await pool.query("UPDATE nrs_accounts SET owner_id=id WHERE owner_id IS NULL OR owner_id=''");
     await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email SET NOT NULL");
     await pool.query("ALTER TABLE nrs_accounts ALTER COLUMN email_lower SET NOT NULL");
-    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
+    // Character rows may share an owner email; keep a non-unique lookup index.
+    await pool.query("DROP INDEX IF EXISTS nrs_accounts_email_lower_idx");
+    await pool.query("CREATE INDEX IF NOT EXISTS nrs_accounts_email_lower_idx ON nrs_accounts(email_lower)");
     await migrateLegacyAdminAllowlist();
     console.log("NRS durable storage: PostgreSQL");
     return;
@@ -562,6 +567,7 @@ async function initStore() {
 function accountFromRow(row: any): Account {
   return normalizeAccount({
     id: String(row.id),
+    ownerId: String(row.owner_id ?? row.id),
     username: String(row.username),
     usernameLower: String(row.username_lower),
     email: String(row.email ?? ""),
@@ -589,10 +595,11 @@ function accountFromRow(row: any): Account {
 
 async function findAccountByEmail(emailLower: string) {
   if (pool) {
-    const result = await pool.query("SELECT * FROM nrs_accounts WHERE email_lower=$1 LIMIT 1", [emailLower]);
+    const result = await pool.query("SELECT * FROM nrs_accounts WHERE email_lower=$1 AND owner_id=id LIMIT 1", [emailLower]);
     return result.rows[0] ? accountFromRow(result.rows[0]) : null;
   }
-  const found = Object.values(fileStore.accounts).find((item) => String(item.emailLower ?? "").toLowerCase() === emailLower);
+  const found = Object.values(fileStore.accounts).map(normalizeAccount)
+    .find((item) => String(item.emailLower ?? "").toLowerCase() === emailLower && item.ownerId === item.id);
   return found ? normalizeAccount(found) : null;
 }
 
@@ -617,8 +624,8 @@ async function insertAccount(account: Account) {
   if (pool) {
     await pool.query(
       "INSERT INTO nrs_accounts (" +
-      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,city_id" +
-      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21)",
+      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,city_id,owner_id" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22)",
       [
         account.id,
         account.username,
@@ -641,6 +648,7 @@ async function insertAccount(account: Account) {
         account.createdAt,
         account.updatedAt,
         account.cityId,
+        account.ownerId || account.id,
       ],
     );
     return;
@@ -705,8 +713,10 @@ async function createAccount(email: string, username: string, password: string) 
 
   const { salt, hash } = await hashPassword(password);
   const now = Date.now();
+  const id = randomUUID();
   const account: Account = {
-    id: randomUUID(),
+    id,
+    ownerId: id,
     username,
     usernameLower,
     email,
@@ -741,6 +751,70 @@ async function createAccount(email: string, username: string, password: string) 
     throw error;
   }
 
+  return account;
+}
+
+/** Return the saved characters attached to an authenticated login owner. */
+async function listCharacters(ownerId: string): Promise<Account[]> {
+  if (pool) {
+    const result = await pool.query(
+      "SELECT * FROM nrs_accounts WHERE owner_id=$1 ORDER BY created_at ASC,id ASC",
+      [ownerId],
+    );
+    return result.rows.map(accountFromRow);
+  }
+  return Object.values(fileStore.accounts)
+    .map(normalizeAccount)
+    .filter((character) => character.ownerId === ownerId)
+    .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+}
+
+async function createCharacter(owner: Account, rawUsername: string): Promise<Account> {
+  const username = sanitizeUsername(rawUsername);
+  const ownerId = String(owner.ownerId || owner.id);
+  if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) throw new Error("USERNAME_INVALID");
+  if (username.length < 3) throw new Error("USERNAME_TOO_SHORT");
+  if ((await listCharacters(ownerId)).length >= 3) throw new Error("CHARACTER_LIMIT");
+
+  const usernameLower = username.toLowerCase();
+  if (usernameLower === MAIN_ADMIN_USERNAME && (!MAIN_ADMIN_EMAIL || String(owner.emailLower || owner.email).toLowerCase() !== MAIN_ADMIN_EMAIL)) {
+    throw new Error("USERNAME_RESERVED");
+  }
+  if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+
+  const now = Date.now();
+  const account: Account = {
+    id: randomUUID(),
+    ownerId,
+    username,
+    usernameLower,
+    email: owner.email,
+    emailLower: owner.emailLower,
+    passwordSalt: owner.passwordSalt,
+    passwordHash: owner.passwordHash,
+    cash: 5000,
+    bank: 0,
+    x: 0,
+    z: 24,
+    yaw: Math.PI,
+    hp: 100,
+    hunger: 82,
+    level: 1,
+    xp: 0,
+    job: null,
+    inventory: {},
+    fuel: {},
+    life: newLife(clock.dayKey()),
+    cityId: "port-harcourt",
+    createdAt: now,
+    updatedAt: now,
+  };
+  try {
+    await insertAccount(account);
+  } catch (error: any) {
+    if (error?.code === "23505" && await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
+    throw error;
+  }
   return account;
 }
 
@@ -1002,10 +1076,13 @@ const wss = new WebSocketServer({ server: httpServer, maxPayload: 16 * 1024 });
 
 wss.on("connection", (socket) => {
   let authenticated = false;
+  let accountReady = false;
+  let accountOwnerId: string | null = null;
+  let accountToken: string | null = null;
   let accountId: string | null = null;
 
   const authTimer = setTimeout(() => {
-    if (!authenticated) {
+    if (!authenticated && !accountReady) {
       send(socket, {
         type: "authError",
         code: "AUTH_REQUIRED",
@@ -1014,6 +1091,40 @@ wss.on("connection", (socket) => {
       socket.close(4002, "Authentication required");
     }
   }, 12000);
+
+  const finishAuthentication = async (account: Account, token: string) => {
+  const sendCharacterSelection = async (owner: Account, token: string, message = "") => {
+    const ownerId = String(owner.ownerId || owner.id);
+    const characters = await listCharacters(ownerId);
+    accountReady = true;
+    accountOwnerId = ownerId;
+    accountToken = token;
+    clearTimeout(authTimer);
+    send(socket, {
+      type: "authCharacters",
+      token,
+      account: { id: ownerId, email: owner.email },
+      maxCharacters: 3,
+      characters: characters.map((character) => ({
+        id: character.id,
+        name: character.username,
+        level: character.level,
+        cash: character.cash,
+        bank: character.bank,
+        cityId: character.cityId,
+        createdAt: character.createdAt,
+        updatedAt: character.updatedAt,
+      })),
+      message,
+    });
+  };
+
+  const getReadyOwner = async (): Promise<Account> => {
+    if (!accountReady || !accountOwnerId || !accountToken) throw new Error("ACCOUNT_SESSION_REQUIRED");
+    const owner = await resolveSession(accountToken);
+    if (!owner || String(owner.ownerId || owner.id) !== accountOwnerId) throw new Error("INVALID_SESSION");
+    return owner;
+  };
 
   const finishAuthentication = async (account: Account, token: string) => {
     const previousSocket = activeAccounts.get(account.id);
@@ -1028,6 +1139,9 @@ wss.on("connection", (socket) => {
     }
 
     authenticated = true;
+    accountReady = false;
+    accountOwnerId = String(account.ownerId || account.id);
+    accountToken = token;
     accountId = account.id;
     clearTimeout(authTimer);
 
@@ -1121,13 +1235,33 @@ wss.on("connection", (socket) => {
 
       if (!authenticated) {
         try {
-          if (message.type === "authRegister") {
+          if (message.type === "authRegister") {          if (message.type === "selectCharacter") {
+            const owner = await getReadyOwner();
+            const ownerId = String(owner.ownerId || owner.id);
+            const selected = await findAccountById(String(message.characterId ?? "").trim());
+            if (!selected || String(selected.ownerId || selected.id) !== ownerId) throw new Error("CHARACTER_NOT_FOUND");
+            await finishAuthentication(selected, accountToken!);
+            return;
+          }
+
+          if (message.type === "createCharacter") {
+            const owner = await getReadyOwner();
+            await createCharacter(owner, String(message.username ?? ""));
+            await sendCharacterSelection(owner, accountToken!, "Character created. Select Continue to enter the game.");
+            return;
+          }
+
+
             const email = sanitizeEmail(message.email);
             const username = sanitizeUsername(message.username);
             const password = String(message.password ?? "");
             const account = await createAccount(email, username, password);
             const token = await createSession(account.id);
-            await finishAuthentication(account, token);
+            if (message.characterSelection === true) {
+              await sendCharacterSelection(account, token, "Account created. Choose your first character to enter the city.");
+            } else {
+              await finishAuthentication(account, token);
+            }
             return;
           }
 
@@ -1144,7 +1278,11 @@ wss.on("connection", (socket) => {
             }
 
             const token = await createSession(account.id);
-            await finishAuthentication(account, token);
+            if (message.characterSelection === true) {
+              await sendCharacterSelection(account, token, "Account remembered on this device. Choose a character to continue.");
+            } else {
+              await finishAuthentication(account, token);
+            }
             return;
           }
 
@@ -1154,7 +1292,20 @@ wss.on("connection", (socket) => {
 
             if (!account) throw new Error("INVALID_SESSION");
 
-            await finishAuthentication(account, token);
+            if (message.characterSelection === true) {
+              const ownerId = String(account.ownerId || account.id);
+              const rememberedId = String(message.characterId ?? "").trim();
+              if (rememberedId) {
+                const selected = await findAccountById(rememberedId);
+                if (selected && String(selected.ownerId || selected.id) === ownerId) {
+                  await finishAuthentication(selected, token);
+                  return;
+                }
+              }
+              await sendCharacterSelection(account, token, "Choose an existing character or create a new one.");
+            } else {
+              await finishAuthentication(account, token);
+            }
             return;
           }
 
@@ -1173,6 +1324,9 @@ wss.on("connection", (socket) => {
             USERNAME_INVALID: "Username must be exactly Firstname_lastname, using letters only.",
             USERNAME_TAKEN: "That username is already taken.",
             USERNAME_RESERVED: "Dbase_Mccoll is reserved for the main administrator. The owner must use the configured NRS_MAIN_ADMIN_EMAIL.",
+            CHARACTER_LIMIT: "One account can have a maximum of three characters.",
+            CHARACTER_NOT_FOUND: "That character does not belong to this account. Refresh and try again.",
+            ACCOUNT_SESSION_REQUIRED: "Your remembered account could not be verified. Please log in again.",
             INVALID_CREDENTIALS: "Incorrect email or password.",
             INVALID_SESSION: "Your session has expired. Please log in again.",
             AUTH_REQUIRED: "Please log in or create an account.",
