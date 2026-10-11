@@ -2420,7 +2420,17 @@ wss.on("connection", (socket) => {
             return;
           }
 
-          broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
+          for (const recipient of players.values()) {
+            if (recipient.player.cityId === fromCityId) {
+              send(recipient.socket, { type: "playerLeft", playerId: session.player.id, onlineCount: cityOnlineCount(fromCityId) });
+            } else if (recipient.player.cityId === destination.id) {
+              send(recipient.socket, {
+                type: "playerJoined",
+                player: publicPlayer(session.player),
+                onlineCount: cityOnlineCount(destination.id),
+              });
+            }
+          }
           send(socket, {
             type: "stage15TravelResult",
             ok: true,
@@ -2441,11 +2451,6 @@ wss.on("connection", (socket) => {
             onlineCount: cityOnlineCount(destination.id),
             message: "Arrived in " + destination.name + ". Your fare of ₦" +
               validated.fareNaira.toLocaleString("en-NG") + " has been charged and your destination has been saved.",
-          });
-          broadcast({
-            type: "playerJoined",
-            player: publicPlayer(session.player),
-            onlineCount: cityOnlineCount(destination.id),
           });
         });
         return;
