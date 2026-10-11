@@ -1,6 +1,6 @@
 # Stage 4 — Market Salespeople and Bank Tellers
 
-> **Status: IMPLEMENTED — FINAL VERIFICATION IN PROGRESS (11 October 2026).** Stage 3 remains accepted. Stage 4 backend and browser interfaces are now connected to the existing workplace system.
+> **Status: IMPLEMENTED AND DEPLOYED — FINAL REVIEW PENDING (11 October 2026).** The Stage 4 server and browser implementation is live on Railway. Automated Stage 1–4 regression, server typecheck/build, and browser build have passed on the latest code commit. The Android debug APK build was still running at the last CI check.
 
 ## Scope and ranks
 
@@ -28,12 +28,13 @@
 - The server checks seller rank, product, quantity, available stock, buyer cash and inventory capacity. It debits the buyer, adds the goods to the buyer's backpack, credits the market till and tracks the salesperson's 5% commission.
 - Receipts and a bounded sales history are saved in the existing PostgreSQL world table or file store.
 - Commissions are claimable by the on-duty salesperson at the market; collection is server-validated and persisted.
-- Market Supervisors and the Market Chairman may replenish stock from the market till. The wholesale cost is 60% of the listed retail price, per-product stock is capped, and manager identity / receipt / timestamp are recorded in a bounded restock ledger. Restock requests have server-side replay protection.
+- Market Supervisors and the Market Chairman may replenish stock from the market till. The wholesale cost is 60% of the listed retail price, per-product stock is capped, and manager identity, receipt and timestamp are recorded in a bounded restock ledger. Restock requests have server-side replay protection.
+- Manager stock purchase receipts are visible to Market Supervisors, Market Chairmen and authorised administrators, including when the manager is off duty. Commission-claim controls appear only for an eligible on-duty employee at the market.
 
 ### Server-authoritative bank
 - Customers can see their own cash and bank balances and transaction history, plus tellers currently available at the branch.
-- A teller must be a bank employee of Teller rank or higher, clocked in, wearing the bank uniform and physically at the bank. Both the teller and customer must be on site; they must be different players.
-- Deposits move existing customer cash into the customer's bank balance. Withdrawals move existing bank funds into cash. The server enforces amount limits, available funds, safe balance limits and request replay protection.
+- A teller must be a bank employee of Teller rank or higher, clocked in, wearing the bank uniform and physically at the bank. Both teller and customer must be on site; they must be different players.
+- Deposits move existing customer cash into the customer's bank balance. Withdrawals move existing bank funds into cash. The server enforces amount limits, available funds, safe balance limits, whole-number amounts and request replay protection.
 - Receipts include a unique transaction reference, customer and teller identity, amount, time and resulting balances. Customer and teller views are filtered to their relevant transactions; authorised management has broader oversight.
 - No client-supplied price, balance, commission or final transaction outcome is trusted.
 
@@ -52,21 +53,20 @@
 - invalid product, quantity, stock, rank and insufficient-funds rejection;
 - replay protection and request idempotency;
 - valid deposits/withdrawals, receipt identity and balance reconciliation;
-- trainee/self-service/invalid amount/overflow rejection;
+- trainee/self-service/invalid amount/fractional amount/overflow rejection;
 - market supervisor restocking, till funds, stock caps, replay rejection and persisted stock receipts;
 - safe normalization of stored state.
 
-Latest CI / deployment verification is being checked against the latest repository commit before this stage is marked accepted.
+## Final acceptance checklist
 
-## Remaining acceptance work
-
-- [ ] Latest full CI for the final commit is green, including Stage 1–4 regression, typecheck, browser build and Android build.
-- [ ] Railway production deployment for the latest commit is successful and the public service responds normally.
-- [ ] Solo account verification of market/bank panels and current balances after reconnect.
+- [x] Stage 1–4 regression tests, server typecheck/build, and browser build passed on the latest code commit.
+- [ ] Android installable debug APK build completes successfully for the latest code commit.
+- [x] Railway production deployment succeeded for the latest application code commit; the service is online and its configured `/` health check succeeded.
+- [ ] User's solo visual check of the market and bank panels and balances after reconnect.
 - [ ] User confirms Stage 4 acceptance.
 
-As previously agreed, a second human tester is not required to close Stage 4. Multi-account, replay and competing-balance scenarios are covered by deterministic automated tests; any live scenario that truly requires two simultaneously online player sessions remains explicitly unverified rather than being claimed as manually tested.
+As previously agreed, a second human tester is not required. Multi-account, replay, authorization and competing-balance domain scenarios are covered by deterministic automated tests. A live transaction that requires two simultaneously online player sessions is not claimed as manually tested here.
 
 ## Regression boundaries
 
-Keep the accepted Stage 1–3 implementation and the existing buildings/map, player authentication, player cash/bank, homes/apartments, roads, vehicles and workplace/interior structure intact. Stage 4 must reuse `market-mile1` and `bank-main`; do not introduce duplicate market or bank locations.
+Keep the accepted Stage 1–3 implementation and the existing buildings/map, player authentication, player cash/bank, homes/apartments, roads, vehicles and workplace/interior structure intact. Stage 4 reuses `market-mile1` and `bank-main`; no duplicate market or bank locations were added.
