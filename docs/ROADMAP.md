@@ -17,7 +17,7 @@ The full scope, dependencies, acceptance checks, test commands and developer han
 | 6 | Rivers State government and civic finance | Deployed; Stage 1–6 CI and browser build passed |
 | 7 | Police, Army, FRSC and Fire Service | Deployed; 13 Stage 7 tests and CI passed |
 | 8 | Rivers News Network | Implemented on main; Game Server CI passed; Railway rollout triggered |
-| 9 | Transport, passengers and haulage | Next |
+| 9 | Transport, passengers and haulage | Implemented on main; Game Server CI and Railway verification pending |
 | 10 | Food businesses and everyday shops | Planned |
 | 11 | Personal services, property services and utilities | Planned |
 | 12 | Education, offices, oil and industry | Planned |
@@ -27,7 +27,7 @@ The full scope, dependencies, acceptance checks, test commands and developer han
 
 ## Active stage: Stage 9 — Transport, passengers and haulage
 
-Stage 8 is on `main` and its Game Server CI run passed. The next implementation stage is Transport, passengers and haulage. Stage 8 reuses the existing walkable `news-main` newsroom/studio and six-rank career ladder. Rank 3+ newsroom employees can submit event-based stories into a private queue; rank 5+ Editors approve/reject and rank 4+ Anchors broadcast only approved reports. The public feed and lightweight ticker update via WebSocket. Server-side rank, assignment, duty, uniform and newsroom-location checks protect editorial actions. Cooldowns, replay protection, profanity filtering, citizen reports, protected moderation and an audit log are included.
+Stage 9 code, server/client integration and CI tests are being committed to `main`; verify the new CI run and Railway rollout before calling the stage released. It adds fleet checkout/refuelling, public ride requests, assigned drivers, route checkpoints, fare settlement and rank-gated haulage. Real two-account and device checks remain necessary. Stage 8 reuses the existing walkable `news-main` newsroom/studio and six-rank career ladder. Rank 3+ newsroom employees can submit event-based stories into a private queue; rank 5+ Editors approve/reject and rank 4+ Anchors broadcast only approved reports. The public feed and lightweight ticker update via WebSocket. Server-side rank, assignment, duty, uniform and newsroom-location checks protect editorial actions. Cooldowns, replay protection, profanity filtering, citizen reports, protected moderation and an audit log are included.
 
 ## Stage 5 acceptance history — hospital and park services
 

@@ -532,6 +532,7 @@
         // correctly after login, not only after a player opens the park menu.
         send({ type: "getParkState" });
         send({ type: "getStage7State" });
+        send({ type: "getStage9State" });
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
         return;
@@ -699,6 +700,18 @@
         N.stage8State = { ...(N.stage8State || {}), ...message };
         window.dispatchEvent(new CustomEvent("nrs-stage8-state", { detail: N.stage8State }));
         if (message.type === "stage8ActionResult") window.dispatchEvent(new CustomEvent("nrs-stage8-action-result", { detail: message }));
+      } else if (message.type === "stage9State" || message.type === "stage9ActionResult") {
+        N.stage9State = { ...(N.stage9State || {}), ...message };
+        N.stage9PassengerLocked = !!(N.stage9State.ownRide && N.stage9State.ownRide.passengerId === N.id && N.stage9State.ownRide.status === "onboard");
+        window.dispatchEvent(new CustomEvent("nrs-stage9-state", { detail: N.stage9State }));
+        if (message.type === "stage9ActionResult") window.dispatchEvent(new CustomEvent("nrs-stage9-action-result", { detail: message }));
+      } else if (message.type === "stage9PassengerPosition") {
+        N.stage9PassengerPos = { x:Number(message.x)||0, z:Number(message.z)||0, yaw:Number(message.yaw)||0 };
+        if (message.complete) N.stage9PassengerLocked = false;
+        window.dispatchEvent(new CustomEvent("nrs-stage9-passenger-position", { detail: message }));
+      } else if (message.type === "stage9FuelEmpty") {
+        window.dispatchEvent(new CustomEvent("nrs-stage9-fuel-empty", { detail: message }));
+        if (message.message) sys(message.message);
       } else if (message.type === "workplaceState" || message.type === "workplaceResult") {
         N.workplaceState = message;
         N.workplaces = message.workplaces || N.workplaces || [];
@@ -1008,6 +1021,19 @@
   N.getGovernmentState = () => send({ type: "getGovernmentState" });
   N.getStage7State = () => send({ type: "getStage7State" });
   N.getStage8State = () => send({ type: "getStage8State" });
+  N.getStage9State = () => send({ type: "getStage9State" });
+  N.checkoutStage9Vehicle = (vehicleId, requestId = stage4RequestId("stage9-checkout")) => send({type:"checkoutStage9Vehicle",vehicleId,requestId});
+  N.returnStage9Vehicle = (requestId = stage4RequestId("stage9-return")) => send({type:"returnStage9Vehicle",requestId});
+  N.refuelStage9Vehicle = (litres, requestId = stage4RequestId("stage9-fuel")) => send({type:"refuelStage9Vehicle",litres,requestId});
+  N.requestStage9Ride = (pickupStopId,destinationStopId,vehicleType,requestId = stage4RequestId("stage9-ride")) => send({type:"requestStage9Ride",pickupStopId,destinationStopId,vehicleType,requestId});
+  N.acceptStage9Ride = (rideId,requestId = stage4RequestId("stage9-accept")) => send({type:"acceptStage9Ride",rideId,requestId});
+  N.pickupStage9Ride = (rideId,requestId = stage4RequestId("stage9-pickup")) => send({type:"pickupStage9Ride",rideId,requestId});
+  N.advanceStage9Ride = (rideId,requestId = stage4RequestId("stage9-stop")) => send({type:"advanceStage9Ride",rideId,requestId});
+  N.completeStage9Ride = (rideId,requestId = stage4RequestId("stage9-complete")) => send({type:"completeStage9Ride",rideId,requestId});
+  N.cancelStage9Ride = (rideId,requestId = stage4RequestId("stage9-cancel")) => send({type:"cancelStage9Ride",rideId,requestId});
+  N.startStage9Delivery = (routeId,requestId = stage4RequestId("stage9-haulage")) => send({type:"startStage9Delivery",routeId,requestId});
+  N.advanceStage9Delivery = (deliveryId,requestId = stage4RequestId("stage9-delivery-stop")) => send({type:"advanceStage9Delivery",deliveryId,requestId});
+  N.completeStage9Delivery = (deliveryId,requestId = stage4RequestId("stage9-delivery-complete")) => send({type:"completeStage9Delivery",deliveryId,requestId});
   N.submitStage8Story = (title,category,body,eventContext,eventRef="local",requestId=stage4RequestId("stage8-submit")) => send({type:"submitStage8Story",title,category,body,eventContext,eventRef,requestId});
   N.approveStage8Story = (storyId,note="",requestId=stage4RequestId("stage8-approve")) => send({type:"approveStage8Story",storyId,note,requestId});
   N.rejectStage8Story = (storyId,note,requestId=stage4RequestId("stage8-reject")) => send({type:"rejectStage8Story",storyId,note,requestId});
@@ -1206,7 +1232,7 @@
         S.posAt = now;
         S.posX = pos.x;
         S.posZ = pos.z;
-        send({ type: "posSync", x: pos.x, z: pos.z, yaw: face });
+        send({ type: "posSync", x: pos.x, z: pos.z, yaw: face, vehicleId: window.NRS?.currentStage9VehicleId || "" });
       }
     }
 

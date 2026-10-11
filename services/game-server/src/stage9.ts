@@ -101,8 +101,8 @@ export function normalizeStage9State(raw: unknown): Stage9State {
   if(obj(raw.vehicles))for(const d of catalog)vehicles[d.id]=normVehicle(raw.vehicles[d.id],d);
   const rides:Stage9Ride[]=Array.isArray(raw.rides)?raw.rides.slice(-120).flatMap(v=>{
     if(!obj(v)||!rideStatuses.includes(v.status as Stage9RideStatus))return [];
-    const id=clean(v.id,180),requestId=clean(v.requestId,120),passengerId=clean(v.passengerId,120),pickupStopId=clean(v.pickupStopId,80),destinationStopId=clean(v.destinationStopId,80),vehicleType=v.vehicleType as Stage9Ride["vehicleType"];
-    if(!id||!requestId||!passengerId||!validStop(pickupStopId)||!validStop(destinationStopId)||pickupStopId===destinationStopId||!types.has(vehicleType)||vehicleType==="haulage")return [];
+    const id=clean(v.id,180),requestId=clean(v.requestId,120),passengerId=clean(v.passengerId,120),pickupStopId=clean(v.pickupStopId,80),destinationStopId=clean(v.destinationStopId,80),rawVehicleType=v.vehicleType as Stage9VehicleType,vehicleType=rawVehicleType as Stage9Ride["vehicleType"];
+    if(!id||!requestId||!passengerId||!validStop(pickupStopId)||!validStop(destinationStopId)||pickupStopId===destinationStopId||!types.has(rawVehicleType)||rawVehicleType==="haulage")return [];
     const routeStopIds=Array.isArray(v.routeStopIds)?v.routeStopIds.filter((x):x is string=>typeof x==="string"&&!!validStop(x)).slice(0,20):[];
     return [{id,requestId,passengerId,passengerName:clean(v.passengerName,80)||"Passenger",pickupStopId,destinationStopId,vehicleType,driverId:clean(v.driverId,120)||null,driverName:clean(v.driverName,80)||null,vehicleId:clean(v.vehicleId,80)||null,routeStopIds,nextStopIndex:Math.max(0,Math.min(routeStopIds.length,Math.floor(Number(v.nextStopIndex)||0))),status:v.status as Stage9RideStatus,fare:amount(v.fare),driverShare:amount(v.driverShare),createdAt:stamp(v.createdAt),updatedAt:stamp(v.updatedAt),settledAt:v.settledAt==null?null:stamp(v.settledAt)}];
   }):[];

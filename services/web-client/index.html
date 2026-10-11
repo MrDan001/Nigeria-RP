@@ -1579,7 +1579,7 @@ $('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)retur
 const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24),camDrivePos=new THREE.Vector3();
 function objectHalfExtents(b){if(!b.owner)return{hw:b.hw,hd:b.hd};const co=Math.abs(Math.cos(b.owner.ry)),si=Math.abs(Math.sin(b.owner.ry));return{hw:co*b.hw+si*b.hd,hd:si*b.hw+co*b.hd};}
 let face=Math.PI,speed=0,phase=0;
-function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);return;}
+function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);return;}if(window.NRS?.stage9PassengerLocked){const fp=window.NRS.stage9PassengerPos;if(fp){pos.x=Number(fp.x)||0;pos.z=Number(fp.z)||0;face=Number(fp.yaw)||0;player.position.set(pos.x,0,pos.z);focus.set(pos.x,1.4,pos.z);}vel.set(0,0,0);inp.x=inp.y=0;hudAct();updateCam(dt);return;}
  let ix=inp.x,iy=inp.y;
  if(keys.KeyW||keys.ArrowUp)iy+=1;if(keys.KeyS||keys.ArrowDown)iy-=1;if(keys.KeyD||keys.ArrowRight)ix+=1;if(keys.KeyA||keys.ArrowLeft)ix-=1;
  let mag=Math.hypot(ix,iy);if(mag>1){ix/=mag;iy/=mag;mag=1;}
@@ -1676,7 +1676,7 @@ function mapDraw(m,S,sc,rot,clip){const R=S/2;m.clearRect(0,0,S,S);m.save();if(c
  m.strokeStyle='rgba(90,0,10,.85)';m.lineWidth=clip?8:10;m.stroke();m.strokeStyle='#ff2a3a';m.lineWidth=clip?5.5:7;m.stroke();
  m.strokeStyle='rgba(255,255,255,.9)';m.lineWidth=clip?1.2:1.6;m.setLineDash([3,5]);m.lineDashOffset=-(performance.now()/60)%8;m.stroke();m.restore();}
  m.fillStyle='#9aa0a6';for(const b of bld)m.fillRect(b.x-b.hw,b.z-b.hd,b.hw*2,b.hd*2);
- m.fillStyle='#ff9f43';for(const p of POI)m.fillRect(p.x-2,p.z-2,4,4);for(const s of FS){m.fillStyle='#fff';m.beginPath();m.arc(s.x,s.z,8/sc,0,7);m.fill();m.fillStyle=s.col;m.beginPath();m.arc(s.x,s.z,6/sc,0,7);m.fill();m.fillStyle='#fff';m.fillRect(s.x-1.6/sc,s.z-3/sc,3.2/sc,6/sc);}if(job){m.fillStyle='#ffc928';m.beginPath();m.arc(job.x,job.z,6/sc,0,7);m.fill();}if(NAV){m.fillStyle='#fff';m.beginPath();m.arc(NAV.x,NAV.z,8/sc,0,7);m.fill();m.fillStyle='#ff2a3a';m.beginPath();m.arc(NAV.x,NAV.z,6/sc,0,7);m.fill();}m.fillStyle='#e8c14a';for(const c of cars)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);for(const c of TV)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);m.fillStyle='#fff';for(const p of PEDS)m.fillRect(p.x-.9,p.z-.9,1.8,1.8);
+ m.fillStyle='#ff9f43';for(const p of POI)m.fillRect(p.x-2,p.z-2,4,4);for(const s of FS){m.fillStyle='#fff';m.beginPath();m.arc(s.x,s.z,8/sc,0,7);m.fill();m.fillStyle=s.col;m.beginPath();m.arc(s.x,s.z,6/sc,0,7);m.fill();m.fillStyle='#fff';m.fillRect(s.x-1.6/sc,s.z-3/sc,3.2/sc,6/sc);}if(job){m.fillStyle='#ffc928';m.beginPath();m.arc(job.x,job.z,6/sc,0,7);m.fill();}if(NAV){m.fillStyle='#fff';m.beginPath();m.arc(NAV.x,NAV.z,8/sc,0,7);m.fill();m.fillStyle='#ff2a3a';m.beginPath();m.arc(NAV.x,NAV.z,6/sc,0,7);m.fill();}m.fillStyle='#e8c14a';for(const c of cars)if(c.g?.visible)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);for(const c of TV)m.fillRect(c.x-1.2,c.z-2.4,2.4,4.8);m.fillStyle='#fff';for(const p of PEDS)m.fillRect(p.x-.9,p.z-.9,1.8,1.8);
  if(!clip){m.fillStyle='#fff';m.textAlign='center';m.font='bold '+(12/sc)+'px system-ui';ZN.forEach(a=>m.fillText(a.n,(a.x1+a.x2)/2,(a.z1+a.z2)/2));m.fillStyle='#cfe3ff';m.font=(10/sc)+'px system-ui';HR.forEach(r=>m.fillText(r[1],-150,r[0]-7));VR.forEach(r=>m.fillText(r[1],r[0],r[2]+14));}
  m.translate(pos.x,pos.z);m.rotate(Math.PI-face);m.scale(1/sc,1/sc);m.fillStyle='#4ade80';m.beginPath();m.moveTo(0,-11);m.lineTo(8,9);m.lineTo(0,5);m.lineTo(-8,9);m.closePath();m.fill();m.restore();
  if(clip){m.fillStyle='#fff';m.font='bold 22px system-ui';m.textAlign='center';m.fillText('N',R+Math.sin(camYaw)*98,R-Math.cos(camYaw)*98+8);}}
@@ -1685,6 +1685,15 @@ function drawMap(){mapDraw(mc,240,driving?1.15:1.6,true,true);const f=$('fm');if
 /* ---------- Vehicles, traffic, buttons ---------- */
 let driving=null,punchT=0,crouch=false,nearCar=null,locT='',ac,carparkExitPending=false,drivingCameraLocked=false;
 const tr=cars.filter(c=>c.kind==='t');
+const stage9FleetVisuals={};
+[
+ {id:"fleet-keke-01",type:"keke",scale:.76,hw:.82,hd:1.72,color:0x168d70},
+ {id:"fleet-okada-01",type:"okada",scale:.58,hw:.58,hd:1.45,color:0xd8a51d},
+ {id:"fleet-taxi-01",type:"taxi",scale:1,hw:1.05,hd:2.3,color:0x1388bf},
+ {id:"fleet-danfo-01",type:"danfo",scale:1.12,hw:1.18,hd:2.65,color:0xd2a322},
+ {id:"fleet-bus-01",type:"bus",scale:1.32,hw:1.42,hd:3.05,color:0x1a8a55},
+ {id:"fleet-truck-01",type:"haulage",scale:1.42,hw:1.5,hd:3.35,color:0x8c5d34}
+].forEach((v,i)=>{const c=car(430+i*6,430,v.color,0,'f');c.g.scale.setScalar(v.scale);c.stage9FleetId=v.id;c.stage9FleetType=v.type;c.stage9HalfWidth=v.hw;c.stage9HalfDepth=v.hd;c.g.visible=false;c.box.hw=0;c.box.hd=0;stage9FleetVisuals[v.id]=c;});
 function setCar(c){c.g.position.set(c.x,0,c.z);c.g.rotation.y=c.ry;c.body.rotation.x=c.pitch;c.body.rotation.z=c.roll;c.box.x=c.x;c.box.z=c.z;}
 function traffic(dt){
  bagV-=(bagA*40+bagV*1.2)*dt;bagA+=bagV*dt;bag.rotation.z=bagA;
@@ -1782,8 +1791,8 @@ function hudAct(){const a=$('act');
  a.style.display=nearCar?'block':'none';a.textContent='Enter car';}
 $('act').onclick=()=>{
  if(driving){const c=driving;if(Math.abs(c.v)>5)return;c.v=c.vx=c.vz=0;c.box.hw=1.05;c.box.hd=2.3;pos.set(c.x+Math.cos(c.ry)*2.3,0,c.z-Math.sin(c.ry)*2.3);face=c.ry;vel.set(0,0,0);focus.copy(pos);
-  standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
- else if(nearCar&&nearCar.g?.visible&&nearCar.box&&nearCar.box.hw>0&&nearCar.box.hd>0){driving=nearCar;driving.v=driving.vx=driving.vz=0;driving.box.hw=1.05;driving.box.hd=2.3;vel.set(0,0,0);driving.on=false;driving.starting=false;driveCamOffset=0;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
+  standUp();shadow.visible=true;c.on=false;c.hlOn=false;c.starting=false;driving=null;if(window.NRS)window.NRS.currentStage9VehicleId='';setIgn();setHl(c);c.rev.color.setHex(0x555555);c.sw.rotation.z=0;hornBtn=false;hornKey=false;hornSync();document.body.classList.remove('drv');$('act').classList.remove('dr');engine(false);radioSet(0);cam.fov=60;cam.updateProjectionMatrix();c.tail.color.setHex(0x701010);inp.x=inp.y=0;jid=null;knob.style.transform='';}
+ else if(nearCar&&nearCar.g?.visible&&nearCar.box&&nearCar.box.hw>0&&nearCar.box.hd>0){driving=nearCar;if(window.NRS)window.NRS.currentStage9VehicleId=nearCar.stage9FleetId||'';driving.v=driving.vx=driving.vz=0;driving.box.hw=1.05;driving.box.hd=2.3;vel.set(0,0,0);driving.on=false;driving.starting=false;driveCamOffset=0;camYaw=driving.ry+Math.PI;camPitch=.28;cam.fov=60;cam.updateProjectionMatrix();wheelA=0;sitIn(driving);document.body.classList.add('drv');$('act').classList.add('dr');setIgn();}
  else if(inside?.isCarpark){const door=Math.hypot(pos.x-inside.x,pos.z-(inside.z+13.4));if(door<3.2)openGarageFootExitMenu();else openGarageSpawnMenu();}};
 /* seated driver: player rides inside the car body, hands on the wheel, legs forward */
 function sitIn(c){c.body.add(player);player.position.set(.42,-.06,-.3);player.rotation.set(0,0,0);player.scale.setScalar(.85);player.visible=true;shadow.visible=false;
@@ -3432,7 +3441,7 @@ function renderWorkplaceMenu(data){
   }
   const faction=w.faction||{};
   const rankLadder='<details class="wm-rank-ladder"><summary>View six-rank ladder & pay</summary><div class="wm-rank-list">'+(w.rankTitles||[]).map((titles,i)=>'<div class="wm-rank-row"><span>Rank '+(i+1)+'</span><b>'+safeText((titles||[]).join(' / ')||('Rank '+(i+1)))+'</b><small>'+Number(w.rankMultipliers?.[i]??1)+'× pay</small></div>').join('')+'</div></details>';
-  const stage4Shortcut=w.id==='market-mile1'
+  const stage4Shortcut=w.id==='transport-union' ? '<section class="s4-card"><h3>🚐 Public transport & haulage</h3><p class="s4-muted">Request passenger rides, operate the company fleet, validate route stops and complete delivery contracts.</p><button data-transport-open="1">Open transport terminal</button></section>' : w.id==='market-mile1'
     ?'<section class="s4-card"><h3>🛒 Mile 1 Market</h3><p class="s4-muted">Shop from verified on-duty salespeople. Purchased goods are added to your backpack.</p><button data-market-open="1">Open market & product catalogue</button></section>'
     :w.id==='bank-main'
       ?'<section class="s4-card"><h3>🏦 Port Harcourt Bank</h3><p class="s4-muted">View your bank receipts or open the teller workstation when you are on duty in uniform.</p><button data-bank-open="1">Open banking services</button></section>'
@@ -3448,7 +3457,7 @@ function renderWorkplaceMenu(data){
   return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+stage4Shortcut+management+'</article>';
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
- panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div><button data-stage7-open="1">🚨 Police, traffic, fire & public-safety incidents</button><button class="subtle" data-news-open="feed">📰 Read Rivers News Network</button>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div><button data-stage7-open="1">🚨 Police, traffic, fire & public-safety incidents</button><button class="subtle" data-news-open="feed">📰 Read Rivers News Network</button><button class="subtle" data-transport-open="1">🚐 Public transport & haulage</button>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');modal.style.display='flex';
 }
 
@@ -3499,6 +3508,69 @@ function renderStage7Console(d) {
 window.addEventListener("nrs-stage7-state",e=>{if(stage7MenuOpen)renderStage7Console(e.detail);});
 window.addEventListener("nrs-stage7-action-result",e=>{stage7Feedback=e.detail||null;if(stage7MenuOpen)renderStage7Console(window.NRS?.stage7State||{});});
 
+
+
+/* Stage 9 — passenger journeys, company fleet and haulage operations. */
+let stage9MenuOpen=false,stage9Feedback=null;
+const stage9Id=id=>String(id||"").replace(/[^a-z0-9_-]/gi,"_");
+const stage9Money=n=>"₦"+Math.max(0,Math.floor(Number(n)||0)).toLocaleString("en-NG");
+const stage9StopName=(id,d)=>((d.stops||[]).find(s=>s.id===id)?.name)||String(id||"Unknown stop");
+function syncStage9FleetVisual(d){
+ const own=d?.ownVehicle,selfId=d?.selfId;
+ for(const [id,c] of Object.entries(stage9FleetVisuals)){
+  if(!own||own.id!==id||own.ownerId!==selfId){if(driving!==c){c.g.visible=false;c.box.hw=0;c.box.hd=0;c._stage9SpawnedFor=null;}continue;}
+  if(c._stage9SpawnedFor!==selfId||!c.g.visible){c._stage9SpawnedFor=selfId;c.x=clamp(pos.x+Math.sin(face)*4.5,-230,230);c.z=clamp(pos.z+Math.cos(face)*4.5,-230,230);c.ry=face;c.v=c.vx=c.vz=0;c.on=false;c.starting=false;c.box.hw=c.stage9HalfWidth;c.box.hd=c.stage9HalfDepth;c.g.visible=true;setCar(c);}
+  c.fuel=Math.max(0,Number(own.fuelLitres)||0);
+ }
+}
+function openStage9Console(){
+ stage9MenuOpen=true;stage9Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ panel('<div class="s4-head"><span class="s4-icon">🚐</span><div><small>PORT HARCOURT · TRANSPORT UNION</small><h2>Transport terminal</h2><p>Passenger rides, fleet vehicles, route stops and haulage contracts.</p></div></div><div class="s4-empty">Loading routes and available vehicles…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage9State();
+}
+function renderStage9Console(d){
+ if(!stage9MenuOpen)return;d=d||window.NRS?.stage9State||{};syncStage9FleetVisual(d);
+ const stops=Array.isArray(d.stops)?d.stops:[],routes=Array.isArray(d.routes)?d.routes:[],fleet=Array.isArray(d.vehicles)?d.vehicles:[],rides=Array.isArray(d.rides)?d.rides:[],deliveries=Array.isArray(d.deliveries)?d.deliveries:[];
+ const feedback=stage9Feedback?'<div class="s4-notice '+(stage9Feedback.ok?'success':'error')+'">'+safeText(stage9Feedback.message||"")+'</div>':"";
+ const activeOwn=d.ownRide&&["waiting","assigned","onboard"].includes(d.ownRide.status)?d.ownRide:null,ownVehicle=d.ownVehicle||null,ownDelivery=d.ownDelivery&&d.ownDelivery.status==="active"?d.ownDelivery:null;
+ const stopOptions='<option value="">Choose stop</option>'+stops.map(s=>'<option value="'+safeText(s.id)+'">'+safeText(s.name)+'</option>').join("");
+ const pickupOptions='<option value="">Choose pickup</option>'+stops.map(s=>'<option value="'+safeText(s.id)+'" '+(d.nearestStop?.id===s.id?'selected':'')+'>'+safeText(s.name)+'</option>').join("");
+ const access=d.workplaceId?'<div class="s4-notice '+(d.onDuty&&d.uniform?'success':'error')+'">Transport Union · '+safeText(d.rankTitle||("Rank "+d.rank))+' · '+(d.onDuty?'ON DUTY':'OFF DUTY')+' · '+(d.uniform?'uniform verified':'uniform required')+'</div>':'<div class="s4-notice">Passengers can request rides from any listed stop. To drive, join Port Harcourt Transport Union, clock in and wear its uniform.</div>';
+ const rideForm='<section class="s4-card"><h3>🧍 Request a ride</h3><p class="s4-muted">Stand within 13 metres of your pickup. The fare is confirmed in the ride request and charged only after the trip reaches its destination.</p><label class="s4-field">Pickup stop<select id="s9Pickup">'+pickupOptions+'</select></label><label class="s4-field">Destination<select id="s9Destination">'+stopOptions+'</select></label><label class="s4-field">Vehicle type<select id="s9VehicleType"><option value="keke">Keke Napep</option><option value="okada">Okada</option><option value="taxi" selected>City Taxi</option><option value="danfo">Danfo Minibus</option><option value="bus">City Bus</option></select></label><button data-s9-request-ride="1">Request ride</button></section>';
+ const vehicleCards=fleet.map(v=>'<div class="s4-row"><span><b>'+safeText(v.label)+'</b><small>'+safeText(v.type.toUpperCase())+' · Rank '+v.minRank+'+ · Fuel '+Number(v.fuelLitres).toFixed(1)+' / '+v.tankLitres+' L · '+(v.ownerId?'Checked out'+(v.ownerName?' by '+safeText(v.ownerName):''):'Available')+'</small></span><strong>'+(v.ownerId?'IN USE':'AVAILABLE')+'</strong></div>').join("");
+ let fleetActions="";
+ if(ownVehicle){
+  fleetActions='<div class="s4-notice success">Checked out: '+safeText(ownVehicle.label)+' · '+Number(ownVehicle.fuelLitres).toFixed(1)+' / '+ownVehicle.tankLitres+' L</div><label class="s4-field">Fuel litres (₦1,150/L)<input id="s9FuelLitres" type="number" min="1" max="80" step="1" inputmode="numeric" value="5"></label><button data-s9-refuel="1" '+(d.nearFuelPoint?'':'disabled')+'>Buy fuel at terminal</button><button class="subtle" data-s9-return="1" '+(d.nearDepot&&!window.NRS?.currentStage9VehicleId&&!activeOwn&&!ownDelivery?'':'disabled')+'>Return vehicle to terminal</button><p class="s4-muted">Fuel is saved and consumed as the checked-out company vehicle moves. Return it at the terminal when your assignment is complete.</p>';
+ }else{
+  fleetActions='<p class="s4-muted">'+(d.nearDepot?'At terminal: qualified drivers can check out an available vehicle.':'Visit the Transport Union terminal to check out a company vehicle.')+'</p>'+fleet.map(v=>'<button data-s9-checkout="'+safeText(v.id)+'" '+(d.nearDepot&&d.onDuty&&d.uniform&&Number(d.rank)>=Number(v.minRank)&&!v.ownerId&&!activeOwn&&!ownDelivery?'':'disabled')+'>Check out '+safeText(v.label)+' · Rank '+v.minRank+'+</button>').join("");
+ }
+ let rideAction="";
+ if(activeOwn){
+  const r=activeOwn,isDriver=r.driverId===d.selfId,isPassenger=r.passengerId===d.selfId;
+  rideAction='<section class="s4-card"><h3>🎫 Your active ride</h3><p><b>'+safeText(stage9StopName(r.pickupStopId,d))+' → '+safeText(stage9StopName(r.destinationStopId,d))+'</b></p><p class="s4-muted">Vehicle: '+safeText(r.vehicleType)+' · Fare '+stage9Money(r.fare)+' · Status '+safeText(r.status.toUpperCase())+'</p>'+(r.driverName?'<p class="s4-muted">Driver: '+safeText(r.driverName)+'</p>':'')+
+   (r.status==="waiting"&&isPassenger?'<button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel request</button>':'')+
+   (r.status==="assigned"&&isDriver?'<p class="s4-muted">Reach '+safeText(stage9StopName(r.pickupStopId,d))+'</p>':'');
+  if(r.status==="assigned"&&isDriver)rideAction+='<button data-s9-pickup="'+safeText(r.id)+'">Confirm passenger pickup</button><button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel before boarding</button>';
+  if(r.status==="assigned"&&isPassenger)rideAction+='<p class="s4-muted">Your driver '+safeText(r.driverName||"")+' is assigned. Wait at the pickup stop.</p><button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel before boarding</button>';
+  if(r.status==="onboard"&&isDriver&&r.nextStopIndex<(r.routeStopIds||[]).length)rideAction+='<p class="s4-muted">Next checkpoint: '+safeText(stage9StopName(r.routeStopIds[r.nextStopIndex],d))+'</p><button data-s9-advance-ride="'+safeText(r.id)+'">Confirm reached next stop</button>';
+  if(r.status==="onboard"&&isDriver&&r.nextStopIndex>=(r.routeStopIds||[]).length)rideAction+='<p class="s4-muted">Destination reached.</p><button data-s9-complete-ride="'+safeText(r.id)+'">Complete trip & settle fare</button>';
+  if(r.status==="onboard"&&isPassenger)rideAction+='<div class="s4-notice success">You are onboard. Your position follows the driver until the destination is reached.</div>';
+  rideAction+='</section>';
+ }else if(d.ownRide&&d.ownRide.status==="completed")rideAction='<section class="s4-card"><h3>✅ Last trip completed</h3><p>'+safeText(stage9StopName(d.ownRide.pickupStopId,d))+' → '+safeText(stage9StopName(d.ownRide.destinationStopId,d))+' · '+stage9Money(d.ownRide.fare)+'</p></section>';
+ const waiting=rides.filter(r=>r.status==="waiting"&&r.passengerId!==d.selfId);
+ const rideQueue='<div class="s4-sectiontitle">Waiting passengers <small>'+waiting.length+' REQUEST'+(waiting.length===1?'':'S')+'</small></div>'+(waiting.length?waiting.map(r=>'<div class="s4-row"><span><b>'+safeText(r.passengerName)+' · '+safeText(r.vehicleType.toUpperCase())+'</b><small>'+safeText(stage9StopName(r.pickupStopId,d))+' → '+safeText(stage9StopName(r.destinationStopId,d))+' · Fare '+stage9Money(r.fare)+'</small></span>'+(d.canDrive&&ownVehicle&&ownVehicle.type===r.vehicleType?'<button data-s9-accept="'+safeText(r.id)+'">Accept</button>':'')+'</div>').join(""):'<div class="s4-empty">No one is waiting for a ride right now.</div>');
+ let haulage="";
+ const haulRoutes=routes.filter(r=>r.vehicleType==="haulage");
+ if(ownDelivery){const q=ownDelivery,next=(q.stopIds||[])[q.nextStopIndex];haulage='<section class="s4-card"><h3>🚚 Active haulage order</h3><p>'+safeText((routes.find(r=>r.id===q.routeId)||{}).name||q.routeId)+'</p><p class="s4-muted">Checkpoint '+Math.min(q.nextStopIndex+1,q.stopIds.length)+' / '+q.stopIds.length+' · Reward '+stage9Money(q.reward)+'</p>'+(next?'<p class="s4-muted">Next: '+safeText(stage9StopName(next,d))+'</p><button data-s9-advance-delivery="'+safeText(q.id)+'">Confirm reached checkpoint</button>':'<button data-s9-complete-delivery="'+safeText(q.id)+'">Submit delivery receipt</button>')+'</section>';
+ }else{haulage='<section class="s4-card"><h3>📦 Haulage contracts</h3><p class="s4-muted">Rank 5+ on-duty, uniformed supervisors can check out a truck at the terminal and confirm every checkpoint in order.</p>'+haulRoutes.map(r=>'<div class="s4-row"><span><b>'+safeText(r.name)+'</b><small>Payment '+stage9Money(r.reward)+' · '+r.stopIds.length+' checkpoints</small></span><button data-s9-start-delivery="'+safeText(r.id)+'" '+(d.nearDepot&&d.canHaul&&ownVehicle?.type==="haulage"&&!activeOwn?'':'disabled')+'>Accept delivery</button></div>').join("")+'</section>';}
+ const ownDeliveryNote=d.ownDelivery&&d.ownDelivery.status==="completed"?'<section class="s4-card"><h3>✅ Last haulage receipt</h3><p>'+safeText(d.ownDelivery.routeId)+' · '+stage9Money(d.ownDelivery.reward)+' credited</p></section>':'';
+ panel('<div class="s4-head"><span class="s4-icon">🚐</span><div><small>PORT HARCOURT · STAGE 9</small><h2>Transport & haulage</h2><p>Public trips, company vehicles, route validation and driver earnings.</p></div></div>'+feedback+access+'<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+stage9Money(d.cash)+'</strong></div><div class="s4-kpi"><small>Union treasury</small><strong>'+stage9Money(d.unionTreasury)+'</strong></div><div class="s4-kpi"><small>Your rank</small><strong>'+(d.rank?safeText(d.rankTitle||("Rank "+d.rank)):'CITIZEN')+'</strong></div></div>'+rideForm+rideAction+rideQueue+'<div class="s4-sectiontitle">Company fleet <small>'+fleet.length+' VEHICLES</small></div>'+fleetActions+'<div class="s4-list">'+vehicleCards+'</div>'+haulage+ownDeliveryNote+'<div class="s4-sectiontitle">Passenger & delivery stops</div><div class="s4-list">'+stops.map(q=>'<div class="s4-row"><span><b>'+safeText(q.name)+'</b><small>'+safeText(q.kind)+' · '+Math.round(Number(q.x))+', '+Math.round(Number(q.z))+'</small></span><strong>'+(d.nearestStop?.id===q.id?'NEARBY':'STOP')+'</strong></div>').join("")+'</div><button class="subtle" data-s9-refresh="1">Refresh transport board</button>');
+ modal.classList.add("stage4-menu");
+}
+window.addEventListener("nrs-stage9-state",e=>{const d=e.detail||window.NRS?.stage9State||{};syncStage9FleetVisual(d);if(stage9MenuOpen)renderStage9Console(d);});
+window.addEventListener("nrs-stage9-action-result",e=>{stage9Feedback=e.detail||null;if(stage9MenuOpen)renderStage9Console(window.NRS?.stage9State||{});});
+window.addEventListener("nrs-stage9-passenger-position",e=>{const p=e.detail||{};window.NRS.stage9PassengerPos={x:Number(p.x)||0,z:Number(p.z)||0,yaw:Number(p.yaw)||0};});
+window.addEventListener("nrs-stage9-fuel-empty",()=>{const id=window.NRS?.currentStage9VehicleId,c=id?stage9FleetVisuals[id]:null;if(c){c.on=false;c.fuel=0;engine(false);setIgn();}});
 
 /* Stage 8 — Rivers News Network: public feed, live ticker and editorial desk. */
 let stage8MenuOpen=false,stage8Mode="feed",stage8Feedback=null;
@@ -3811,6 +3883,20 @@ modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.governmentOpen){openGovernmentConsole();return;}
 
+  if(d.transportOpen){openStage9Console();return;}
+  if(d.s9Refresh){N.getStage9State();return;}
+  if(d.s9RequestRide){const p=modal.querySelector("#s9Pickup")?.value||"",dst=modal.querySelector("#s9Destination")?.value||"",type=modal.querySelector("#s9VehicleType")?.value||"taxi";if(!p||!dst||p===dst){stage9Feedback={ok:false,message:"Choose two different stops."};renderStage9Console();return;}stage9Feedback=null;N.requestStage9Ride(p,dst,type);return;}
+  if(d.s9Checkout){stage9Feedback=null;N.checkoutStage9Vehicle(d.s9Checkout);return;}
+  if(d.s9Return){stage9Feedback=null;N.returnStage9Vehicle();return;}
+  if(d.s9Refuel){const litres=Number(modal.querySelector("#s9FuelLitres")?.value);if(!Number.isInteger(litres)||litres<1||litres>80){stage9Feedback={ok:false,message:"Enter whole litres from 1 to 80."};renderStage9Console();return;}stage9Feedback=null;N.refuelStage9Vehicle(litres);return;}
+  if(d.s9Accept){stage9Feedback=null;N.acceptStage9Ride(d.s9Accept);return;}
+  if(d.s9Pickup){stage9Feedback=null;N.pickupStage9Ride(d.s9Pickup);return;}
+  if(d.s9AdvanceRide){stage9Feedback=null;N.advanceStage9Ride(d.s9AdvanceRide);return;}
+  if(d.s9CompleteRide){stage9Feedback=null;N.completeStage9Ride(d.s9CompleteRide);return;}
+  if(d.s9CancelRide){stage9Feedback=null;N.cancelStage9Ride(d.s9CancelRide);return;}
+  if(d.s9StartDelivery){stage9Feedback=null;N.startStage9Delivery(d.s9StartDelivery);return;}
+  if(d.s9AdvanceDelivery){stage9Feedback=null;N.advanceStage9Delivery(d.s9AdvanceDelivery);return;}
+  if(d.s9CompleteDelivery){stage9Feedback=null;N.completeStage9Delivery(d.s9CompleteDelivery);return;}
   if(d.newsOpen){if(d.newsOpen==="feed")openStage8Feed();else openStage8Newsroom();return;}
 if(d.newsRefresh){window.NRS?.getStage8State();return;}
 if(d.newsSubmit){const title=modal.querySelector("#n8-title")?.value||"",category=modal.querySelector("#n8-category")?.value||"community",body=modal.querySelector("#n8-body")?.value||"",eventContext=modal.querySelector("#n8-event-context")?.value||"",eventRef=modal.querySelector("#n8-event-ref")?.value||"local";if(title.trim().length<8||body.trim().length<50||eventContext.trim().length<5){stage8Feedback={ok:false,message:"Add a clear headline, a story of at least 50 characters, and the in-world event/location."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.submitStage8Story(title,category,body,eventContext,eventRef);return;}

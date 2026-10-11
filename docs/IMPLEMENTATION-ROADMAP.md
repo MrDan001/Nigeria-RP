@@ -210,6 +210,7 @@ Acceptance: unauthorized arrests, arbitrary fines and restricted-area misuse are
 Acceptance: unapproved stories do not publish; editorial permissions and rate limits hold under retries; reported content can be reviewed and removed. Automated checks are added; live Android/two-account checks remain separate.
 
 ### Stage 9 — Transport, passengers and haulage
+**Status — implemented on main; Game Server CI and Railway verification pending.**
 - Add player-operated danfo/bus routes and stops, keke/okada passenger trips, taxis, terminals and truck-haul depots.
 - Each transport workplace uses the shared six-rank system and company-owned vehicles with safe checkout/return and fuel rules.
 - Passenger pickup/drop-off, fares, route checkpoints and haulage deliveries must validate proximity, correct vehicle, passenger/task state and route progress on the server.

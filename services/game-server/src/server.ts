@@ -98,6 +98,7 @@ import {
 import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent, recordCivicFine } from "./stage6";
 import { ARMY_WORKPLACE_ID, FIRE_WORKPLACE_ID, FRSC_WORKPLACE_ID, POLICE_WORKPLACE_ID, STAGE7_CHECKPOINTS, STAGE7_FINE_RULES, STAGE7_UNITS, activateStage7Checkpoint, arrestStage7Suspect, attemptStage7Escape, closeStage7Incident, createStage7State, deactivateStage7Checkpoint, dispatchStage7Incident, findBlockingStage7Checkpoint, isAuthorisedStage7CheckpointPass, isStage7Unit, issueStage7Fine, maintainStage7State, normalizeStage7State, reportStage7Incident, requestStage7Appeal, resolveStage7Fire, resolveStage7TrafficIncident, reviewStage7Appeal, stage7Distance, investigateStage7Incident, type Stage7UnitId } from "./stage7";
 import { NEWS_WORKPLACE_ID, approveStage8Story, createStage8State, moderateStage8Report, normalizeStage8State, publishStage8Story, rejectStage8Story, reportStage8Story, stage8PublicFeed, submitStage8Story, type Stage8Actor, type Stage8ModerationDecision } from "./stage8";
+import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acceptStage9Ride, advanceStage9Delivery, advanceStage9Ride, cancelStage9Ride, checkoutStage9Vehicle, completeStage9Delivery, completeStage9Ride, consumeStage9Fuel, createStage9State, normalizeStage9State, pickupStage9Ride, refuelStage9Vehicle, requestStage9Ride, returnStage9Vehicle, startStage9Delivery, stage9DistanceToStop, type Stage9Actor, type Stage9Result } from "./stage9";
 
 const scrypt = promisify(scryptCb);
 
@@ -195,6 +196,7 @@ type FileStore = {
   stage6?: unknown;
   stage7?: unknown;
   stage8?: unknown;
+  stage9?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -231,6 +233,9 @@ let stage5State = normalizeStage5State(null);
 let stage6State = createStage6State();
 let stage7State = createStage7State();
 let stage8State = createStage8State();
+let stage9State = createStage9State();
+type Stage9FuelProgress = { vehicleId: string; pendingDistance: number; lastSavedAt: number };
+const stage9FuelProgress = new Map<string, Stage9FuelProgress>();
 const stage7ReportCooldownAt = new Map<string, number>();
 let stage4MutationQueue: Promise<void> = Promise.resolve();
 
@@ -476,6 +481,15 @@ async function saveStage8State(state = stage8State) {
     return;
   }
   fileStore.stage8 = state;
+  writeFileStore();
+}
+
+async function saveStage9State(state = stage9State) {
+  if (pool) {
+    await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage9',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]);
+    return;
+  }
+  fileStore.stage9 = state;
   writeFileStore();
 }
 
@@ -918,6 +932,58 @@ function stage8Actor(session:Session):Stage8Actor {
   onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,
   inNewsroom:session.inWorkplaceInterior&&!session.inStaffRoom&&session.currentWorkplaceId===NEWS_WORKPLACE_ID,isAdmin:isFactionAdmin(session)};
 }
+
+function stage9Actor(session:Session):Stage9Actor {
+ const e=session.player.life.employment??null;
+ return {actorId:session.player.id,actorName:session.player.name,workplaceId:e?.workplaceId??null,rank:Number(e?.rank??0),onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,x:session.player.x,z:session.player.z};
+}
+function stage9OwnRide(session:Session) {
+ const mine=stage9State.rides.filter(r=>r.passengerId===session.player.id||r.driverId===session.player.id);
+ return mine.find(r=>["waiting","assigned","onboard"].includes(r.status))??mine[mine.length-1]??null;
+}
+function stage9OwnDelivery(session:Session) {
+ const mine=stage9State.deliveries.filter(d=>d.driverId===session.player.id);
+ return mine.find(d=>d.status==="active")??mine[mine.length-1]??null;
+}
+function stage9StatePayload(session:Session) {
+ const e=session.player.life.employment??null,member=e?.workplaceId===TRANSPORT_WORKPLACE_ID,rank=member?Number(e?.rank??0):0;
+ const onDuty=member&&e?.onDuty===true,uniform=member&&e?.uniformWorkplaceId===TRANSPORT_WORKPLACE_ID;
+ const nearDepot=Math.hypot(session.player.x-STAGE9_DEPOT.x,session.player.z-STAGE9_DEPOT.z)<=18;
+ const ownVehicle=Object.values(stage9State.vehicles).find(v=>v.ownerId===session.player.id)??null;
+ const ownRide=stage9OwnRide(session),ownDelivery=stage9OwnDelivery(session);
+ const nearestStop=STAGE9_STOPS.map(s=>({id:s.id,name:s.name,distance:stage9DistanceToStop(session.player.x,session.player.z,s.id)})).sort((a,b)=>a.distance-b.distance)[0];
+ return {type:"stage9State",selfId:session.player.id,selfName:session.player.name,x:session.player.x,z:session.player.z,cash:session.player.cash,
+  stops:STAGE9_STOPS,routes:STAGE9_ROUTES,vehicles:Object.values(stage9State.vehicles),
+  rides:stage9State.rides.filter(r=>["waiting","assigned","onboard"].includes(r.status)).slice(-50).reverse(),
+  deliveries:stage9State.deliveries.filter(d=>d.status==="active").slice(-30).reverse(),
+  ownVehicle,ownRide,ownDelivery,unionTreasury:stage9State.unionTreasury,workplaceId:member?TRANSPORT_WORKPLACE_ID:null,rank,
+  rankTitle:rank?workplaceRankTitle(TRANSPORT_WORKPLACE_ID,rank):"",onDuty,uniform,nearDepot,nearFuelPoint:nearDepot,
+  nearestStop:nearestStop&&nearestStop.distance<=13?nearestStop:null,canDrive:rank>=3&&onDuty&&uniform,canHaul:rank>=5&&onDuty&&uniform};
+}
+function sendStage9Result(session:Session,action:string,r:Stage9Result) {
+ send(session.socket,{...stage9StatePayload(session),type:"stage9ActionResult",action,ok:r.ok,message:r.message,fare:r.fare??null,driverShare:r.driverShare??null,cost:r.cost??null,reward:r.reward??null});
+}
+function broadcastStage9States(){for(const session of players.values())send(session.socket,stage9StatePayload(session));}
+async function persistStage9Action(session:Session,action:string,r:Stage9Result):Promise<boolean>{
+ if(!r.ok){sendStage9Result(session,action,r);return false;}
+ try{await saveStage9State(r.state);stage9State=r.state;return true;}
+ catch(error){console.error("stage9-"+action+"-save",error);sendStage9Result(session,action,{ok:false,state:stage9State,message:"Transport state could not be saved. Refresh and retry."});return false;}
+}
+async function recordStage9VehicleMovement(session:Session,vehicleId:string,moved:number,now:number){
+ const vehicle=stage9State.vehicles[vehicleId];
+ if(!vehicle||vehicle.ownerId!==session.player.id){stage9FuelProgress.delete(session.player.id);return;}
+ let sample=stage9FuelProgress.get(session.player.id);
+ if(!sample||sample.vehicleId!==vehicleId){sample={vehicleId,pendingDistance:0,lastSavedAt:now};stage9FuelProgress.set(session.player.id,sample);return;}
+ sample.pendingDistance+=Math.max(0,moved);
+ if(now-sample.lastSavedAt<2000||sample.pendingDistance<.5)return;
+ const burned=consumeStage9Fuel(stage9State,vehicleId,session.player.id,sample.pendingDistance);
+ sample.pendingDistance=0;sample.lastSavedAt=now;
+ if(burned.consumed<=0)return;
+ try{stage9State=burned.state;await saveStage9State();send(session.socket,stage9StatePayload(session));
+  if(burned.vehicle?.fuelLitres===0)send(session.socket,{type:"stage9FuelEmpty",message:"Company vehicle is out of fuel. Return to the depot for refuelling."});
+ }catch(error){console.error("stage9-fuel-save",error);}
+}
+
 function stage7CanPassCheckpoint(session: Session) {
   const e = session.player.life.employment;
   return isAuthorisedStage7CheckpointPass(e?.workplaceId, e?.onDuty === true, !!e && e.uniformWorkplaceId === e.workplaceId);
@@ -1461,6 +1527,9 @@ async function initStore() {
     const stage8Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage8' LIMIT 1");
     stage8State = normalizeStage8State(stage8Row.rows[0]?.value);
     await saveStage8State();
+    const stage9Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage9' LIMIT 1");
+    stage9State = normalizeStage9State(stage9Row.rows[0]?.value);
+    await saveStage9State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1492,6 +1561,8 @@ async function initStore() {
   await saveStage7State();
   stage8State = normalizeStage8State(fileStore.stage8);
   await saveStage8State();
+  stage9State = normalizeStage9State(fileStore.stage9);
+  await saveStage9State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -2160,6 +2231,13 @@ wss.on("connection", (socket) => {
           if (Number.isFinite(yaw)) session.player.yaw = yaw;
           session.lastSyncAt = now;
           session.rejectedSyncs = 0;
+          const fleetId=String(message.vehicleId??"");
+          if(fleetId)await recordStage9VehicleMovement(session,fleetId,moved,now);
+          const onboard=stage9State.rides.find(item=>item.driverId===session.player.id&&item.status==="onboard");
+          if(onboard){const passenger=players.get(onboard.passengerId);if(passenger){
+            passenger.player.x=session.player.x;passenger.player.z=session.player.z;passenger.player.yaw=session.player.yaw;
+            send(passenger.socket,{type:"stage9PassengerPosition",x:session.player.x,z:session.player.z,yaw:session.player.yaw});
+          }}
         } else {
           session.rejectedSyncs += 1;
           session.lastSyncAt = now;
@@ -3440,6 +3518,79 @@ wss.on("connection", (socket) => {
         });return;
       }
 
+
+
+      if (message.type === "getStage9State") { send(socket,stage9StatePayload(session)); return; }
+      if (message.type === "checkoutStage9Vehicle") {
+        await withMoneyMutation(async()=>{const r=checkoutStage9Vehicle(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),vehicleId:String(message.vehicleId??""),nearDepot:Math.hypot(session.player.x-STAGE9_DEPOT.x,session.player.z-STAGE9_DEPOT.z)<=18,now:Date.now()});
+          if(!await persistStage9Action(session,"checkout",r))return;sendStage9Result(session,"checkout",r);broadcastStage9States();});return;
+      }
+      if (message.type === "returnStage9Vehicle") {
+        await withMoneyMutation(async()=>{const r=returnStage9Vehicle(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),nearDepot:Math.hypot(session.player.x-STAGE9_DEPOT.x,session.player.z-STAGE9_DEPOT.z)<=18,now:Date.now()});
+          if(!await persistStage9Action(session,"return",r))return;stage9FuelProgress.delete(session.player.id);sendStage9Result(session,"return",r);broadcastStage9States();});return;
+      }
+      if (message.type === "refuelStage9Vehicle") {
+        await withMoneyMutation(async()=>{const oldCash=session.player.cash;
+          const r=refuelStage9Vehicle(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),litres:Number(message.litres),nearFuelPoint:Math.hypot(session.player.x-STAGE9_DEPOT.x,session.player.z-STAGE9_DEPOT.z)<=18,cash:oldCash,now:Date.now()});
+          if(!r.ok){sendStage9Result(session,"refuel",r);return;}
+          try{session.player.cash=oldCash-(r.cost??0);await persistSession(session);await saveStage9State(r.state);stage9State=r.state;sendStage9Result(session,"refuel",r);broadcastStage9States();}
+          catch(error){session.player.cash=oldCash;await persistSession(session).catch(()=>undefined);console.error("stage9-refuel-save",error);sendStage9Result(session,"refuel",{ok:false,state:stage9State,message:"Fuel purchase could not be saved; your cash has been restored."});}
+        });return;
+      }
+      if (message.type === "requestStage9Ride") {
+        await withMoneyMutation(async()=>{const r=requestStage9Ride(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),pickupStopId:String(message.pickupStopId??""),destinationStopId:String(message.destinationStopId??""),vehicleType:message.vehicleType,passengerCash:session.player.cash,now:Date.now()});
+          if(!await persistStage9Action(session,"request-ride",r))return;sendStage9Result(session,"request-ride",r);broadcastStage9States();});return;
+      }
+      if (message.type === "acceptStage9Ride") {
+        await withMoneyMutation(async()=>{const r=acceptStage9Ride(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),rideId:String(message.rideId??""),now:Date.now()});
+          if(!await persistStage9Action(session,"accept-ride",r))return;sendStage9Result(session,"accept-ride",r);broadcastStage9States();});return;
+      }
+      if (message.type === "pickupStage9Ride") {
+        await withMoneyMutation(async()=>{const ride=stage9State.rides.find(item=>item.id===String(message.rideId??"")),passenger=ride?players.get(ride.passengerId):undefined;
+          if(!ride||!passenger){sendStage9Result(session,"pickup",{ok:false,state:stage9State,message:"The passenger is offline. Cancel the assignment and try again."});return;}
+          const r=pickupStage9Ride(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),rideId:ride.id,passengerX:passenger.player.x,passengerZ:passenger.player.z,now:Date.now()});
+          if(!await persistStage9Action(session,"pickup",r))return;sendStage9Result(session,"pickup",r);send(passenger.socket,stage9StatePayload(passenger));broadcastStage9States();});return;
+      }
+      if (message.type === "advanceStage9Ride") {
+        await withMoneyMutation(async()=>{const r=advanceStage9Ride(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),rideId:String(message.rideId??""),now:Date.now()});
+          if(!await persistStage9Action(session,"ride-checkpoint",r))return;sendStage9Result(session,"ride-checkpoint",r);broadcastStage9States();});return;
+      }
+      if (message.type === "completeStage9Ride") {
+        await withMoneyMutation(async()=>{const ride=stage9State.rides.find(item=>item.id===String(message.rideId??"")),passenger=ride?players.get(ride.passengerId):undefined;
+          if(!ride||!passenger){sendStage9Result(session,"settle-ride",{ok:false,state:stage9State,message:"The passenger must be online to settle the fare."});return;}
+          const driverCash=session.player.cash,passengerCash=passenger.player.cash,oldPos={x:passenger.player.x,z:passenger.player.z,yaw:passenger.player.yaw};
+          const r=completeStage9Ride(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),rideId:ride.id,passengerCash,now:Date.now()});
+          if(!r.ok){sendStage9Result(session,"settle-ride",r);return;}
+          try{passenger.player.cash=passengerCash-(r.fare??0);session.player.cash=driverCash+(r.driverShare??0);
+            const dest=STAGE9_STOPS.find(item=>item.id===ride.destinationStopId);if(dest){passenger.player.x=dest.x;passenger.player.z=dest.z;passenger.player.yaw=0;}
+            await Promise.all([persistSession(passenger),persistSession(session)]);await saveStage9State(r.state);stage9State=r.state;
+            if(dest)send(passenger.socket,{type:"stage9PassengerPosition",x:dest.x,z:dest.z,yaw:0,complete:true});
+            sendStage9Result(session,"settle-ride",r);send(passenger.socket,stage9StatePayload(passenger));broadcastStage9States();
+          }catch(error){session.player.cash=driverCash;passenger.player.cash=passengerCash;passenger.player.x=oldPos.x;passenger.player.z=oldPos.z;passenger.player.yaw=oldPos.yaw;
+            await Promise.all([persistSession(session).catch(()=>undefined),persistSession(passenger).catch(()=>undefined)]);
+            console.error("stage9-fare-save",error);sendStage9Result(session,"settle-ride",{ok:false,state:stage9State,message:"Fare settlement could not be saved; balances were restored."});}
+        });return;
+      }
+      if (message.type === "cancelStage9Ride") {
+        await withMoneyMutation(async()=>{const r=cancelStage9Ride(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),rideId:String(message.rideId??""),now:Date.now()});
+          if(!await persistStage9Action(session,"cancel-ride",r))return;sendStage9Result(session,"cancel-ride",r);broadcastStage9States();});return;
+      }
+      if (message.type === "startStage9Delivery") {
+        await withMoneyMutation(async()=>{const r=startStage9Delivery(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),routeId:String(message.routeId??""),nearDepot:Math.hypot(session.player.x-STAGE9_DEPOT.x,session.player.z-STAGE9_DEPOT.z)<=18,now:Date.now()});
+          if(!await persistStage9Action(session,"start-haulage",r))return;sendStage9Result(session,"start-haulage",r);broadcastStage9States();});return;
+      }
+      if (message.type === "advanceStage9Delivery") {
+        await withMoneyMutation(async()=>{const r=advanceStage9Delivery(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),deliveryId:String(message.deliveryId??""),now:Date.now()});
+          if(!await persistStage9Action(session,"haulage-checkpoint",r))return;sendStage9Result(session,"haulage-checkpoint",r);broadcastStage9States();});return;
+      }
+      if (message.type === "completeStage9Delivery") {
+        await withMoneyMutation(async()=>{const before=session.player.cash;
+          const r=completeStage9Delivery(stage9State,{requestId:String(message.requestId??""),actor:stage9Actor(session),deliveryId:String(message.deliveryId??""),now:Date.now()});
+          if(!r.ok){sendStage9Result(session,"complete-haulage",r);return;}
+          try{session.player.cash=before+(r.reward??0);await persistSession(session);await saveStage9State(r.state);stage9State=r.state;sendStage9Result(session,"complete-haulage",r);broadcastStage9States();}
+          catch(error){session.player.cash=before;await persistSession(session).catch(()=>undefined);console.error("stage9-delivery-save",error);sendStage9Result(session,"complete-haulage",{ok:false,state:stage9State,message:"Delivery payment could not be saved; your balance was restored."});}
+        });return;
+      }
 
       if (message.type === "getStage8State") { send(socket, stage8StatePayload(session)); return; }
       if (message.type === "submitStage8Story") {
