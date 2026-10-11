@@ -1331,6 +1331,27 @@ function car(x,z,col,ry,kind){const G=carGeo(),g=new THREE.Group();g.position.se
   add(G.tire,G.tireM,0,0,0,sp);add(G.rim,G.rimM,0,0,0,sp);
   for(let i=0;i<5;i++){const o=add(G.spoke,G.spM,0,0,0,sp);o.rotation.x=i*Math.PI/5;}
   add(G.hub,G.rimM,0,0,0,sp);add(G.hubc,G.spM,0,0,0,sp);wh.push({pv,sp,f:q[2]});});
+ /* Distinct production-car silhouettes and trim: SUV, sedan and hatchback details. */
+ const style=cars.length%3,rail=M(0x242a30),rubber=M(0x101214),chrome=M(0xc6ccd1),red=M(0x8f1118);
+ [-1,1].forEach(side=>{add(G.mirS,chrome,side*.905,.79,-.18,body);add(new THREE.BoxGeometry(.055,.035,.22),chrome,side*.965,.78,-.12,body);add(new THREE.BoxGeometry(.06,.09,2.0),dk,side*.96,.48,-.15,body);});
+ if(style===0){
+  /* SUV: raised squared rear cabin, roof rails, tailgate spare and taller rear lights. */
+  add(rbox(1.72,.18,1.45,.07),bm,0,1.79,-.42,body);
+  [-.68,.68].forEach(side=>{add(new THREE.BoxGeometry(.055,.055,1.65),rail,side,1.91,-.24,body);add(new THREE.BoxGeometry(.08,.035,.1),chrome,side,1.91,.55,body);});
+  const spare=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.17,20),rubber);spare.rotation.x=Math.PI/2;spare.position.set(0,.96,-2.34);body.add(spare);
+  const spareHub=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.19,12),G.rimM);spareHub.rotation.x=Math.PI/2;spareHub.position.set(0,.96,-2.35);body.add(spareHub);
+  [-1,1].forEach(side=>add(new THREE.BoxGeometry(.16,.35,.07),red,side*.83,.89,-2.23,body));
+  add(new THREE.BoxGeometry(1.6,.08,.18),dk,0,1.75,-1.2,body);
+ }else if(style===2){
+  /* Hatchback: sloped rear hatch glass and a compact roof spoiler. */
+  const hatch=add(G.glass,G.glassM,0,0,0,body);hatch.position.set(0,1.25,-1.18);hatch.rotation.x=-.48;
+  add(new THREE.BoxGeometry(1.35,.075,.2),dk,0,1.74,-1.24,body);
+  add(new THREE.BoxGeometry(.18,.12,.09),chrome,0,.62,-2.26,body);
+ }else{
+  /* Executive sedan: chrome window belt and discreet boot trim. */
+  [-1,1].forEach(side=>add(new THREE.BoxGeometry(.025,.025,1.95),chrome,side*.91,1.04,-.15,body));
+  add(new THREE.BoxGeometry(1.2,.045,.04),chrome,0,.72,-2.23,body);
+ }
  keepVehicleVisible(g);
  const c={id:'c'+cars.length,fuel:20,g,body,tail,hl,rev,sw,wh,amL,amR,box:{x,z,hw:1.05,hd:2.3},kind,v:0,vx:0,vz:0,steer:0,ry,x,z,laneX:x,roll:0,pitch:0};c.box.owner=c;boxes.push(c.box);cars.push(c);return c;}
 car(-3.9,-10,0x0d0d0f,0,'p');car(3.9,-42,0x8a1c1c,Math.PI,'p');car(-3.9,-70,0x1d4a8a,0,'p');car(3.9,-18,0xc9c9c9,Math.PI,'p');car(-3.9,16,0x0d0d0f,0,'p');
