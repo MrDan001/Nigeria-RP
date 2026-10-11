@@ -1,6 +1,6 @@
 # Nigerian Roleplay Simulator — Master Document
 
-> **Project status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance is verified. The Face-Me-I-Face-You visibility defect was fixed in commit `6ccc856` and the user confirmed the buildings now appear in the live Railway game; this closes that specific visual defect, not the full housing or Stage 3 acceptance checklist. See [the roadmap](ROADMAP.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
+> **Project status — 11 October 2026:** Stage 3 was accepted by the user; Stage 4 market/bank services are implemented and deployed; Stage 5 hospital, ambulance, pharmacy and City Park citizen-to-worker interaction flows are active. The user is the sole tester, so two-account live checks are not falsely claimed; automated permissions, replay and balance checks are used instead. The Face-Me-I-Face-You exterior visibility fix remains a protected regression boundary. See [the roadmap](ROADMAP.md), [Stage 5 status](STAGE-5-STATUS.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
 
 ## 1. Vision
 
