@@ -647,9 +647,7 @@ export function checkRankChange(args: {
 // The named primary account is fixed in server policy, not selected by a client request.
 export const MAIN_ADMIN_USERNAME = "dbase_mccoll";
 export type AdminRole = "main_admin" | "admin" | null;
-export type AdminAuditAction =
-  | "grant_admin" | "revoke_admin" | "appoint_boss" | "rank_change" | "dismiss_staff"
-  | "workplace_application" | "staff_hired" | "staff_left";
+export type AdminAuditAction = "grant_admin" | "revoke_admin" | "appoint_boss" | "rank_change" | "dismiss_staff";
 export type AdminAuditEntry = {
   actorId: string;
   actorUsername: string;
@@ -659,6 +657,20 @@ export type AdminAuditEntry = {
   detail: string;
   at: number;
 };
+
+export type WorkplaceAuditAction =
+  | "workplace_application" | "staff_hired" | "staff_left"
+  | "rank_change" | "dismiss_staff" | "appoint_boss";
+export type WorkplaceAuditEntry = {
+  actorId: string;
+  actorUsername: string;
+  targetId: string;
+  targetUsername: string;
+  action: WorkplaceAuditAction;
+  detail: string;
+  at: number;
+};
+export const MAX_WORKPLACE_AUDIT = 500;
 
 export function resolveAdminRole(
   username: string,
@@ -701,6 +713,8 @@ export type WorldState = {
   admins: Record<string, true>;
   // Bounded, durable audit trail for privileged account/workplace changes.
   adminAudit: AdminAuditEntry[];
+  // Separate bounded staff/workplace history so ordinary career activity cannot evict admin events.
+  workplaceAudit: WorkplaceAuditEntry[];
   // Pending faction/workplace applications, keyed by workplace ID then account ID.
   workplaceApplications: Record<string, Record<string, number>>;
   // One-time import marker: prevents legacy environment admins from being re-granted after revocation.
@@ -717,7 +731,11 @@ export function newWorld(todayKey: string): WorldState {
   const workplaceApplications: Record<string, Record<string, number>> = {};
   for (const h of HOUSES) { houseTenants[h.id] = null; houseLocks[h.id] = false; }
   for (const workplace of WORKPLACES) workplaceApplications[workplace.id] = {};
-  return { v: 1, bosses, bossNames, houseTenants, houseLocks, apartmentRooms: {}, workplaceApplications, admins: {}, adminAudit: [], legacyAdminsMigrated: false, lastDay: todayKey };
+  return {
+    v: 1, bosses, bossNames, houseTenants, houseLocks, apartmentRooms: {},
+    workplaceApplications, admins: {}, adminAudit: [], workplaceAudit: [],
+    legacyAdminsMigrated: false, lastDay: todayKey,
+  };
 }
 
 // Fills in anything missing so adding a workplace or house later never breaks an old save.
@@ -785,7 +803,6 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
   }
   const allowedAuditActions = new Set<AdminAuditAction>([
     "grant_admin", "revoke_admin", "appoint_boss", "rank_change", "dismiss_staff",
-    "workplace_application", "staff_hired", "staff_left",
   ]);
   if (Array.isArray(v.adminAudit)) {
     base.adminAudit = v.adminAudit
@@ -805,6 +822,31 @@ export function normalizeWorld(value: unknown, todayKey: string): WorldState {
         targetId: String(entry.targetId).slice(0, 160),
         targetUsername: String(entry.targetUsername).slice(0, 32),
         action: entry.action as AdminAuditAction,
+        detail: String(entry.detail ?? "").slice(0, 240),
+        at: Math.floor(Number(entry.at)),
+      }));
+  }
+  const allowedWorkplaceAuditActions = new Set<WorkplaceAuditAction>([
+    "workplace_application", "staff_hired", "staff_left", "rank_change", "dismiss_staff", "appoint_boss",
+  ]);
+  if (Array.isArray(v.workplaceAudit)) {
+    base.workplaceAudit = v.workplaceAudit
+      .filter((entry: any) =>
+        entry && typeof entry === "object" &&
+        typeof entry.actorId === "string" && entry.actorId.length > 0 &&
+        typeof entry.actorUsername === "string" &&
+        typeof entry.targetId === "string" && entry.targetId.length > 0 &&
+        typeof entry.targetUsername === "string" &&
+        allowedWorkplaceAuditActions.has(entry.action) &&
+        Number.isFinite(Number(entry.at)) && Number(entry.at) > 0
+      )
+      .slice(-MAX_WORKPLACE_AUDIT)
+      .map((entry: any) => ({
+        actorId: String(entry.actorId).slice(0, 160),
+        actorUsername: String(entry.actorUsername).slice(0, 32),
+        targetId: String(entry.targetId).slice(0, 160),
+        targetUsername: String(entry.targetUsername).slice(0, 32),
+        action: entry.action as WorkplaceAuditAction,
         detail: String(entry.detail ?? "").slice(0, 240),
         at: Math.floor(Number(entry.at)),
       }));
