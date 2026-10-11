@@ -293,6 +293,10 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-root-admin .wm-admin-buttons{grid-template-columns:1fr 1fr}
 #modal.work-menu .wm-admin-buttons{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
 #modal.work-menu .wm-admin-tag{flex:none;padding:.2rem .35rem;border:1px solid rgba(93,180,247,.25);border-radius:.3rem;color:#8fd0ff;font-size:.52rem;font-weight:900}
+/* Keep the entire Careers panel inside the viewport. The workplace cards own the scroll area. */
+#modal.work-menu{height:90vh;max-height:90vh;max-height:90dvh;flex-direction:column;overflow:hidden}
+#modal.work-menu .wm-cards{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
+@media(max-height:520px){#modal.work-menu{height:92vh;max-height:92vh;max-height:92dvh}#modal.work-menu .wm-cards{max-height:none}}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -862,7 +866,7 @@ function syncHouseExteriors(houses){
  if(!Array.isArray(houses))return;
  // Always keep the player\u2019s own rented/occupied home visible, even when a respawn or
  // route transition briefly places the street avatar outside the normal streaming radius.
- houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else if(h.occupiedByMe||Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)createHouseExterior(h);});
+ houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else createHouseExterior(h);});
  for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
  // Every property has an entrance interaction. The old code only registered the
  // rented home for this player, leaving vacant and unlocked estate doors inert for visitors.
@@ -878,7 +882,7 @@ function syncHouseExteriors(houses){
  refreshApartmentPOIs();
 }
 let houseVisualCheckT=0;
-function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]&&(h.occupiedByMe||Math.hypot(Number(h.x)-pos.x,Number(h.z)-pos.z)<180)){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
+function updateNearbyHouseExteriors(dt){houseVisualCheckT+=dt;if(houseVisualCheckT<.85)return;houseVisualCheckT=0;const houses=window.NRS?.houses;if(!Array.isArray(houses))return;houses.forEach(h=>{if(!HOUSE_VISUALS[h.id]){const visual=createHouseExterior(h),poi=POI.find(p=>p.housePoi&&p.houseId===h.id);if(poi&&visual?.entrance){poi.x=visual.entrance.x;poi.z=visual.entrance.z;}}});}
 
 const sign=(w,h,fn,x,y,z,ry=0)=>{const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=ry;scene.add(board);const geo=new THREE.PlaneGeometry(w,h),map=tex(512,Math.round(512*h/w),fn),frontMat=new THREE.MeshBasicMaterial({map,fog:true,side:THREE.FrontSide}),backMat=new THREE.MeshBasicMaterial({map:mirrorSignTexture(map),fog:true,side:THREE.FrontSide});const front=new THREE.Mesh(geo,frontMat);front.position.z=.012;board.add(front);const back=new THREE.Mesh(geo,backMat);back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);return board;};
 sign(9,2.4,(g,w,h)=>{g.fillStyle='#14181c';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.font='bold 100px system-ui';g.fillText('PORT HARCOURT',w/2,h*.55);g.font='36px system-ui';g.fillText('RIVERS STATE',w/2,h*.85);},-10.9,8.6,-20,Math.PI/2);
@@ -3157,7 +3161,7 @@ function openWorkplaceReceptionMenu(workplaceId){
   kind==='school'?'For school enquiries, the secretary can direct visitors to available staff.':
   'The secretary can direct visitors and staff requests to the right department.';
  panel('<div class="wm-head"><span>🏢</span><div><small>FRONT DESK · RECEPTION</small><h2>'+name+'</h2><p>Secretary / Reception</p></div></div><p>Welcome. Please tell the reception desk what you need.</p><p class="wm-note">'+guidance+'</p><div class="wm-buttons"><button data-reception-career="'+workplaceId+'">Workplace & staff services</button></div>');
- modal.classList.add('work-menu');
+ modal.classList.add('work-menu');modal.style.display='flex';
 }
 act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='forbes'){openForbesBoard();return;}if(p.t==='workplace'){window.NRS?.enterWorkplaceInterior(p.workplaceId);return;}if(p.t==='workplace-service'){openWorkplaceReceptionMenu(p.workplaceId);return;}if(p.t==='workplace-staff-room'){window.NRS?.enterStaffRoom(p.workplaceId);return;}if(p.t==='workplace-exit'){window.NRS?.exitWorkplaceInterior();return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.t==='apartment-elevator'){openApartmentElevatorMenu();return;}if(p.t==='apartment-room'){openApartmentRoomMenu(p);return;}if(p.t==='apartment-room-settings'){openApartmentRoomSettings();return;}if(p.t==='apartment-room-exit'){window.NRS?.exitApartmentRoom();return;}if(p.t==='apartment-building-exit'){window.NRS?.exitApartmentBuilding();return;}if(p.apartmentBuildingPoi){window.NRS?.enterApartmentBuilding(p.apartmentBuilding);return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
@@ -3197,7 +3201,7 @@ window.addEventListener('nrs-richest-players',e=>{
  root.innerHTML=players.map((p,i)=>'<div class="forbes-row tier-'+(i+1)+'"><span class="forbes-rank">'+String(i+1).padStart(2,'0')+'</span><span class="forbes-name">'+safeText(p.username||'Citizen')+'</span><strong class="forbes-wealth">₦'+Math.max(0,Math.floor(Number(p.totalWealth)||0)).toLocaleString('en-NG')+'</strong></div>').join('');
 });
 function openWorkplaceMenu(){openWorkplaceMenuFor(null);}
-function openWorkplaceMenuFor(workplaceId){workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
+function openWorkplaceMenuFor(workplaceId){workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');modal.style.display='flex';const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
 function openPlayerInteractionMenu(target){
  const N=window.NRS||{},id=String(target?.playerId||'');if(!id||id===N.session?.id)return;
  const username=safeText(target.name||'Player'),employment=N.workplaceState?.employment||N.life?.employment||null;
@@ -3207,7 +3211,7 @@ function openPlayerInteractionMenu(target){
  if(ready&&workplace?.kind==='hospital')actions+='<button data-player-action="medicalTreat" data-player-id="'+safeText(id)+'">🩺 Treat patient · ₦500</button>';
  if(ready&&['police','frsc'].includes(workplace?.kind))actions+='<button data-player-action="requestId" data-player-id="'+safeText(id)+'">🪪 Request identification</button>';
  panel('<div class="wm-head"><span>🤝</span><div><small>NEARBY CITIZEN</small><h2>'+username+'</h2><p>Hold on a nearby player to open this contextual menu.</p></div></div><p class="wm-note">Choose an action appropriate to your role and situation. The server verifies range, duty status and uniform.</p><div class="wm-buttons">'+actions+'</div>');
- modal.classList.add('work-menu');
+ modal.classList.add('work-menu');modal.style.display='flex';
 }
 function renderWorkplaceMenu(data){
  if(!workplaceMenuOpen||!data)return;
@@ -3248,7 +3252,7 @@ function renderWorkplaceMenu(data){
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
  panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
- modal.classList.add('work-menu');
+ modal.classList.add('work-menu');modal.style.display='flex';
 }
 window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});
 const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
