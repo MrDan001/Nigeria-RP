@@ -2439,7 +2439,11 @@ function buildWorkplaceEntrance(w){
    };
    railX(left,gateLeft,near);railX(gateRight,right,near);railX(left,right,far);
    railZ(left,near,far);railZ(right,near,far);
-   for(let x=left;x<=right+.01;x+=2.2){post(x,near);post(x,far);}
+   for(let x=left;x<=right+.01;x+=2.2){
+    if(x<gateLeft-.3||x>gateRight+.3)post(x,near);
+    post(x,far);
+   }
+   post(gateLeft,near);post(gateRight,near);
    for(let z=near;z<=far+.01;z+=2.2){post(left,z);post(right,z);}
    for(const x of [gateX-PARK_GATE_BOUNDS.gateWidth/4,gateX+PARK_GATE_BOUNDS.gateWidth/4]){
     const leafWidth=PARK_GATE_BOUNDS.gateWidth/2-.06;
