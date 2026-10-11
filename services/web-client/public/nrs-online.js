@@ -1508,8 +1508,12 @@
     travelOpen.style.background = "linear-gradient(135deg," + accent + ",#124a77)";
     travelArrival.style.background = "radial-gradient(ellipse at center," + accent + "55,rgba(2,8,17,.98))";
     try {
-      if (typeof scene !== "undefined" && scene.background && typeof scene.background.setHex === "function") {
-        scene.background.setHex(Number(environment.skyHex));
+      if (typeof scene !== "undefined") {
+        if (scene.background && typeof scene.background.setHex === "function") {
+          scene.background.setHex(Number(environment.skyHex));
+        } else if (typeof THREE !== "undefined") {
+          scene.background = new THREE.Color(Number(environment.skyHex));
+        }
       }
       if (typeof scene !== "undefined" && scene.fog && scene.fog.color && typeof scene.fog.color.setHex === "function") {
         scene.fog.color.setHex(Number(environment.fogHex));
