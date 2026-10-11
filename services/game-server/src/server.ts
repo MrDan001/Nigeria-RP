@@ -68,6 +68,30 @@ import {
   settleBankTransaction,
   settleMarketSale,
 } from "./stage4";
+import {
+  AMBULANCE_TREATMENT_FEE,
+  HOSPITAL_IDS,
+  HOSPITAL_MEDICINES,
+  PARK_HELP_CATEGORIES,
+  PARK_TICKET_PRICE,
+  PARK_WORKPLACE_ID,
+  buyParkTicket,
+  completeHospitalTreatment,
+  createHospitalRequest,
+  createParkHelpRequest,
+  createStage5State,
+  dispatchHospitalAmbulance,
+  hospitalRankCanDispatch,
+  hospitalRankCanTreat,
+  hospitalRankCanTriage,
+  isHospitalId,
+  normalizeStage5State,
+  parkRankCanHelpVisitors,
+  parkRankCanSellTickets,
+  purchaseHospitalMedicine,
+  resolveParkHelpRequest,
+  triageHospitalRequest,
+} from "./stage5";
 
 const scrypt = promisify(scryptCb);
 
@@ -160,6 +184,7 @@ type FileStore = {
   sessions: Record<string, { accountId: string; expiresAt: number }>;
   world?: WorldState;
   stage4?: unknown;
+  stage5?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -192,6 +217,7 @@ const MAIN_ADMIN_EMAIL = String(process.env.NRS_MAIN_ADMIN_EMAIL ?? "").trim().t
 const clock = new GameClock();
 let world: WorldState = newWorld(clock.dayKey());
 let stage4State = normalizeStage4State(null);
+let stage5State = normalizeStage5State(null);
 let stage4MutationQueue: Promise<void> = Promise.resolve();
 
 // Balance-changing actions share one queue, so jobs, housing, transfers, sales and teller
@@ -397,6 +423,19 @@ async function saveStage4State(state = stage4State) {
     return;
   }
   fileStore.stage4 = state;
+  writeFileStore();
+}
+
+async function saveStage5State(state = stage5State) {
+  if (pool) {
+    await pool.query(
+      "INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage5',$1::jsonb,$2) " +
+      "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at",
+      [JSON.stringify(state), Date.now()],
+    );
+    return;
+  }
+  fileStore.stage5 = state;
   writeFileStore();
 }
 
@@ -1002,6 +1041,9 @@ async function initStore() {
     const stage4Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage4' LIMIT 1");
     stage4State = normalizeStage4State(stage4Row.rows[0]?.value);
     await saveStage4State();
+    const stage5Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage5' LIMIT 1");
+    stage5State = normalizeStage5State(stage5Row.rows[0]?.value);
+    await saveStage5State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1025,6 +1067,8 @@ async function initStore() {
   await saveWorld();
   stage4State = normalizeStage4State(fileStore.stage4);
   await saveStage4State();
+  stage5State = normalizeStage5State(fileStore.stage5);
+  await saveStage5State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
