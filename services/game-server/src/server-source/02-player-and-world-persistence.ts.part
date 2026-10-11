@@ -396,7 +396,13 @@ async function placeStage18BettingTicket(session: Session, message: any): Promis
     cash: cashAfter,
     message: "Ticket placed for ₦" + stake.toLocaleString("en-NG") + ". Potential return: ₦" + potentialReturn.toLocaleString("en-NG") + ".",
   });
-  await sendStage18BettingState(session, requestId);
+  try {
+    await sendStage18BettingState(session, requestId);
+  } catch (error) {
+    // The ticket is already committed and charged. A refresh failure must never
+    // be reported as a failed placement, which could encourage a duplicate retry.
+    console.error("stage18-betting-state-after-place", error);
+  }
 }
 
 async function initStore() {
