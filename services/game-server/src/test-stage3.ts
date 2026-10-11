@@ -5,6 +5,7 @@ import {
   GameClock,
   MAX_STAFF_RANK,
   MAX_WORK_HISTORY,
+  MAX_WORKPLACE_AUDIT,
   RANK_COUNT,
   RANK_MULTIPLIERS,
   WORKPLACES,
@@ -179,14 +180,16 @@ test("work payout history persists, is account-scoped and accepts legacy life sa
   assert.equal(capped[capped.length - 1].id, "payout-" + (MAX_WORK_HISTORY + 4));
 });
 
-test("saved workplace applications and audit actions survive world normalization", () => {
+test("saved workplace applications and separate admin/workplace audit trails survive normalization", () => {
   const today = new GameClock().dayKey();
   const world = newWorld(today);
   world.bosses["bank-main"] = "branch-boss";
   world.bossNames["bank-main"] = "Branch_Boss";
   world.workplaceApplications["hospital-main"]["applicant-1"] = 1_760_000_000_000;
   world.adminAudit.push(
-    { actorId: "boss", actorUsername: "Boss_User", targetId: "member", targetUsername: "Member_User", action: "rank_change", detail: "bank-main -> rank 2", at: 1_760_000_000_001 },
+    { actorId: "admin", actorUsername: "Dbase_Mccoll", targetId: "member", targetUsername: "Member_User", action: "rank_change", detail: "bank-main -> rank 2", at: 1_760_000_000_001 },
+  );
+  world.workplaceAudit.push(
     { actorId: "member", actorUsername: "Member_User", targetId: "member", targetUsername: "Member_User", action: "workplace_application", detail: "submitted application for hospital-main", at: 1_760_000_000_002 },
     { actorId: "boss", actorUsername: "Boss_User", targetId: "member", targetUsername: "Member_User", action: "staff_hired", detail: "hired into bank-main", at: 1_760_000_000_003 },
     { actorId: "member", actorUsername: "Member_User", targetId: "member", targetUsername: "Member_User", action: "staff_left", detail: "left bank-main", at: 1_760_000_000_004 },
@@ -195,7 +198,18 @@ test("saved workplace applications and audit actions survive world normalization
   assert.equal(loaded.bosses["bank-main"], "branch-boss");
   assert.equal(loaded.bossNames["bank-main"], "Branch_Boss");
   assert.equal(loaded.workplaceApplications["hospital-main"]["applicant-1"], 1_760_000_000_000);
-  assert.deepEqual(loaded.adminAudit.map((entry) => entry.action), ["rank_change", "workplace_application", "staff_hired", "staff_left"]);
+  assert.deepEqual(loaded.adminAudit.map((entry) => entry.action), ["rank_change"]);
+  assert.deepEqual(loaded.workplaceAudit.map((entry) => entry.action), ["workplace_application", "staff_hired", "staff_left"]);
+  assert.deepEqual(normalizeWorld({ v: 1, bosses: {}, houseTenants: {}, houseLocks: {} }, today).workplaceAudit, []);
+
+  const longTrail = Array.from({ length: MAX_WORKPLACE_AUDIT + 3 }, (_, index) => ({
+    actorId: "boss", actorUsername: "Boss_User", targetId: "member-" + index, targetUsername: "Member_User",
+    action: "staff_hired" as const, detail: "test " + index, at: 1_760_000_000_000 + index,
+  }));
+  const bounded = normalizeWorld({ ...world, workplaceAudit: longTrail }, today).workplaceAudit;
+  assert.equal(bounded.length, MAX_WORKPLACE_AUDIT);
+  assert.equal(bounded[0].targetId, "member-3");
+  assert.equal(bounded[bounded.length - 1].targetId, "member-" + (MAX_WORKPLACE_AUDIT + 2));
 });
 
 console.log("\n" + passed + " Stage 3 checks passed" + (process.exitCode ? " (with failures)" : ""));
