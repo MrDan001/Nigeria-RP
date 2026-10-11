@@ -79,6 +79,9 @@ jobs:
       - name: Test Stage 14 release, load and recovery validation
         run: npm run test:stage14 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 15 city and inter-city travel rules
+        run: npm run test:stage15 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
