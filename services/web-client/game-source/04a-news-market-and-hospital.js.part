@@ -1,0 +1,338 @@
+/* Stage 8 — Rivers News Network: official broadcasts, line-safe notifications and staff editorial desk. */
+let stage8MenuOpen=false,stage8Mode="feed",stage8Feedback=null,stage8FeedInitialized=false,stage8NoticeTimer=0;
+const stage8SeenPublishedIds=new Set();
+const stage8Id=id=>String(id||"").replace(/[^a-z0-9_-]/gi,"_");
+const stage8CategoryTitle=value=>({community:"Community","public-safety":"Public safety",government:"Government",business:"Business",transport:"Transport",weather:"Weather",events:"Events"}[value]||"Local news");
+
+function ensureStage8Notification(){
+ if(document.getElementById("nrsStage8Notice"))return;
+ const style=document.createElement("style");
+ style.textContent=[
+  "#nrsStage8Notice[hidden]{display:none!important}",
+  "#nrsStage8Notice{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:100001;width:min(370px,calc(100vw - 24px));max-height:min(29vh,158px);box-sizing:border-box;display:grid;gap:5px;padding:10px 12px;border:1px solid rgba(255,255,255,.16);border-left:3px solid #d73b44;border-radius:14px;background:rgba(8,16,27,.96);box-shadow:0 12px 34px rgba(0,0,0,.42);color:#f4f8fc;font:12px/1.35 system-ui,sans-serif;text-align:left;overflow:hidden;cursor:pointer;pointer-events:auto}",
+  "#nrsStage8Notice .n8-notice-head{display:flex;align-items:center;gap:7px;min-width:0}",
+  "#nrsStage8Notice .n8-notice-live{flex:0 0 auto;padding:3px 5px;border-radius:5px;background:#d73b44;color:#fff;font-size:9px;font-weight:900;letter-spacing:.06em}",
+  "#nrsStage8Notice .n8-notice-brand{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:900;letter-spacing:.09em;color:#e3edf8}",
+  "#nrsStage8Notice .n8-notice-close{margin-left:auto;flex:0 0 auto;border:0;background:transparent;color:#aebed0;font-size:18px;line-height:1;padding:0 1px;cursor:pointer}",
+  "#nrsStage8Notice .n8-notice-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;margin:0;color:#fff;font-size:13px;font-weight:850;line-height:1.28}",
+  "#nrsStage8Notice .n8-notice-copy{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;margin:0;color:#b9cadb;font-size:11px;line-height:1.35}",
+  "#modal .s4-card .n8-feed-title,#modal .s4-card .n8-feed-copy,#modal .s4-card .n8-feed-context{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;box-sizing:border-box}",
+  "#modal .s4-card .n8-feed-title{line-height:1.3}",
+  "#modal .s4-card .n8-feed-copy{line-height:1.5}",
+  "@media(max-width:560px){#nrsStage8Notice{top:calc(env(safe-area-inset-top,0px) + 6px);width:calc(100vw - 20px);padding:9px 10px;gap:4px}}"
+ ].join("\n");
+ document.head.appendChild(style);
+ const notice=document.createElement("div");
+ notice.id="nrsStage8Notice";notice.hidden=true;notice.tabIndex=0;notice.setAttribute("role","button");notice.setAttribute("aria-live","polite");notice.setAttribute("aria-label","Read the latest Rivers News Network broadcast");
+ const head=document.createElement("div");head.className="n8-notice-head";
+ const live=document.createElement("span");live.className="n8-notice-live";live.textContent="LIVE";
+ const brand=document.createElement("strong");brand.className="n8-notice-brand";brand.textContent="RIVERS NEWS NETWORK · NEW BROADCAST";
+ const close=document.createElement("button");close.type="button";close.className="n8-notice-close";close.setAttribute("aria-label","Dismiss news notification");close.textContent="×";
+ head.append(live,brand,close);
+ const title=document.createElement("strong");title.className="n8-notice-title";
+ const copy=document.createElement("p");copy.className="n8-notice-copy";
+ notice.append(head,title,copy);document.body.appendChild(notice);
+ notice.addEventListener("click",event=>{if(event.target.closest(".n8-notice-close"))return;openStage8Feed();});
+ notice.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openStage8Feed();}});
+ close.addEventListener("click",event=>{event.stopPropagation();notice.hidden=true;window.clearTimeout(stage8NoticeTimer);});
+}
+
+function showStage8Notification(story){
+ ensureStage8Notification();
+ const notice=document.getElementById("nrsStage8Notice");if(!notice||!story)return;
+ const title=notice.querySelector(".n8-notice-title"),copy=notice.querySelector(".n8-notice-copy"),brand=notice.querySelector(".n8-notice-brand");
+ const category=stage8CategoryTitle(story.category).toUpperCase();
+ if(brand)brand.textContent="RIVERS NEWS NETWORK · "+category;
+ if(title)title.textContent=String(story.title||"Official local update");
+ const body=String(story.body||"").replace(/\s+/g," ").trim();
+ if(copy)copy.textContent=body.length>180?body.slice(0,177).trim()+"…":body;
+ notice.hidden=false;
+ window.clearTimeout(stage8NoticeTimer);
+ stage8NoticeTimer=window.setTimeout(()=>{notice.hidden=true;},8500);
+}
+
+function renderStage8Notification(d){
+ ensureStage8Notification();
+ if(!d||!Array.isArray(d.feed))return;
+ const published=d.feed.filter(s=>s&&s.status==="published"&&s.id);
+ if(!stage8FeedInitialized){
+  published.forEach(s=>stage8SeenPublishedIds.add(String(s.id)));
+  stage8FeedInitialized=true;
+  const now=Date.now(),recent=published.filter(s=>{const at=Number(s.publishedAt||0);return at>0&&at<=now+30000&&now-at<=180000;});
+  recent.sort((a,b)=>Number(b.publishedAt||b.createdAt||0)-Number(a.publishedAt||a.createdAt||0));
+  const hub=document.getElementById("nrsCityNewsHubModal");
+  if(recent.length&&!(hub&&!hub.hidden))showStage8Notification(recent[0]);
+  return;
+ }
+ const unseen=published.filter(s=>!stage8SeenPublishedIds.has(String(s.id)));
+ d.feed.forEach(s=>{if(s&&s.id)stage8SeenPublishedIds.add(String(s.id));});
+ const hub=document.getElementById("nrsCityNewsHubModal"),cityHubOpen=!!hub&&!hub.hidden;
+ if(!unseen.length||(stage8MenuOpen&&stage8Mode==="feed")||cityHubOpen)return;
+ unseen.sort((a,b)=>Number(b.publishedAt||b.createdAt||0)-Number(a.publishedAt||a.createdAt||0));
+ showStage8Notification(unseen[0]);
+}
+
+function openStage8Feed(){
+ stage8MenuOpen=true;stage8Mode="feed";stage8Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;window.clearTimeout(stage8NoticeTimer);
+ panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · OFFICIAL BULLETINS</small><h2>Latest news broadcasts</h2><p>Only reports submitted by authorised network staff, approved by an Editor and broadcast by an Anchor appear here.</p></div></div><div class="s4-empty">Loading official news updates…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage8State();
+}
+function openStage8Newsroom(){
+ stage8MenuOpen=true;stage8Mode="newsroom";stage8Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;window.clearTimeout(stage8NoticeTimer);
+ panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>RIVERS NEWS NETWORK · STAFF ACCESS</small><h2>Newsroom desk</h2><p>Story filing, editorial review and broadcasts are restricted to authorised network workers.</p></div></div><div class="s4-empty">Checking newsroom access…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage8State();
+}
+function renderStage8Console(d){
+ if(!stage8MenuOpen)return;
+ d=d||window.NRS?.stage8State||{};
+ const feedback=stage8Feedback?'<div class="s4-notice '+(stage8Feedback.ok?"success":"error")+'">'+safeText(stage8Feedback.message||"")+'</div>':"";
+ const meta=s=>'<p class="s4-muted n8-feed-context">'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(s.authorName)+' · '+stage5When(s.publishedAt||s.createdAt)+'</p>';
+ const feed=Array.isArray(d.feed)?d.feed:[];
+ if(stage8Mode==="feed"){
+  const cards=feed.length?feed.map(s=>'<article class="s4-card n8-feed-card"><span class="wm-kind">'+safeText(stage8CategoryTitle(s.category))+'</span><h3 class="n8-feed-title">'+safeText(s.title)+'</h3>'+meta(s)+'<p class="n8-feed-copy">'+safeText(s.body)+'</p><div class="s4-notice n8-feed-context">'+(s.eventRef?"Linked to an in-world event":"Local event coverage")+' · '+safeText(s.eventContext)+'</div><label class="s4-field">Report a concern<textarea id="n8-report-'+stage8Id(s.id)+'" maxlength="260" rows="2" placeholder="Explain the concern (minimum 8 characters)"></textarea></label><button class="subtle" data-news-report="'+safeText(s.id)+'">Report this story</button></article>').join(""):'<div class="s4-empty">No official news has been broadcast yet. Updates will appear after newsroom staff file, approve and broadcast a report.</div>';
+  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · PUBLIC NEWS</small><h2>Official broadcasts</h2><p>Newsroom updates from authorised staff. New broadcasts also appear as in-game notifications.</p></div></div>'+feedback+'<div class="s4-list">'+cards+'</div><div class="wm-buttons"><button class="subtle" data-news-refresh="1">Refresh news</button></div>');
+  modal.classList.add("stage4-menu");return;
+ }
+
+ const hasNewsroomAccess=!!(d.canSubmit||d.canApprove||d.canPublish||d.canReviewReports);
+ if(!hasNewsroomAccess){
+  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · COMMUNITY DESK</small><h2>Suggest a story</h2><p>Citizens can share ideas with the newsroom, but cannot publish directly.</p></div></div>'+feedback+'<section class="s4-card"><h3>Speak to newsroom staff</h3><p class="s4-muted">Visit Rivers News Network reception and tell a staff member what you would like the network to cover. The newsroom will review your suggestion and decide whether to prepare a report.</p><div class="s4-notice">Only authorised Rivers News Network workers can file stories. A Rank 5+ Editor must approve each story before a Rank 4+ Anchor can broadcast it.</div></section><div class="wm-buttons"><button data-news-open="feed">View official broadcasts</button><button class="subtle" data-news-refresh="1">Refresh access</button></div>');
+  modal.classList.add("stage4-menu");return;
+ }
+ const events='<option value="local">Local community event (describe below)</option>'+(Array.isArray(d.eventOptions)?d.eventOptions:[]).map(e=>'<option value="'+safeText(e.id)+'">'+safeText(e.title)+'</option>').join("");
+ const cap=d.canSubmit?'<div class="s4-notice success">Newsroom access verified · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">For newsroom tools, enter reception, wear the authorised uniform and clock in. Rank 3+ submits, Rank 5+ approves and Rank 4+ broadcasts approved copy.</div>';
+ const form=d.canSubmit?'<section class="s4-card"><h3>✍️ File an event-based story</h3><p class="s4-muted">Keep reports factual and respectful. Content is validated on the server.</p><label class="s4-field">Headline<input id="n8-title" maxlength="120" placeholder="What happened?"></label><label class="s4-field">Category<select id="n8-category"><option value="community">Community</option><option value="public-safety">Public safety</option><option value="government">Government</option><option value="business">Business</option><option value="transport">Transport</option><option value="weather">Weather</option><option value="events">Events</option></select></label><label class="s4-field">Related in-world event<select id="n8-event-ref">'+events+'</select></label><label class="s4-field">Event / location context<input id="n8-event-context" maxlength="220" placeholder="Mile One Market, Aba Road or a current city event"></label><label class="s4-field">Story<textarea id="n8-body" rows="5" maxlength="1600" placeholder="Write a report with at least 50 characters."></textarea></label><button data-news-submit="1">Submit for editorial review</button></section>':'';
+ const mine=Array.isArray(d.mySubmissions)?d.mySubmissions:[],my=mine.length?'<section class="s4-card"><h3>My submissions</h3>'+mine.map(s=>'<div class="s4-row"><span><b>'+safeText(s.title)+'</b><small>'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(String(s.status).toUpperCase())+'</small>'+(s.reviewNote?'<small>'+safeText(s.reviewNote)+'</small>':"")+'</span></div>').join("")+'</section>':'<div class="s4-empty">Your submitted stories and review status appear here.</div>';
+ const queue=Array.isArray(d.editorialStories)?d.editorialStories:[],q=queue.length?'<section class="s4-card"><h3>Editorial queue</h3>'+queue.map(s=>{const k=stage8Id(s.id),notes='<label class="s4-field">Editor note / moderation reason<input id="n8-note-'+k+'" maxlength="260" placeholder="Record a review note"></label>';let buttons="";if(s.status==="submitted"&&d.canApprove)buttons=notes+'<div class="wm-buttons"><button data-news-approve="'+safeText(s.id)+'">Approve story</button><button class="danger" data-news-reject="'+safeText(s.id)+'">Reject story</button></div>';if(s.status==="approved"&&d.canPublish)buttons=notes+'<button data-news-publish="'+safeText(s.id)+'">Broadcast approved story</button>';return '<div class="s4-card"><div class="s4-row"><span><b>'+safeText(s.title)+'</b><small>'+safeText(s.authorName)+' · '+safeText(String(s.status).toUpperCase())+'</small><small>'+safeText(s.eventContext)+'</small></span></div><p>'+safeText(s.body)+'</p>'+buttons+'</div>';}).join("")+'</section>':'<div class="s4-empty">No stories are waiting for editorial action.</div>';
+ const reports=Array.isArray(d.reports)?d.reports:[],reportHtml=d.canReviewReports?'<section class="s4-card"><h3>🚩 Reported content</h3>'+(reports.length?reports.map(r=>'<div class="s4-card"><h4>'+safeText(r.storyTitle)+'</h4><p>'+safeText(r.reporterName)+' reported: '+safeText(r.reason)+'</p><label class="s4-field">Moderation note<input id="n8-mod-'+stage8Id(r.id)+'" maxlength="260" placeholder="Explain the decision (minimum 8 characters)"></label><div class="wm-buttons"><button class="danger" data-news-moderate="remove" data-report="'+safeText(r.id)+'">Remove story</button><button class="subtle" data-news-moderate="dismiss" data-report="'+safeText(r.id)+'">Dismiss report</button></div></div>').join(""):'<div class="s4-empty">No content reports are waiting for review.</div>')+'</section>':"";
+ const audit=d.canReviewReports&&Array.isArray(d.actions)?'<section class="s4-card"><h3>Editorial audit log</h3>'+d.actions.map(a=>'<div class="s4-row"><span><b>'+safeText(a.type.replace(/-/g," "))+'</b><small>'+safeText(a.actorName)+' · '+stage5When(a.at)+'</small><small>'+safeText(a.targetName)+' · '+safeText(a.reason||a.result)+'</small></span></div>').join("")+'</section>':"";
+ panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>RIVERS NEWS NETWORK · STAFF OPERATIONS</small><h2>Editorial desk</h2><p>Every story needs editor approval before an Anchor can broadcast it.</p></div></div>'+feedback+cap+form+my+q+reportHtml+audit+'<div class="wm-buttons"><button data-news-open="feed">View public broadcasts</button><button class="subtle" data-news-refresh="1">Refresh newsroom</button></div>');modal.classList.add("stage4-menu");
+}
+window.NRS=window.NRS||{};
+window.NRS.openStage8Feed=openStage8Feed;
+window.NRS.openStage8Newsroom=openStage8Newsroom;
+window.addEventListener("nrs-open-stage8-feed",openStage8Feed);
+window.addEventListener("nrs-stage8-state",e=>{const d=e.detail||window.NRS?.stage8State||{};renderStage8Notification(d);if(stage8MenuOpen)renderStage8Console(d);});
+window.addEventListener("nrs-stage8-action-result",e=>{stage8Feedback=e.detail||null;if(stage8MenuOpen)renderStage8Console(window.NRS?.stage8State||{});});
+ensureStage8Notification();setInterval(()=>{if(window.NRS?.session&&window.NRS?.getStage8State)window.NRS.getStage8State();},30000);
+
+/* ---------- Stage 4: market counter and bank teller services ---------- */
+let marketMenuOpen=false,bankMenuOpen=false,marketFeedback=null,bankFeedback=null;
+const s4Money=value=>'₦'+Math.max(0,Math.floor(Number(value)||0)).toLocaleString('en-NG');
+const s4Time=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'}):'Just now';};
+function openMarketConsole(){
+  governmentMenuOpen=false;
+ marketMenuOpen=true;bankMenuOpen=false;workplaceMenuOpen=false;marketFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Live stock, verified salespeople, receipts and commissions.</p></div></div><div class="s4-empty">Connecting to the market inventory…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getMarketState();
+}
+function renderMarketConsole(data){
+ if(!marketMenuOpen)return;
+ data=data||window.NRS?.marketState||{};
+ const products=Array.isArray(data.products)?data.products:[];
+ const sellers=Array.isArray(data.availableSellers)?data.availableSellers:[];
+ const history=Array.isArray(data.salesHistory)?data.salesHistory:[];
+ const canCollect=!!data.canCollectCommission&&Number(data.commissionBalance)>0;
+ const feedback=marketFeedback?'<div class="s4-notice '+(marketFeedback.ok?'success':'error')+'">'+safeText(marketFeedback.message||'')+'</div>':'';
+ const receipt=marketFeedback?.ok&&marketFeedback.receipt
+  ?(marketFeedback.receipt.totalCost!==undefined
+    ?'<div class="s4-receipt"><h3>✓ Inventory restock receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Quantity added: '+Number(marketFeedback.receipt.quantity||0)+' · '+Number(marketFeedback.receipt.remainingStock||0)+' now in stock</small></span><strong>'+s4Money(marketFeedback.receipt.totalCost)+'</strong></div><p class="s4-muted">Paid from the market till. Remaining till: '+s4Money(marketFeedback.receipt.remainingTill)+'</p></div>'
+    :'<div class="s4-receipt"><h3>✓ Purchase receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Reference '+safeText(marketFeedback.receipt.orderId||marketFeedback.requestId||'')+' · Quantity '+Number(marketFeedback.receipt.quantity||0)+'</small></span><strong>'+s4Money(marketFeedback.receipt.total)+'</strong></div><p class="s4-muted">Goods added to your backpack. Current cash: '+s4Money(window.NRS?.cash)+'</p></div>'):'';
+
+ const sellerOptions=sellers.map(seller=>'<option value="'+safeText(seller.id)+'">'+safeText(seller.name)+' · '+safeText(seller.rankTitle||'Salesperson')+'</option>').join('');
+ const productsHtml=products.map(product=>{
+   const available=Math.max(0,Math.floor(Number(product.stock)||0));
+   return '<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(product.name)+'</h3><p class="s4-muted">Sold by unit · Fixed market price</p><span class="s4-stock">'+available+' in stock</span></div><div class="s4-price">'+s4Money(product.unitPrice)+'</div></div><label class="s4-field">Quantity<input data-market-qty="'+safeText(product.id)+'" type="number" min="1" max="99" step="1" inputmode="numeric" value="1" '+(available<1?'disabled':'')+'></label><button data-market-order="'+safeText(product.id)+'" '+(!data.atMarket||!sellers.length||available<1?'disabled':'')+'>Buy from selected salesperson</button></article>';
+ }).join('');
+ const restockPanel=data.canRestock
+  ?'<section class="s4-card"><h3>📦 Manager stock controls</h3><p class="s4-muted">Market Supervisors and the Market Chairman can replenish stock using the market till. Wholesale cost is '+Math.round(Number(data.restockRate||.6)*100)+'% of the fixed retail price; maximum stock is '+Number(data.maxStock||500)+' units per product.</p><div class="s4-inline"><label class="s4-field">Product<select id="s4RestockProduct">'+products.map(product=>'<option value="'+safeText(product.id)+'">'+safeText(product.name)+' · '+s4Money(Math.floor(Number(product.unitPrice)*Number(data.restockRate||.6)))+' per unit</option>').join('')+'</select></label><label class="s4-field">Quantity<input id="s4RestockQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="10"></label></div><button data-market-restock="1">Purchase stock for the market</button></section>'
+  :'';
+ const restockHistory=Array.isArray(data.restockHistory)?data.restockHistory:[];
+ const restockHistoryHtml=restockHistory.length?'<div class="s4-list">'+restockHistory.map(entry=>'<div class="s4-row"><span><b>'+safeText(entry.productName||entry.productId)+' × '+Number(entry.quantity||0)+' restocked</b><small>Manager '+safeText(entry.managerName||entry.managerId||'Manager')+' · '+s4Time(entry.createdAt)+'</small><small>Receipt '+safeText(entry.requestId||'')+' · '+Number(entry.remainingStock||0)+' now in stock</small></span><strong>'+s4Money(entry.totalCost)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Manager stock purchases and their receipts will be recorded here.</div>';
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(sale=>'<div class="s4-row"><span><b>'+safeText(sale.productName||sale.productId)+' × '+Number(sale.quantity||0)+'</b><small>'+safeText(sale.customerName||'Customer')+' · Salesperson '+safeText(sale.sellerName||'Staff')+' · '+s4Time(sale.createdAt)+'</small><small>Receipt '+safeText(sale.orderId||'')+'</small></span><strong>'+s4Money(sale.total)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed market receipts will appear here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Shop local goods with on-duty market staff.</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+s4Money(window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Commission</small><strong>'+s4Money(data.commissionBalance)+'</strong></div><div class="s4-kpi"><small>Market till</small><strong>'+(data.till===null||data.till===undefined?'Staff only':s4Money(data.till))+'</strong></div></div>'+
+  (data.atMarket?'':'<div class="s4-notice error">You are not at Mile 1 Market. Walk to the market entrance before purchasing.</div>')+
+  (sellers.length?'<label class="s4-field">Available salesperson<select id="s4MarketSeller">'+sellerOptions+'</select></label>':'<div class="s4-notice '+(data.atMarket?'error':'')+'">'+(data.atMarket?'No salesperson is available right now. A market employee must clock in and wear the market uniform.':'On-duty salespeople will appear here when you are at the market.')+'</div>')+
+  (canCollect?'<button data-market-commission="1">Collect commission · '+s4Money(data.commissionBalance)+'</button>':'')+
+  feedback+receipt+
+  '<div class="s4-sectiontitle">Market catalogue <small>PRICES SET BY THE SERVER</small></div>'+
+  (productsHtml?'<div class="s4-grid">'+productsHtml+'</div>':'<div class="s4-empty">The market catalogue is not available yet.</div>')+
+  restockPanel+
+  (data.canViewRestockHistory?'<div class="s4-sectiontitle">Recent stock purchases <small>'+restockHistory.length+' SHOWN</small></div>'+restockHistoryHtml:'')+
+  '<div class="s4-sectiontitle">Recent receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
+  '<button class="subtle" data-market-refresh="1">Refresh market data</button>');
+ modal.classList.add('stage4-menu');
+}
+function openBankConsole(){
+  governmentMenuOpen=false;
+ bankMenuOpen=true;marketMenuOpen=false;workplaceMenuOpen=false;bankFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🏦</span><div><small>FINANCIAL SERVICES · PORT HARCOURT</small><h2>Port Harcourt Bank</h2><p>Customer banking, teller transactions and receipts.</p></div></div><div class="s4-empty">Connecting to the branch ledger…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getBankState();
+}
+function renderBankConsole(data){
+ if(!bankMenuOpen)return;
+ data=data||window.NRS?.bankState||{};
+ const tellers=Array.isArray(data.availableTellers)?data.availableTellers:[];
+ const customers=Array.isArray(data.nearbyCustomers)?data.nearbyCustomers:[];
+ const history=Array.isArray(data.transactions)?data.transactions:[];
+ const feedback=bankFeedback?'<div class="s4-notice '+(bankFeedback.ok?'success':'error')+'">'+safeText(bankFeedback.message||'')+'</div>':'';
+ const receipt=bankFeedback?.ok&&bankFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Transaction receipt</h3><div class="s4-row"><span><b>'+safeText(String(bankFeedback.receipt.type||'').toUpperCase())+' · '+s4Money(bankFeedback.receipt.amount)+'</b><small>Receipt '+safeText(bankFeedback.receipt.receiptNumber||bankFeedback.receipt.id||'')+'</small><small>'+safeText(bankFeedback.receipt.customerName||'Customer')+' · Teller '+safeText(bankFeedback.receipt.tellerName||'Staff')+'</small></span><strong>'+s4Time(bankFeedback.receipt.createdAt)+'</strong></div></div>':'';
+ const tellerList=tellers.length?'<div class="s4-list">'+tellers.map(teller=>'<div class="s4-row"><span><b>'+safeText(teller.name)+'</b><small>'+safeText(teller.rankTitle||'Bank Teller')+' · On duty and in uniform</small></span><strong>AVAILABLE</strong></div>').join('')+'</div>':'<div class="s4-empty">'+(data.atBank?'No teller is available right now. An authorised teller must be on duty and in uniform.':'Walk to Port Harcourt Bank to see tellers currently serving customers.')+'</div>';
+ const customerOptions=customers.map(customer=>'<option value="'+safeText(customer.id)+'">'+safeText(customer.name)+' · Cash '+s4Money(customer.cash)+' · Bank '+s4Money(customer.bank)+'</option>').join('');
+ const tellerConsole=data.canProcessTransactions
+  ?'<section class="s4-card"><h3>🧾 Teller workstation</h3><p class="s4-muted">Select a player physically present at the branch. Balances are settled by the game server and cannot be edited by the client.</p>'+
+   (customers.length?'<label class="s4-field">Customer<select id="s4BankCustomer">'+customerOptions+'</select></label>':'<div class="s4-empty">No other customers are currently in the branch. Ask the customer to enter the bank and refresh.</div>')+
+   '<div class="s4-inline"><label class="s4-field">Transaction<select id="s4BankType"><option value="deposit">Cash deposit</option><option value="withdrawal">Cash withdrawal</option></select></label><label class="s4-field">Amount (₦)<input id="s4BankAmount" type="number" min="1" max="10000000" step="1" inputmode="numeric" placeholder="e.g. 5000"></label></div>'+
+   '<button data-bank-process="1" '+(!customers.length?'disabled':'')+'>Process transaction & issue receipt</button></section>'
+  :'<section class="s4-card"><h3>Customer counter</h3><p class="s4-muted">Deposits and withdrawals at the teller counter require a rank 2 or higher bank employee who is clocked in, wearing the bank uniform, and physically present at the branch.</p>'+tellerList+'</section>';
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(entry=>'<div class="s4-row"><span><b>'+safeText(entry.type==='deposit'?'Deposit':'Withdrawal')+' · '+s4Money(entry.amount)+'</b><small>Customer '+safeText(entry.customerName||entry.customerId||'Customer')+' · Teller '+safeText(entry.tellerName||entry.tellerId||'Staff')+'</small><small>Receipt '+safeText(entry.id||'')+' · '+s4Time(entry.createdAt)+'</small></span><strong>RECORDED</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed deposit and withdrawal receipts will appear here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🏦</span><div><small>FINANCIAL SERVICES · PORT HARCOURT</small><h2>Port Harcourt Bank</h2><p>'+safeText(data.rankTitle||'Customer banking')+(data.onDuty?' · ON DUTY':'')+'</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Available cash</small><strong>'+s4Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Bank balance</small><strong>'+s4Money(data.bank??window.NRS?.bank)+'</strong></div><div class="s4-kpi"><small>Branch status</small><strong>'+(data.atBank?'ON SITE':'OFF SITE')+'</strong></div></div>'+
+  (data.atBank?'':'<div class="s4-notice error">You are not at Port Harcourt Bank. Walk to the branch to access teller services.</div>')+
+  feedback+receipt+tellerConsole+
+  '<div class="s4-sectiontitle">Recent transactions & receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
+  '<button class="subtle" data-bank-refresh="1">Refresh balances & receipts</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-market-state',e=>{if(marketMenuOpen)renderMarketConsole(e.detail);});
+window.addEventListener('nrs-market-sale-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
+window.addEventListener('nrs-market-commission-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen){renderMarketConsole(window.NRS?.marketState||{});if(e.detail?.ok)window.NRS?.getMarketState();}});
+window.addEventListener('nrs-market-restock-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
+window.addEventListener('nrs-market-sale-notice',()=>{if(marketMenuOpen)window.NRS?.getMarketState();});
+window.addEventListener('nrs-bank-state',e=>{if(bankMenuOpen)renderBankConsole(e.detail);});
+window.addEventListener('nrs-bank-transaction-result',e=>{bankFeedback=e.detail||null;if(bankMenuOpen)renderBankConsole(window.NRS?.bankState||{});});
+window.addEventListener('nrs-bank-receipt',e=>{bankFeedback=e.detail||null;if(bankMenuOpen){renderBankConsole(window.NRS?.bankState||{});window.NRS?.getBankState();}});
+
+/* ---------- Stage 5: friendly hospital and park services ---------- */
+let hospitalMenuOpen=false,parkMenuOpen=false;
+let stage5HospitalId="hospital-main",hospitalFeedback=null,parkFeedback=null;
+const stage5Money=value=>'₦'+Math.max(0,Math.floor(Number(value)||0)).toLocaleString('en-NG');
+const stage5When=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'}):'Just now';};
+const stage5HospitalTitle=id=>id==='hospital-princess'?'Princess Hospital':'Mile One General Hospital';
+function openHospitalConsole(hospitalId){
+  governmentMenuOpen=false;
+ stage5HospitalId=hospitalId==='hospital-princess'?'hospital-princess':'hospital-main';
+ hospitalMenuOpen=true;parkMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;workplaceMenuOpen=false;hospitalFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🩺</span><div><small>HEALTHCARE NETWORK · PORT HARCOURT</small><h2>Hospital services</h2><p>Request care, meet real staff and follow treatment.</p></div></div><div class="s4-empty">Loading patient and staff services…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getHospitalState(stage5HospitalId);
+}
+function renderHospitalConsole(data){
+ if(!hospitalMenuOpen)return;
+ data=data||window.NRS?.hospitalState||{};
+ if(data.hospitalId)stage5HospitalId=data.hospitalId;
+ const hospitalId=stage5HospitalId;
+ const atHospital=!!data.atHospital;
+ const feedback=hospitalFeedback?'<div class="s4-notice '+(hospitalFeedback.ok?'success':'error')+'">'+safeText(hospitalFeedback.message||'')+'</div>':'';
+ const receipt=hospitalFeedback?.ok&&hospitalFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Service receipt</h3><div class="s4-row"><span><b>'+safeText(hospitalFeedback.receipt.detail||hospitalFeedback.receipt.medicineName||'Hospital service')+'</b><small>Reference '+safeText(hospitalFeedback.receipt.id||hospitalFeedback.receipt.requestId||hospitalFeedback.requestId||'')+' · '+stage5When(hospitalFeedback.receipt.createdAt)+'</small></span><strong>'+stage5Money(hospitalFeedback.receipt.total??hospitalFeedback.receipt.amount??0)+'</strong></div>'+(hospitalFeedback.receipt.healthRestored!==undefined?'<p class="s4-muted">Health restored: '+Number(hospitalFeedback.receipt.healthRestored)+' · Current health: '+Number(hospitalFeedback.receipt.healthNow??data.hp??0)+'%</p>':'')+'</div>':'';
+ const hospitalOptions=(data.hospitalOptions||[{id:'hospital-main',name:'Mile One General Hospital'},{id:'hospital-princess',name:'Princess Hospital'}]).map(h=>'<option value="'+safeText(h.id)+'" '+(h.id===hospitalId?'selected':'')+'>'+safeText(h.name)+'</option>').join('');
+ const workers=Array.isArray(data.availableWorkers)?data.availableWorkers:[];
+ const onSiteWorkers=workers.filter(w=>w.atHospital);
+ const pharmacyWorkers=onSiteWorkers.filter(w=>Number(w.rank)>=2);
+ const workerOptions=pharmacyWorkers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Medical worker')+'</option>').join('');
+ const workersHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Hospital worker')+' · '+(w.atHospital?'At this hospital':'On duty · away from this hospital')+'</small></span><strong>'+(w.atHospital?'AVAILABLE':'RESPONDER')+'</strong></div>').join('')+'</div>':'<div class="s4-empty">No hospital workers are currently available. Staff must clock in and wear the hospital uniform to appear here.</div>';
+ const ownRequests=Array.isArray(data.patientRequests)?data.patientRequests:[];
+ const ownRequestsHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>{
+  const nextStep=r.kind==='ambulance'
+   ?(r.status==='dispatched'?'Ambulance assigned · '+safeText(r.workerName||'Responder on route'):'Waiting for an authorised dispatcher')
+   :(r.triagedAt?'Triage completed by '+safeText(r.triageWorkerName||'medical staff')+' · awaiting Nurse or Doctor':'Waiting for patient triage');
+  return '<div class="s4-row"><span><b>'+(r.kind==='ambulance'?'🚑 Ambulance request':'🩺 Care request')+'</b><small>'+safeText(r.hospitalName||stage5HospitalTitle(r.hospitalId))+' · Reference '+safeText(r.id)+'</small><small>'+nextStep+'</small></span><strong>'+safeText(r.status.toUpperCase())+'</strong></div>';
+ }).join('')+'</div>':'<div class="s4-empty">You have no open care or ambulance requests. Ask for help when you need it.</div>';
+ const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
+ const staffRequestsHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>{
+  let actions='';
+  if(r.canTriage)actions+='<button data-hospital-triage="'+safeText(r.id)+'">Record triage</button>';
+  if(r.canDispatch)actions+='<button data-hospital-dispatch="'+safeText(r.id)+'">Assign ambulance</button>';
+  if(r.canTreat)actions+='<button data-hospital-treat="'+safeText(r.id)+'">Complete treatment · '+stage5Money(500)+'</button>';
+  if(r.canFieldTreat)actions+='<button data-hospital-treat="'+safeText(r.id)+'">Treat patient here · '+stage5Money(1200)+'</button>';
+  return '<div class="s4-card"><h3>'+(r.kind==='ambulance'?'🚑 Emergency request':'🩺 Patient care request')+' · '+safeText(r.patientName)+'</h3><p class="s4-muted">Health: '+(r.patientHp===null?'Not available':Number(r.patientHp)+'%')+' · '+(r.patientAtHospital?'Patient at hospital':r.kind==='ambulance'?'Field response · '+(r.distanceToPatient===null?'location unavailable':Number(r.distanceToPatient)+' m away'):'Patient not at hospital')+'</p><p class="s4-muted">Status: '+safeText(r.status)+(r.assignedWorkerName?' · Assigned to '+safeText(r.assignedWorkerName):'')+(r.triagedAt?' · Triage recorded':'')+'</p>'+(actions||'<p class="s4-muted">This action is not available yet. Confirm your rank, duty, uniform and location.</p>')+'</div>';
+ }).join('')+'</div>':'<div class="s4-empty">No active requests are waiting at this hospital. Patient requests appear here automatically when submitted.</div>';
+ const medicines=Array.isArray(data.medicines)?data.medicines:[];
+ const pharmacyHtml=data.canUsePharmacy
+  ?'<section class="s4-card"><h3>💊 Pharmacy counter</h3><p class="s4-muted">Choose an on-duty medical worker who is physically present at this hospital. Prices and stock are set by the hospital; medicine is added to your backpack after payment.</p>'+
+   (pharmacyWorkers.length?'<label class="s4-field">Pharmacy worker<select id="s5HospitalWorker">'+workerOptions+'</select></label>':'<div class="s4-empty">No pharmacy worker is currently available. You need another on-duty hospital worker at this location.</div>')+
+   (medicines.length?'<div class="s4-grid">'+medicines.map(m=>'<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(m.name)+'</h3><span class="s4-stock">'+Number(m.stock||0)+' in stock</span></div><div class="s4-price">'+stage5Money(m.unitPrice)+'</div></div><button data-hospital-buy="'+safeText(m.id)+'" '+(!pharmacyWorkers.length||Number(m.stock)<1?'disabled':'')+'>Buy medicine from worker</button></article>').join('')+'</div>':'<div class="s4-empty">No medicines are available.</div>')+
+   '<label class="s4-field">Quantity<input id="s5HospitalQuantity" type="number" min="1" max="10" step="1" inputmode="numeric" value="1"></label></section>'
+  :'';
+ const history=Array.isArray(data.history)?data.history:[];
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(r=>'<div class="s4-row"><span><b>'+safeText(r.detail||r.kind)+'</b><small>Patient '+safeText(r.patientName||r.patientId)+' · Worker '+safeText(r.workerName||r.workerId)+'</small><small>'+stage5When(r.createdAt)+' · Reference '+safeText(r.requestId)+'</small></span><strong>'+stage5Money(r.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your care and service receipts will appear here after a request is completed.</div>';
+ const pharmacyHistory=Array.isArray(data.pharmacyHistory)?data.pharmacyHistory:[];
+ const pharmacyHistoryHtml=pharmacyHistory.length?'<div class="s4-list">'+pharmacyHistory.map(r=>'<div class="s4-row"><span><b>'+safeText(r.medicineName||r.medicineId)+' × '+Number(r.quantity||0)+'</b><small>Customer '+safeText(r.customerName||r.customerId)+' · Worker '+safeText(r.workerName||r.workerId)+'</small><small>Receipt '+safeText(r.id)+' · '+stage5When(r.createdAt)+'</small></span><strong>'+stage5Money(r.total)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Pharmacy purchase receipts will appear here.</div>';
+ const requestButtons='<div class="s4-grid"><section class="s4-card"><h3>🩺 Regular care</h3><p class="s4-muted">For injuries that need hospital attention. You must be at the selected hospital and have at least ₦500 cash.</p><button data-hospital-request-care="1" '+(!data.canRequestCare?'disabled':'')+'>Request treatment at hospital</button></section><section class="s4-card"><h3>🚑 Ambulance assistance</h3><p class="s4-muted">For serious injuries of 80% health or below. A responder is assigned and must reach you in a public area.</p><button data-hospital-request-ambulance="1" '+(!data.canRequestAmbulance?'disabled':'')+'>Request an ambulance</button></section></div>';
+ panel('<div class="s4-head"><span class="s4-icon">🩺</span><div><small>HEALTHCARE NETWORK · PORT HARCOURT</small><h2>'+safeText(data.hospitalName||stage5HospitalTitle(hospitalId))+'</h2><p>'+(data.rankTitle?'Your role: '+safeText(data.rankTitle)+(data.onDuty?' · ON DUTY':' · OFF DUTY'):'Patient services & hospital reception')+'</p></div></div>'+
+  '<label class="s4-field">Choose hospital<select id="s5HospitalChoice">'+hospitalOptions+'</select></label>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your health</small><strong>'+Math.max(0,Math.min(100,Number(data.hp)||0))+'%</strong></div><div class="s4-kpi"><small>Your cash</small><strong>'+stage5Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Your location</small><strong>'+(atHospital?'AT HOSPITAL':(data.canRequestAmbulance?'PUBLIC AREA':'OFF SITE'))+'</strong></div></div>'+
+  (atHospital?'':'<div class="s4-notice '+(data.canRequestAmbulance?'':'error')+'">'+(data.canRequestAmbulance?'You are away from this hospital. You can still request an ambulance for a serious injury.':'Walk to the hospital entrance or reception for regular treatment and pharmacy services.')+'</div>')+
+  feedback+receipt+
+  '<div class="s4-sectiontitle">Get help <small>REAL STAFF · SERVER-VALIDATED</small></div>'+requestButtons+
+  '<div class="s4-sectiontitle">Your active requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestsHtml+
+  '<div class="s4-sectiontitle">Medical staff <small>'+onSiteWorkers.length+' AT THIS HOSPITAL</small></div>'+workersHtml+
+  (data.canTriage||data.canDispatch||data.canTreat?'<div class="s4-sectiontitle">Staff patient queue <small>'+staffRequests.length+' REQUESTS</small></div>'+staffRequestsHtml:'')+
+  pharmacyHtml+
+  (data.canViewHospitalLedger?'<div class="s4-kpi"><small>Hospital pharmacy till</small><strong>'+stage5Money(data.pharmacyTill)+'</strong></div>':'')+
+  '<div class="s4-sectiontitle">Your recent care history <small>'+history.length+' RECORDS</small></div>'+historyHtml+
+  '<div class="s4-sectiontitle">Pharmacy receipts <small>'+pharmacyHistory.length+' RECORDS</small></div>'+pharmacyHistoryHtml+
+  '<button class="subtle" data-hospital-refresh="1">Refresh hospital services</button>');
+ modal.classList.add('stage4-menu');
+}
+function openParkConsole(){
+  governmentMenuOpen=false;
+ hospitalMenuOpen=false;parkMenuOpen=true;marketMenuOpen=false;bankMenuOpen=false;workplaceMenuOpen=false;parkFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🌳</span><div><small>CITY PARK · VISITOR SERVICES</small><h2>City Park</h2><p>Get a daily pass, talk to park staff or ask for assistance.</p></div></div><div class="s4-empty">Loading park services…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getParkState();
+}
+function renderParkConsole(data){
+ if(!parkMenuOpen)return;
+ data=data||window.NRS?.parkState||{};
+ const workers=Array.isArray(data.availableWorkers)?data.availableWorkers:[];
+ const ticketSellers=workers.filter(w=>Number(w.rank)>=3);
+ const ownRequests=Array.isArray(data.visitorRequests)?data.visitorRequests:[];
+ const staffRequests=Array.isArray(data.staffRequests)?data.staffRequests:[];
+ const tickets=Array.isArray(data.tickets)?data.tickets:[];
+ const history=Array.isArray(data.history)?data.history:[];
+ const feedback=parkFeedback?'<div class="s4-notice '+(parkFeedback.ok?'success':'error')+'">'+safeText(parkFeedback.message||'')+'</div>':'';
+ const receipt=parkFeedback?.ok&&parkFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Daily visitor pass</h3><div class="s4-row"><span><b>City Park entry · '+safeText(parkFeedback.receipt.visitorName||'You')+'</b><small>Pass '+safeText(parkFeedback.receipt.id||'')+' · Valid for '+safeText(parkFeedback.receipt.dayKey||'today')+'</small></span><strong>'+stage5Money(parkFeedback.receipt.amount)+'</strong></div><p class="s4-muted">Cash remaining: '+stage5Money(parkFeedback.receipt.cashRemaining)+'</p></div>':'';
+ const sellerOptions=ticketSellers.map(w=>'<option value="'+safeText(w.id)+'">'+safeText(w.name)+' · '+safeText(w.rankTitle||'Ticket Seller')+'</option>').join('');
+ const workerHtml=workers.length?'<div class="s4-list">'+workers.map(w=>'<div class="s4-row"><span><b>'+safeText(w.name)+'</b><small>'+safeText(w.rankTitle||'Park worker')+' · On duty and at City Park</small></span><strong>AVAILABLE</strong></div>').join('')+'</div>':'<div class="s4-empty">No park staff are currently on duty at the park.</div>';
+ const requestButtons=(data.helpCategories||[]).map(c=>'<button data-park-help="'+safeText(c.id)+'" '+(!data.canRequestHelp?'disabled':'')+'>'+safeText(c.title)+'</button>').join('');
+ const ownRequestHtml=ownRequests.length?'<div class="s4-list">'+ownRequests.map(r=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===r.kind)?.title||'Visitor request')+'</b><small>Reference '+safeText(r.id)+' · Sent '+stage5When(r.createdAt)+'</small><small>Waiting for park staff</small></span><strong>OPEN</strong></div>').join('')+'</div>':'<div class="s4-empty">No visitor requests are open for you.</div>';
+ const staffRequestHtml=staffRequests.length?'<div class="s4-list">'+staffRequests.map(r=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===r.kind)?.title||'Visitor request')+'</b><small>'+safeText(r.visitorName||'Visitor')+' · '+Number(r.distanceToVisitor||0)+' m away</small><small>Reference '+safeText(r.id)+' · '+stage5When(r.createdAt)+'</small></span><button data-park-resolve="'+safeText(r.id)+'">Handle request</button></div>').join('')+'</div>':'<div class="s4-empty">No visitor requests are waiting. Requests from guests at the park will appear here.</div>';
+ const ticketHistory=tickets.length?'<div class="s4-list">'+tickets.map(t=>'<div class="s4-row"><span><b>Daily pass · '+safeText(t.visitorName||t.visitorId)+'</b><small>Ticket seller '+safeText(t.sellerName||t.sellerId)+' · '+stage5When(t.createdAt)+'</small><small>Pass '+safeText(t.id)+' · '+safeText(t.dayKey)+'</small></span><strong>'+stage5Money(t.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Issued ticket receipts will appear here.</div>';
+ const helpHistory=history.length?'<div class="s4-list">'+history.map(h=>'<div class="s4-row"><span><b>'+safeText((data.helpCategories||[]).find(c=>c.id===h.kind)?.title||'Visitor assistance')+'</b><small>Visitor '+safeText(h.visitorName||h.visitorId)+' · Worker '+safeText(h.workerName||h.workerId)+'</small><small>'+stage5When(h.createdAt)+'</small></span><strong>DONE</strong></div>').join('')+'</div>':'<div class="s4-empty">Completed park assistance will be listed here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🌳</span><div><small>CITY PARK · VISITOR SERVICES</small><h2>City Park</h2><p>'+(data.rankTitle?'Your role: '+safeText(data.rankTitle)+(data.onDuty?' · ON DUTY':' · OFF DUTY'):'Visitor services for residents and families')+'</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+stage5Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Entry pass</small><strong>'+(data.ticket?'VALID TODAY':'NOT PURCHASED')+'</strong></div><div class="s4-kpi"><small>Location</small><strong>'+(data.atPark?'AT THE PARK':'OFF SITE')+'</strong></div></div>'+
+  (data.ticket?'<div class="s4-notice success">Your daily visitor pass is valid until the end of today ('+safeText(data.ticket.dayKey)+'). Pass '+safeText(data.ticket.id)+'.</div>':'')+
+  (data.atPark?'':'<div class="s4-notice error">Walk to City Park to purchase a pass or request on-site visitor assistance.</div>')+
+  feedback+receipt+
+  '<section class="s4-card"><h3>🎟 Daily visitor pass</h3><p class="s4-muted">Entry pass costs '+stage5Money(data.ticketPrice||500)+'. Choose a real on-duty Ticket Seller who is present at the park.</p>'+
+  (ticketSellers.length?'<label class="s4-field">Ticket seller<select id="s5ParkSeller">'+sellerOptions+'</select></label>':'<div class="s4-empty">No Ticket Seller is available at the park right now.</div>')+
+  '<button data-park-ticket="1" '+(!data.atPark||!ticketSellers.length||!!data.ticket?'disabled':'')+'>'+(data.ticket?'Pass already valid today':'Buy today’s visitor pass')+'</button>'+
+  '<p class="s4-muted">Your pass opens the main entrance gate for today. Entry is checked by the game server. Park employees on duty and in uniform can enter using their staff access.</p></section>'+
+  '<div class="s4-sectiontitle">Ask park staff for help <small>VISITOR SUPPORT</small></div>'+
+  '<div class="s4-card"><p class="s4-muted">Select the closest option. Your request is visible to on-duty staff at the park and stays open until handled.</p>'+requestButtons+
+  '<div class="s4-sectiontitle">Your requests <small>'+ownRequests.length+' OPEN</small></div>'+ownRequestHtml+'</div>'+
+  '<div class="s4-sectiontitle">Available park staff <small>'+workers.length+' ON DUTY</small></div>'+workerHtml+
+  (data.canHelpVisitors?'<div class="s4-sectiontitle">Visitor request queue <small>'+staffRequests.length+' WAITING</small></div>'+staffRequestHtml:'')+
+  (data.canViewParkLedger?'<div class="s4-kpi"><small>Park till</small><strong>'+stage5Money(data.till)+'</strong></div><div class="s4-sectiontitle">Ticket sales ledger <small>'+tickets.length+' SHOWN</small></div>'+ticketHistory:'')+
+  '<div class="s4-sectiontitle">Completed visitor support <small>'+history.length+' RECORDS</small></div>'+helpHistory+
+  '<button class="subtle" data-park-refresh="1">Refresh park services</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-hospital-state',e=>{if(hospitalMenuOpen)renderHospitalConsole(e.detail);});
+window.addEventListener('nrs-hospital-action-result',e=>{hospitalFeedback=e.detail||null;if(hospitalMenuOpen){renderHospitalConsole(window.NRS?.hospitalState||{});window.NRS?.getHospitalState(stage5HospitalId);}});
+window.addEventListener('nrs-hospital-request-notice',()=>{if(hospitalMenuOpen)window.NRS?.getHospitalState(stage5HospitalId);});
+window.addEventListener('nrs-hospital-pharmacy-notice',()=>{if(hospitalMenuOpen)window.NRS?.getHospitalState(stage5HospitalId);});
+window.addEventListener('nrs-park-state',e=>{if(parkMenuOpen)renderParkConsole(e.detail);});
+window.addEventListener('nrs-park-action-result',e=>{parkFeedback=e.detail||null;if(parkMenuOpen){renderParkConsole(window.NRS?.parkState||{});window.NRS?.getParkState();}});
+window.addEventListener('nrs-park-request-notice',()=>{if(parkMenuOpen)window.NRS?.getParkState();});
+window.addEventListener('nrs-park-ticket-sale-notice',()=>{if(parkMenuOpen)window.NRS?.getParkState();});
+
