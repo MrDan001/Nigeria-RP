@@ -1,0 +1,271 @@
+/* Stage 6 — Rivers State Government & Civic Finance */
+let governmentMenuOpen=false,governmentFeedback=null;
+function openGovernmentConsole(){
+ governmentMenuOpen=true;workplaceMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;governmentFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🏛</span><div><small>RIVERS STATE · CIVIC FINANCE</small><h2>Government & public treasury</h2><p>Official announcements, payroll and auditable expenditure.</p></div></div><div class="s4-empty">Loading treasury ledger…</div>');
+ modal.classList.add('stage4-menu');window.NRS?.getGovernmentState();
+}
+function renderGovernmentConsole(d){
+ if(!governmentMenuOpen)return;d=d||window.NRS?.governmentState||{};
+ const tx=Array.isArray(d.ledger)?d.ledger:[],notes=Array.isArray(d.announcements)?d.announcements:[];
+ const feedback=governmentFeedback?'<div class="s4-notice '+(governmentFeedback.ok?'success':'error')+'">'+safeText(governmentFeedback.message||'')+'</div>':'';
+ const ledger=tx.length?'<div class="s4-list">'+tx.map(t=>'<div class="s4-row"><span><b>'+safeText(t.memo||t.kind||'Treasury transaction')+'</b><small>'+safeText(t.actorName||'Official')+' · '+safeText(t.kind||'entry')+' · '+stage5When(t.at)+'</small><small>Receipt '+safeText(t.requestId||t.id||'')+' · Balance after: '+stage5Money(t.balanceAfter)+'</small></span><strong class="'+(t.direction==='credit'?'on':'off')+'">'+(t.direction==='credit'?'+':'−')+stage5Money(t.amount)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">No recent treasury entries.</div>';
+ const notices=notes.length?'<div class="s4-list">'+notes.map(a=>'<div class="s4-row"><span><b>Official notice</b><small>'+safeText(a.authorName||'Government PRO')+' · '+stage5When(a.createdAt)+'</small><p>'+safeText(a.text||'')+'</p></span></div>').join('')+'</div>':'<div class="s4-empty">No official announcements yet.</div>';
+ const access=d.member?'<div class="s4-notice '+(d.onDuty&&d.uniform?'success':'error')+'">Role: '+safeText(d.rankTitle||('Rank '+d.rank))+' · '+(d.onDuty?'ON DUTY':'OFF DUTY')+' · '+(d.atGovernment?'At government building':'Away from government building')+'</div>':'<div class="s4-notice">Public view. Join Rivers State Government through Careers & Factions to access official duties.</div>';
+ let actions='';
+ if(d.canClaimPayroll)actions+='<section class="s4-card"><h3>💼 Daily government payroll</h3><p class="s4-muted">Rank-calculated payroll; debited once per Nigeria-time game day.</p><button data-government-payroll="1">Collect '+stage5Money(d.payrollAmount)+' payroll</button></section>';
+ else if(d.member)actions+='<section class="s4-card"><h3>💼 Daily government payroll</h3><p class="s4-muted">'+(d.claimedPayrollToday?'Payroll already collected today.':(!d.onDuty?'Clock in to qualify.':(!d.uniform?'Wear the government uniform.':(!d.atGovernment?'Return to the government workplace.':'Payroll is unavailable for this rank.'))))+'</p></section>';
+ if(d.canPublishAnnouncement)actions+='<section class="s4-card"><h3>📢 Official public announcement</h3><p class="s4-muted">Rank 2 only; server rate limit applies.</p><label class="s4-field">Notice (maximum 240 characters)<textarea id="s6GovernmentAnnouncement" maxlength="240" rows="3" placeholder="Write a public-service announcement"></textarea></label><button data-government-announce="1">Publish official notice</button></section>';
+ else if(d.member&&Number(d.rank)===2)actions+='<section class="s4-card"><h3>📢 Official public announcement</h3><p class="s4-muted">'+(Number(d.announcementReadyAt)>Date.now()?'Wait '+Math.ceil((Number(d.announcementReadyAt)-Date.now())/1000)+' seconds before the next notice.':'Clock in, wear the government uniform and return to the government workplace.')+'</p></section>';
+ if(d.canApproveSpending)actions+='<section class="s4-card"><h3>✅ Authorize state expenditure</h3><p class="s4-muted">Governor-only. Limit ₦1,000,000 per transaction. Each expenditure and purpose is logged.</p><label class="s4-field">Amount (₦)<input id="s6GovernmentSpendAmount" type="number" min="1" max="1000000" step="1" inputmode="numeric" placeholder="150000"></label><label class="s4-field">Purpose<input id="s6GovernmentSpendMemo" maxlength="180" placeholder="Repair drainage by the market"></label><button data-government-spend="1">Record authorized expenditure</button></section>';
+ panel('<div class="s4-head"><span class="s4-icon">🏛</span><div><small>RIVERS STATE · OFFICIAL SERVICES</small><h2>Government & civic finance</h2><p>Public treasury, notices and government payments.</p></div></div>'+
+ '<div class="s4-kpis"><div class="s4-kpi"><small>State treasury</small><strong>'+stage5Money(d.treasuryBalance)+'</strong></div><div class="s4-kpi"><small>Your role</small><strong>'+(d.member?safeText(d.rankTitle||('Rank '+d.rank)):'CITIZEN')+'</strong></div><div class="s4-kpi"><small>Nigeria-time day</small><strong>'+safeText(d.dayKey||'—')+'</strong></div></div>'+
+ access+feedback+'<p class="s4-muted">Citizen cash and bank balances are separate. Public-housing rent is credited here; government daily payroll and duty pay are debited. The opening budget is a fixed allocation.</p>'+actions+
+ '<div class="s4-sectiontitle">Official announcements <small>'+notes.length+' RECENT</small></div>'+notices+
+ '<div class="s4-sectiontitle">Treasury transaction ledger <small>'+tx.length+' RECENT</small></div>'+ledger+
+ '<button class="subtle" data-government-refresh="1">Refresh treasury & announcements</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-government-state',e=>{if(governmentMenuOpen)renderGovernmentConsole(e.detail);});
+window.addEventListener('nrs-government-action-result',e=>{governmentFeedback=e.detail||null;if(governmentMenuOpen)renderGovernmentConsole(window.NRS?.governmentState||{});});
+
+modal.addEventListener('change',e=>{
+ const t=e.target;
+ if(t?.id==='s5HospitalChoice'){stage5HospitalId=t.value==='hospital-princess'?'hospital-princess':'hospital-main';hospitalFeedback=null;window.NRS?.getHospitalState(stage5HospitalId);}
+});
+
+window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});
+const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
+modal.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
+ if(d.governmentOpen){openGovernmentConsole();return;}
+
+  if(d.transportOpen){openStage9Console();return;}
+  if(d.s9Refresh){N.getStage9State();return;}
+  if(d.s9RequestRide){const p=modal.querySelector("#s9Pickup")?.value||"",dst=modal.querySelector("#s9Destination")?.value||"",type=modal.querySelector("#s9VehicleType")?.value||"taxi";if(!p||!dst||p===dst){stage9Feedback={ok:false,message:"Choose two different stops."};renderStage9Console();return;}stage9Feedback=null;N.requestStage9Ride(p,dst,type);return;}
+  if(d.s9Checkout){stage9Feedback=null;N.checkoutStage9Vehicle(d.s9Checkout);return;}
+  if(d.s9Return){stage9Feedback=null;N.returnStage9Vehicle();return;}
+  if(d.s9Refuel){const litres=Number(modal.querySelector("#s9FuelLitres")?.value);if(!Number.isInteger(litres)||litres<1||litres>80){stage9Feedback={ok:false,message:"Enter whole litres from 1 to 80."};renderStage9Console();return;}stage9Feedback=null;N.refuelStage9Vehicle(litres);return;}
+  if(d.s9Accept){stage9Feedback=null;N.acceptStage9Ride(d.s9Accept);return;}
+  if(d.s9Pickup){stage9Feedback=null;N.pickupStage9Ride(d.s9Pickup);return;}
+  if(d.s9AdvanceRide){stage9Feedback=null;N.advanceStage9Ride(d.s9AdvanceRide);return;}
+  if(d.s9CompleteRide){stage9Feedback=null;N.completeStage9Ride(d.s9CompleteRide);return;}
+  if(d.s9CancelRide){stage9Feedback=null;N.cancelStage9Ride(d.s9CancelRide);return;}
+  if(d.s9StartDelivery){stage9Feedback=null;N.startStage9Delivery(d.s9StartDelivery);return;}
+  if(d.s9AdvanceDelivery){stage9Feedback=null;N.advanceStage9Delivery(d.s9AdvanceDelivery);return;}
+  if(d.s9CompleteDelivery){stage9Feedback=null;N.completeStage9Delivery(d.s9CompleteDelivery);return;}
+  if(d.newsOpen){if(d.newsOpen==="feed")openStage8Feed();else openStage8Newsroom();return;}
+if(d.newsRefresh){window.NRS?.getStage8State();return;}
+if(d.newsSubmit){const title=modal.querySelector("#n8-title")?.value||"",category=modal.querySelector("#n8-category")?.value||"community",body=modal.querySelector("#n8-body")?.value||"",eventContext=modal.querySelector("#n8-event-context")?.value||"",eventRef=modal.querySelector("#n8-event-ref")?.value||"local";if(title.trim().length<8||body.trim().length<50||eventContext.trim().length<5){stage8Feedback={ok:false,message:"Add a clear headline, a story of at least 50 characters, and the in-world event/location."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.submitStage8Story(title,category,body,eventContext,eventRef);return;}
+if(d.newsApprove||d.newsReject||d.newsPublish){const id=d.newsApprove||d.newsReject||d.newsPublish,note=modal.querySelector("#n8-note-"+stage8Id(id))?.value||"";if(d.newsReject&&note.trim().length<8){stage8Feedback={ok:false,message:"Add a moderation reason of at least 8 characters."};renderStage8Console();return;}stage8Feedback=null;if(d.newsApprove)window.NRS?.approveStage8Story(id,note);else if(d.newsReject)window.NRS?.rejectStage8Story(id,note);else window.NRS?.publishStage8Story(id,note);return;}
+if(d.newsReport){const id=d.newsReport,reason=modal.querySelector("#n8-report-"+stage8Id(id))?.value||"";if(reason.trim().length<8){stage8Feedback={ok:false,message:"Please explain the content concern in at least 8 characters."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.reportStage8Story(id,reason);return;}
+if(d.newsModerate){const reportId=d.report||"",reason=modal.querySelector("#n8-mod-"+stage8Id(reportId))?.value||"";if(reason.trim().length<8){stage8Feedback={ok:false,message:"Enter a moderation note of at least 8 characters."};renderStage8Console();return;}stage8Feedback=null;window.NRS?.moderateStage8Report(reportId,d.newsModerate,reason);return;}
+if(d.stage7Open){openStage7Console();return;}
+  if(d.stage7Refresh){N.getStage7State();return;}
+  if(d.stage7Report){
+    const kind=modal.querySelector("#s7IncidentKind")?.value||"",description=modal.querySelector("#s7IncidentDescription")?.value||"";
+    if(description.trim().length<8){stage7Feedback={ok:false,message:"Describe what happened in at least 8 characters."};renderStage7Console();return;}
+    stage7Feedback=null;N.reportStage7Incident(kind,description);return;
+  }
+  if(d.stage7Dispatch){stage7Feedback=null;N.dispatchStage7Incident(d.stage7Dispatch);return;}
+  if(d.stage7Investigate||d.stage7Arrest){
+    const incidentId=d.stage7Investigate||d.stage7Arrest,k=stage7Id(incidentId),reason=modal.querySelector("#s7Reason_"+k)?.value||"",evidence=modal.querySelector("#s7Evidence_"+k)?.value||"";
+    if(reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Record a reason and evidence note of at least 8 characters each."};renderStage7Console();return;}
+    if(d.stage7Investigate){stage7Feedback=null;N.investigateStage7Incident(incidentId,reason,evidence);return;}
+    const targetId=modal.querySelector("#s7Target_"+k)?.value||"";if(!targetId){stage7Feedback={ok:false,message:"Choose an online suspect."};renderStage7Console();return;}
+    stage7Feedback=null;N.arrestStage7Suspect(incidentId,targetId,reason,evidence);return;
+  }
+  if(d.stage7Fine){
+    const k=stage7Id(d.stage7Fine),target=modal.querySelector("#s7FineTarget_"+k)?.value||"",offence=modal.querySelector("#s7Offence_"+k)?.value||"",amount=Number(modal.querySelector("#s7FineAmount_"+k)?.value),reason=modal.querySelector("#s7FineReason_"+k)?.value||"",evidence=modal.querySelector("#s7FineEvidence_"+k)?.value||"";
+    if(!target||!Number.isSafeInteger(amount)||amount<1||reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Choose a citizen, whole-naira amount, reason and evidence."};renderStage7Console();return;}
+    stage7Feedback=null;N.issueStage7Fine(d.stage7Fine,target,offence,amount,reason,evidence);return;
+  }
+  if(d.stage7Extinguish||d.stage7Clear){
+    const isFire=!!d.stage7Extinguish,incidentId=d.stage7Extinguish||d.stage7Clear,k=stage7Id(incidentId),outcome=modal.querySelector((isFire?"#s7Outcome_":"#s7Road_")+k)?.value||"";
+    if(outcome.trim().length<8){stage7Feedback={ok:false,message:"Record the response outcome in at least 8 characters."};renderStage7Console();return;}
+    stage7Feedback=null;if(isFire)N.resolveStage7Fire(incidentId,outcome);else N.resolveStage7TrafficIncident(incidentId,outcome);return;
+  }
+  if(d.stage7Close){
+    const k=stage7Id(d.stage7Close),reason=modal.querySelector("#s7CloseReason_"+k)?.value||"",evidence=modal.querySelector("#s7CloseEvidence_"+k)?.value||"";
+    if(reason.trim().length<8||evidence.trim().length<8){stage7Feedback={ok:false,message:"Case closure needs a reason and final evidence/outcome note."};renderStage7Console();return;}
+    stage7Feedback=null;N.closeStage7Incident(d.stage7Close,reason,evidence);return;
+  }
+  if(d.stage7Activate){const id=modal.querySelector("#s7Checkpoint")?.value||"";if(!id){stage7Feedback={ok:false,message:"Choose a checkpoint."};renderStage7Console();return;}stage7Feedback=null;N.activateStage7Checkpoint(id);return;}
+  if(d.stage7Deactivate){const reason=modal.querySelector("#s7DeactivateReason_"+stage7Id(d.stage7Deactivate))?.value||"";if(!N.stage7State?.isAdmin&&reason.trim().length<8){stage7Feedback={ok:false,message:"Enter a closure reason of at least 8 characters."};renderStage7Console();return;}stage7Feedback=null;N.deactivateStage7Checkpoint(d.stage7Deactivate,reason);return;}
+  if(d.stage7Appeal){const reason=modal.querySelector("#s7AppealReason")?.value||"";if(reason.trim().length<10){stage7Feedback={ok:false,message:"Explain your appeal in at least 10 characters."};renderStage7Console();return;}stage7Feedback=null;N.requestStage7Appeal(reason);return;}
+  if(d.stage7Escape){stage7Feedback=null;N.attemptStage7Escape();return;}
+  if(d.stage7Review){const target=d.target||"",reason=modal.querySelector("#s7AppealReview_"+stage7Id(target))?.value||"";if(reason.trim().length<8){stage7Feedback={ok:false,message:"Record an independent review rationale."};renderStage7Console();return;}stage7Feedback=null;N.reviewStage7Appeal(target,d.stage7Review,reason);return;}
+
+  if(d.governmentRefresh){N.getGovernmentState();return;}
+  if(d.governmentPayroll){governmentFeedback=null;N.claimGovernmentPayroll();return;}
+  if(d.governmentAnnounce){const text=modal.querySelector('#s6GovernmentAnnouncement')?.value||'';if(!text.trim()){governmentFeedback={ok:false,message:'Write a notice first.'};renderGovernmentConsole();return;}governmentFeedback=null;N.publishGovernmentAnnouncement(text);return;}
+  if(d.governmentSpend){const amount=Number(modal.querySelector('#s6GovernmentSpendAmount')?.value),memo=modal.querySelector('#s6GovernmentSpendMemo')?.value||'';if(!Number.isSafeInteger(amount)||amount<1||amount>1000000){governmentFeedback={ok:false,message:'Enter a whole-naira amount from ₦1 to ₦1,000,000.'};renderGovernmentConsole();return;}if(memo.trim().length<3){governmentFeedback={ok:false,message:'Enter a clear spending purpose.'};renderGovernmentConsole();return;}governmentFeedback=null;N.approveGovernmentSpending(amount,memo);return;}
+  if(d.openWorkplaces){openWorkplaceMenu();return;}
+ if(d.marketOpen){openMarketConsole();return;}
+ if(d.bankOpen){openBankConsole();return;}
+ if(d.hospitalOpen){openHospitalConsole(d.hospitalOpen);return;}
+ if(d.parkOpen){openParkConsole();return;}
+ if(d.hospitalRefresh){window.NRS?.getHospitalState(stage5HospitalId);return;}
+ if(d.parkRefresh){window.NRS?.getParkState();return;}
+ if(d.hospitalRequestCare){hospitalFeedback=null;N.requestHospitalCare(stage5HospitalId);return;}
+ if(d.hospitalRequestAmbulance){hospitalFeedback=null;N.requestAmbulance(stage5HospitalId);return;}
+ if(d.hospitalTriage){hospitalFeedback=null;N.triageHospitalRequest(stage5HospitalId,d.hospitalTriage);return;}
+ if(d.hospitalDispatch){hospitalFeedback=null;N.dispatchHospitalAmbulance(stage5HospitalId,d.hospitalDispatch);return;}
+ if(d.hospitalTreat){hospitalFeedback=null;N.completeHospitalTreatment(stage5HospitalId,d.hospitalTreat);return;}
+ if(d.hospitalBuy){
+  const workerId=modal.querySelector('#s5HospitalWorker')?.value||'';
+  const quantity=Number(modal.querySelector('#s5HospitalQuantity')?.value);
+  if(!workerId){hospitalFeedback={ok:false,message:'Choose a medical worker who is at this hospital.'};renderHospitalConsole();return;}
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>10){hospitalFeedback={ok:false,message:'Enter a whole medicine quantity between 1 and 10.'};renderHospitalConsole();return;}
+  hospitalFeedback=null;N.purchaseHospitalMedicine(stage5HospitalId,workerId,d.hospitalBuy,quantity);return;
+ }
+ if(d.parkTicket){
+  const sellerId=modal.querySelector('#s5ParkSeller')?.value||'';
+  if(!sellerId){parkFeedback={ok:false,message:'Choose an on-duty ticket seller at City Park.'};renderParkConsole();return;}
+  parkFeedback=null;N.buyParkTicket(sellerId);return;
+ }
+ if(d.parkHelp){parkFeedback=null;N.requestParkHelp(d.parkHelp);return;}
+ if(d.parkResolve){parkFeedback=null;N.resolveParkHelpRequest(d.parkResolve);return;}
+ if(d.marketRefresh){N.getMarketState();return;}
+ if(d.bankRefresh){N.getBankState();return;}
+ if(d.marketCommission){marketFeedback=null;N.claimMarketCommission();return;}
+ if(d.marketRestock){
+  const productId=modal.querySelector('#s4RestockProduct')?.value||'';
+  const quantity=Math.floor(Number(modal.querySelector('#s4RestockQuantity')?.value));
+  if(!productId||!Number.isInteger(quantity)||quantity<1||quantity>100){marketFeedback={ok:false,message:'Choose a product and a whole restock quantity between 1 and 100.'};renderMarketConsole();return;}
+  marketFeedback=null;N.restockMarket(productId,quantity);return;
+ }
+ if(d.marketOrder){
+  const sellerId=modal.querySelector('#s4MarketSeller')?.value||'';
+  const quantity=Math.floor(Number(modal.querySelector('[data-market-qty="'+d.marketOrder+'"]')?.value));
+  if(!sellerId){marketFeedback={ok:false,message:'Choose an on-duty salesperson before ordering.'};renderMarketConsole();return;}
+  if(!Number.isInteger(quantity)||quantity<1||quantity>99){marketFeedback={ok:false,message:'Enter a whole quantity between 1 and 99.'};renderMarketConsole();return;}
+  marketFeedback=null;N.placeMarketOrder(sellerId,d.marketOrder,quantity);return;
+ }
+ if(d.bankProcess){
+  const customerId=modal.querySelector('#s4BankCustomer')?.value||'';
+  const transactionType=modal.querySelector('#s4BankType')?.value||'';
+  const amount=Math.floor(Number(modal.querySelector('#s4BankAmount')?.value));
+  if(!customerId){bankFeedback={ok:false,message:'Choose a customer who is present at the branch.'};renderBankConsole();return;}
+  if(!Number.isSafeInteger(amount)||amount<1||amount>10000000){bankFeedback={ok:false,message:'Enter a whole amount between ₦1 and ₦10,000,000.'};renderBankConsole();return;}
+  bankFeedback=null;N.processBankTransaction(customerId,transactionType,amount);return;
+ }
+  if(d.receptionCareer){modal.style.display='none';modal.innerHTML='';openWorkplaceMenuFor(d.receptionCareer);return;}
+  if(d.staffRoom){workplaceMenuOpen=false;modal.style.display='none';modal.innerHTML='';if(inside?.isWorkplaceInterior&&inside.workplaceId===d.staffRoom)N.enterStaffRoom(d.staffRoom);else N.enterWorkplaceInterior(d.staffRoom);return;}
+  if(d.playerAction){modal.style.display='none';modal.innerHTML='';N.interactWithPlayer(d.playerId,d.playerAction);return;}
+ if(d.adminRole){const username=$('nrsAdminTarget')?.value.trim();if(!username){sys('Enter the account username in Firstname_lastname format.');return;}N.setAdminRole(username,d.adminRole);return;}
+ if(d.workApply){N.applyWorkplace(d.workApply);return;}
+ if(d.workDuty){N.setWorkplaceDuty(d.workDuty,d.duty==='true');return;}
+ if(d.workLeave){N.leaveWorkplace();return;}
+ if(d.workTaskStart){N.startWorkTask(d.workTaskStart);return;}
+ if(d.workTaskComplete){N.completeWorkTask();return;}
+ if(d.appReview){const card=b.closest('.wm-card'),workplace=placesFromCard(card);if(workplace)N.approveWorkplaceApplication(workplace,d.appReview,d.approve==='1');return;}
+ if(d.adminSetRank){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value,rank=d.rankFixed?Number(d.rankFixed):Number(card?.querySelector('[data-admin-rank-value]')?.value);if(target)N.setStaffRank(d.adminSetRank,target,rank);return;}
+ if(d.adminDismiss){const card=b.closest('.wm-card'),target=card?.querySelector('[data-admin-target]')?.value;if(target)N.dismissWorkplaceStaff(d.adminDismiss,target);return;}
+ if(d.staffHire){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);const select=$('wmHirePlayer');if(workplace&&select?.value)N.hireWorkplaceStaff(workplace.id,select.value);return;}
+ if(d.staffDismiss){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);if(workplace)N.dismissWorkplaceStaff(workplace.id,d.staffDismiss);return;}
+ if(d.staffRank){const workplace=window.NRS?.workplaceState?.workplaces?.find(w=>w.canManage);if(workplace)N.setStaffRank(workplace.id,d.staffRank,Number(d.rank));return;}
+ if(d.appointBoss){const select=$('wmBossPlayer');if(select?.value)N.appointWorkplaceBoss(d.appointBoss,select.value);return;}
+});
+function placesFromCard(card){const name=card?.querySelector('h3')?.textContent;return window.NRS?.workplaceState?.workplaces?.find(w=>w.name===name)||null;}
+let workCountdownHandle=0;
+setInterval(()=>{if(!workplaceMenuOpen)return;const s=window.NRS?.workplaceState,task=s?.activeTask;if(!task)return;const sec=Math.max(0,Math.ceil(((task.durationMs||10000)-(Date.now()-task.startedAt))/1000));const span=modal.querySelector('[data-work-countdown]'),btn=modal.querySelector('[data-work-task-complete]');if(span)span.textContent=sec?'Ready in '+sec+'s':'Task ready to complete';if(btn)btn.disabled=sec>0;},500);
+
+/* backpack */
+const FX={'Jollof Rice & Chicken':[35,0],'Pounded Yam & Egusi':[40,0],'Bole & Fish':[35,0],'Zobo Drink':[8,0],'Bread':[15,0],'Garri (1 bag)':[22,0],'Indomie Carton':[30,0],'Sachet Water':[5,0],'Bottle Water':[8,0],'Soft Drink':[10,0],'Roasted Corn':[12,0],'Corn & Ube':[18,0],'Suya (small)':[20,0],'Suya (large)':[35,0],'Gala':[10,0],'Biscuit':[6,0],'Groundnut':[6,0],'Pineapple':[12,0],'Oranges (bag)':[15,0],'Watermelon':[15,0],'Chapman':[10,0],'Malt':[8,0],'Coke':[10,0],'Paracetamol':[0,10],'Bandage Kit':[0,30],'Vitamin C':[0,10]};
+function bagUI(){bagK=Object.keys(inv).filter(n=>inv[n]>0);panel('<b>🎒 Backpack</b><p>📱 Phone</p>'+(bagK.length?bagK.map((n,i)=>'<p>'+n+' ×'+inv[n]+' '+(FX[n]?'<button data-u="'+i+'">Use</button> ':'')+(n==='Parcel'?'<i>(job item)</i>':'<button data-d="'+i+'">Drop</button>')+'</p>').join(''):'<p><i>Empty. Buy something first.</i></p>')+'<p>Cash: ₦'+f(cash)+'</p>'+(bagMsg?'<p><i>'+bagMsg+'</i></p>':''));}
+$('ib2').onclick=()=>{bagMsg='';bagUI();};
+$('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><button data-open-workplaces="1">💼 Careers & factions</button><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
+modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
+ if(d.moneyTransfer!==undefined){
+  const username=String(modal.querySelector('#moneyTransferUsername')?.value||'').trim();
+  const amount=Math.floor(Number(modal.querySelector('#moneyTransferAmount')?.value));
+  if(!/^[A-Za-z]+_[A-Za-z]+$/.test(username)){pMsg='Enter the recipient username as Firstname_lastname.';bankUI();return;}
+  if(!Number.isSafeInteger(amount)||amount<1){pMsg='Enter a positive whole amount in game currency.';bankUI();return;}
+  pMsg='Sending game currency…';bankUI();
+  window.NRS?.transferFunds(username,amount,(result)=>{
+   pMsg=result?.ok?'Transferred ₦'+f(amount)+' to '+(result.recipientUsername||username)+'.':(result?.message||'Transfer failed.');
+   money();bankUI();
+  });
+  return;
+ }
+ if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
+  if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();},'bank');return;}bankUI();}
+ else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];NRS.acceptJob(j[0],(r)=>{if(r.ok){job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
+ else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
+ else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
+function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
+ const H=Math.round(hunger),P=Math.round(hp);if(H!==lh){lh=H;$('hgv').textContent=H;$('hgb').style.width=H+'%';}if(P!==lp){lp=P;$('hpv').textContent=P;$('hpb').style.width=P+'%';}
+ beacon.visible=!!job&&!inside;
+ if(job){beacon.position.set(job.x,20,job.z);const d=Math.hypot(pos.x-job.x,pos.z-job.z);
+  if(!inside&&d<5&&job&&!job._claimed){job._claimed=true;NRS.walletChange(job.pay,0,(r)=>{if(r.ok){delete inv.Parcel;sys('Delivered! You earned ₦'+f(job.pay));jobN++;job=null;mis('<i>JOB DONE</i><b>Return to the Job Center for the next job</b>');}else{job._claimed=false;sys(r.message||'Reward failed.');}money();},'job');}
+  else mis('<i>DELIVERY</i><b>'+job.n+'</b>'+Math.round(d/5)*5+' m away');}}
+
+/* ---------- Expanded 3D map: tap the minimap or 🗺 ---------- */
+const MP={open:false,x:0,z:0,yaw:0,pitch:.85,dist:220,pan:false,fog:null},mapCam=new THREE.PerspectiveCamera(50,1,1,2500);
+const bl=$('bml'),bc=bl.getContext('2d'),V3=new THREE.Vector3(),mpt=new Map();let mp0=0;
+const mkMat=c=>new THREE.MeshBasicMaterial({color:c,fog:false,depthTest:false,transparent:true,opacity:.95});
+const pin=new THREE.Group();pin.visible=false;pin.renderOrder=20;scene.add(pin);
+const pc=new THREE.Mesh(new THREE.ConeGeometry(1,3,12),mkMat(0x4ade80));pc.rotation.x=Math.PI;pc.position.y=5;pc.renderOrder=20;pin.add(pc);
+const pr=new THREE.Mesh(new THREE.RingGeometry(1.6,2.4,24),mkMat(0xffffff));pr.rotation.x=-Math.PI/2;pr.position.y=.3;pr.renderOrder=20;pin.add(pr);
+const pa=new THREE.Mesh(new THREE.ConeGeometry(.9,2.4,3),mkMat(0x4ade80));pa.rotation.x=-Math.PI/2;pa.position.y=.4;pa.renderOrder=20;pin.add(pa);
+const myPos=()=>inside?inside.ret:pos;
+function openMap(){const p=myPos();MP.open=true;MP.x=p.x;MP.z=p.z;MP.yaw=camYaw;MP.pitch=.85;MP.dist=220;MP.pan=false;$('bmp').classList.remove('on');MP.fog=scene.fog;scene.fog=null;pin.visible=true;$('bigmap').style.display='block';document.body.classList.add('mo');modal.style.display='none';plShow(true);}
+function closeMap(){document.body.classList.remove('mo');MP.open=false;scene.fog=MP.fog;pin.visible=false;$('bigmap').style.display='none';mpt.clear();}
+$('ib3').onclick=openMap;$('mm').onclick=openMap;$('bmx').onclick=closeMap;
+$('bmm').onclick=()=>{const p=myPos();MP.x=p.x;MP.z=p.z;MP.yaw=camYaw;MP.pitch=.85;MP.dist=220;};
+$('bmp').onclick=()=>{MP.pan=!MP.pan;$('bmp').classList.toggle('on',MP.pan);};
+addEventListener('keydown',e=>{if(e.code==='KeyM'&&e.target.tagName!=='INPUT')MP.open?closeMap():openMap();});
+const pd=()=>{if(mpt.size<2)return 0;const a=[...mpt.values()];return Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);};
+bl.addEventListener('pointerdown',e=>{bl.setPointerCapture(e.pointerId);mpt.set(e.pointerId,[e.clientX,e.clientY]);mp0=pd();});
+bl.addEventListener('pointermove',e=>{const o=mpt.get(e.pointerId);if(!o)return;const dx=e.clientX-o[0],dy=e.clientY-o[1];mpt.set(e.pointerId,[e.clientX,e.clientY]);
+ if(mpt.size===2){const d=pd();if(mp0&&d)MP.dist=clamp(MP.dist*mp0/d,40,520);mp0=d;return;}
+ if(MP.pan){const k=MP.dist*.0016,s=Math.sin(MP.yaw),c=Math.cos(MP.yaw);MP.x=clamp(MP.x-dx*k*c-dy*k*s,-250,250);MP.z=clamp(MP.z+dx*k*s-dy*k*c,-250,250);}
+ else{MP.yaw-=dx*.006;MP.pitch=clamp(MP.pitch+dy*.005,.4,1.5);}});
+const mend=e=>{mpt.delete(e.pointerId);mp0=pd();};bl.addEventListener('pointerup',mend);bl.addEventListener('pointercancel',mend);
+bl.addEventListener('wheel',e=>{MP.dist=clamp(MP.dist*(1+Math.sign(e.deltaY)*.1),40,520);e.preventDefault();},{passive:false});
+function mlab(t,x,y,z,bg,fs,d){V3.set(x,y,z).project(mapCam);if(V3.z>1||Math.abs(V3.x)>1.15||Math.abs(V3.y)>1.15)return;
+ const sx=(V3.x+1)/2*bl.width,sy=(1-V3.y)/2*bl.height;bc.font='bold '+fs*d+'px system-ui';const w=bc.measureText(t).width+10*d,h=fs*d+8*d;
+ bc.fillStyle=bg;bc.fillRect(sx-w/2,sy-h/2,w,h);bc.fillStyle='#fff';bc.textAlign='center';bc.textBaseline='middle';bc.fillText(t,sx,sy+d);}
+function mapFrame(){const d=Math.min(devicePixelRatio||1,2),W=Math.round(innerWidth*d),H=Math.round(innerHeight*d);
+ if(bl.width!==W||bl.height!==H){bl.width=W;bl.height=H;}
+ const cp=Math.cos(MP.pitch);mapCam.aspect=innerWidth/innerHeight;mapCam.updateProjectionMatrix();
+ mapCam.position.set(MP.x+Math.sin(MP.yaw)*cp*MP.dist,Math.sin(MP.pitch)*MP.dist,MP.z+Math.cos(MP.yaw)*cp*MP.dist);mapCam.lookAt(MP.x,0,MP.z);
+ const p=myPos(),s=MP.dist/110;pin.position.set(p.x,0,p.z);pin.scale.setScalar(s);pa.rotation.z=inside?0:face+Math.PI;pa.visible=!inside;
+ beacon.visible=!!job;if(rtDirty){rtBuild();rtDirty=false;}rtG.visible=true;renderer.render(scene,mapCam);rtG.visible=false;
+ bc.clearRect(0,0,W,H);
+ ZN.forEach(a=>mlab(a.n,(a.x1+a.x2)/2,10,(a.z1+a.z2)/2,'rgba(15,91,58,.85)',15,d));
+ HR.forEach(r=>mlab(r[1],-150,2,r[0],'rgba(29,74,138,.85)',12,d));VR.forEach(r=>mlab(r[1],r[0],2,(r[2]+r[3])/2,'rgba(29,74,138,.85)',12,d));
+ if(MP.dist<150)for(const q of POI)mlab(q.name,q.x,4,q.z,'rgba(190,100,20,.9)',11,d);
+ for(const s of FS)mlab('⛽ '+s.brand+' · '+s.road,s.x,8,s.z,s.bg,12,d);
+ if(job)mlab('📦 Drop-off',job.x,30,job.z,'rgba(190,150,0,.95)',14,d);
+ if(NAV)mlab('🏁 '+NAV.name,NAV.x,34,NAV.z,'rgba(210,30,45,.95)',14,d);plTick();
+ mlab('YOU',p.x,9*s+2,p.z,'rgba(20,120,60,.95)',14,d);}
+
+/* ---------- v11: route to task, ✉ chat, driving HUD ---------- */
+let ROUTE=null,rtT=0,rtDirty=false;
+function buildRoute(sx,sz,ex,ez){
+ const rs=[];HR.forEach(r=>rs.push({h:1,c:r[0],a:r[2],b:r[3],p:[]}));VR.forEach(r=>rs.push({h:0,c:r[0],a:r[2],b:r[3],p:[]}));
+ const N={},nd=(x,z)=>{const k=Math.round(x*4)+'_'+Math.round(z*4);return N[k]||(N[k]={x,z,e:[],d:1e9,pv:null});};
+ rs.forEach(a=>{if(a.h)rs.forEach(b=>{if(!b.h&&b.c>=a.a&&b.c<=a.b&&a.c>=b.a&&a.c<=b.b){const n=nd(b.c,a.c);a.p.push(n);b.p.push(n);}});});
+ const snap=(x,z)=>{let bd=1e9,br=null,bp=null;rs.forEach(r=>{const al=clamp(r.h?x:z,r.a,r.b),px=r.h?al:r.c,pz=r.h?r.c:al,d=Math.hypot(x-px,z-pz);if(d<bd){bd=d;br=r;bp=[px,pz];}});const n=nd(bp[0],bp[1]);br.p.push(n);return n;};
+ const s=snap(sx,sz),e=snap(ex,ez);
+ rs.forEach(r=>{const u=[...new Set(r.p)].sort((m,n)=>r.h?m.x-n.x:m.z-n.z);for(let i=1;i<u.length;i++){const w=Math.hypot(u[i].x-u[i-1].x,u[i].z-u[i-1].z);u[i].e.push([u[i-1],w]);u[i-1].e.push([u[i],w]);}});
+ s.d=0;const open=new Set(Object.values(N));
+ while(open.size){let c=null;open.forEach(n=>{if(!c||n.d<c.d)c=n;});if(c.d>=1e9||c===e)break;open.delete(c);c.e.forEach(([n,w])=>{if(c.d+w<n.d){n.d=c.d+w;n.pv=c;}});}
+ const pth=[];for(let n=e;n;n=n.pv)pth.push([n.x,n.z]);pth.reverse();
+ return [[sx,sz]].concat(pth,[[ex,ez]]);}
+let NAV=null;
+function routeTick(dt){const T=NAV||job;nbc.visible=!!NAV&&!inside;
+ if(!T||(inside&&!NAV)){if(ROUTE){ROUTE=null;rtDirty=true;}return;}
+ rtT-=dt;if(rtT>0)return;rtT=.35;const p=myPos();
+ if(NAV&&((!inside&&Math.hypot(p.x-NAV.x,p.z-NAV.z)<NAV.r)||(inside&&inside.name===NAV.name))){navStop('📍 You have arrived: '+NAV.name);return;}
+ ROUTE=buildRoute(p.x,p.z,T.x,T.z);rtDirty=true;
+ if(NAV){let L=0;for(let i=1;i<ROUTE.length;i++)L+=Math.hypot(ROUTE[i][0]-ROUTE[i-1][0],ROUTE[i][1]-ROUTE[i-1][1]);NAV.dist=L;navUI();}}
+const rtG=new THREE.Group();rtG.visible=false;scene.add(rtG);
+const rtM=new THREE.MeshBasicMaterial({color:0xff2a3a,fog:false,side:THREE.DoubleSide}),rtPl=new THREE.PlaneGeometry(1,1),rtDc=new THREE.CircleGeometry(1,14);
+function rtBuild(){while(rtG.children.length)rtG.remove(rtG.children[0]);if(!ROUTE)return;
+ for(let i=1;i<ROUTE.length;i++){const a=ROUTE[i-1],b=ROUTE[i],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz);if(L<.1)continue;
+  const m=new THREE.Mesh(rtPl,rtM);m.rotation.order='YXZ';m.rotation.set(-Math.PI/2,-Math.atan2(dz,dx),0);m.scale.set(L,3.6,1);m.position.set((a[0]+b[0])/2,.2,(a[1]+b[1])/2);rtG.add(m);}
+ ROUTE.forEach(q=>{const m=new THREE.Mesh(rtDc,rtM);m.rotation.x=-Math.PI/2;m.scale.set(1.8,1.8,1);m.position.set(q[0],.2,q[1]);rtG.add(m);});}
+
