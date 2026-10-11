@@ -579,7 +579,8 @@
         if (message.ok && message.job) job = message.job;
         cb?.(message);
       } else if (message.type === "marketState" || message.type === "marketSaleResult" ||
-                 message.type === "marketSaleNotice" || message.type === "marketCommissionResult") {
+                 message.type === "marketSaleNotice" || message.type === "marketCommissionResult" ||
+                 message.type === "marketRestockResult") {
         if (message.products || message.availableSellers || message.salesHistory) {
           N.marketState = { ...(N.marketState || {}), ...message };
           window.dispatchEvent(new CustomEvent("nrs-market-state", { detail: N.marketState }));
@@ -597,6 +598,8 @@
           window.dispatchEvent(new CustomEvent("nrs-market-sale-result", { detail: message }));
         } else if (message.type === "marketCommissionResult") {
           window.dispatchEvent(new CustomEvent("nrs-market-commission-result", { detail: message }));
+        } else if (message.type === "marketRestockResult") {
+          window.dispatchEvent(new CustomEvent("nrs-market-restock-result", { detail: message }));
         } else if (message.type === "marketSaleNotice") {
           window.dispatchEvent(new CustomEvent("nrs-market-sale-notice", { detail: message }));
           if (message.message) sys(message.message);
@@ -908,6 +911,8 @@
   N.placeMarketOrder = (sellerId, productId, quantity, orderId = stage4RequestId("market")) =>
     send({ type: "marketSale", sellerId, productId, quantity, orderId });
   N.claimMarketCommission = () => send({ type: "claimMarketCommission" });
+  N.restockMarket = (productId, quantity, requestId = stage4RequestId("restock")) =>
+    send({ type: "marketRestock", productId, quantity, requestId });
   N.getBankState = () => send({ type: "getBankState" });
   N.processBankTransaction = (customerId, transactionType, amount, requestId = stage4RequestId("bank")) =>
     send({ type: "bankTransaction", customerId, transactionType, amount, requestId });
