@@ -8,7 +8,7 @@
     "services/web-client"
   ],
   "scripts": {
-    "build": "npm run build --workspace nigeria-rp-game-server && npm run build --workspace nigeria-rp-web-client",
+    "build": "npm run build --workspace nigeria-rp-game-server && npm run build --workspace nigeria-rp-web-client && npm run test:stage18 --workspace nigeria-rp-game-server",
     "start": "npm run start --workspace nigeria-rp-game-server",
     "typecheck": "npm run typecheck --workspace nigeria-rp-game-server && npm run typecheck --workspace nigeria-rp-web-client",
     "web:dev": "npm run dev --workspace nigeria-rp-web-client",
