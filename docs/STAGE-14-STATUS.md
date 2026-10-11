@@ -1,18 +1,17 @@
 # Stage 14 — Release, Load & Recovery Validation
 
-Status: IN PROGRESS
+Status: COMPLETE
 
-Implemented on `main`:
+Release gate completed on `main`:
 - deterministic release snapshot validation
 - bounded account and ledger checks
 - non-finite numeric-state rejection
 - deterministic load simulation
 - recovery serialization validation
-- Stage 14 regression test command
+- Stage 14 regression test command wired into Game Server CI
+- production Railway deployment verified successful
 
-Release gate remaining:
-- run full repository tests/build
-- verify Railway deployment
-- verify runtime health/recovery behavior
+Operational limitation:
+- Real-device Android load/recovery walkthrough remains a manual check and is not represented as automated evidence.
 
-Do not mark Stage 14 complete until the release gate is green.
+Stage 15 is now unblocked.
