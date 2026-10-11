@@ -432,10 +432,13 @@ export function purchaseHospitalMedicine(args: {
   if (currentInventory + args.quantity > 9999) return { ok: false, reason: "inventory_limit" };
   const total = medicine.unitPrice * args.quantity;
   if (!Number.isSafeInteger(total) || cash < total) return { ok: false, reason: "insufficient_cash" };
+  const currentTill = Number(args.state.hospital.pharmacyTill[hospitalId] ?? 0);
+  if (!Number.isSafeInteger(currentTill) || currentTill < 0 ||
+      currentTill > Number.MAX_SAFE_INTEGER - total) return { ok: false, reason: "balance_limit" };
   const now = safeTimestamp(args.now);
   if (!now) return { ok: false, reason: "invalid_timestamp" };
   args.state.hospital.pharmacyStock[stockKey] = stock - args.quantity;
-  args.state.hospital.pharmacyTill[hospitalId] = Math.min(Number.MAX_SAFE_INTEGER, args.state.hospital.pharmacyTill[hospitalId] + total);
+  args.state.hospital.pharmacyTill[hospitalId] = currentTill + total;
   args.state.hospital.completedPharmacyKeys[key] = true;
   args.inventory[medicine.inventoryItem] = currentInventory + args.quantity;
   const receipt: PharmacyReceipt = {
