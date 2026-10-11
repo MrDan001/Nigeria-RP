@@ -1984,7 +1984,15 @@ wss.on("connection", (socket) => {
           if (newRank === BOSS_RANK) {
             const formerBossId = world.bosses[workplaceId] ?? null;
             if (formerBossId && formerBossId !== targetId) {
+              const formerBossName = players.get(formerBossId)?.player.name ?? world.bossNames[workplaceId] ?? "Former workplace boss";
               await setAccountEmployment(formerBossId, workplaceId, MAX_STAFF_RANK);
+              appendAdminAudit(
+                session,
+                formerBossId,
+                formerBossName,
+                "rank_change",
+                workplaceId + " -> rank " + MAX_STAFF_RANK + " after boss replacement",
+              );
             }
             world.bosses[workplaceId] = targetId;
             world.bossNames[workplaceId] = target?.player.name ?? account?.username ?? null;
@@ -2051,7 +2059,17 @@ wss.on("connection", (socket) => {
           return;
         }
         const oldBossId = world.bosses[workplaceId] ?? null;
-        if (oldBossId && oldBossId !== targetId) await setAccountEmployment(oldBossId, workplaceId, MAX_STAFF_RANK);
+        if (oldBossId && oldBossId !== targetId) {
+          const oldBossName = players.get(oldBossId)?.player.name ?? world.bossNames[workplaceId] ?? "Former workplace boss";
+          await setAccountEmployment(oldBossId, workplaceId, MAX_STAFF_RANK);
+          appendAdminAudit(
+            session,
+            oldBossId,
+            oldBossName,
+            "rank_change",
+            workplaceId + " -> rank " + MAX_STAFF_RANK + " after boss replacement",
+          );
+        }
         await setAccountEmployment(targetId, workplaceId, BOSS_RANK);
         world.bosses[workplaceId] = targetId;
         world.bossNames[workplaceId] = targetAccount.username;
