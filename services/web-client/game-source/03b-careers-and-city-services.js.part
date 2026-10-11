@@ -1,0 +1,201 @@
+/* ---------- Stage 3: careers, work tasks and roleplay factions ---------- */
+let workplaceMenuOpen=false,workplaceRefreshTimer=null;
+const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let forbesBoardOpen=false;
+function openForbesBoard(){
+ forbesBoardOpen=true;
+ panel('<div class="wm-head"><span>🏆</span><div><small>RIVERS NEWS NETWORK · FORBES</small><h2>Top 10 Richest Players</h2><p>Live ranking by total cash plus bank balance.</p></div></div><p class="forbes-intro">This board displays in-game currency only; it does not include real money.</p><div id="forbesRanking" class="forbes-ranking"><p class="wm-loading">Loading the richest citizens…</p></div><button id="forbesRefresh" class="forbes-refresh" type="button">Refresh rankings</button>');
+ modal.classList.add('forbes-menu');
+ $('forbesRefresh').onclick=()=>window.NRS?.getRichestPlayers();
+ window.NRS?.getRichestPlayers();
+}
+window.addEventListener('nrs-richest-players',e=>{
+ const payload=e.detail||{},players=Array.isArray(payload.players)?payload.players:[];
+ drawForbesPhysicalSign(players);
+ if(!forbesBoardOpen)return;
+ const root=$('forbesRanking');if(!root)return;
+ if(!players.length){root.innerHTML='<p class="wm-note">'+safeText(payload.message||'No wealth records are available yet. Refresh in a moment.')+'</p>';return;}
+ root.innerHTML=players.map((p,i)=>'<div class="forbes-row tier-'+(i+1)+'"><span class="forbes-rank">'+String(i+1).padStart(2,'0')+'</span><span class="forbes-name">'+safeText(p.username||'Citizen')+'</span><strong class="forbes-wealth">₦'+Math.max(0,Math.floor(Number(p.totalWealth)||0)).toLocaleString('en-NG')+'</strong></div>').join('');
+});
+function openWorkplaceMenu(){openWorkplaceMenuFor(null);}
+function openWorkplaceMenuFor(workplaceId){governmentMenuOpen=false;workplaceMenuOpen=true;window.NRS.workplaceFocus=workplaceId||null;panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2></div></div><p class="wm-loading">Loading workplace and faction records…</p>');modal.classList.add('work-menu');modal.style.display='flex';const N=window.NRS;if(N?.getWorkplaces)N.getWorkplaces();else panel('<b>Careers & factions</b><p>The online connection is not ready. Please reconnect and try again.</p>');}
+function openPlayerInteractionMenu(target){
+ const N=window.NRS||{},id=String(target?.playerId||'');if(!id||id===N.session?.id)return;
+ const username=safeText(target.name||'Player'),employment=N.workplaceState?.employment||N.life?.employment||null;
+ const workplace=(N.workplaceState?.workplaces||N.workplaces||[]).find(w=>w.id===employment?.workplaceId);
+ const ready=!!employment?.onDuty&&employment?.uniformWorkplaceId===employment?.workplaceId;
+ let actions='<button data-player-action="greet" data-player-id="'+safeText(id)+'">👋 Greet player</button>';
+ if(ready&&workplace?.kind==='hospital')actions+='<button data-hospital-open="'+safeText(workplace.id)+'">🩺 Open hospital services</button>';
+ if(ready&&['police','frsc'].includes(workplace?.kind))actions+='<button data-player-action="requestId" data-player-id="'+safeText(id)+'">🪪 Request identification</button>';
+ panel('<div class="wm-head"><span>🤝</span><div><small>NEARBY CITIZEN</small><h2>'+username+'</h2><p>Hold on a nearby player to open this contextual menu.</p></div></div><p class="wm-note">Choose an action appropriate to your role and situation. The server verifies range, duty status and uniform.</p><div class="wm-buttons">'+actions+'</div>');
+ modal.classList.add('work-menu');modal.style.display='flex';
+}
+function renderWorkplaceMenu(data){
+ if(!workplaceMenuOpen||!data)return;
+ const allPlaces=data.workplaces||window.NRS?.workplaces||[];const focus=window.NRS?.workplaceFocus;
+ // Building entrances show only the configured workplace; the Careers tab (no focus)
+ // remains the central directory. This is also reflected in the rendered card list.
+ const places=focus?allPlaces.filter(w=>w.id===focus):allPlaces;
+ const employment=data.employment??window.NRS?.life?.employment??null,online=data.onlinePlayers||[],task=data.activeTask||null;
+ const workHistory=(data.workHistory||[]).slice(-5).reverse();
+ const historyPanel=workHistory.length?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4>'+workHistory.map(entry=>'<div class="wm-person"><span><b>'+safeText(entry.taskTitle||'Work task')+'</b><small>'+safeText(allPlaces.find(w=>w.id===entry.workplaceId)?.name||entry.workplaceId||'Workplace')+' · Rank '+Number(entry.rank||1)+' · '+new Date(Number(entry.paidAt)||0).toLocaleString('en-NG')+'</small></span><strong>+₦'+Number(entry.amount||0).toLocaleString('en-NG')+'</strong></div>').join('')+'</section>':employment?'<section class="wm-management wm-work-history"><h4>Recent paid work</h4><p class="wm-note">Your completed task receipts will appear here after your first paid task.</p></section>':'';
+ let intro=employment?'<div class="wm-current"><div><small>YOUR CURRENT ROLE</small><b>'+safeText(places.find(w=>w.id===employment.workplaceId)?.name||employment.workplaceId)+'</b><span>'+safeText(places.find(w=>w.id===employment.workplaceId)?.rankTitle||'Rank '+employment.rank)+'</span></div><strong class="'+(employment.onDuty?'on':'off')+'">'+(employment.onDuty?'ON DUTY':'OFF DUTY')+'</strong></div>':'<div class="wm-current"><div><small>CAREER STATUS</small><b>Unemployed</b><span>Choose a workplace or faction below.</span></div><strong class="off">OFF DUTY</strong></div>';
+ let cards=places.map(w=>{
+  const me=employment?.workplaceId===w.id, ownBoss=!!w.canManage, pending=!!w.hasApplied, running=task?.workplaceId===w.id, remain=running?Math.max(0,(task.durationMs||10000)-(task.elapsedMs||0)):0;
+  let actions='';
+  if(me){
+   actions+='<button data-staff-room="'+w.id+'" '+(employment.onDuty?'disabled':'')+'>'+(inside?.isWorkplaceInterior&&inside.workplaceId===w.id?'🚪 Enter staff changing room':'🏢 Enter workplace reception')+'</button>';
+   actions+='<div class="wm-buttons"><button data-work-duty="'+w.id+'" data-duty="'+(!employment.onDuty)+'">'+(employment.onDuty?'Clock out':'Clock in')+'</button><button class="subtle" data-work-leave="1">Leave job</button></div>';
+   if(employment.onDuty){
+    if(running){actions+='<div class="wm-task-running"><small>IN PROGRESS</small><b>'+safeText(w.tasks?.find(t=>t.id===task.taskId)?.title||'Work task')+'</b><span data-work-countdown="'+Math.ceil(remain/1000)+'">'+(remain>0?'Ready in '+Math.ceil(remain/1000)+'s':'Task ready to complete')+'</span><button data-work-task-complete="1" '+(remain>0?'disabled':'')+'>Complete task</button></div>';}
+    else if(Date.now()<(Number(data.taskReadyAt)||0)){actions+='<p class="wm-note">Next paid task available in '+Math.ceil((Number(data.taskReadyAt)-Date.now())/1000)+'s.</p>';}
+    else {actions+='<div class="wm-task-list">'+(w.tasks||[]).map(t=>'<button data-work-task-start="'+t.id+'"><span>'+safeText(t.title)+'</span><strong>₦'+Number(t.pay||t.basePay).toLocaleString('en-NG')+'</strong><small>10-second task</small></button>').join('')+'</div>';}
+   }
+  }else if(pending){actions+='<div class="wm-pending">Application awaiting approval</div>';}
+  else if(employment){actions+='<button class="subtle" disabled>Leave your current job first</button>';}
+  else {actions+='<button data-work-apply="'+w.id+'">'+(w.requiresApproval?'Apply to faction':'Join workplace')+'</button>';}
+  let management='';
+  if(data.isFactionAdmin){
+   const targets=online.map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+(p.workplaceId?' — '+safeText(places.find(q=>q.id===p.workplaceId)?.name||p.workplaceId):' — unemployed')+'</option>').join('');
+   const ranks=(w.rankTitles||[]).map((titles,i)=>'<option value="'+(i+1)+'">Rank '+(i+1)+' — '+safeText(titles?.[0]||('Rank '+(i+1)))+'</option>').join('');
+   const staff=(w.staff||[]).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>'+safeText(p.rankTitle)+' · Rank '+p.rank+(p.onDuty?' · On duty':'')+'</small></span><span class="wm-admin-tag">'+(p.boss?'BOSS':'STAFF')+'</span></div>').join('');
+   management='<div class="wm-management"><h4>GLOBAL ADMIN CONTROLS</h4><p class="wm-note">Full faction administration: assign any online player to this workplace and choose any rank from 1 to 6.</p><div class="wm-admin-controls">'+(targets?'<select data-admin-target aria-label="Choose player">'+targets+'</select>':'<p class="wm-note">No online players are available.</p>')+'<select data-admin-rank-value aria-label="Choose rank">'+ranks+'</select><div class="wm-admin-buttons"><button data-admin-set-rank="'+w.id+'" '+(!targets?'disabled':'')+'>Assign workplace & rank</button><button class="subtle" data-admin-dismiss="'+w.id+'" '+(!targets?'disabled':'')+'>Remove from workplace</button></div></div><button data-admin-set-rank="'+w.id+'" data-rank-fixed="6" '+(!targets?'disabled':'')+'>Appoint selected player as boss (Rank 6)</button><h4>ONLINE STAFF</h4>'+(staff||'<p class="wm-note">No online staff currently belong to this workplace.</p>')+'</div>';
+  }else if(ownBoss){
+   const staff=(w.staff||[]).filter(p=>p.id!==window.NRS?.session?.id && p.rank<6).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>'+safeText(p.rankTitle)+' · Rank '+p.rank+(p.onDuty?' · On duty':'')+'</small></span><div>'+(p.rank<5?'<button data-staff-rank="'+safeText(p.id)+'" data-rank="'+(p.rank+1)+'">Promote</button>':'')+(p.rank>1?'<button class="subtle" data-staff-rank="'+safeText(p.id)+'" data-rank="'+(p.rank-1)+'">Demote</button>':'')+'<button class="danger" data-staff-dismiss="'+safeText(p.id)+'">Dismiss</button></div></div>').join('');
+   const applications=(w.applications||[]).map(p=>'<div class="wm-person"><span><b>'+safeText(p.name)+'</b><small>Application submitted</small></span><div><button data-app-review="'+safeText(p.id)+'" data-approve="1">Accept</button><button class="danger" data-app-review="'+safeText(p.id)+'" data-approve="0">Decline</button></div></div>').join('');
+   const free=online.filter(p=>!p.workplaceId&&p.id!==window.NRS?.session?.id).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+'</option>').join('');
+   management='<div class="wm-management"><h4>Staff management</h4>'+(staff||'<p class="wm-note">No other online staff yet.</p>')+(applications?'<h4>Applications</h4>'+applications:'')+(free?'<div class="wm-hire"><select id="wmHirePlayer">'+free+'</select><button data-staff-hire="1">Hire player</button></div>':'')+'</div>';
+  }
+  const faction=w.faction||{};
+  const rankLadder='<details class="wm-rank-ladder"><summary>View six-rank ladder & pay</summary><div class="wm-rank-list">'+(w.rankTitles||[]).map((titles,i)=>'<div class="wm-rank-row"><span>Rank '+(i+1)+'</span><b>'+safeText((titles||[]).join(' / ')||('Rank '+(i+1)))+'</b><small>'+Number(w.rankMultipliers?.[i]??1)+'× pay</small></div>').join('')+'</div></details>';
+  const stage4Shortcut=w.id==='transport-union' ? '<section class="s4-card"><h3>🚐 Public transport & haulage</h3><p class="s4-muted">Request passenger rides, operate the company fleet, validate route stops and complete delivery contracts.</p><button data-transport-open="1">Open transport terminal</button></section>' : w.id==='market-mile1'
+    ?'<section class="s4-card"><h3>🛒 Mile 1 Market</h3><p class="s4-muted">Shop from verified on-duty salespeople. Purchased goods are added to your backpack.</p><button data-market-open="1">Open market & product catalogue</button></section>'
+    :w.id==='bank-main'
+      ?'<section class="s4-card"><h3>🏦 Port Harcourt Bank</h3><p class="s4-muted">View your bank receipts or open the teller workstation when you are on duty in uniform.</p><button data-bank-open="1">Open banking services</button></section>'
+      :(w.id==='hospital-main'||w.id==='hospital-princess')
+        ?'<section class="s4-card"><h3>🩺 Hospital & patient services</h3><p class="s4-muted">Request care, meet available nurses and doctors, follow treatment requests, or help patients when you are on duty.</p><button data-hospital-open="'+w.id+'">Open hospital services</button></section>'
+        :w.id==='gov-rivers'
+       ?'<section class="s4-card"><h3>🏛 Rivers State Government</h3><p class="s4-muted">Official notices, transparent treasury receipts, daily payroll and Governor-authorized spending.</p><button data-government-open="1">Open government & civic finance</button></section>'
+       :w.id==='news-main'
+          ?'<section class="s4-card"><h3>📰 Rivers News Network</h3><p class="s4-muted">File event-based stories, approve editorial copy, broadcast approved reports and review content reports.</p><button data-news-open="newsroom">Open newsroom & broadcast desk</button><button class="subtle" data-news-open="feed">Read live news feed</button></section>'
+       :w.id==='park-main'
+          ?'<section class="s4-card"><h3>🌳 City Park visitor services</h3><p class="s4-muted">Buy a daily visitor pass from a ticket seller, ask for help, or respond to visitor requests as park staff.</p><button data-park-open="1">Open park services</button></section>'
+          :'';
+  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+stage4Shortcut+management+'</article>';
+ }).join('');
+ const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
+ panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div><button data-stage7-open="1">🚨 Police, traffic, fire & public-safety incidents</button><button class="subtle" data-news-open="feed">📰 Read Rivers News Network</button><button class="subtle" data-transport-open="1">🚐 Public transport & haulage</button>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
+ modal.classList.add('work-menu');modal.style.display='flex';
+}
+
+
+/* Stage 7 — Public-safety incident and responder console */
+let stage7MenuOpen = false, stage7Feedback = null;
+const stage7IncidentTitle = k => ({crime:"Crime report","traffic-accident":"Traffic accident",fire:"Fire / rescue","public-safety":"Major public-safety event"}[k] || "Incident");
+const stage7UnitTitle = id => ({"police-rivers":"Police","army-rivers":"Army","frsc-rivers":"FRSC","fire-rivers":"Fire Service"}[id] || id || "Unassigned");
+const stage7Id = id => String(id || "").replace(/[^a-z0-9_-]/gi,"_");
+function openStage7Console() {
+  stage7MenuOpen=true; stage7Feedback=null; governmentMenuOpen=false; workplaceMenuOpen=false;
+  marketMenuOpen=false; bankMenuOpen=false; hospitalMenuOpen=false; parkMenuOpen=false;
+  panel('<div class="s4-head"><span class="s4-icon">🚨</span><div><small>PORT HARCOURT · PUBLIC SAFETY</small><h2>Emergency & law enforcement</h2><p>Report incidents, dispatch responders and keep an accountable audit trail.</p></div></div><div class="s4-empty">Loading incident board…</div>');
+  modal.classList.add("stage4-menu"); window.NRS?.getStage7State();
+}
+function renderStage7Console(d) {
+  if (!stage7MenuOpen) return; d=d || window.NRS?.stage7State || {};
+  const incidents=Array.isArray(d.incidents)?d.incidents:[], actions=Array.isArray(d.actions)?d.actions:[], citizens=Array.isArray(d.citizens)?d.citizens:[], checkpoints=Array.isArray(d.checkpoints)?d.checkpoints:[], appeals=Array.isArray(d.appeals)?d.appeals:[];
+  const feedback=stage7Feedback?'<div class="s4-notice '+(stage7Feedback.ok?"success":"error")+'">'+safeText(stage7Feedback.message||"")+'</div>':"";
+  const activeCount=incidents.filter(i=>i.status!=="resolved").length, detention=d.myDetention;
+  const responder=d.canRespond?'<div class="s4-notice success">Responder verified: '+safeText(d.unitName)+' · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">Citizen reporting is open. Response actions require the correct organisation, rank, duty status and uniform.</div>';
+  const reportForm='<section class="s4-card"><h3>📣 Report a public-safety incident</h3><p class="s4-muted">The server records your current location. False reports may be reviewed.</p><label class="s4-field">Incident type<select id="s7IncidentKind"><option value="crime">Crime / suspicious activity</option><option value="traffic-accident">Traffic accident</option><option value="fire">Fire / rescue</option><option value="public-safety">Major public-safety event</option></select></label><label class="s4-field">What happened?<textarea id="s7IncidentDescription" rows="3" maxlength="240" placeholder="Describe the event and any immediate danger"></textarea></label><button data-stage7-report="1">Submit incident report</button></section>';
+  const targetOptions='<option value="">Select online citizen</option>'+citizens.filter(p=>p.id!==d.selfId).map(p=>'<option value="'+safeText(p.id)+'">'+safeText(p.name)+'</option>').join("");
+  const incidentCards=incidents.length?'<div class="s4-list">'+incidents.map(i=>{
+    const id=stage7Id(i.id),done=i.status==="resolved",assigned=i.assignedWorkplaceId===d.workplaceId; let controls="";
+    if(d.canRespond&&!done&&!i.assignedWorkplaceId)controls+='<button data-stage7-dispatch="'+safeText(i.id)+'">Dispatch '+safeText(d.unitName||stage7UnitTitle(d.workplaceId))+'</button>';
+    if(!done&&assigned&&d.canInvestigate&&(i.kind==="crime"||i.kind==="public-safety")){
+      controls+='<label class="s4-field">Reason / investigation lead<input id="s7Reason_'+id+'" maxlength="500" placeholder="Reason for action"></label><label class="s4-field">Evidence / witness notes<textarea id="s7Evidence_'+id+'" maxlength="500" rows="2" placeholder="Record supporting evidence"></textarea></label><button data-stage7-investigate="'+safeText(i.id)+'">Save investigation note</button>';
+      controls+='<label class="s4-field">Suspect to arrest<select id="s7Target_'+id+'">'+targetOptions+'</select></label><button data-stage7-arrest="'+safeText(i.id)+'">Record arrest & temporary custody</button>';
+    }
+    if(!done&&assigned&&d.canFine&&(i.kind==="traffic-accident"||i.kind==="public-safety")){
+      controls+='<label class="s4-field">Fine recipient<select id="s7FineTarget_'+id+'">'+targetOptions+'</select></label><label class="s4-field">Offence<select id="s7Offence_'+id+'"><option value="speeding">Speeding</option><option value="illegal-parking">Illegal parking</option><option value="reckless-driving">Reckless driving</option><option value="dangerous-driving">Dangerous driving</option><option value="unsafe-load">Unsafe / unsecured load</option><option value="obstructing-emergency">Obstructing emergency response</option></select></label><label class="s4-field">Fine amount (₦)<input id="s7FineAmount_'+id+'" type="number" min="1" step="1" inputmode="numeric" placeholder="5000"></label><label class="s4-field">Fine reason<input id="s7FineReason_'+id+'" maxlength="500" placeholder="Reason for fine"></label><label class="s4-field">Evidence<textarea id="s7FineEvidence_'+id+'" maxlength="500" rows="2" placeholder="Observation / supporting evidence"></textarea></label><button data-stage7-fine="'+safeText(i.id)+'">Settle fine & credit state treasury</button>';
+    }
+    if(!done&&assigned&&d.canResolveFire&&i.kind==="fire")controls+='<label class="s4-field">Extinguishing & safety outcome<textarea id="s7Outcome_'+id+'" rows="2" maxlength="300" placeholder="Record extinguishing and scene safety"></textarea></label><button data-stage7-extinguish="'+safeText(i.id)+'">Record fire extinguished</button>';
+    if(!done&&assigned&&d.canClearTraffic&&i.kind==="traffic-accident")controls+='<label class="s4-field">Traffic response & road clearance<textarea id="s7Road_'+id+'" rows="2" maxlength="300" placeholder="Record actions and road condition"></textarea></label><button data-stage7-clear="'+safeText(i.id)+'">Record response & clear road</button>';
+    if(!done&&assigned&&d.canCloseCase&&(i.kind==="crime"||i.kind==="public-safety"))controls+='<label class="s4-field">Case closure reason<input id="s7CloseReason_'+id+'" maxlength="500" placeholder="Closure reason"></label><label class="s4-field">Final evidence / outcome<textarea id="s7CloseEvidence_'+id+'" maxlength="500" rows="2" placeholder="Outcome supporting closure"></textarea></label><button data-stage7-close="'+safeText(i.id)+'">Close Police case</button>';
+    return '<div class="s4-card"><h3>'+(done?"✅":"🟠")+' '+safeText(stage7IncidentTitle(i.kind))+' · '+safeText(String(i.status||"open").toUpperCase())+'</h3><p>'+safeText(i.description||"No description")+'</p><p class="s4-muted">Ref '+safeText(i.id)+' · Reporter '+safeText(i.reporterName)+' · '+stage5When(i.createdAt)+'</p><p class="s4-muted">Server location X '+Number(i.x).toFixed(1)+' · Z '+Number(i.z).toFixed(1)+' · Assigned '+safeText(stage7UnitTitle(i.assignedWorkplaceId))+'</p>'+(i.resolution?'<div class="s4-notice success">'+safeText(i.resolution)+'</div>':"")+controls+'</div>';
+  }).join("")+'</div>':'<div class="s4-empty">No incidents yet. Reports will appear here for the relevant response unit.</div>';
+  const activeCps=checkpoints.filter(c=>c.active);
+  const checkpointPanel=d.canActivateCheckpoint?'<section class="s4-card"><h3>🪖 Restricted checkpoint control</h3><p class="s4-muted">Army rank 2+; activation is location-checked and expires after 20 minutes.</p><label class="s4-field">Checkpoint<select id="s7Checkpoint">'+checkpoints.map(c=>'<option value="'+safeText(c.id)+'">'+safeText(c.name)+(c.active?" · ACTIVE":"")+'</option>').join("")+'</select></label><button data-stage7-activate="1">Activate checkpoint</button></section>':"";
+  const checkpointClose=activeCps.length&&(d.canReviewAppeals||(d.workplaceId==="army-rivers"&&Number(d.rank)>=4&&d.canRespond))?'<section class="s4-card"><h3>Checkpoint closure</h3>'+activeCps.map(c=>'<label class="s4-field">'+safeText(c.name)+' closure reason<input id="s7DeactivateReason_'+stage7Id(c.id)+'" maxlength="240" placeholder="Why close this checkpoint?"></label><button class="subtle" data-stage7-deactivate="'+safeText(c.id)+'">Deactivate checkpoint</button>').join("")+'</section>':"";
+  const detentionPanel=detention?'<section class="s4-card"><h3>⛓ Temporary custody</h3><p class="s4-muted">Incident '+safeText(detention.incidentId)+' · Arresting officer '+safeText(detention.arrestedByName)+' · Expires in '+Math.ceil(Number(detention.remainingMs||0)/1000)+' seconds.</p><p>'+safeText(detention.reason)+'</p>'+(detention.appealRequested?'<div class="s4-notice">Your appeal is awaiting independent review.</div>':'<label class="s4-field">Appeal reason<textarea id="s7AppealReason" maxlength="500" rows="3" placeholder="Explain why the detention should be reviewed"></textarea></label><button data-stage7-appeal="1">Request appeal review</button>')+'<button class="subtle" data-stage7-escape="1" '+(!detention.canAttemptEscape?"disabled":"")+'>Attempt escape'+(!detention.canAttemptEscape?" · not yet available":"")+'</button></section>':"";
+  const appealQueue=d.canReviewAppeals&&appeals.length?'<section class="s4-card"><h3>⚖ Independent detention appeals</h3>'+appeals.map(a=>'<div class="s4-row"><span><b>'+safeText(a.targetName)+'</b><small>Arrested by '+safeText(a.arrestedByName)+' · '+safeText(a.incidentId)+'</small><p>'+safeText(a.reason)+'</p></span></div><label class="s4-field">Review rationale<input id="s7AppealReview_'+stage7Id(a.targetId)+'" maxlength="500" placeholder="Record independent review"></label><div class="wm-buttons"><button data-stage7-review="release" data-target="'+safeText(a.targetId)+'">Accept & release</button><button class="subtle" data-stage7-review="deny" data-target="'+safeText(a.targetId)+'">Deny appeal</button></div>').join("")+'</section>':"";
+  const logs=actions.length?'<div class="s4-list">'+actions.map(a=>'<div class="s4-row"><span><b>'+safeText(a.type.replace(/-/g," "))+'</b><small>'+safeText(a.actorName)+' · '+stage5When(a.at)+'</small><small>'+safeText(a.details||a.reason||a.evidence||a.incidentId||"Action logged")+(a.targetName?" · target "+safeText(a.targetName):"")+'</small></span><strong>'+(a.amount?"₦"+Number(a.amount).toLocaleString("en-NG"):(a.success?"RECORDED":"BLOCKED"))+'</strong></div>').join("")+'</div>':'<div class="s4-empty">Response, dispatch, arrest, fine, appeal and checkpoint changes appear here.</div>';
+  panel('<div class="s4-head"><span class="s4-icon">🚨</span><div><small>STAGE 7 · PUBLIC SAFETY</small><h2>Emergency & law enforcement</h2><p>Police · Army · FRSC · Fire Service</p></div></div><div class="s4-kpis"><div class="s4-kpi"><small>Open incidents</small><strong>'+activeCount+'</strong></div><div class="s4-kpi"><small>State treasury</small><strong>'+stage5Money(d.treasuryBalance)+'</strong></div><div class="s4-kpi"><small>Your duty</small><strong>'+(d.canRespond?"ON DUTY":"CITIZEN")+'</strong></div></div>'+responder+feedback+reportForm+detentionPanel+incidentCards+checkpointPanel+checkpointClose+appealQueue+'<div class="s4-sectiontitle">Recent public-safety audit trail <small>'+actions.length+' ENTRIES</small></div>'+logs+'<button class="subtle" data-stage7-refresh="1">Refresh incident board</button>');
+  modal.classList.add("stage4-menu");
+}
+window.addEventListener("nrs-stage7-state",e=>{if(stage7MenuOpen)renderStage7Console(e.detail);});
+window.addEventListener("nrs-stage7-action-result",e=>{stage7Feedback=e.detail||null;if(stage7MenuOpen)renderStage7Console(window.NRS?.stage7State||{});});
+
+
+
+/* Stage 9 — passenger journeys, company fleet and haulage operations. */
+let stage9MenuOpen=false,stage9Feedback=null;
+const stage9Id=id=>String(id||"").replace(/[^a-z0-9_-]/gi,"_");
+const stage9Money=n=>"₦"+Math.max(0,Math.floor(Number(n)||0)).toLocaleString("en-NG");
+const stage9StopName=(id,d)=>((d.stops||[]).find(s=>s.id===id)?.name)||String(id||"Unknown stop");
+function syncStage9FleetVisual(d){
+ const own=d?.ownVehicle,selfId=d?.selfId;
+ for(const [id,c] of Object.entries(stage9FleetVisuals)){
+  if(!own||own.id!==id||own.ownerId!==selfId){if(driving!==c){c.g.visible=false;c.box.hw=0;c.box.hd=0;c._stage9SpawnedFor=null;}continue;}
+  if(c._stage9SpawnedFor!==selfId||!c.g.visible){c._stage9SpawnedFor=selfId;c.x=clamp(pos.x+Math.sin(face)*4.5,-230,230);c.z=clamp(pos.z+Math.cos(face)*4.5,-230,230);c.ry=face;c.v=c.vx=c.vz=0;c.on=false;c.starting=false;c.box.hw=c.stage9HalfWidth;c.box.hd=c.stage9HalfDepth;c.g.visible=true;setCar(c);}
+  c.fuel=Math.max(0,Number(own.fuelLitres)||0);
+ }
+}
+function openStage9Console(){
+ stage9MenuOpen=true;stage9Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
+ panel('<div class="s4-head"><span class="s4-icon">🚐</span><div><small>PORT HARCOURT · TRANSPORT UNION</small><h2>Transport terminal</h2><p>Passenger rides, fleet vehicles, route stops and haulage contracts.</p></div></div><div class="s4-empty">Loading routes and available vehicles…</div>');
+ modal.classList.add("stage4-menu");window.NRS?.getStage9State();
+}
+function renderStage9Console(d){
+ if(!stage9MenuOpen)return;d=d||window.NRS?.stage9State||{};syncStage9FleetVisual(d);
+ const stops=Array.isArray(d.stops)?d.stops:[],routes=Array.isArray(d.routes)?d.routes:[],fleet=Array.isArray(d.vehicles)?d.vehicles:[],rides=Array.isArray(d.rides)?d.rides:[],deliveries=Array.isArray(d.deliveries)?d.deliveries:[];
+ const feedback=stage9Feedback?'<div class="s4-notice '+(stage9Feedback.ok?'success':'error')+'">'+safeText(stage9Feedback.message||"")+'</div>':"";
+ const activeOwn=d.ownRide&&["waiting","assigned","onboard"].includes(d.ownRide.status)?d.ownRide:null,ownVehicle=d.ownVehicle||null,ownDelivery=d.ownDelivery&&d.ownDelivery.status==="active"?d.ownDelivery:null;
+ const stopOptions='<option value="">Choose stop</option>'+stops.map(s=>'<option value="'+safeText(s.id)+'">'+safeText(s.name)+'</option>').join("");
+ const pickupOptions='<option value="">Choose pickup</option>'+stops.map(s=>'<option value="'+safeText(s.id)+'" '+(d.nearestStop?.id===s.id?'selected':'')+'>'+safeText(s.name)+'</option>').join("");
+ const access=d.workplaceId?'<div class="s4-notice '+(d.onDuty&&d.uniform?'success':'error')+'">Transport Union · '+safeText(d.rankTitle||("Rank "+d.rank))+' · '+(d.onDuty?'ON DUTY':'OFF DUTY')+' · '+(d.uniform?'uniform verified':'uniform required')+'</div>':'<div class="s4-notice">Passengers can request rides from any listed stop. To drive, join Port Harcourt Transport Union, clock in and wear its uniform.</div>';
+ const rideForm='<section class="s4-card"><h3>🧍 Request a ride</h3><p class="s4-muted">Stand within 13 metres of your pickup. The fare is confirmed in the ride request and charged only after the trip reaches its destination.</p><label class="s4-field">Pickup stop<select id="s9Pickup">'+pickupOptions+'</select></label><label class="s4-field">Destination<select id="s9Destination">'+stopOptions+'</select></label><label class="s4-field">Vehicle type<select id="s9VehicleType"><option value="keke">Keke Napep</option><option value="okada">Okada</option><option value="taxi" selected>City Taxi</option><option value="danfo">Danfo Minibus</option><option value="bus">City Bus</option></select></label><button data-s9-request-ride="1">Request ride</button></section>';
+ const vehicleCards=fleet.map(v=>'<div class="s4-row"><span><b>'+safeText(v.label)+'</b><small>'+safeText(v.type.toUpperCase())+' · Rank '+v.minRank+'+ · Fuel '+Number(v.fuelLitres).toFixed(1)+' / '+v.tankLitres+' L · '+(v.ownerId?'Checked out'+(v.ownerName?' by '+safeText(v.ownerName):''):'Available')+'</small></span><strong>'+(v.ownerId?'IN USE':'AVAILABLE')+'</strong></div>').join("");
+ let fleetActions="";
+ if(ownVehicle){
+  fleetActions='<div class="s4-notice success">Checked out: '+safeText(ownVehicle.label)+' · '+Number(ownVehicle.fuelLitres).toFixed(1)+' / '+ownVehicle.tankLitres+' L</div><label class="s4-field">Fuel litres (₦1,150/L)<input id="s9FuelLitres" type="number" min="1" max="80" step="1" inputmode="numeric" value="5"></label><button data-s9-refuel="1" '+(d.nearFuelPoint?'':'disabled')+'>Buy fuel at terminal</button><button class="subtle" data-s9-return="1" '+(d.nearDepot&&!window.NRS?.currentStage9VehicleId&&!activeOwn&&!ownDelivery?'':'disabled')+'>Return vehicle to terminal</button><p class="s4-muted">Fuel is saved and consumed as the checked-out company vehicle moves. Return it at the terminal when your assignment is complete.</p>';
+ }else{
+  fleetActions='<p class="s4-muted">'+(d.nearDepot?'At terminal: qualified drivers can check out an available vehicle.':'Visit the Transport Union terminal to check out a company vehicle.')+'</p>'+fleet.map(v=>'<button data-s9-checkout="'+safeText(v.id)+'" '+(d.nearDepot&&d.onDuty&&d.uniform&&Number(d.rank)>=Number(v.minRank)&&!v.ownerId&&!activeOwn&&!ownDelivery?'':'disabled')+'>Check out '+safeText(v.label)+' · Rank '+v.minRank+'+</button>').join("");
+ }
+ let rideAction="";
+ if(activeOwn){
+  const r=activeOwn,isDriver=r.driverId===d.selfId,isPassenger=r.passengerId===d.selfId;
+  rideAction='<section class="s4-card"><h3>🎫 Your active ride</h3><p><b>'+safeText(stage9StopName(r.pickupStopId,d))+' → '+safeText(stage9StopName(r.destinationStopId,d))+'</b></p><p class="s4-muted">Vehicle: '+safeText(r.vehicleType)+' · Fare '+stage9Money(r.fare)+' · Status '+safeText(r.status.toUpperCase())+'</p>'+(r.driverName?'<p class="s4-muted">Driver: '+safeText(r.driverName)+'</p>':'')+
+   (r.status==="waiting"&&isPassenger?'<button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel request</button>':'')+
+   (r.status==="assigned"&&isDriver?'<p class="s4-muted">Reach '+safeText(stage9StopName(r.pickupStopId,d))+'</p>':'');
+  if(r.status==="assigned"&&isDriver)rideAction+='<button data-s9-pickup="'+safeText(r.id)+'">Confirm passenger pickup</button><button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel before boarding</button>';
+  if(r.status==="assigned"&&isPassenger)rideAction+='<p class="s4-muted">Your driver '+safeText(r.driverName||"")+' is assigned. Wait at the pickup stop.</p><button class="subtle" data-s9-cancel-ride="'+safeText(r.id)+'">Cancel before boarding</button>';
+  if(r.status==="onboard"&&isDriver&&r.nextStopIndex<(r.routeStopIds||[]).length)rideAction+='<p class="s4-muted">Next checkpoint: '+safeText(stage9StopName(r.routeStopIds[r.nextStopIndex],d))+'</p><button data-s9-advance-ride="'+safeText(r.id)+'">Confirm reached next stop</button>';
+  if(r.status==="onboard"&&isDriver&&r.nextStopIndex>=(r.routeStopIds||[]).length)rideAction+='<p class="s4-muted">Destination reached.</p><button data-s9-complete-ride="'+safeText(r.id)+'">Complete trip & settle fare</button>';
+  if(r.status==="onboard"&&isPassenger)rideAction+='<div class="s4-notice success">You are onboard. Your position follows the driver until the destination is reached.</div>';
+  rideAction+='</section>';
+ }else if(d.ownRide&&d.ownRide.status==="completed")rideAction='<section class="s4-card"><h3>✅ Last trip completed</h3><p>'+safeText(stage9StopName(d.ownRide.pickupStopId,d))+' → '+safeText(stage9StopName(d.ownRide.destinationStopId,d))+' · '+stage9Money(d.ownRide.fare)+'</p></section>';
+ const waiting=rides.filter(r=>r.status==="waiting"&&r.passengerId!==d.selfId);
+ const rideQueue='<div class="s4-sectiontitle">Waiting passengers <small>'+waiting.length+' REQUEST'+(waiting.length===1?'':'S')+'</small></div>'+(waiting.length?waiting.map(r=>'<div class="s4-row"><span><b>'+safeText(r.passengerName)+' · '+safeText(r.vehicleType.toUpperCase())+'</b><small>'+safeText(stage9StopName(r.pickupStopId,d))+' → '+safeText(stage9StopName(r.destinationStopId,d))+' · Fare '+stage9Money(r.fare)+'</small></span>'+(d.canDrive&&ownVehicle&&ownVehicle.type===r.vehicleType?'<button data-s9-accept="'+safeText(r.id)+'">Accept</button>':'')+'</div>').join(""):'<div class="s4-empty">No one is waiting for a ride right now.</div>');
+ let haulage="";
+ const haulRoutes=routes.filter(r=>r.vehicleType==="haulage");
+ if(ownDelivery){const q=ownDelivery,next=(q.stopIds||[])[q.nextStopIndex];haulage='<section class="s4-card"><h3>🚚 Active haulage order</h3><p>'+safeText((routes.find(r=>r.id===q.routeId)||{}).name||q.routeId)+'</p><p class="s4-muted">Checkpoint '+Math.min(q.nextStopIndex+1,q.stopIds.length)+' / '+q.stopIds.length+' · Reward '+stage9Money(q.reward)+'</p>'+(next?'<p class="s4-muted">Next: '+safeText(stage9StopName(next,d))+'</p><button data-s9-advance-delivery="'+safeText(q.id)+'">Confirm reached checkpoint</button>':'<button data-s9-complete-delivery="'+safeText(q.id)+'">Submit delivery receipt</button>')+'</section>';
+ }else{haulage='<section class="s4-card"><h3>📦 Haulage contracts</h3><p class="s4-muted">Rank 5+ on-duty, uniformed supervisors can check out a truck at the terminal and confirm every checkpoint in order.</p>'+haulRoutes.map(r=>'<div class="s4-row"><span><b>'+safeText(r.name)+'</b><small>Payment '+stage9Money(r.reward)+' · '+r.stopIds.length+' checkpoints</small></span><button data-s9-start-delivery="'+safeText(r.id)+'" '+(d.nearDepot&&d.canHaul&&ownVehicle?.type==="haulage"&&!activeOwn?'':'disabled')+'>Accept delivery</button></div>').join("")+'</section>';}
+ const ownDeliveryNote=d.ownDelivery&&d.ownDelivery.status==="completed"?'<section class="s4-card"><h3>✅ Last haulage receipt</h3><p>'+safeText(d.ownDelivery.routeId)+' · '+stage9Money(d.ownDelivery.reward)+' credited</p></section>':'';
+ panel('<div class="s4-head"><span class="s4-icon">🚐</span><div><small>PORT HARCOURT · STAGE 9</small><h2>Transport & haulage</h2><p>Public trips, company vehicles, route validation and driver earnings.</p></div></div>'+feedback+access+'<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+stage9Money(d.cash)+'</strong></div><div class="s4-kpi"><small>Union treasury</small><strong>'+stage9Money(d.unionTreasury)+'</strong></div><div class="s4-kpi"><small>Your rank</small><strong>'+(d.rank?safeText(d.rankTitle||("Rank "+d.rank)):'CITIZEN')+'</strong></div></div>'+rideForm+rideAction+rideQueue+'<div class="s4-sectiontitle">Company fleet <small>'+fleet.length+' VEHICLES</small></div>'+fleetActions+'<div class="s4-list">'+vehicleCards+'</div>'+haulage+ownDeliveryNote+'<div class="s4-sectiontitle">Passenger & delivery stops</div><div class="s4-list">'+stops.map(q=>'<div class="s4-row"><span><b>'+safeText(q.name)+'</b><small>'+safeText(q.kind)+' · '+Math.round(Number(q.x))+', '+Math.round(Number(q.z))+'</small></span><strong>'+(d.nearestStop?.id===q.id?'NEARBY':'STOP')+'</strong></div>').join("")+'</div><button class="subtle" data-s9-refresh="1">Refresh transport board</button>');
+ modal.classList.add("stage4-menu");
+}
+window.addEventListener("nrs-stage9-state",e=>{const d=e.detail||window.NRS?.stage9State||{};syncStage9FleetVisual(d);if(stage9MenuOpen)renderStage9Console(d);});
+window.addEventListener("nrs-stage9-action-result",e=>{stage9Feedback=e.detail||null;if(stage9MenuOpen)renderStage9Console(window.NRS?.stage9State||{});});
+window.addEventListener("nrs-stage9-passenger-position",e=>{const p=e.detail||{};window.NRS.stage9PassengerPos={x:Number(p.x)||0,z:Number(p.z)||0,yaw:Number(p.yaw)||0};});
+window.addEventListener("nrs-stage9-fuel-empty",()=>{const id=window.NRS?.currentStage9VehicleId,c=id?stage9FleetVisuals[id]:null;if(c){c.on=false;c.fuel=0;engine(false);setIgn();}});
+
