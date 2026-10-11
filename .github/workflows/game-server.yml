@@ -70,6 +70,12 @@ jobs:
       - name: Test Stage 11 personal services and utilities
         run: npm run test:stage11 --workspace nigeria-rp-game-server
 
+      - name: Test Stage 12 education, office and industry rules
+        run: npm run test:stage12 --workspace nigeria-rp-game-server
+
+      - name: Test Stage 13 economy safety rules
+        run: npm run test:stage13 --workspace nigeria-rp-game-server
+
       - name: Build game server
         run: npm run build --workspace nigeria-rp-game-server
 
