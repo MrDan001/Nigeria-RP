@@ -111,13 +111,15 @@ function syncStage18ActiveCash(accountId: string, cashValue: number) {
 }
 
 async function settleStage18Bets(betDate: string): Promise<void> {
+  const db = pool;
+  if (!db) return;
   if (!pool) return;
-  const client = await pool.connect();
+  const client = await db.connect();
   const notices: Array<{ accountId: string; ticket: any }> = [];
   const balances = new Map<string, number>();
   try {
     await client.query("BEGIN");
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["nrs-stage18-settle:" + betDate]);
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1)::bigint)", ["nrs-stage18-settle:" + betDate]);
 
     const resultCount = await client.query(
       "SELECT COUNT(*)::int AS count FROM nrs_betting_results WHERE bet_date=$1",
@@ -197,7 +199,7 @@ async function settleStage18Bets(betDate: string): Promise<void> {
 
   const accountIds = [...new Set(notices.map((notice) => notice.accountId))];
   for (const accountId of accountIds) {
-    const result = await pool.query("SELECT cash FROM nrs_accounts WHERE id=$1", [accountId]);
+    const result = await db.query("SELECT cash FROM nrs_accounts WHERE id=$1", [accountId]);
     if (result.rows[0]) {
       const cash = Number(result.rows[0].cash);
       balances.set(accountId, cash);
@@ -220,9 +222,11 @@ async function settleStage18Bets(betDate: string): Promise<void> {
 }
 
 async function runStage18BettingSettlement(): Promise<void> {
+  const db = pool;
+  if (!db) return;
   if (!pool) return;
   const clock = stage18NigeriaClock();
-  const pending = await pool.query(
+  const pending = await db.query(
     "SELECT DISTINCT bet_date FROM nrs_betting_tickets WHERE status='OPEN' AND bet_date < $1 ORDER BY bet_date",
     [clock.date],
   );
@@ -234,6 +238,8 @@ async function runStage18BettingSettlement(): Promise<void> {
 }
 
 async function sendStage18BettingState(session: Session, requestId = ""): Promise<void> {
+  const db = pool;
+  if (!db) {
   if (!pool) {
     send(session.socket, { type: "bettingState", ok: false, requestId, message: "Sports betting is temporarily unavailable. Please try again shortly." });
     return;
@@ -242,13 +248,13 @@ async function sendStage18BettingState(session: Session, requestId = ""): Promis
   if (clock.isClosed) await settleStage18Bets(clock.date);
 
   const [wallet, ticketRows, resultRows] = await Promise.all([
-    pool.query("SELECT cash FROM nrs_accounts WHERE id=$1", [session.player.id]),
-    pool.query(
+    db.query("SELECT cash FROM nrs_accounts WHERE id=$1", [session.player.id]),
+    db.query(
       "SELECT id, bet_date, stake, selections, combined_odds, potential_return, payout, status, placed_at, settled_at " +
       "FROM nrs_betting_tickets WHERE account_id=$1 ORDER BY placed_at DESC LIMIT 30",
       [session.player.id],
     ),
-    pool.query(
+    db.query(
       "SELECT fixture_id, outcome, home_score, away_score FROM nrs_betting_results WHERE bet_date=$1 ORDER BY fixture_id",
       [clock.date],
     ),
@@ -325,7 +331,7 @@ async function placeStage18BettingTicket(session: Session, message: any): Promis
     return fail("This ticket's potential return is outside the supported balance range.");
   }
 
-  const client = await pool.connect();
+  const client = await db.connect();
   let cashAfter = 0;
   let ticket: any = null;
   try {
