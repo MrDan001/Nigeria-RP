@@ -633,6 +633,12 @@ function marketStatePayload(session: Session) {
       customerName: players.get(sale.customerId)?.player.name ?? sale.customerId.slice(0, 8),
       sellerName: players.get(sale.sellerId)?.player.name ?? sale.sellerId.slice(0, 8),
     }));
+  const restockHistory = manager || isFactionAdmin(session)
+    ? stage4State.market.restockHistory.slice(-8).reverse().map(receipt => ({
+        ...receipt,
+        managerName: players.get(receipt.managerId)?.player.name ?? receipt.managerId.slice(0, 8),
+      }))
+    : [];
   return {
     type: "marketState",
     workplaceId: MARKET_WORKPLACE_ID,
@@ -656,6 +662,7 @@ function marketStatePayload(session: Session) {
     canCollectCommission: (stage4State.market.commissions[session.player.id] ?? 0) > 0,
     till: manager || isFactionAdmin(session) ? stage4State.market.till : null,
     salesHistory,
+    restockHistory,
   };
 }
 
@@ -2033,8 +2040,10 @@ wss.on("connection", (socket) => {
             productId,
             quantity,
             managerRank: employment.rank,
+            managerId: session.player.id,
             requestId,
             idempotencyKey,
+            now: Date.now(),
           });
           if (!result.ok) {
             const reasons: Record<string, string> = {
