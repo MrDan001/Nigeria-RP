@@ -824,8 +824,8 @@ function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
             hospitalRankCanTriage(rank) && !request.triagedAt,
           canDispatch: request.kind === "ambulance" && request.status === "open" && atHospital &&
             hospitalRankCanDispatch(rank),
-          canTreat: request.kind === "care" && request.status === "open" && atHospital && patientAtHospital &&
-            hospitalRankCanTreat(rank),
+          canTreat: request.kind === "care" && request.status === "open" && !!request.triagedAt &&
+            atHospital && patientAtHospital && hospitalRankCanTreat(rank),
           canFieldTreat: request.kind === "ambulance" && request.status === "dispatched" &&
             request.assignedWorkerId === session.player.id && distanceToPatient !== null &&
             distanceToPatient <= 8 && !!patient && !stage5PrivateContext(patient) &&
@@ -834,7 +834,8 @@ function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
       })
     : [];
   const availableWorkers = [...players.values()]
-    .filter(candidate => candidate.player.life.employment?.workplaceId === hospitalId &&
+    .filter(candidate => candidate.player.id !== session.player.id &&
+      candidate.player.life.employment?.workplaceId === hospitalId &&
       candidate.player.life.employment.onDuty === true &&
       candidate.player.life.employment.uniformWorkplaceId === hospitalId &&
       Number(candidate.player.life.employment.rank) >= 2 &&
@@ -892,6 +893,7 @@ function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
     canTreat: member && hospitalRankCanTreat(rank) && onDuty && uniform,
     canDispatch: member && hospitalRankCanDispatch(rank) && onDuty && uniform && atHospital,
     canWorkPharmacy: member && hospitalRankCanTriage(rank) && onDuty && uniform && atHospital,
+    canUsePharmacy: atHospital,
     canRequestCare: atHospital && session.player.hp < 100 && !openCareRequest,
     canRequestAmbulance: !stage5PrivateContext(session) && session.player.hp <= 80 && session.player.hp < 100 && !openAmbulanceRequest,
     hp: session.player.hp,
@@ -2686,7 +2688,7 @@ wss.on("connection", (socket) => {
           if (!dispatched.ok) {
             const reasons: Record<string, string> = {
               unknown_hospital: "Choose a valid hospital.",
-              unauthorized_dispatcher: "Ambulance dispatch requires a rank 2 or higher worker on duty, in uniform and at the hospital.",
+              unauthorized_dispatcher: "Ambulance dispatch requires a Nurse or higher rank on duty, in uniform and at the hospital.",
               request_unavailable: "This emergency is no longer available for dispatch.",
               invalid_timestamp: "The dispatch could not be recorded. Please retry.",
             };
@@ -2764,6 +2766,7 @@ wss.on("connection", (socket) => {
               unauthorized_clinician: "Treatment requires a Nurse or higher rank who is on duty and in the authorised uniform.",
               request_unavailable: "This request is already completed, cancelled or assigned to another worker.",
               patient_not_at_hospital: "The patient and clinician must both be at the selected hospital for regular treatment.",
+              triage_required: "Complete patient triage before starting regular treatment.",
               ambulance_not_at_patient: "Reach the assigned patient in a public area and come within 8 metres before completing field treatment.",
               no_treatment_needed: "The patient's health is already full. No fee was charged.",
               insufficient_cash: "The patient needs ₦" + (careAtHospital ? "500" : "1,200") + " cash for this treatment.",
