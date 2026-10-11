@@ -4,7 +4,7 @@
   const apps = [
     { id: "travel", icon: "🚌", name: "Interstate", note: "Waterlines coach bookings", badge: "COMING SOON" },
     { id: "flights", icon: "✈️", name: "NRS Air", note: "Book an in-game flight" },
-    { id: "betting", icon: "🏟️", name: "Betting", note: "Virtual-token sports game" },
+    { id: "betting", icon: "🏟️", name: "Betting", note: "Daily sports fixtures and tickets" },
     { id: "wallet", icon: "💳", name: "Wallet", note: "Game cash and banking" },
     { id: "contacts", icon: "👥", name: "Contacts", note: "Players in this city" },
     { id: "map", icon: "🗺️", name: "City map", note: "Find local services" },
@@ -12,16 +12,6 @@
     { id: "jobs", icon: "💼", name: "Careers", note: "Jobs and workplaces" },
     { id: "passport", icon: "🛂", name: "Passport", note: "Your state discoveries" }
   ];
-  const matches = [
-    { id: "fixture-coast", home: "Port City FC", away: "Delta Rovers", odds: { home: 1.75, draw: 3.1, away: 2.25 } },
-    { id: "fixture-river", home: "Rivergate Athletic", away: "Creekside United", odds: { home: 2.05, draw: 3.0, away: 1.8 } },
-    { id: "fixture-civic", home: "Civic Stars", away: "Harbour Town", odds: { home: 1.95, draw: 3.25, away: 1.95 } }
-  ];
-  const choiceName = { home: "Home win", draw: "Draw", away: "Away win" };
-  const storeKey = "nrs_tablet_virtual_betting_v1";
-  let selected = { fixtureId: matches[0].id, pick: "home" };
-  let bettingFeedback = "";
-
   const style = document.createElement("style");
   style.textContent = "#nrsTabletLayer{position:fixed;inset:0;z-index:97000;display:grid;place-items:center;padding:clamp(4px,2vw,22px);box-sizing:border-box;background:rgba(1,7,14,.82);backdrop-filter:blur(9px);font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#f3f8ff;touch-action:manipulation}#nrsTabletLayer[hidden]{display:none!important}#nrsTabletDevice{width:min(1040px,100%);height:min(680px,94dvh);min-height:min(420px,94dvh);display:grid;grid-template-rows:auto auto 1fr auto;overflow:hidden;box-sizing:border-box;border:5px solid #364351;border-radius:25px;background:linear-gradient(145deg,#101d2a,#07111b 65%);box-shadow:0 30px 95px #000b,inset 0 0 0 1px #ffffff19}#nrsTabletHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 17px;background:linear-gradient(100deg,#13344c,#102030);border-bottom:1px solid #ffffff19}#nrsTabletHead strong{display:block;font-size:15px;letter-spacing:.12em}#nrsTabletHead small{display:block;margin-top:3px;color:#8fb1c6;font-size:10px}#nrsTabletClose{min-width:40px;min-height:38px;border:1px solid #ffffff25;border-radius:10px;background:#203549;color:white;font-size:22px}#nrsTabletStatus{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 17px;color:#8eacbc;font-size:9px;letter-spacing:.08em;background:#0a1621}#nrsTabletStatus .safe{color:#8be4b0;font-weight:900}#nrsTabletBody{overflow:auto;padding:clamp(12px,2.4vw,26px);overscroll-behavior:contain}#nrsTabletFoot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;background:#09131d;border-top:1px solid #ffffff14;color:#7791a4;font-size:9px;letter-spacing:.05em}#nrsTabletFoot button,.nrsTabBtn{border:1px solid #ffffff1e;border-radius:10px;background:#172a3a;color:#f5f8fb;padding:9px 12px;font-weight:800;touch-action:manipulation}#nrsTabletFoot button:disabled{opacity:.4}#nrsTabletHomeTitle{margin:2px 0 5px;font-size:clamp(22px,3vw,31px);letter-spacing:-.04em}#nrsTabletHomeCopy{margin:0 0 18px;color:#9fb4c6;font-size:12px;line-height:1.5}#nrsTabletGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}#nrsTabletGrid button{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:115px;padding:14px;border:1px solid #ffffff17;border-radius:16px;background:linear-gradient(145deg,#172b3c,#0c1a28);color:white;text-align:left;touch-action:manipulation}#nrsTabletGrid button:active{transform:scale(.99);border-color:#54c7ee}#nrsTabletGrid .appIcon{display:grid;place-items:center;width:39px;height:39px;margin-bottom:11px;border-radius:12px;background:#21445b;font-size:22px}#nrsTabletGrid strong{font-size:13px}#nrsTabletGrid small{margin-top:4px;color:#9bb2c4;font-size:10px;line-height:1.35}#nrsTabletGrid .badge{position:absolute;top:8px;right:8px;padding:4px 5px;border-radius:6px;background:#6e4d16;color:#ffe5a0;font-size:7px;font-weight:900;letter-spacing:.03em}#nrsTabletDevice .appTitle{margin:0 0 5px;font-size:23px}#nrsTabletDevice .appCopy{margin:0 0 16px;color:#9fb4c6;font-size:12px;line-height:1.5}#nrsTabletDevice .safeBanner{margin:0 0 15px;padding:11px 12px;border:1px solid #2a5d4b;border-radius:12px;background:#0b2c25;color:#9aefc1;font-size:11px;line-height:1.45}#nrsTabletDevice .infoGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}#nrsTabletDevice .infoCard{min-width:0;padding:13px;border:1px solid #ffffff16;border-radius:13px;background:#0e1c29}#nrsTabletDevice .infoCard small{display:block;color:#93a9bc;font-size:9px;letter-spacing:.06em}#nrsTabletDevice .infoCard strong{display:block;overflow-wrap:anywhere;margin-top:6px;font-size:20px;color:#88e7b4}#nrsTabletDevice .appList{display:grid;gap:9px}#nrsTabletDevice .listRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #ffffff16;border-radius:12px;background:#0c1a27;font-size:12px}#nrsTabletDevice .listRow small{display:block;margin-top:4px;color:#93a9bc;font-size:10px}#nrsTabletDevice .sectionLabel{display:block;margin:17px 0 8px;color:#81a5bd;font-size:9px;font-weight:900;letter-spacing:.12em}#nrsTabletDevice .fixture{margin:10px 0;padding:13px;border:1px solid #ffffff18;border-radius:14px;background:#0e1d2a}#nrsTabletDevice .fixtureName{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:12px}#nrsTabletDevice .picks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}#nrsTabletDevice .pick{min-width:0;padding:10px 4px;border:1px solid #344b5d;border-radius:10px;background:#122536;color:#dbe9f2;font-size:10px;font-weight:800}#nrsTabletDevice .pick.on{border-color:#5ed7ff;background:#16465b;color:#fff}#nrsTabletDevice .pick small{display:block;margin-top:4px;color:#91b6cd;font-size:10px}#nrsTabletDevice .formRow{display:flex;align-items:center;gap:10px;margin:12px 0}#nrsTabletDevice input,#nrsTabletDevice select{box-sizing:border-box;max-width:100%;min-width:0;padding:11px;border:1px solid #30485b;border-radius:10px;background:#071522;color:#fff;font:inherit}#nrsTabletDevice input{flex:1}#nrsTabletDevice .primary{min-height:42px;padding:10px 14px;border:1px solid #4cbee1;border-radius:10px;background:linear-gradient(135deg,#16769b,#164e75);color:#fff;font-size:11px;font-weight:900}#nrsTabletDevice .secondary{min-height:38px;padding:8px 12px;border:1px solid #ffffff22;border-radius:10px;background:#1a2c3b;color:#fff;font-size:11px;font-weight:800}#nrsTabletDevice .feedback{min-height:20px;color:#ffd783;font-size:11px;line-height:1.45}#nrsTabletDevice .tag{display:inline-block;padding:5px 7px;border:1px solid #6b5525;border-radius:7px;background:#3b2d14;color:#ffdf94;font-size:8px;font-weight:900;letter-spacing:.04em}#nrsTabletDevice .empty{padding:14px;border:1px dashed #ffffff22;border-radius:12px;color:#9aafc0;font-size:12px;line-height:1.5}@media(max-width:620px){#nrsTabletDevice{height:96dvh;min-height:0;border-width:3px;border-radius:16px}#nrsTabletHead{padding:8px 11px}#nrsTabletGrid{gap:7px}#nrsTabletGrid button{min-height:94px;padding:9px;border-radius:11px}#nrsTabletGrid .appIcon{width:30px;height:30px;font-size:17px;margin-bottom:7px}#nrsTabletGrid strong{font-size:11px}#nrsTabletGrid small{font-size:8px}#nrsTabletGrid .badge{position:static;order:-1;margin-bottom:5px}#nrsTabletStatus{padding:6px 11px;font-size:8px}#nrsTabletBody{padding:10px}#nrsTabletDevice .infoGrid{gap:7px}#nrsTabletDevice .infoCard{padding:10px}#nrsTabletDevice .formRow{flex-wrap:wrap}#nrsTabletFoot{padding:7px 9px;font-size:7px}}@media(max-height:500px){#nrsTabletGrid button{min-height:78px;padding:7px}#nrsTabletGrid .appIcon{width:26px;height:26px;margin-bottom:4px}#nrsTabletDevice .appTitle{font-size:19px}#nrsTabletDevice .appCopy{margin-bottom:8px}}";
   document.head.appendChild(style);
@@ -29,7 +19,7 @@
   const layer = document.createElement("div");
   layer.id = "nrsTabletLayer";
   layer.hidden = true;
-  layer.innerHTML = '<section id="nrsTabletDevice" aria-label="Nigeria RP Tablet"><header id="nrsTabletHead"><div><strong>NRS TABLET</strong><small>Everyday apps for your character</small></div><button id="nrsTabletClose" type="button" aria-label="Close Tablet">×</button></header><div id="nrsTabletStatus"><span class="safe">● GAME WORLD ONLY</span><span id="nrsTabletClock"></span></div><main id="nrsTabletBody"></main><footer id="nrsTabletFoot"><button id="nrsTabletHome" type="button">⌂ Home</button><span>NO REAL-WORLD CONNECTIONS</span></footer></section>';
+  layer.innerHTML = '<section id="nrsTabletDevice" aria-label="Nigeria RP Tablet"><header id="nrsTabletHead"><div><strong>NRS TABLET</strong><small>Everyday apps for your character</small></div><button id="nrsTabletClose" type="button" aria-label="Close Tablet">×</button></header><div id="nrsTabletStatus"><span class="safe">● NIGERIA RP</span><span id="nrsTabletClock"></span></div><main id="nrsTabletBody"></main><footer id="nrsTabletFoot"><button id="nrsTabletHome" type="button">⌂ Home</button><span>NIGERIA ROLEPLAY SERVICES</span></footer></section>';
   document.body.appendChild(layer);
   const body = $("nrsTabletBody");
 
@@ -41,18 +31,6 @@
   }
   function money(value) { return "₦" + Math.max(0, Math.floor(Number(value) || 0)).toLocaleString("en-NG"); }
   function timeText() { return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
-  function readBetState() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(storeKey) || "null");
-      if (raw && Number.isSafeInteger(raw.balance) && raw.balance >= 0 && Array.isArray(raw.tickets)) {
-        return { balance: Math.min(raw.balance, 100000000), tickets: raw.tickets.slice(-50) };
-      }
-    } catch (_) {}
-    return { balance: 25000, tickets: [] };
-  }
-  function saveBetState(state) {
-    try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (_) {}
-  }
   function setScreenTitle(title, copy) {
     body.replaceChildren();
     body.appendChild(el("h2", "appTitle", title));
@@ -60,7 +38,7 @@
   }
   function returnHome() {
     body.replaceChildren();
-    body.insertAdjacentHTML("afterbegin", '<h1 id="nrsTabletHomeTitle">Your day, your city.</h1><p id="nrsTabletHomeCopy">Use services inside Nigeria RP. Every action below is fictional and stays inside the game world.</p><div id="nrsTabletGrid"></div>');
+    body.insertAdjacentHTML("afterbegin", '<h1 id="nrsTabletHomeTitle">Your day, your city.</h1><p id="nrsTabletHomeCopy">Open services, manage your character and explore life across Nigeria RP.</p><div id="nrsTabletGrid"></div>');
     const grid = $("nrsTabletGrid");
     for (const app of apps) {
       const button = el("button", "", "");
@@ -73,7 +51,7 @@
       button.append(icon, title, note);
       grid.appendChild(button);
     }
-    const hint = el("p", "appCopy", "Game cash is separate from Betting virtual tokens. Nothing here contacts real companies or services.");
+    const hint = el("p", "appCopy", "Use your character cash for services and sports tickets. Manage your finances from the Wallet.");
     hint.style.marginTop = "16px";
     body.appendChild(hint);
   }
@@ -95,8 +73,8 @@
     }
   }
   function renderWallet() {
-    setScreenTitle("Wallet & banking", "This screen only displays your Nigeria RP character wallet. It is not a real bank account.");
-    body.appendChild(el("div", "safeBanner", "IN-GAME CURRENCY ONLY · No deposits, withdrawals or payments to real-world services."));
+    setScreenTitle("Wallet & banking", "View your available character cash and bank balance.");
+    body.appendChild(el("div", "safeBanner", "CHARACTER FINANCES · Cash and bank balances"));
     const grid = el("div", "infoGrid");
     const cash = $("cash") ? $("cash").textContent : (window.NRS && window.NRS.cash);
     const bank = window.NRS && (window.NRS.bankBalance ?? window.NRS.bank);
@@ -172,91 +150,12 @@
     }
     body.appendChild(list);
   }
-  function renderBetting() {
-    setScreenTitle("Betting", "A fictional sports mini-game that uses only separate virtual tokens.");
-    const state=readBetState();
-    body.appendChild(el("div","safeBanner","SIMULATION ONLY · NO REAL-MONEY BETTING · Tokens cannot be purchased, transferred, redeemed or used outside this game."));
-    const wallet=el("div","infoGrid");
-    const balance=el("div","infoCard");
-    balance.append(el("small","","BETTING TOKENS"),el("strong","",state.balance.toLocaleString("en-NG")));
-    const game=el("div","infoCard");
-    game.append(el("small","","NETWORK"),el("strong","","LOCAL SIMULATION"));
-    wallet.append(balance,game);body.appendChild(wallet);
-    const stakeRow=el("div","formRow");
-    stakeRow.appendChild(el("label","","Stake (virtual tokens)"));
-    const stake=el("input","");
-    stake.type="number";stake.min="100";stake.max=String(state.balance);stake.step="100";stake.value="500";stake.id="nrsBetStake";
-    stake.setAttribute("inputmode","numeric");
-    stakeRow.appendChild(stake);
-    body.appendChild(stakeRow);
-    for(const fixture of matches){
-      const card=el("section","fixture");
-      const title=el("div","fixtureName");
-      title.append(el("span","",fixture.home+" vs "+fixture.away),el("span","tag","FICTIONAL FIXTURE"));
-      card.appendChild(title);
-      const picks=el("div","picks");
-      for(const key of ["home","draw","away"]){
-        const button=el("button","pick"+(selected.fixtureId===fixture.id&&selected.pick===key?" on":""),"");
-        button.type="button";button.dataset.fixture=fixture.id;button.dataset.pick=key;
-        button.append(el("span","",choiceName[key]),el("small","",fixture.odds[key].toFixed(2)+"x"));
-        button.onclick=()=>{const priorStake=$("nrsBetStake")?.value||"500";selected={fixtureId:fixture.id,pick:key};renderBetting();const nextStake=$("nrsBetStake");if(nextStake)nextStake.value=priorStake;};
-        picks.appendChild(button);
-      }
-      card.appendChild(picks);body.appendChild(card);
-    }
-    const place=el("button","primary","Place virtual bet");
-    place.type="button";
-    const feedback=el("div","feedback",bettingFeedback);
-    place.onclick=()=>{
-      const latest=readBetState();
-      const amount=Math.floor(Number(stake.value));
-      const fixture=matches.find((item)=>item.id===selected.fixtureId);
-      if(!fixture||!choiceName[selected.pick]){bettingFeedback="Choose a fictional match outcome.";renderBetting();return;}
-      if(!Number.isSafeInteger(amount)||amount<100||amount>latest.balance||amount%100!==0){bettingFeedback="Enter a stake in 100-token increments, between 100 and your available token balance.";renderBetting();return;}
-      const ticket={id:"virtual-"+Date.now()+"-"+Math.floor(Math.random()*1000000),fixtureId:fixture.id,fixtureName:fixture.home+" vs "+fixture.away,pick:selected.pick,pickName:choiceName[selected.pick],stake:amount,odds:fixture.odds[selected.pick],status:"open",payout:0,createdAt:Date.now()};
-      latest.balance-=amount;latest.tickets.push(ticket);latest.tickets=latest.tickets.slice(-50);saveBetState(latest);
-      bettingFeedback="Virtual ticket placed. Simulate the fixture below to settle it.";renderBetting();
-    };
-    body.appendChild(place);body.appendChild(feedback);
-    body.appendChild(el("span","sectionLabel","YOUR VIRTUAL TICKETS"));
-    const current=readBetState();
-    const tickets=el("div","appList");
-    for(const ticket of current.tickets.slice().reverse().slice(0,12)){
-      const row=el("div","listRow");
-      const text=el("span","",String(ticket.fixtureName||"Fictional match"));
-      text.appendChild(el("small","","Pick: "+String(ticket.pickName||"—")+" · Stake "+Number(ticket.stake||0).toLocaleString()+" tokens · "+String(ticket.status||"open").toUpperCase()));
-      row.appendChild(text);
-      if(ticket.status==="open"){
-        const settle=el("button","secondary","Simulate result");
-        settle.type="button";settle.onclick=()=>{
-          const result=readBetState();
-          const currentTicket=result.tickets.find((item)=>item.id===ticket.id);
-          if(!currentTicket||currentTicket.status!=="open")return;
-          const outcome=["home","draw","away"][Math.floor(Math.random()*3)];
-          currentTicket.result=choiceName[outcome];
-          currentTicket.status=outcome===currentTicket.pick?"won":"lost";
-          if(currentTicket.status==="won"){
-            currentTicket.payout=Math.floor(currentTicket.stake*currentTicket.odds);
-            result.balance+=currentTicket.payout;
-          }
-          saveBetState(result);
-          bettingFeedback=currentTicket.status==="won"?"Simulated result: "+currentTicket.result+". You won "+currentTicket.payout.toLocaleString()+" virtual tokens.":"Simulated result: "+currentTicket.result+". This ticket did not win; no game cash was charged.";
-          renderBetting();
-        };
-        row.appendChild(settle);
-      }else{
-        row.appendChild(el("small","",ticket.status==="won"?"Paid "+Number(ticket.payout||0).toLocaleString()+" tokens":ticket.status==="lost"?"Settled · no payout":"Settled"));
-      }
-      tickets.appendChild(row);
-    }
-    if(!current.tickets.length)tickets.appendChild(el("div","empty","No virtual tickets yet. Choose a fictional fixture above."));
-    body.appendChild(tickets);
-  }
+  function renderBetting() { window.dispatchEvent(new Event("nrs-open-betting")); }
   function showApp(id) {
     switch(id){
       case "travel": openTravel("day-bus"); return;
       case "flights": openTravel("flight"); return;
-      case "betting": bettingFeedback="";renderBetting();return;
+      case "betting": renderBetting();return;
       case "wallet": renderWallet();return;
       case "contacts": renderContacts();return;
       case "map": closeTablet();$("ib3")?.click();return;
