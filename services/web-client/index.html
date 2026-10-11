@@ -864,8 +864,8 @@ function createHouseExterior(h){
 }
 function syncHouseExteriors(houses){
  if(!Array.isArray(houses))return;
- // Always keep the player\u2019s own rented/occupied home visible, even when a respawn or
- // route transition briefly places the street avatar outside the normal streaming radius.
+ // Build every residential exterior as soon as the server supplies the housing snapshot.
+ // Homes remain visible across the map; they no longer depend on the player's current position.
  houses.forEach(h=>{const v=HOUSE_VISUALS[h.id];if(v){v.home=h;refreshHousePlaque(v,h);}else createHouseExterior(h);});
  for(let i=POI.length-1;i>=0;i--)if(POI[i].housePoi)POI.splice(i,1);
  // Every property has an entrance interaction. The old code only registered the
