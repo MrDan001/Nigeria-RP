@@ -98,6 +98,7 @@ import {
 import { GOVERNMENT_ANNOUNCEMENT_COOLDOWN_MS, GOVERNMENT_WORKPLACE_ID, approveGovernmentSpending, claimGovernmentPayroll, createStage6State, governmentPayrollAmount, normalizeStage6State, payGovernmentDuty, publishGovernmentAnnouncement, recordHousingRent, recordCivicFine } from "./stage6";
 import { ARMY_WORKPLACE_ID, FIRE_WORKPLACE_ID, FRSC_WORKPLACE_ID, POLICE_WORKPLACE_ID, STAGE7_CHECKPOINTS, STAGE7_FINE_RULES, STAGE7_UNITS, activateStage7Checkpoint, arrestStage7Suspect, attemptStage7Escape, closeStage7Incident, createStage7State, deactivateStage7Checkpoint, dispatchStage7Incident, findBlockingStage7Checkpoint, isAuthorisedStage7CheckpointPass, isStage7Unit, issueStage7Fine, maintainStage7State, normalizeStage7State, reportStage7Incident, requestStage7Appeal, resolveStage7Fire, resolveStage7TrafficIncident, reviewStage7Appeal, stage7Distance, investigateStage7Incident, type Stage7UnitId } from "./stage7";
 import { NEWS_WORKPLACE_ID, approveStage8Story, createStage8State, moderateStage8Report, normalizeStage8State, publishStage8Story, rejectStage8Story, reportStage8Story, stage8PublicFeed, submitStage8Story, type Stage8Actor, type Stage8ModerationDecision } from "./stage8";
+import { STAGE11_BUSINESSES, STAGE11_SERVICES, STAGE11_FUEL_PRICE_PER_LITRE, assignStage11CourierDelivery, assignStage11RepairCall, assignStage11ServiceOrder, buyStage11Fuel, completeStage11CourierDelivery, completeStage11RepairCall, completeStage11ServiceOrder, createStage11State, normalizeStage11State, openStage11CourierDelivery, openStage11RepairCall, openStage11ServiceOrder, payStage11UtilityBill, pickupStage11CourierDelivery, registerStage11Property, registerStage11Vehicle, type Stage11Actor, type Stage11Property } from "./stage11";
 import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acceptStage9Ride, advanceStage9Delivery, advanceStage9Ride, cancelStage9Ride, checkoutStage9Vehicle, completeStage9Delivery, completeStage9Ride, consumeStage9Fuel, createStage9State, normalizeStage9State, pickupStage9Ride, refuelStage9Vehicle, requestStage9Ride, returnStage9Vehicle, startStage9Delivery, stage9DistanceToStop, type Stage9Actor, type Stage9Result } from "./stage9";
 
 const scrypt = promisify(scryptCb);
@@ -197,6 +198,7 @@ type FileStore = {
   stage7?: unknown;
   stage8?: unknown;
   stage9?: unknown;
+  stage11?: unknown;
 };
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -234,6 +236,7 @@ let stage6State = createStage6State();
 let stage7State = createStage7State();
 let stage8State = createStage8State();
 let stage9State = createStage9State();
+let stage11State = createStage11State();
 type Stage9FuelProgress = { vehicleId: string; pendingDistance: number; lastSavedAt: number };
 const stage9FuelProgress = new Map<string, Stage9FuelProgress>();
 const stage7ReportCooldownAt = new Map<string, number>();
@@ -482,6 +485,11 @@ async function saveStage8State(state = stage8State) {
   }
   fileStore.stage8 = state;
   writeFileStore();
+}
+
+async function saveStage11State(state = stage11State) {
+  if (pool) { await pool.query("INSERT INTO nrs_world(key,value,updated_at) VALUES ('stage11',$1::jsonb,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=EXCLUDED.updated_at", [JSON.stringify(state), Date.now()]); return; }
+  fileStore.stage11=state; writeFileStore();
 }
 
 async function saveStage9State(state = stage9State) {
@@ -932,6 +940,13 @@ function stage8Actor(session:Session):Stage8Actor {
   onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,
   inNewsroom:session.inWorkplaceInterior&&!session.inStaffRoom&&session.currentWorkplaceId===NEWS_WORKPLACE_ID,isAdmin:isFactionAdmin(session)};
 }
+
+function stage11Actor(session:Session):Stage11Actor { const e=session.player.life.employment??null; return {actorId:session.player.id,workplaceId:e?.workplaceId??"",rank:Number(e?.rank??0),onDuty:e?.onDuty===true,uniform:!!e&&e.uniformWorkplaceId===e.workplaceId,x:session.player.x,z:session.player.z}; }
+function stage11Vehicle(session:Session,id:string){if(!id||!session.player.life.ownedCars.includes(id))return null;const old=stage11State.vehicles[id];registerStage11Vehicle(stage11State,{id,ownerId:session.player.id,x:session.player.x,z:session.player.z,fuelLitres:old?Math.min(old.fuelLitres,session.player.fuel[id]??20):(session.player.fuel[id]??20),fuelCapacityLitres:40,condition:old?.condition??70,cleanliness:old?.cleanliness??70});return stage11State.vehicles[id]??null;}
+function stage11Property(session:Session):Stage11Property|null{const hid=session.player.life.homeId;if(!hid||world.houseTenants[hid]!==session.player.id)return null;const h=findHouse(hid);if(!h)return null;const id="house:"+hid;const old=stage11State.properties[id];registerStage11Property(stage11State,{id,ownerId:session.player.id,residentIds:[],x:h.x,z:h.z,bills:old?.bills??{electricity:{amountDue:8000,paidAt:null},water:{amountDue:3000,paidAt:null},waste:{amountDue:1500,paidAt:null}},issues:old?.issues??[]});return stage11State.properties[id]??null;}
+function stage11Payload(session:Session){return {type:"stage11State",cash:session.player.cash,businesses:STAGE11_BUSINESSES,services:STAGE11_SERVICES,fuelPricePerLitre:STAGE11_FUEL_PRICE_PER_LITRE,ownedVehicles:session.player.life.ownedCars.map(id=>stage11Vehicle(session,id)).filter(Boolean),property:stage11Property(session),serviceOrders:stage11State.serviceOrders.slice(-30).reverse(),repairCalls:stage11State.repairCalls.slice(-30).reverse(),deliveries:stage11State.deliveries.slice(-30).reverse(),utilityPayments:stage11State.utilityPayments.filter(x=>x.customerId===session.player.id).slice(-20).reverse()};}
+function stage11Result(session:Session,action:string,r:any){send(session.socket,{...stage11Payload(session),type:"stage11ActionResult",action,ok:r.ok,result:r.ok?r.result:null,reason:r.ok?null:r.reason});}
+function broadcastStage11States(){for(const x of players.values())send(x.socket,stage11Payload(x));}
 
 function stage9Actor(session:Session):Stage9Actor {
  const e=session.player.life.employment??null;
@@ -1530,6 +1545,9 @@ async function initStore() {
     const stage9Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage9' LIMIT 1");
     stage9State = normalizeStage9State(stage9Row.rows[0]?.value);
     await saveStage9State();
+    const stage11Row = await pool.query("SELECT value FROM nrs_world WHERE key='stage11' LIMIT 1");
+    stage11State = normalizeStage11State(stage11Row.rows[0]?.value);
+    await saveStage11State();
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email TEXT");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS email_lower TEXT");
     await pool.query("UPDATE nrs_accounts SET email=username || '@legacy.invalid' WHERE email IS NULL OR email=''");
@@ -1563,6 +1581,8 @@ async function initStore() {
   await saveStage8State();
   stage9State = normalizeStage9State(fileStore.stage9);
   await saveStage9State();
+  stage11State = normalizeStage11State(fileStore.stage11);
+  await saveStage11State();
   await migrateLegacyAdminAllowlist();
   console.warn("NRS durable storage: file fallback at " + DATA_FILE + ". Use DATABASE_URL or a Railway volume for production persistence.");
 }
@@ -3519,6 +3539,20 @@ wss.on("connection", (socket) => {
       }
 
 
+
+      if (message.type === "getStage11State") { send(socket,stage11Payload(session)); return; }
+      if (message.type === "stage11BuyFuel") { await withMoneyMutation(async()=>{const worker=players.get(String(message.workerId??"")),v=stage11Vehicle(session,String(message.vehicleId??""));if(!worker||worker.player.id===session.player.id||!v){stage11Result(session,"fuel",{ok:false,reason:"invalid_participants"});return;}const r=buyStage11Fuel({state:stage11State,requestId:String(message.requestId??""),customerId:session.player.id,vehicleId:v.id,litres:Number(message.litres),customerCash:session.player.cash,actor:stage11Actor(worker),now:Date.now()});if(!r.ok){stage11Result(session,"fuel",r);return;}const old=session.player.cash;session.player.cash-=r.result.total;session.player.fuel[v.id]=r.result.fuelRemaining;try{await persistSession(session);await saveStage11State();stage11Result(session,"fuel",r);broadcastStage11States();}catch(e){session.player.cash=old;stage11Result(session,"fuel",{ok:false,reason:"persist_failed"});}});return;}
+      if (message.type === "stage11OpenService") {const x=STAGE11_SERVICES.find(v=>v.id===String(message.serviceId??"")),b=x&&stage11State.businesses[x.businessId];if(!x||!b||Math.hypot(session.player.x-b.x,session.player.z-b.z)>24){stage11Result(session,"service-open",{ok:false,reason:"customer_not_at_business"});return;}if(x.requiresVehicle&&!stage11Vehicle(session,String(message.vehicleId??""))){stage11Result(session,"service-open",{ok:false,reason:"vehicle_not_owned"});return;}const r=openStage11ServiceOrder({state:stage11State,requestId:String(message.requestId??""),customerId:session.player.id,serviceId:x.id,targetVehicleId:x.requiresVehicle?String(message.vehicleId??""):null,now:Date.now()});if(r.ok)await saveStage11State();stage11Result(session,"service-open",r);return;}
+      if (message.type === "stage11AssignService") {const t=players.get(String(message.workerId??""));const r=t?assignStage11ServiceOrder({state:stage11State,orderId:String(message.orderId??""),supervisor:stage11Actor(session),assignee:stage11Actor(t)}):{ok:false,reason:"invalid_assignee"};if(r.ok)await saveStage11State();stage11Result(session,"service-assign",r);return;}
+      if (message.type === "stage11CompleteService") {await withMoneyMutation(async()=>{const o=stage11State.serviceOrders.find(v=>v.id===String(message.orderId??"")),c=o?players.get(o.customerId):null;if(!c){stage11Result(session,"service-complete",{ok:false,reason:"customer_offline"});return;}const r=completeStage11ServiceOrder({state:stage11State,orderId:o!.id,customerCash:c.player.cash,actor:stage11Actor(session),now:Date.now()});if(!r.ok){stage11Result(session,"service-complete",r);return;}const old=c.player.cash;c.player.cash-=r.result.total;try{await persistSession(c);await saveStage11State();stage11Result(session,"service-complete",r);broadcastStage11States();}catch(e){c.player.cash=old;stage11Result(session,"service-complete",{ok:false,reason:"persist_failed"});}});return;}
+      if (message.type === "stage11OpenRepair") {const p=stage11Property(session);if(!p){stage11Result(session,"repair-open",{ok:false,reason:"property_access_denied"});return;}const r=openStage11RepairCall({state:stage11State,requestId:String(message.requestId??""),customerId:session.player.id,propertyId:p.id,kind:String(message.kind??"") as any,description:String(message.description??""),now:Date.now()});if(r.ok)await saveStage11State();stage11Result(session,"repair-open",r);return;}
+      if (message.type === "stage11AssignRepair") {const t=players.get(String(message.workerId??""));const r=t?assignStage11RepairCall({state:stage11State,callId:String(message.callId??""),supervisor:stage11Actor(session),assignee:stage11Actor(t)}):{ok:false,reason:"invalid_assignee"};if(r.ok)await saveStage11State();stage11Result(session,"repair-assign",r);return;}
+      if (message.type === "stage11CompleteRepair") {await withMoneyMutation(async()=>{const q=stage11State.repairCalls.find(v=>v.id===String(message.callId??"")),c=q?players.get(q.customerId):null;if(!c){stage11Result(session,"repair-complete",{ok:false,reason:"customer_offline"});return;}const r=completeStage11RepairCall({state:stage11State,callId:q!.id,customerCash:c.player.cash,actor:stage11Actor(session),now:Date.now()});if(!r.ok){stage11Result(session,"repair-complete",r);return;}const old=c.player.cash;c.player.cash-=r.result.price;try{await persistSession(c);await saveStage11State();stage11Result(session,"repair-complete",r);broadcastStage11States();}catch(e){c.player.cash=old;stage11Result(session,"repair-complete",{ok:false,reason:"persist_failed"});}});return;}
+      if (message.type === "stage11PayUtility") {const p=stage11Property(session);if(!p){stage11Result(session,"utility",{ok:false,reason:"property_access_denied"});return;}await withMoneyMutation(async()=>{const r=payStage11UtilityBill({state:stage11State,requestId:String(message.requestId??""),customerId:session.player.id,propertyId:p.id,utility:String(message.utility??"") as any,customerCash:session.player.cash,now:Date.now()});if(!r.ok){stage11Result(session,"utility",r);return;}const old=session.player.cash;session.player.cash-=r.result.amount;try{await persistSession(session);await saveStage11State();stage11Result(session,"utility",r);}catch(e){session.player.cash=old;stage11Result(session,"utility",{ok:false,reason:"persist_failed"});}});return;}
+      if (message.type === "stage11OpenCourier") {const h=stage11State.businesses["courier-hub-main"];if(!h||Math.hypot(session.player.x-h.x,session.player.z-h.z)>24){stage11Result(session,"courier-open",{ok:false,reason:"customer_not_at_hub"});return;}const r=openStage11CourierDelivery({state:stage11State,requestId:String(message.requestId??""),customerId:session.player.id,recipientName:String(message.recipientName??""),parcelDescription:String(message.parcelDescription??""),dropoffX:Number(message.dropoffX),dropoffZ:Number(message.dropoffZ),now:Date.now()});if(r.ok)await saveStage11State();stage11Result(session,"courier-open",r);return;}
+      if (message.type === "stage11AssignCourier") {const t=players.get(String(message.workerId??""));const r=t?assignStage11CourierDelivery({state:stage11State,deliveryId:String(message.deliveryId??""),supervisor:stage11Actor(session),assignee:stage11Actor(t)}):{ok:false,reason:"invalid_assignee"};if(r.ok)await saveStage11State();stage11Result(session,"courier-assign",r);return;}
+      if (message.type === "stage11PickupCourier") {const r=pickupStage11CourierDelivery({state:stage11State,deliveryId:String(message.deliveryId??""),actor:stage11Actor(session),now:Date.now()});if(r.ok)await saveStage11State();stage11Result(session,"courier-pickup",r);return;}
+      if (message.type === "stage11CompleteCourier") {await withMoneyMutation(async()=>{const d=stage11State.deliveries.find(v=>v.id===String(message.deliveryId??"")),c=d?players.get(d.customerId):null;if(!c){stage11Result(session,"courier-complete",{ok:false,reason:"customer_offline"});return;}const r=completeStage11CourierDelivery({state:stage11State,deliveryId:d!.id,customerCash:c.player.cash,actor:stage11Actor(session),now:Date.now()});if(!r.ok){stage11Result(session,"courier-complete",r);return;}const old=c.player.cash;c.player.cash-=r.result.price;try{await persistSession(c);await saveStage11State();stage11Result(session,"courier-complete",r);broadcastStage11States();}catch(e){c.player.cash=old;stage11Result(session,"courier-complete",{ok:false,reason:"persist_failed"});}});return;}
 
       if (message.type === "getStage9State") { send(socket,stage9StatePayload(session)); return; }
       if (message.type === "checkoutStage9Vehicle") {

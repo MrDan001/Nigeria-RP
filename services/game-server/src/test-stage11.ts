@@ -120,12 +120,10 @@ const propertyFixture = (): Stage11Property => ({
   const state = createStage11State();
   const property = propertyFixture();
   const registered = registerStage11Property(state, property);
-  console.log("stage11-repair-debug", { registered, property: state.properties[property.id] });
   const opened = openStage11RepairCall({
     state, requestId: "repair-call-1", customerId: "tenant-1", propertyId: property.id,
     kind: "electrical", description: "Power socket is not working", now,
   });
-  console.log("stage11-repair-open-debug", opened);
   assert.equal(opened.ok, true);
   if (!opened.ok) throw new Error("Expected repair call to open");
   const electrical = business("electrician-services-main");

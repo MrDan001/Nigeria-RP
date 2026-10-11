@@ -327,7 +327,7 @@ export function registerStage11Property(state: Stage11State, property: Stage11Pr
   state.properties[id] = {
     id,
     ownerId,
-    residentIds: Array.isArray(property.residentIds) ? [...new Set(property.residentIds.map(cleanId).filter(Boolean))].slice(0, 50) : [],
+    residentIds: Array.isArray(property.residentIds) ? [...new Set(property.residentIds.map((residentId) => cleanId(residentId)).filter(Boolean))].slice(0, 50) : [],
     x: property.x,
     z: property.z,
     bills,
