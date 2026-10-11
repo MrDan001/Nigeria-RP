@@ -3572,56 +3572,120 @@ window.addEventListener("nrs-stage9-action-result",e=>{stage9Feedback=e.detail||
 window.addEventListener("nrs-stage9-passenger-position",e=>{const p=e.detail||{};window.NRS.stage9PassengerPos={x:Number(p.x)||0,z:Number(p.z)||0,yaw:Number(p.yaw)||0};});
 window.addEventListener("nrs-stage9-fuel-empty",()=>{const id=window.NRS?.currentStage9VehicleId,c=id?stage9FleetVisuals[id]:null;if(c){c.on=false;c.fuel=0;engine(false);setIgn();}});
 
-/* Stage 8 — Rivers News Network: public feed, live ticker and editorial desk. */
-let stage8MenuOpen=false,stage8Mode="feed",stage8Feedback=null;
+/* Stage 8 — Rivers News Network: official broadcasts, line-safe notifications and staff editorial desk. */
+let stage8MenuOpen=false,stage8Mode="feed",stage8Feedback=null,stage8FeedInitialized=false,stage8NoticeTimer=0;
+const stage8SeenPublishedIds=new Set();
 const stage8Id=id=>String(id||"").replace(/[^a-z0-9_-]/gi,"_");
 const stage8CategoryTitle=value=>({community:"Community","public-safety":"Public safety",government:"Government",business:"Business",transport:"Transport",weather:"Weather",events:"Events"}[value]||"Local news");
-function ensureStage8Ticker(){
- if(document.getElementById("nrsStage8Ticker"))return;
+
+function ensureStage8Notification(){
+ if(document.getElementById("nrsStage8Notice"))return;
  const style=document.createElement("style");
- style.textContent="#nrsStage8Ticker{position:fixed;z-index:12;top:calc(env(safe-area-inset-top,0px) + 5px);left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 130px));min-height:34px;display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(11,20,31,.88);backdrop-filter:blur(10px);color:#f5f8fc;font:600 11px/1.25 system-ui,sans-serif;box-shadow:0 5px 20px rgba(0,0,0,.22);cursor:pointer;text-align:left;overflow:hidden}#nrsStage8Ticker .n8-live{flex:0 0 auto;border-radius:5px;padding:4px 5px;background:#d73b44;color:white;font-size:9px;letter-spacing:.07em}#nrsStage8Ticker .n8-headline{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}@media(max-width:560px){#nrsStage8Ticker{width:calc(100vw - 112px);min-height:31px;padding:4px 7px;gap:6px;font-size:10px;top:calc(env(safe-area-inset-top,0px) + 4px)}}";
- document.head.appendChild(style);const ticker=document.createElement("button");ticker.id="nrsStage8Ticker";ticker.type="button";
- ticker.innerHTML='<span class="n8-live">LIVE</span><span class="n8-headline">Rivers News Network · Latest local headlines</span>';
- ticker.setAttribute("aria-label","Open latest Rivers News Network headlines");ticker.addEventListener("click",()=>openStage8Feed());document.body.appendChild(ticker);
+ style.textContent=[
+  "#nrsStage8Notice[hidden]{display:none!important}",
+  "#nrsStage8Notice{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:100001;width:min(370px,calc(100vw - 24px));max-height:min(29vh,158px);box-sizing:border-box;display:grid;gap:5px;padding:10px 12px;border:1px solid rgba(255,255,255,.16);border-left:3px solid #d73b44;border-radius:14px;background:rgba(8,16,27,.96);box-shadow:0 12px 34px rgba(0,0,0,.42);color:#f4f8fc;font:12px/1.35 system-ui,sans-serif;text-align:left;overflow:hidden;cursor:pointer;pointer-events:auto}",
+  "#nrsStage8Notice .n8-notice-head{display:flex;align-items:center;gap:7px;min-width:0}",
+  "#nrsStage8Notice .n8-notice-live{flex:0 0 auto;padding:3px 5px;border-radius:5px;background:#d73b44;color:#fff;font-size:9px;font-weight:900;letter-spacing:.06em}",
+  "#nrsStage8Notice .n8-notice-brand{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:900;letter-spacing:.09em;color:#e3edf8}",
+  "#nrsStage8Notice .n8-notice-close{margin-left:auto;flex:0 0 auto;border:0;background:transparent;color:#aebed0;font-size:18px;line-height:1;padding:0 1px;cursor:pointer}",
+  "#nrsStage8Notice .n8-notice-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;margin:0;color:#fff;font-size:13px;font-weight:850;line-height:1.28}",
+  "#nrsStage8Notice .n8-notice-copy{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;margin:0;color:#b9cadb;font-size:11px;line-height:1.35}",
+  "#modal .s4-card .n8-feed-title,#modal .s4-card .n8-feed-copy,#modal .s4-card .n8-feed-context{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;box-sizing:border-box}",
+  "#modal .s4-card .n8-feed-title{line-height:1.3}",
+  "#modal .s4-card .n8-feed-copy{line-height:1.5}",
+  "@media(max-width:560px){#nrsStage8Notice{top:calc(env(safe-area-inset-top,0px) + 6px);width:calc(100vw - 20px);padding:9px 10px;gap:4px}}"
+ ].join("\n");
+ document.head.appendChild(style);
+ const notice=document.createElement("div");
+ notice.id="nrsStage8Notice";notice.hidden=true;notice.tabIndex=0;notice.setAttribute("role","button");notice.setAttribute("aria-live","polite");notice.setAttribute("aria-label","Read the latest Rivers News Network broadcast");
+ const head=document.createElement("div");head.className="n8-notice-head";
+ const live=document.createElement("span");live.className="n8-notice-live";live.textContent="LIVE";
+ const brand=document.createElement("strong");brand.className="n8-notice-brand";brand.textContent="RIVERS NEWS NETWORK · NEW BROADCAST";
+ const close=document.createElement("button");close.type="button";close.className="n8-notice-close";close.setAttribute("aria-label","Dismiss news notification");close.textContent="×";
+ head.append(live,brand,close);
+ const title=document.createElement("strong");title.className="n8-notice-title";
+ const copy=document.createElement("p");copy.className="n8-notice-copy";
+ notice.append(head,title,copy);document.body.appendChild(notice);
+ notice.addEventListener("click",event=>{if(event.target.closest(".n8-notice-close"))return;openStage8Feed();});
+ notice.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openStage8Feed();}});
+ close.addEventListener("click",event=>{event.stopPropagation();notice.hidden=true;window.clearTimeout(stage8NoticeTimer);});
 }
-function renderStage8Ticker(d){
- ensureStage8Ticker();const t=document.getElementById("nrsStage8Ticker");if(!t)return;
- const s=(d&&Array.isArray(d.feed)?d.feed:[]).find(x=>x&&x.status==="published"),headline=t.querySelector(".n8-headline");
- if(headline)headline.textContent=s?stage8CategoryTitle(s.category).toUpperCase()+" · "+s.title:"Rivers News Network · Latest local headlines";
- t.title=s?s.title+" — tap to read the full report":"Tap to open the public news feed";
+
+function showStage8Notification(story){
+ ensureStage8Notification();
+ const notice=document.getElementById("nrsStage8Notice");if(!notice||!story)return;
+ const title=notice.querySelector(".n8-notice-title"),copy=notice.querySelector(".n8-notice-copy"),brand=notice.querySelector(".n8-notice-brand");
+ const category=stage8CategoryTitle(story.category).toUpperCase();
+ if(brand)brand.textContent="RIVERS NEWS NETWORK · "+category;
+ if(title)title.textContent=String(story.title||"Official local update");
+ const body=String(story.body||"").replace(/\s+/g," ").trim();
+ if(copy)copy.textContent=body.length>180?body.slice(0,177).trim()+"…":body;
+ notice.hidden=false;
+ window.clearTimeout(stage8NoticeTimer);
+ stage8NoticeTimer=window.setTimeout(()=>{notice.hidden=true;},8500);
 }
+
+function renderStage8Notification(d){
+ ensureStage8Notification();
+ if(!d||!Array.isArray(d.feed))return;
+ const published=d.feed.filter(s=>s&&s.status==="published"&&s.id);
+ if(!stage8FeedInitialized){
+  published.forEach(s=>stage8SeenPublishedIds.add(String(s.id)));
+  stage8FeedInitialized=true;
+  return;
+ }
+ const unseen=published.filter(s=>!stage8SeenPublishedIds.has(String(s.id)));
+ d.feed.forEach(s=>{if(s&&s.id)stage8SeenPublishedIds.add(String(s.id));});
+ if(!unseen.length||(stage8MenuOpen&&stage8Mode==="feed"))return;
+ unseen.sort((a,b)=>Number(b.publishedAt||b.createdAt||0)-Number(a.publishedAt||a.createdAt||0));
+ showStage8Notification(unseen[0]);
+}
+
 function openStage8Feed(){
  stage8MenuOpen=true;stage8Mode="feed";stage8Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
- panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>PORT HARCOURT · LIVE HEADLINES</small><h2>Rivers News Network</h2><p>Local stories reviewed by the newsroom before publication.</p></div></div><div class="s4-empty">Loading the latest news feed…</div>');
+ const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;window.clearTimeout(stage8NoticeTimer);
+ panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · OFFICIAL BULLETINS</small><h2>Latest news broadcasts</h2><p>Only reports submitted by authorised network staff, approved by an Editor and broadcast by an Anchor appear here.</p></div></div><div class="s4-empty">Loading official news updates…</div>');
  modal.classList.add("stage4-menu");window.NRS?.getStage8State();
 }
 function openStage8Newsroom(){
  stage8MenuOpen=true;stage8Mode="newsroom";stage8Feedback=null;stage7MenuOpen=false;workplaceMenuOpen=false;governmentMenuOpen=false;marketMenuOpen=false;bankMenuOpen=false;hospitalMenuOpen=false;parkMenuOpen=false;
- panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>STAGE 8 · NEWSROOM</small><h2>Rivers News Network</h2><p>Field reporting, editorial review, live broadcasts and content moderation.</p></div></div><div class="s4-empty">Connecting to the editorial desk…</div>');
+ const notice=document.getElementById("nrsStage8Notice");if(notice)notice.hidden=true;window.clearTimeout(stage8NoticeTimer);
+ panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>RIVERS NEWS NETWORK · STAFF ACCESS</small><h2>Newsroom desk</h2><p>Story filing, editorial review and broadcasts are restricted to authorised network workers.</p></div></div><div class="s4-empty">Checking newsroom access…</div>');
  modal.classList.add("stage4-menu");window.NRS?.getStage8State();
 }
 function renderStage8Console(d){
- if(!stage8MenuOpen){renderStage8Ticker(d||window.NRS?.stage8State||{});return;}d=d||window.NRS?.stage8State||{};renderStage8Ticker(d);
+ if(!stage8MenuOpen)return;
+ d=d||window.NRS?.stage8State||{};
  const feedback=stage8Feedback?'<div class="s4-notice '+(stage8Feedback.ok?"success":"error")+'">'+safeText(stage8Feedback.message||"")+'</div>':"";
- const meta=s=>'<p class="s4-muted">'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(s.authorName)+' · '+stage5When(s.publishedAt||s.createdAt)+'</p>';
+ const meta=s=>'<p class="s4-muted n8-feed-context">'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(s.authorName)+' · '+stage5When(s.publishedAt||s.createdAt)+'</p>';
  const feed=Array.isArray(d.feed)?d.feed:[];
  if(stage8Mode==="feed"){
-  const cards=feed.length?feed.map(s=>'<article class="s4-card"><span class="wm-kind">'+safeText(stage8CategoryTitle(s.category))+'</span><h3>'+safeText(s.title)+'</h3>'+meta(s)+'<p>'+safeText(s.body)+'</p><div class="s4-notice">'+(s.eventRef?"Linked to an in-world event":"Local event coverage")+' · '+safeText(s.eventContext)+'</div><label class="s4-field">Report a concern<textarea id="n8-report-'+stage8Id(s.id)+'" maxlength="260" rows="2" placeholder="Explain the concern (minimum 8 characters)"></textarea></label><button class="subtle" data-news-report="'+safeText(s.id)+'">Report this story</button></article>').join(""):'<div class="s4-empty">No stories have been broadcast yet. An Editor must approve copy before it appears here.</div>';
-  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · PUBLIC FEED</small><h2>Latest from Port Harcourt</h2><p>Published reports only. New broadcasts appear here and on the live ticker.</p></div></div>'+feedback+'<div class="s4-list">'+cards+'</div><div class="wm-buttons"><button data-news-open="newsroom">Open newsroom</button><button class="subtle" data-news-refresh="1">Refresh feed</button></div>');
+  const cards=feed.length?feed.map(s=>'<article class="s4-card n8-feed-card"><span class="wm-kind">'+safeText(stage8CategoryTitle(s.category))+'</span><h3 class="n8-feed-title">'+safeText(s.title)+'</h3>'+meta(s)+'<p class="n8-feed-copy">'+safeText(s.body)+'</p><div class="s4-notice n8-feed-context">'+(s.eventRef?"Linked to an in-world event":"Local event coverage")+' · '+safeText(s.eventContext)+'</div><label class="s4-field">Report a concern<textarea id="n8-report-'+stage8Id(s.id)+'" maxlength="260" rows="2" placeholder="Explain the concern (minimum 8 characters)"></textarea></label><button class="subtle" data-news-report="'+safeText(s.id)+'">Report this story</button></article>').join(""):'<div class="s4-empty">No official news has been broadcast yet. Updates will appear after newsroom staff file, approve and broadcast a report.</div>';
+  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · PUBLIC NEWS</small><h2>Official broadcasts</h2><p>Newsroom updates from authorised staff. New broadcasts also appear as in-game notifications.</p></div></div>'+feedback+'<div class="s4-list">'+cards+'</div><div class="wm-buttons"><button class="subtle" data-news-refresh="1">Refresh news</button></div>');
+  modal.classList.add("stage4-menu");return;
+ }
+
+ const hasNewsroomAccess=!!(d.canSubmit||d.canApprove||d.canPublish||d.canReviewReports);
+ if(!hasNewsroomAccess){
+  panel('<div class="s4-head"><span class="s4-icon">📰</span><div><small>RIVERS NEWS NETWORK · COMMUNITY DESK</small><h2>Suggest a story</h2><p>Citizens can share ideas with the newsroom, but cannot publish directly.</p></div></div>'+feedback+'<section class="s4-card"><h3>Speak to newsroom staff</h3><p class="s4-muted">Visit Rivers News Network reception and tell a staff member what you would like the network to cover. The newsroom will review your suggestion and decide whether to prepare a report.</p><div class="s4-notice">Only authorised Rivers News Network workers can file stories. A Rank 5+ Editor must approve each story before a Rank 4+ Anchor can broadcast it.</div></section><div class="wm-buttons"><button data-news-open="feed">View official broadcasts</button><button class="subtle" data-news-refresh="1">Refresh access</button></div>');
   modal.classList.add("stage4-menu");return;
  }
  const events='<option value="local">Local community event (describe below)</option>'+(Array.isArray(d.eventOptions)?d.eventOptions:[]).map(e=>'<option value="'+safeText(e.id)+'">'+safeText(e.title)+'</option>').join("");
- const cap=d.canSubmit?'<div class="s4-notice success">Newsroom access verified · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">For newsroom tools, join Rivers News Network, enter reception, change into the authorised uniform in the staff room, clock in and return to reception. Rank 3+ submits, Rank 5+ approves and Rank 4+ broadcasts approved copy.</div>';
- const form=d.canSubmit?'<section class="s4-card"><h3>✍️ File an event-based story</h3><p class="s4-muted">Keep reports factual and respectful. Content is validated on the server.</p><label class="s4-field">Headline<input id="n8-title" maxlength="120" placeholder="What happened?"></label><label class="s4-field">Category<select id="n8-category"><option value="community">Community</option><option value="public-safety">Public safety</option><option value="government">Government</option><option value="business">Business</option><option value="transport">Transport</option><option value="weather">Weather</option><option value="events">Events</option></select></label><label class="s4-field">Related in-world event<select id="n8-event-ref">'+events+'</select></label><label class="s4-field">Event / location context<input id="n8-event-context" maxlength="220" placeholder="Mile One Market, Aba Road or a current city event"></label><label class="s4-field">Story<textarea id="n8-body" rows="5" maxlength="1600" placeholder="Write a report with at least 50 characters."></textarea></label><button data-news-submit="1">Submit for editorial review</button></section>':'<section class="s4-card"><h3>Become a newsroom contributor</h3><p class="s4-muted">The public feed is open to everyone. Editorial tools unlock after joining the news faction and meeting duty, uniform and newsroom requirements.</p><button data-news-refresh="1">Check newsroom access</button></section>';
+ const cap=d.canSubmit?'<div class="s4-notice success">Newsroom access verified · '+safeText(d.rankTitle)+' · ON DUTY · uniform verified.</div>':'<div class="s4-notice">For newsroom tools, enter reception, wear the authorised uniform and clock in. Rank 3+ submits, Rank 5+ approves and Rank 4+ broadcasts approved copy.</div>';
+ const form=d.canSubmit?'<section class="s4-card"><h3>✍️ File an event-based story</h3><p class="s4-muted">Keep reports factual and respectful. Content is validated on the server.</p><label class="s4-field">Headline<input id="n8-title" maxlength="120" placeholder="What happened?"></label><label class="s4-field">Category<select id="n8-category"><option value="community">Community</option><option value="public-safety">Public safety</option><option value="government">Government</option><option value="business">Business</option><option value="transport">Transport</option><option value="weather">Weather</option><option value="events">Events</option></select></label><label class="s4-field">Related in-world event<select id="n8-event-ref">'+events+'</select></label><label class="s4-field">Event / location context<input id="n8-event-context" maxlength="220" placeholder="Mile One Market, Aba Road or a current city event"></label><label class="s4-field">Story<textarea id="n8-body" rows="5" maxlength="1600" placeholder="Write a report with at least 50 characters."></textarea></label><button data-news-submit="1">Submit for editorial review</button></section>':'';
  const mine=Array.isArray(d.mySubmissions)?d.mySubmissions:[],my=mine.length?'<section class="s4-card"><h3>My submissions</h3>'+mine.map(s=>'<div class="s4-row"><span><b>'+safeText(s.title)+'</b><small>'+safeText(stage8CategoryTitle(s.category))+' · '+safeText(String(s.status).toUpperCase())+'</small>'+(s.reviewNote?'<small>'+safeText(s.reviewNote)+'</small>':"")+'</span></div>').join("")+'</section>':'<div class="s4-empty">Your submitted stories and review status appear here.</div>';
  const queue=Array.isArray(d.editorialStories)?d.editorialStories:[],q=queue.length?'<section class="s4-card"><h3>Editorial queue</h3>'+queue.map(s=>{const k=stage8Id(s.id),notes='<label class="s4-field">Editor note / moderation reason<input id="n8-note-'+k+'" maxlength="260" placeholder="Record a review note"></label>';let buttons="";if(s.status==="submitted"&&d.canApprove)buttons=notes+'<div class="wm-buttons"><button data-news-approve="'+safeText(s.id)+'">Approve story</button><button class="danger" data-news-reject="'+safeText(s.id)+'">Reject story</button></div>';if(s.status==="approved"&&d.canPublish)buttons=notes+'<button data-news-publish="'+safeText(s.id)+'">Broadcast approved story</button>';return '<div class="s4-card"><div class="s4-row"><span><b>'+safeText(s.title)+'</b><small>'+safeText(s.authorName)+' · '+safeText(String(s.status).toUpperCase())+'</small><small>'+safeText(s.eventContext)+'</small></span></div><p>'+safeText(s.body)+'</p>'+buttons+'</div>';}).join("")+'</section>':'<div class="s4-empty">No stories are waiting for editorial action.</div>';
  const reports=Array.isArray(d.reports)?d.reports:[],reportHtml=d.canReviewReports?'<section class="s4-card"><h3>🚩 Reported content</h3>'+(reports.length?reports.map(r=>'<div class="s4-card"><h4>'+safeText(r.storyTitle)+'</h4><p>'+safeText(r.reporterName)+' reported: '+safeText(r.reason)+'</p><label class="s4-field">Moderation note<input id="n8-mod-'+stage8Id(r.id)+'" maxlength="260" placeholder="Explain the decision (minimum 8 characters)"></label><div class="wm-buttons"><button class="danger" data-news-moderate="remove" data-report="'+safeText(r.id)+'">Remove story</button><button class="subtle" data-news-moderate="dismiss" data-report="'+safeText(r.id)+'">Dismiss report</button></div></div>').join(""):'<div class="s4-empty">No content reports are waiting for review.</div>')+'</section>':"";
  const audit=d.canReviewReports&&Array.isArray(d.actions)?'<section class="s4-card"><h3>Editorial audit log</h3>'+d.actions.map(a=>'<div class="s4-row"><span><b>'+safeText(a.type.replace(/-/g," "))+'</b><small>'+safeText(a.actorName)+' · '+stage5When(a.at)+'</small><small>'+safeText(a.targetName)+' · '+safeText(a.reason||a.result)+'</small></span></div>').join("")+'</section>':"";
- panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>STAGE 8 · NEWSROOM OPERATIONS</small><h2>Editorial desk</h2><p>Every story needs editor approval before an Anchor can publish it.</p></div></div>'+feedback+cap+form+my+q+reportHtml+audit+'<div class="wm-buttons"><button data-news-open="feed">View public feed</button><button class="subtle" data-news-refresh="1">Refresh newsroom</button></div>');modal.classList.add("stage4-menu");
+ panel('<div class="s4-head"><span class="s4-icon">🎙️</span><div><small>RIVERS NEWS NETWORK · STAFF OPERATIONS</small><h2>Editorial desk</h2><p>Every story needs editor approval before an Anchor can broadcast it.</p></div></div>'+feedback+cap+form+my+q+reportHtml+audit+'<div class="wm-buttons"><button data-news-open="feed">View public broadcasts</button><button class="subtle" data-news-refresh="1">Refresh newsroom</button></div>');modal.classList.add("stage4-menu");
 }
-window.addEventListener("nrs-stage8-state",e=>{const d=e.detail||window.NRS?.stage8State||{};renderStage8Ticker(d);if(stage8MenuOpen)renderStage8Console(d);});
+window.NRS=window.NRS||{};
+window.NRS.openStage8Feed=openStage8Feed;
+window.NRS.openStage8Newsroom=openStage8Newsroom;
+window.addEventListener("nrs-open-stage8-feed",openStage8Feed);
+window.addEventListener("nrs-stage8-state",e=>{const d=e.detail||window.NRS?.stage8State||{};renderStage8Notification(d);if(stage8MenuOpen)renderStage8Console(d);});
 window.addEventListener("nrs-stage8-action-result",e=>{stage8Feedback=e.detail||null;if(stage8MenuOpen)renderStage8Console(window.NRS?.stage8State||{});});
-ensureStage8Ticker();setInterval(()=>{if(window.NRS?.session&&window.NRS?.getStage8State)window.NRS.getStage8State();},30000);
+ensureStage8Notification();setInterval(()=>{if(window.NRS?.session&&window.NRS?.getStage8State)window.NRS.getStage8State();},30000);
 
 /* ---------- Stage 4: market counter and bank teller services ---------- */
 let marketMenuOpen=false,bankMenuOpen=false,marketFeedback=null,bankFeedback=null;
@@ -4454,4 +4518,4 @@ let last=performance.now(),t=0;
 function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
  update(dt);s6(dt);routeTick(dt);sigTick(t);peds(dt,t);traffic(dt);animate(dt,t);hudAct();poiAct();fuelAct();updateCam(dt);if(MP.open)mapFrame();else{renderer.render(scene,cam);drawComp();drawMap();}}
 requestAnimationFrame(loop);
-</script><script src="/nrs-online.js?v=stage17-city-passport"></script><script src="/nrs-stage17-passport.js?v=stage17-passport"></script></body></html>
+</script><script src="/nrs-online.js?v=city-news-hub-20261011"></script><script src="/nrs-stage17-passport.js?v=city-news-hub-20261011"></script></body></html>
