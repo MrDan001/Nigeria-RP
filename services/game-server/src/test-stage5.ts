@@ -270,8 +270,8 @@ test("pharmacy blocks self-service, off-duty workers, invalid fractional quantit
 
 test("physical park grounds boundaries are defined and a pass is valid only for its issue day", () => {
   const state = createStage5State();
-  assert.equal(isInsideParkGrounds(-40, 30), true);
-  assert.equal(isInsideParkGrounds(-51, 30), false);
+  assert.equal(isInsideParkGrounds(-30, 30), true);
+  assert.equal(isInsideParkGrounds(-35, 30), false);
   assert.equal(isInsideParkGrounds(-30, 22.99), false);
   assert.equal(isInsideParkGrounds(-30, 42), false);
   assert.equal(isInsideParkGrounds(PARK_GATE_APPROACH.x, PARK_GATE_APPROACH.z), false);
