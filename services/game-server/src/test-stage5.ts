@@ -5,6 +5,7 @@ import {
   HOSPITAL_HEAL_AMOUNT,
   HOSPITAL_MEDICINES,
   HOSPITAL_TREATMENT_FEE,
+  PARK_GATE_APPROACH,
   PARK_TICKET_PRICE,
   buyParkTicket,
   completeHospitalTreatment,
@@ -273,6 +274,7 @@ test("physical park grounds boundaries are defined and a pass is valid only for 
   assert.equal(isInsideParkGrounds(-51, 30), false);
   assert.equal(isInsideParkGrounds(-30, 22.99), false);
   assert.equal(isInsideParkGrounds(-30, 42), false);
+  assert.equal(isInsideParkGrounds(PARK_GATE_APPROACH.x, PARK_GATE_APPROACH.z), false);
   assert.equal(hasValidParkTicket(state, "visitor", "2026-10-11"), false);
 
   const ticket = buyParkTicket({
