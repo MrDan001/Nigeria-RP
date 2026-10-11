@@ -127,11 +127,33 @@ test("authorized nurse completes on-site care and patient pays only the fixed fe
   assert.equal(state.hospital.history.at(-1)?.kind, "treatment");
 });
 
+test("regular hospital treatment cannot skip triage", () => {
+  const state = createStage5State();
+  const created = careRequest(state);
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const patient = { hp: 50, cash: 2_000 };
+  const result = completeHospitalTreatment({
+    state, requestId: created.request.id, patientId: "patient-1", workerId: "nurse",
+    workerRank: 3, hospitalId: "hospital-main", onDuty: true, uniform: true,
+    atHospital: true, patientAtHospital: true, ambulanceProximityValid: false, patient, now: NOW + 1,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, "triage_required");
+  assert.deepEqual(patient, { hp: 50, cash: 2_000 });
+});
+
 test("clinical treatment rejects off-site treatment, unauthorised workers and insufficient cash", () => {
   const state = createStage5State();
   const created = careRequest(state);
   assert.equal(created.ok, true);
   if (!created.ok) return;
+  const triaged = triageHospitalRequest({
+    state, requestId: created.request.id, workerId: "aide-1", workerRank: 2,
+    hospitalId: "hospital-main", onDuty: true, uniform: true, atHospital: true,
+    patientAtHospital: true, now: NOW + 1,
+  });
+  assert.equal(triaged.ok, true);
   const base = {
     state, requestId: created.request.id, patientId: "patient-1", hospitalId: "hospital-main",
     onDuty: true, uniform: true, atHospital: true, patientAtHospital: true,
