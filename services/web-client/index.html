@@ -849,7 +849,7 @@ function createHouseExterior(h){
  if(cls==="faceme"||cls==="flat")[-1,1].forEach(side=>{houseSideWindow(A,m,side*(w/2+.04),Math.min(H*.6,2.1),0,1.45,1.0,side);A(new THREE.CylinderGeometry(.045,.045,H,8),m.metal,side*(w/2-.2),.22+H/2,front-.2);});
  if(cls==="flat"){const ax=w/2+.08,az=-d*.18,ay=2.6;A(new THREE.BoxGeometry(.42,.5,.72),m.concrete,ax,ay,az);A(new THREE.BoxGeometry(.06,.35,.52),m.metal,ax+.23,ay,az);}
  const plaqueTex=tex(512,128,(ctx,ww,hh)=>paintHousePlaque(ctx,ww,hh,h));
- const plaque=new THREE.Mesh(new THREE.PlaneGeometry(spec.w,spec.w/4),new THREE.MeshBasicMaterial({map:plaqueTex,side:THREE.DoubleSide}));plaque.position.set(spec.x,spec.y,spec.z);g.add(plaque);
+ readableTextBoard(g,new THREE.PlaneGeometry(spec.w,spec.w/4),plaqueTex,spec.x,spec.y,spec.z);
  // Collision is split around the doorway, so players can reach the actual entrance.
  const addCollider=(x,z,hw,hd)=>{const b={x:g.position.x+x,z:g.position.z+z,hw,hd,homeId:h.id};boxes.push(b);bld.push(b);};
  addCollider(-w/2,0,.28,d/2);addCollider(w/2,0,.28,d/2);addCollider(0,-d/2,w/2,.28);
@@ -1752,7 +1752,7 @@ function garageRoom(d){
    add(new THREE.BoxGeometry(3.7,.045,.07),yellow,x,.075,bayZ+4.75);
    add(new THREE.BoxGeometry(1.0,.12,.22),metal,x,.13,bayZ+3.95);
    const number=tex(128,96,(g,w,h)=>{g.fillStyle="#192529";g.fillRect(0,0,w,h);g.fillStyle="#f2c846";g.textAlign="center";g.font="bold 58px system-ui";g.fillText(String(i+1).padStart(2,"0"),w/2,67);});
-   add(new THREE.PlaneGeometry(1.05,.8),new THREE.MeshBasicMaterial({map:number,side:THREE.DoubleSide}),x,1.15,bayZ-3.8);
+   readableTextBoard(scene,new THREE.PlaneGeometry(1.05,.8),number,x,1.15,bayZ-3.8);
  }
  // Workshop cabinet and wall-mounted extinguishers give the private garage scale.
  add(new THREE.BoxGeometry(2.6,1.45,.7),metal,ix-12,0.82,iz-8.8);
@@ -1768,12 +1768,12 @@ function garageRoom(d){
    g.fillStyle="#f3c33d";for(let x=-40;x<w;x+=90){g.beginPath();g.moveTo(x,0);g.lineTo(x+45,0);g.lineTo(x-10,h);g.lineTo(x-55,h);g.closePath();g.fill();}
    g.fillStyle="#ffffff";g.textAlign="center";g.font="bold 36px system-ui";g.fillText("STOP  •  HONK AT THE GARAGE DOOR",w/2,79);
  });
- const sign=add(new THREE.PlaneGeometry(11.2,2.35),new THREE.MeshBasicMaterial({map:gateSign,side:THREE.DoubleSide}),ix,3.75,iz+15.58);sign.rotation.y=Math.PI;
+ readableTextBoard(scene,new THREE.PlaneGeometry(11.2,2.35),gateSign,ix,3.75,iz+15.58,Math.PI);
  const topLabel=tex(512,80,(g,w,h)=>{
    g.fillStyle="#152329";g.fillRect(0,0,w,h);g.fillStyle="#f3c33d";g.fillRect(0,0,w,6);
    g.fillStyle="#ffffff";g.textAlign="center";g.font="bold 27px system-ui";g.fillText("NRS  •  PRIVATE RESIDENTIAL GARAGE",w/2,51);
  });
- add(new THREE.PlaneGeometry(13,.9),new THREE.MeshBasicMaterial({map:topLabel,side:THREE.DoubleSide}),ix,5.48,iz-18.98);
+ readableTextBoard(scene,new THREE.PlaneGeometry(13,.9),topLabel,ix,5.48,iz-18.98);
  return HOME_ROOMS.__privateGarage={id:"__privateGarage",name:"Private car park",x:ix,z:iz,cb:{x:ix-12.8,z:iz-1,hw:.4,hd:.4},pois:[],isCarpark:true,home:d.home||null};
 }
 function openGarageFootExitMenu(){
@@ -1852,6 +1852,14 @@ let cash=5000,curPoi=null,shopP=null,pMsg='';const inv={},POI=[],FS=[];
 const money=()=>{$('cash').textContent=cash.toLocaleString();};money();
 const fit=(g,t,max,W)=>g.font='bold '+Math.min(max,Math.floor(W/(t.length*.6)))+'px system-ui';
 function mirrorSignTexture(texture){const back=texture.clone();back.wrapS=THREE.ClampToEdgeWrapping;back.center.set(0,0);back.repeat.set(-1,1);back.offset.set(1,0);back.needsUpdate=true;return back;}
+function readableTextBoard(parent,geometry,texture,x,y,z,rotationY=0){
+ const board=new THREE.Group();board.position.set(x,y,z);board.rotation.y=rotationY;parent.add(board);
+ const front=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({map:texture,side:THREE.FrontSide,fog:false}));
+ front.position.z=.012;board.add(front);
+ const back=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({map:mirrorSignTexture(texture),side:THREE.FrontSide,fog:false}));
+ back.rotation.y=Math.PI;back.position.z=-.012;board.add(back);
+ return board;
+}
 let FORBES_SIGN=null;
 function drawForbesPhysicalSign(players){
  if(!FORBES_SIGN)return;
@@ -1956,7 +1964,7 @@ function buildHospital(site){
   g.fillText(site.name.toUpperCase(),w/2,44);
   g.font='bold 17px system-ui';g.fillStyle='#dff5f5';g.fillText('PATIENT CARE  •  EMERGENCY SERVICES',w/2,80);
  });
- add(new THREE.PlaneGeometry(site.w*.82,1.7),new THREE.MeshBasicMaterial({map:signTex,side:THREE.DoubleSide}),site.x,site.h-1.0,front+.17);
+ readableTextBoard(scene,new THREE.PlaneGeometry(site.w*.82,1.7),signTex,site.x,site.h-1.0,front+.17);
  // Distinctive medical cross signage.
  const cx=site.x-site.w/2+2.2,cy=site.h-1.05,cz=front+.2;
  add(new THREE.BoxGeometry(1.5,1.5,.1),M(0xf4f4ef),cx,cy,cz);
@@ -2927,10 +2935,10 @@ function addApartmentExteriorDetails(b,id){
   g.fillStyle='#fff';g.textAlign='center';g.font='bold 32px system-ui';g.fillText('APARTMENT BLOCK #'+block,w/2,50);
   g.fillStyle='#b8e7f4';g.font='bold 20px system-ui';g.fillText((floors*APARTMENT_ROOMS_PER_FLOOR)+' UNITS · '+floors+' FLOORS',w/2,84);
  });
- const board=new THREE.Mesh(new THREE.PlaneGeometry(3.8,.84),new THREE.MeshBasicMaterial({map:boardTex,side:THREE.DoubleSide}));
- if(axis==='x'){board.position.set(fx+sign*.19,3.25,0);board.rotation.y=sign>0?Math.PI/2:-Math.PI/2;}
- else {board.position.set(0,3.25,fz+sign*.19);board.rotation.y=sign>0?0:Math.PI;}
- root.add(board);
+ let boardX,boardZ,boardYaw;
+ if(axis==='x'){boardX=fx+sign*.19;boardZ=0;boardYaw=sign>0?Math.PI/2:-Math.PI/2;}
+ else {boardX=0;boardZ=fz+sign*.19;boardYaw=sign>0?0:Math.PI;}
+ readableTextBoard(root,new THREE.PlaneGeometry(3.8,.84),boardTex,boardX,3.25,boardZ,boardYaw);
  APARTMENT_FACADE_DETAILS[id]=root;
 }
 function refreshApartmentPOIs(){
@@ -2994,9 +3002,9 @@ function renderApartmentHall(d,ret){
  A(new THREE.BoxGeometry(.055,2.2,.05),brass,0,1.16,11.62);
  [-1,1].forEach(side=>{A(new THREE.BoxGeometry(.18,.42,.12),brass,side*8.95,2.55,9.7);A(new THREE.BoxGeometry(.10,.22,.06),new THREE.MeshBasicMaterial({color:0xffe8a3}),side*8.95,2.55,9.60);});
  const titleTex=apartmentText(buildingName.toUpperCase());
- A(new THREE.PlaneGeometry(9.2,1.55),new THREE.MeshBasicMaterial({map:titleTex,side:THREE.DoubleSide}),0,2.72,-11.72);
+ readableTextBoard(root,new THREE.PlaneGeometry(9.2,1.55),titleTex,0,2.72,-11.72);
  const floorTex=apartmentText('FLOOR '+floor+' / '+floors,'#293d47','#f7e5bf');
- const floorIndicator=A(new THREE.PlaneGeometry(3.2,.72),new THREE.MeshBasicMaterial({map:floorTex,side:THREE.FrontSide}),0,2.26,11.62);floorIndicator.rotation.y=Math.PI;
+ readableTextBoard(root,new THREE.PlaneGeometry(3.2,.72),floorTex,0,2.26,11.62,Math.PI);
  const firstRoom=(floor-1)*APARTMENT_ROOMS_PER_FLOOR+1;
  const numbers=(d.rooms||Array.from({length:APARTMENT_ROOMS_PER_FLOOR},(_,i)=>({roomNumber:firstRoom+i,vacant:true,occupiedByMe:false})));
  const pois=[],doorZ=[-7.2,-4.0,-.8,2.4,5.6];
@@ -3011,8 +3019,7 @@ function renderApartmentHall(d,ret){
   A(new THREE.BoxGeometry(.3,.28,.22),M(color),x-side*.16,2.0,z-.64);
   addApartmentInteriorCollider(ix+side*8.55,iz+z,.09,.78,'numbered-room-door');
   const plate=apartmentText(String(roomInfo.roomNumber),'#17303b');
-  const board=A(new THREE.PlaneGeometry(1.45,.46),new THREE.MeshBasicMaterial({map:plate,side:THREE.DoubleSide}),x-side*.19,2.18,z);
-  board.rotation.y=side<0?Math.PI/2:-Math.PI/2;
+  readableTextBoard(root,new THREE.PlaneGeometry(1.45,.46),plate,x-side*.19,2.18,z,side<0?Math.PI/2:-Math.PI/2);
   pois.push({x:ix+side*7.4,z:iz+z,k:'Room',name:'Room '+roomInfo.roomNumber+(roomInfo.locked&&!roomInfo.occupiedByMe?' · LOCKED':''),t:'apartment-room',roomNumber:roomInfo.roomNumber,buildingId,r:2.9});
  }
  // Elevator lobby replaces the staircase with framed sliding doors, floor display and call buttons.
@@ -3023,13 +3030,13 @@ function renderApartmentHall(d,ret){
  A(new THREE.BoxGeometry(.035,2.45,.035),brass,-1.2,1.40,-10.61);
  A(new THREE.BoxGeometry(3.45,.11,.16),brass,-1.2,2.80,-10.68);
  const liftLabel=apartmentText('ELEVATOR · '+(floor===1?'GROUND FLOOR':'FLOOR '+floor),'#17313e','#fff0bd');
- A(new THREE.PlaneGeometry(3.65,.62),new THREE.MeshBasicMaterial({map:liftLabel,side:THREE.DoubleSide}),-1.2,3.15,-10.66);
+ readableTextBoard(root,new THREE.PlaneGeometry(3.65,.62),liftLabel,-1.2,3.15,-10.66);
  A(new THREE.BoxGeometry(.48,.92,.12),metal,1.10,1.72,-10.73);
  A(new THREE.BoxGeometry(.29,.32,.05),M(0x17252c),1.10,2.20,-10.64);
  A(new THREE.BoxGeometry(.13,.13,.05),new THREE.MeshBasicMaterial({color:floor===1?0x39c980:0xf0bd58}),1.10,2.20,-10.59);
  A(new THREE.BoxGeometry(.13,.13,.05),new THREE.MeshBasicMaterial({color:0x6e7f87}),1.10,1.82,-10.59);
  const elevatorText=apartmentText('SELECT YOUR FLOOR','#293d47','#f7e5bf');
- A(new THREE.PlaneGeometry(3.3,.48),new THREE.MeshBasicMaterial({map:elevatorText,side:THREE.DoubleSide}),-1.2,3.47,-10.65);
+ readableTextBoard(root,new THREE.PlaneGeometry(3.3,.48),elevatorText,-1.2,3.47,-10.65);
  pois.push({x:ix-1.2,z:iz-8.4,k:'Elevator',name:'Choose a floor · '+floor+' / '+floors,t:'apartment-elevator',r:3.2});
  if(floor===1)pois.push({x:ix,z:iz+9.9,k:'Exit',name:'Exit to street',t:'apartment-building-exit',r:2.8});
  const prevRet=ret||{x:Number(d.returnX)||0,z:Number(d.returnZ)||24,face:face,camYaw:Math.PI,camPitch:.28};
@@ -3054,9 +3061,9 @@ function renderApartmentRoom(d,ret){
  addApartmentInteriorCollider(ix,iz-5.9,6,.12,'room-back-wall');addApartmentInteriorCollider(ix-3.85,iz+5.9,2.125,.12,'room-front-wall');addApartmentInteriorCollider(ix+3.85,iz+5.9,2.125,.12,'room-front-wall');addApartmentInteriorCollider(ix,iz+5.9,1.75,.12,'room-front-door');
  A(new THREE.BoxGeometry(1.45,2.12,.055),glass,-.78,1.10,5.68);A(new THREE.BoxGeometry(1.45,2.12,.055),glass,.78,1.10,5.68);
  const roomPlate=apartmentText('ROOM '+number,'#17313d','#fff2c7');
- A(new THREE.PlaneGeometry(3.0,.72),new THREE.MeshBasicMaterial({map:roomPlate,side:THREE.DoubleSide}),0,2.52,5.68);
+ readableTextBoard(root,new THREE.PlaneGeometry(3.0,.72),roomPlate,0,2.52,5.68,Math.PI);
  const title=apartmentText(buildingName+' · ROOM '+number);
- A(new THREE.PlaneGeometry(6.2,.85),new THREE.MeshBasicMaterial({map:title,side:THREE.DoubleSide}),0,3.0,-5.78);
+ readableTextBoard(root,new THREE.PlaneGeometry(6.2,.85),title,0,3.0,-5.78);
  A(new THREE.BoxGeometry(3.5,.42,4.1),wood,-2.75,.25,-2.4);A(new THREE.BoxGeometry(3.35,.22,3.85),M(0xeee7d7),-2.75,.56,-2.35);
  A(new THREE.BoxGeometry(3.35,.18,2.0),M(0x537b89),-2.75,.72,-3.1);A(new THREE.BoxGeometry(1.05,.17,.65),M(0xf7f2e8),-3.5,.78,-4.05);A(new THREE.BoxGeometry(1.05,.17,.65),M(0xf7f2e8),-2.0,.78,-4.05);
  A(new THREE.BoxGeometry(3.72,.23,.25),trim,-2.75,1.05,-4.4);
