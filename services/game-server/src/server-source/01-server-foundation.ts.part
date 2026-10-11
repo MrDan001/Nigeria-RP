@@ -103,6 +103,7 @@ import { TRANSPORT_WORKPLACE_ID, STAGE9_DEPOT, STAGE9_ROUTES, STAGE9_STOPS, acce
 import { createStage15State, findStage15City, findStage15Route, normalizeStage15State, recordStage15Travel, stage15Cities, stage15CitySpawn, stage15Routes, validateStage15Travel, type Stage15State, type Stage15TravelMode } from "./stage15";
 import { findStage16Environment, stage16Environments } from "./stage16";
 import { createStage17State, normalizeStage17State, recordStage17CityDiscovery, stage17Passport, type Stage17State } from "./stage17";
+import { STAGE18_BET_CLOSE_HOUR, STAGE18_BET_MAX_STAKE, STAGE18_BET_MIN_STAKE, STAGE18_MAX_SELECTIONS, stage18Fixtures, stage18NigeriaClock, stage18ResultsForDate, type Stage18Pick } from "./stage18";
 
 const scrypt = promisify(scryptCb);
 

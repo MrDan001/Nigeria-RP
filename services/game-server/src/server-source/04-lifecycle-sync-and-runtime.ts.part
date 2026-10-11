@@ -1754,6 +1754,11 @@ setInterval(() => {
   });
 }, 1000);
 
+// Settlement runs server-side twice a minute using Nigeria local time.
+setInterval(() => {
+  void withMoneyMutation(() => runStage18BettingSettlement()).catch((error) => console.error("stage18-betting-settlement", error));
+}, 30000);
+
 // Checks twice a minute whether Nigeria time has crossed midnight.
 setInterval(() => {
   void runMidnight().catch((error) => console.error("midnight", error));
