@@ -318,7 +318,7 @@ body.drv #camB{display:grid}
 <button class="ped" id="brk" data-l="BRAKE" aria-label="Brake"></button><button class="ped" id="gas" data-l="GAS" aria-label="Gas"></button>
 <button class="dbtn" id="hb">HB</button><button class="dbtn" id="radio">📻</button><button class="dbtn" id="hn"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5c1.6 1.2 1.6 3.8 0 5"/></svg></button><button class="dbtn" id="camB"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></button><button class="rb" id="jump">⤴</button>
 <input type="file" id="mf" accept="audio/*" style="display:none">
-<div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="all" class="on">All Places</button><button data-t="shop">Shops</button><button data-t="svc">Services</button><button data-t="work">🏢 Works / Organization</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button><button data-t="homes">Homes</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
+<div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="all" class="on">All Places</button><button data-t="shop">Shops</button><button data-t="svc">Services</button><button data-t="work">🏢 Works / Organization</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button><button data-t="homes">Homes</button><button data-t="apartments">Apartments</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
 <div id="navb"><i>NAVIGATION</i><b></b><small></small><button id="navx">✕ Cancel</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -3404,6 +3404,14 @@ function plData(tab){const o=[],seen={};
   });
  }
  else if(tab==='fuel')FS.forEach(q=>o.push({n:q.brand+' · '+q.road,sub:'₦'+f(q.price)+' / L',x:q.x,z:q.z,ico:'⛽',c:hex(q.col),r:11}));
+ else if(tab==='apartments'){
+  const seenApartments=new Set();
+  POI.filter(q=>q.apartmentBuildingPoi&&q.apartmentBuilding).forEach(q=>{
+   const b=q.apartmentBuilding,key=b.id||q.name;if(seenApartments.has(key))return;seenApartments.add(key);
+   const label=b.buildingName||q.name||'Apartment building';
+   o.push({n:label,sub:'Apartment building · '+rdName(q.x,q.z)+' · Enter to view numbered rooms',x:q.x,z:q.z,ico:'🏢',c:'#365b83',r:9,apartmentBuildingPoi:true,apartmentBuilding:b});
+  });
+ }
  else if(tab==='homes'){
   const N=window.NRS||{},life=N.life||{};
   (N.houses||[]).forEach(h=>{const mine=!!h.occupiedByMe,free=!!h.vacant;
