@@ -154,9 +154,9 @@ export function consumeStage9Fuel(s:Stage9State,vehicleId:string,ownerId:string,
 }
 
 export function requestStage9Ride(s:Stage9State,i:Base&{pickupStopId:string;destinationStopId:string;vehicleType:unknown;passengerCash:number}):Stage9Result {
-  const a=actorClean(i.actor),r=clean(i.requestId,120),from=validStop(clean(i.pickupStopId,80)),to=validStop(clean(i.destinationStopId,80)),type=i.vehicleType as Stage9Ride["vehicleType"];
+  const a=actorClean(i.actor),r=clean(i.requestId,120),from=validStop(clean(i.pickupStopId,80)),to=validStop(clean(i.destinationStopId,80)),rawType=i.vehicleType as Stage9VehicleType,type=rawType as Stage9Ride["vehicleType"];
   if(r.length<4||used(s,r))return fail(s,"This ride request is missing or was already processed.");if(!from||!to||from.id===to.id)return fail(s,"Choose two different public transport stops.");
-  if(!types.has(type)||type==="haulage")return fail(s,"Choose a passenger vehicle, not a haulage truck.");
+  if(!types.has(rawType)||rawType==="haulage")return fail(s,"Choose a passenger vehicle, not a haulage truck.");
   if(dist(a.x,a.z,from)>STAGE9_STOP_RADIUS)return fail(s,"Walk to the pickup stop before requesting a ride.");
   if(jobActive(s,a.actorId))return fail(s,"You already have an active passenger request or assignment.");
   const fare=fareFor(type,from,to);if(amount(i.passengerCash)<fare)return fail(s,"You need ₦"+fare.toLocaleString("en-NG")+" cash available for that fare.");
