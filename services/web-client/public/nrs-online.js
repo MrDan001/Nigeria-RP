@@ -528,6 +528,9 @@
         window.dispatchEvent(new CustomEvent("nrs-workplaces", { detail: message }));
         snapshot(message.players || [], message.onlineCount);
         send({ type: "getRichestPlayers" });
+        // Fetch ticket/staff credentials immediately so the local park gate opens
+        // correctly after login, not only after a player opens the park menu.
+        send({ type: "getParkState" });
         $("nrsError").textContent = "";
         status("Account loaded. Welcome to Port Harcourt.");
         return;
@@ -656,7 +659,7 @@
           if (message.message) sys(message.message);
         }
       } else if (message.type === "parkState" || message.type === "parkActionResult" ||
-                 message.type === "parkRequestNotice" || message.type === "parkTicketSaleNotice") {
+                 message.type === "parkGateResult" || message.type === "parkRequestNotice" || message.type === "parkTicketSaleNotice") {
         if (message.type === "parkState") {
           N.parkState = { ...(N.parkState || {}), ...message };
           window.dispatchEvent(new CustomEvent("nrs-park-state", { detail: N.parkState }));
@@ -668,6 +671,9 @@
         }
         if (message.type === "parkActionResult") {
           window.dispatchEvent(new CustomEvent("nrs-park-action-result", { detail: message }));
+        } else if (message.type === "parkGateResult") {
+          window.dispatchEvent(new CustomEvent("nrs-park-gate-result", { detail: message }));
+          if (message.message) sys(message.message);
         } else if (message.type === "parkRequestNotice") {
           window.dispatchEvent(new CustomEvent("nrs-park-request-notice", { detail: message }));
           if (message.message) sys(message.message);
