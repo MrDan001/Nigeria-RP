@@ -19,6 +19,7 @@ function check(label, code) {
   }
 }
 
+check("public/nrs-game.js", readFileSync(path.join(root, "public/nrs-game.js"), "utf8"));
 check("public/nrs-online.js", readFileSync(path.join(root, "public/nrs-online.js"), "utf8"));
 
 for (const page of ["index.html", "index-multiplayer-lab.html"]) {
