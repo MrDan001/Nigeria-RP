@@ -87,7 +87,7 @@ Acceptance:
 - [ ] Verify persistence against the configured database, not browser-only storage.
 
 ### Stage 2 — Homes, rent, exterior buildings, interiors and car-park exits
-**Status as of 11 October 2026: Deployed; the Face-Me-I-Face-You visibility defect is fixed and the user confirmed it now appears on the live Railway game. The specific visual defect is closed. The full Stage 2 checklist remains partially unverified (especially the rental catalogue/client preview alignment and garage/respawn flows). Stage 2 should be kept as a regression/closeout checklist while the already-approved Stage 3 continues.**
+**Status: DONE FOR SEQUENCING AT THE USER'S DIRECTION — the Face-Me-I-Face-You visibility fix is user-confirmed live; remaining housing and garage checks stay on the combined release-test checklist.**
 
 Scope and intended behavior:
 - The server-authoritative Places → Homes catalogue and Stage 2 regression test define 33 rentable homes across Mile 1 Market, Rumuola, D-Line, Waterlines, Trans Amadi and Old GRA. The browser map has 33 residential exterior slots. Automated count alignment does not certify the physical entrance/collision route for every home; those checks remain part of Stage 2 live acceptance.

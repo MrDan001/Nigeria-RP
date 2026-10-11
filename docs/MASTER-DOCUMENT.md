@@ -1,6 +1,6 @@
 # Nigerian Roleplay Simulator — Master Document
 
-> **Project status — 11 October 2026:** Stage 3 was accepted by the user; Stage 4 market/bank services are implemented and deployed; Stage 5 hospital, ambulance, pharmacy and City Park citizen-to-worker interaction flows are active. The user is the sole tester, so two-account live checks are not falsely claimed; automated permissions, replay and balance checks are used instead. The Face-Me-I-Face-You exterior visibility fix remains a protected regression boundary. See [the roadmap](ROADMAP.md), [Stage 5 status](STAGE-5-STATUS.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
+> **Project status — 11 October 2026:** Stages 0–5 are marked done for sequencing at the user's direction. Stage 6 — Rivers State Government & Civic Finance — is deployed to Railway with the named Stage 6 release label. Stage 1–6 Game Server CI, server typecheck/build and browser build passed. Android debug-APK and manual real-device/two-account checks remain separately tracked and are not claimed as complete.
 
 ## 1. Vision
 

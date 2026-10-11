@@ -2,19 +2,19 @@
 
 The full scope, dependencies, acceptance checks, test commands and developer handoff are in [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md). Stage-specific implementation details are recorded in [Stage 4 status](STAGE-4-STATUS.md) and [Stage 5 status](STAGE-5-STATUS.md).
 
-> **Status update: 11 October 2026.** Stage 3 was accepted by the user. Stage 4 market/bank services have been implemented and deployed to Railway. **Stage 5 — hospital, ambulance, pharmacy and City Park player-to-worker interactions — is now active.** The earlier Face-Me-I-Face-You exterior visibility fix remains a protected regression boundary.
+> **Status update: 11 October 2026.** Stages 0–5 are marked done for sequencing at the user's direction. **Stage 6 — Rivers State Government & Civic Finance — is deployed to Railway under the named release.** Stage 1–6 domain regression, server typecheck/build and browser build passed. Android debug-APK and real-device/two-account checks are tracked separately.
 
 ## Stage table
 
 | Stage | Canonical scope | Status |
 |---|---|---|
-| 0 | Repository, server, persistence, CI and Railway deployment foundation | Foundation exists; maintain and verify |
-| 1 | Citizen accounts, saved life and multiplayer | Core code exists; keep as regression coverage; multi-device capacity still requires measurement |
-| 2 | Homes, rent, residential exteriors/interiors and car-park routes | Core code deployed; Face-Me visibility defect fixed and user-confirmed; remaining housing/garage checks remain explicit regression closeout |
-| 3 | Workplace locations and reusable jobs/ranks/factions engine | **ACCEPTED by user; automated regression coverage retained; two-account Android visual check not performed by agreement because the user is the sole tester** |
-| 4 | Market salespeople and bank tellers | **Implemented and deployed**; server-authoritative goods/stock/commissions, manager restock, deposits/withdrawals, receipts and history |
-| 5 | Hospital treatment workflows and parks | **ACTIVE**; patient requests, triage, treatment, ambulance assignment/field care, pharmacy, park daily passes and visitor assistance being integrated and verified |
-| 6 | Rivers State government and civic finance | Planned |
+| 0 | Repository, server, persistence, CI and Railway deployment foundation | Done for sequencing; foundation checks retained |
+| 1 | Citizen accounts, saved life and multiplayer | Done for sequencing; automated regression passed |
+| 2 | Homes, rent, residential exteriors/interiors and car-park routes | Done for sequencing; key visibility fix user-confirmed |
+| 3 | Workplace locations and reusable jobs/ranks/factions engine | Done for sequencing; automated regression passed |
+| 4 | Market salespeople and bank tellers | Done for sequencing; automated regression passed |
+| 5 | Hospital treatment workflows and parks | Done for sequencing; automated regression passed |
+| 6 | Rivers State government and civic finance | Deployed; Stage 1–6 CI and browser build passed |
 | 7 | Police, Army, FRSC and Fire Service | Planned |
 | 8 | Rivers News Network | Planned |
 | 9 | Transport, passengers and haulage | Planned |
