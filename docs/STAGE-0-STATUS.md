@@ -1,35 +1,26 @@
-# Stage 0 Status — October 7, 2026
+# Stage 0 — Repository and Delivery Foundation (Historical Status)
 
-## Completed
+> **Status refreshed 11 October 2026:** Stage 0 has been superseded by the live Railway-hosted browser game. This file is a historical record, not an active deployment blocker or the current stage authority. Use [the roadmap](ROADMAP.md) for the current stage.
 
-- Repository foundation established.
-- Master product specification added.
-- Technical architecture added.
-- Roadmap and contribution rules added.
-- Unity client boundary documented.
-- Dedicated game-server boundary documented.
-- Network protocol v1 contract documented.
-- Infrastructure boundary documented.
-- Next.js API foundation created under `services/api`.
-- Health endpoint created at `/api/health`.
-- GitHub Actions API verification workflow added.
-- `develop` branch created for ongoing implementation.
-- Next.js pinned to 16.4.0 and React to 19.3.0 based on the current stable releases.
+## Foundation established
 
-## Blocked
+- Repository and documentation structure established.
+- Product specification, technical architecture, contribution rules and stage roadmap added.
+- Network/client-server contract notes added.
+- Root workspace build/start scripts configured.
+- Browser client and TypeScript game-server workspaces established.
+- HTTP health response and GitHub Actions workflows added.
+- Railway production deployment is connected to `MrDan001/Nigeria-RP` on `main`.
 
-Vercel project creation could not be completed through the connected Vercel team because the integration received HTTP 403 permission denied when creating the new project.
+## Superseded assumptions
 
-This is an infrastructure permission issue, not a code failure.
+Early notes referred to a planned API-hosting setup and a different client/server boundary. Those were planning-time notes and must not override the current production facts: the game is browser-native, the Railway `Nigeria-RP` service builds the browser workspace and runs the authoritative Node/WebSocket server, and PostgreSQL provides durable storage.
 
-## Next approval gate
+## Foundation maintenance checklist
 
-Once Vercel project access is available, verify:
+- [ ] Keep both the browser-client and game-server workflows green.
+- [ ] Keep root `npm run build`, `npm run typecheck`, Stage 1/2 tests and Railway health checks reproducible.
+- [ ] Keep backup/recovery and rollback guidance current.
+- [ ] Test production gameplay after deployment; successful health checks are not gameplay acceptance.
 
-1. GitHub repository is connected.
-2. Vercel root directory is `services/api`.
-3. Production branch is `main`.
-4. A deployment succeeds.
-5. `/api/health` returns `ok: true`.
-
-After that, proceed to the dedicated game-server laboratory and Unity Android client.
+Stage 3 is the current user-approved implementation stage. Stage 4 is next after Stage 3 acceptance, as documented in [ROADMAP.md](ROADMAP.md).

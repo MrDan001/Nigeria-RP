@@ -1,51 +1,46 @@
-# Nigerian Roleplay Simulator (NRS)
+# Nigeria Roleplay Simulator (NRS)
 
-A serious, mobile-first, multiplayer Nigerian roleplay simulator built around a persistent player-driven world.
+A browser-native, mobile-first multiplayer roleplay game set in Port Harcourt, Rivers State, Nigeria.
 
-## Current architecture
+> **Current status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance checks pass. The Face-Me-I-Face-You exterior visibility defect was fixed in commit `6ccc856`; the user confirmed those buildings now appear on the live game. That confirms the visual fix only, not every Stage 2 or Stage 3 acceptance check.
 
-**NRS is browser-native. Unity is not part of the project.**
+## Production and deployment
 
-- **Three.js + browser JavaScript** — current 3D game client and rendering
-- **GitHub** — source control and engineering workflow
-- **Vercel** — web/API/admin layer where appropriate
-- **TypeScript + WebSocket on Railway** — current real-time multiplayer server
-- **PostgreSQL** — persistent game data
-- **Redis/equivalent** — transient state where justified
+- **Live game:** https://nigeria-rp-production.up.railway.app/
+- **Host:** Railway. The production `Nigeria-RP` service builds the browser client and runs the Node.js/WebSocket game server from the repository root.
+- **Build:** `npm run build`
+- **Start:** `npm run start`
+- **Health check:** `/`
+- **Persistence:** PostgreSQL through the authoritative game server.
 
-The browser client uses WebGL 2 as the broad compatibility path and can use WebGPU on capable devices. The client is designed for Android browsers first and can later be packaged for app stores without introducing Unity.
+Railway is the production platform for the live game. Do not assume the game is deployed on another host or introduce a hosting migration without explicit approval.
 
-## Core rules
+## Current runtime
 
-- Real players perform meaningful service roles.
-- Core jobs happen physically in the world; no click-to-complete shortcuts.
-- Valuable game state is server-authoritative.
-- Android performance is a first-class requirement, including 3 GB RAM devices.
-- Port Harcourt is the first production city.
-- **Patches are prohibited as substitutes for root-cause fixes.** Rebuild the responsible component when its design is wrong; do not stack overrides or workarounds.
-- Preserve unrelated systems and world geometry unless the user explicitly authorizes changes.
-- Every major stage has an approval gate.
-- The client is a presentation/input layer; the game server owns simulation and validation.
+- **3D client:** Three.js, HTML, CSS and browser JavaScript in `services/web-client/index.html`.
+- **Browser network client:** `services/web-client/public/nrs-online.js`.
+- **Authoritative server:** TypeScript/Node.js WebSocket runtime in `services/game-server/src/server.ts`.
+- **World and domain rules:** `services/game-server/src/world.ts`.
+- **Regression tests:** `services/game-server/src/test-stage1.ts` and `services/game-server/src/test-stage2.ts`.
 
-Read [docs/IMPLEMENTATION-ROADMAP.md](docs/IMPLEMENTATION-ROADMAP.md) first for every planned stage, current progress, developer commands, acceptance criteria and the next approved task. Also see [docs/MASTER-DOCUMENT.md](docs/MASTER-DOCUMENT.md) for the product specification, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for runtime boundaries and [docs/STAGE-2-STATUS.md](docs/STAGE-2-STATUS.md) for the current housing/car-park gate.
+This is a browser-native client. Do not treat Unity or another engine as the current runtime. The browser renders the world and sends requests; the server/database own valuable state. Vehicle movement is still largely client-simulated, so full server-authoritative vehicle physics and replication remain future work.
 
-## First browser-playable milestone
+## Engineering rules
 
-Five real players on Android/browser devices must be able to:
+- Server-validate money, bank transactions, inventory, rent, properties, jobs, rank changes, task payouts and permissions.
+- Test the real deployed Android/browser experience; a successful build is not visual or multiplayer acceptance.
+- Protect unrelated features and geometry when repairing a defect.
+- **No patches as substitutes for root-cause fixes.** Correct the responsible component rather than stacking overrides or fallbacks.
+- Do not move to the next major stage until the active stage's acceptance checks have passed and the user approves the transition.
 
-1. open the NRS web client;
-2. connect to a shared test world;
-3. see and move around with other players;
-4. interact;
-5. enter and drive one vehicle;
-6. communicate;
-7. start a taxi role;
-8. complete a physical taxi job;
-9. receive server-validated Naira;
-10. disconnect and reconnect with progress intact.
+## Roadmap and handoff
 
-Nothing else outranks making this foundation reliable.
+Read [the full implementation roadmap](docs/IMPLEMENTATION-ROADMAP.md) before changing gameplay. Use [the quick roadmap](docs/ROADMAP.md) to confirm the current stage, [Stage 2 status](docs/STAGE-2-STATUS.md) for housing/garage regression checks, and [Stage 3 status](docs/STAGE-3-STATUS.md) for the active workplace framework and its acceptance gate. See [technical architecture](docs/ARCHITECTURE.md), [browser client architecture](docs/BROWSER-CLIENT-ARCHITECTURE.md), [Railway deployment](docs/RAILWAY-DEPLOYMENT.md) and [contributing rules](docs/CONTRIBUTING.md).
 
+## First multiplayer foundation milestone
 
-## Account Authentication
-Players register with Email, Username (`Firstname_lastname`), Password, and Repeat password; login uses Email and Password.
+Five real players on Android/browser devices should be able to open the game, connect to one shared world, see and move around with one another, interact, use a vehicle, communicate, complete a physical taxi workflow, receive server-validated Naira, and disconnect/reconnect with progress intact.
+
+## Accounts
+
+Registration uses Email, Username in `Firstname_lastname` form, Password and Repeat password. Login uses Email and Password.

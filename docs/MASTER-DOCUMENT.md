@@ -1,5 +1,7 @@
 # Nigerian Roleplay Simulator — Master Document
 
+> **Project status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance is verified. The Face-Me-I-Face-You visibility defect was fixed in commit `6ccc856` and the user confirmed the buildings now appear in the live Railway game; this closes that specific visual defect, not the full housing or Stage 3 acceptance checklist. See [the roadmap](ROADMAP.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
+
 ## 1. Vision
 
 NRS is a persistent multiplayer roleplay simulator set in Nigeria. The first city is Port Harcourt. The world is designed around player-to-player services, physical interactions, persistent ownership, a living economy, and meaningful consequences.
@@ -85,7 +87,7 @@ Inter-city movement is physical by road or flight, with checkpoints/borders and 
 
 ## 8. Multiplayer architecture
 
-The real-time simulation must run on dedicated authoritative compute. Vercel is not the sole game-server platform.
+The current production real-time simulation and browser delivery run on Railway. Do not move the authoritative game server to request-only hosting or change providers without explicit approval.
 
 Responsibilities:
 
@@ -93,7 +95,7 @@ Responsibilities:
 - WebSocket browser connector: `services/web-client/public/nrs-online.js`.
 - Game server: TypeScript/Node.js authoritative session and domain logic in `services/game-server/src/server.ts`, deployed on Railway.
 - PostgreSQL: durable account/game state.
-- Vercel/API layer: suitable web/API/admin tools and previews where configured; not the only multiplayer simulation host.
+- The auxiliary API workspace is separate from the live browser/WebSocket game path; Railway is the production host for the playable application.
 - Redis/equivalent: transient presence/cache/coordination only where justified.
 - Current caveat: vehicle movement is still largely browser-simulated; authoritative vehicle physics and replication remain future work.
 
@@ -150,7 +152,7 @@ Only after Gate 4 do we expand the production city and additional jobs.
 
 See [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for the complete Stage 0–15 plan, status, detailed acceptance checks, tests, and the next approved task. See [ROADMAP.md](ROADMAP.md) for the quick current-stage summary.
 
-The user approved Stage 3 on 10 October 2026. Stage 3 careers/factions and the two requested hospitals are in progress; Stage 2 visual acceptance and later house additions remain outstanding. Patches are prohibited as a way to conceal failures. Trace each defect to its source of truth, fix the responsible component, protect unrelated features, and retest the exact failure on the deployed Android browser build.
+Stage 3 was explicitly approved on 10 October 2026 and remains the active stage. Careers/factions, workplace interactions and the two requested hospital exteriors are present in the current implementation, but Stage 3 is not complete until the server-side permission/task/reward tests and deployed Android/two-account checks pass. The Face-Me-I-Face-You visual defect was fixed in commit `6ccc856` and the user confirmed that the buildings appear on the live Railway map. Other housing/garage acceptance items remain regression checks; that single visual fix does not complete Stage 2 or Stage 3. Stage 4 — market salespeople and bank tellers — is next after Stage 3 acceptance and explicit approval. Patches are prohibited as substitutes for root-cause fixes.
 
 ## 13. Definition of done
 

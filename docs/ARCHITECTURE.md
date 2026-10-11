@@ -1,24 +1,29 @@
 # NRS Technical Architecture
 
-## Current stack
+> **Project status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance is verified. The Face-Me-I-Face-You visibility defect was fixed in commit `6ccc856` and the user confirmed the buildings now appear in the live Railway game; this closes that specific visual defect, not the full housing or Stage 3 acceptance checklist. See [the roadmap](ROADMAP.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
 
-- **Browser client:** Three.js scene with JavaScript, HTML and CSS HUD in `services/web-client/index.html`; Vite builds the workspace.
-- **Network client:** `services/web-client/public/nrs-online.js` communicates by WebSocket.
-- **Authoritative game server:** TypeScript/Node.js in `services/game-server/src/server.ts`, hosted on Railway.
+## Current production stack
+
+- **Browser client:** Three.js scene and HTML/CSS HUD in `services/web-client/index.html`; Vite packages the web workspace.
+- **WebSocket client:** `services/web-client/public/nrs-online.js`.
+- **HTTP/static host and authoritative game server:** TypeScript/Node.js in `services/game-server/src/server.ts`, deployed as the `Nigeria-RP` service on Railway.
+- **Production build:** repository-root `npm run build`; production start: `npm run start`. The root scripts build the game-server and browser-client workspaces; the server serves the built client and upgrades the same HTTP server to WebSocket.
 - **Durable persistence:** PostgreSQL through the server's storage layer.
-- **Web/API and deployment tools:** Vercel and GitHub workflows where configured; not a substitute for the Railway simulation server.
+- **Live URL:** https://nigeria-rp-production.up.railway.app/
 
-Do not introduce an engine/framework migration without explicit approval and a migration/test plan. The current playable build is not a Unity project or a PlayCanvas client.
+The optional API workspace is not the authoritative real-time game runtime. Railway is the production platform for the playable game. Do not introduce another host or engine migration without explicit approval and a documented migration/test plan.
 
 ## Repository map
 
 ```
 /
 ├── services/
-│   ├── game-server/       # TypeScript WebSocket server, world rules and tests
-│   └── web-client/        # Three.js browser game and WebSocket client
-├── docs/                  # product, architecture, stage status and roadmap
-├── infrastructure/        # deployment/configuration
+│   ├── game-server/       # TypeScript WebSocket server, world rules and regression tests
+│   ├── web-client/        # Three.js browser game and WebSocket client
+│   └── api/               # auxiliary API scaffold; not the live simulation host
+├── contracts/             # client/server contract notes
+├── docs/                  # product, architecture, stage status and handoff
+├── infrastructure/        # deployment notes
 └── package.json           # root workspace commands
 ```
 
@@ -26,53 +31,39 @@ Do not introduce an engine/framework migration without explicit approval and a m
 
 ### Browser client
 
-Responsible for drawing the world, touch/mouse/keyboard controls, camera, local audio/animation, HUD, contextual interactions and rendering state received from the server. It may ask for an action but must not be the source of truth for a valuable state change.
+Responsible for world rendering, touch/mouse/keyboard controls, camera, local animation/audio, HUD, contextual prompts and presentation of server state. It may request an action but must not authoritatively award value.
 
 ### Game server
 
-Responsible for authenticated sessions, player identity, persisted life state, authorization, domain rules, rent/house ownership, workplace/rank rules as built, server responses and authoritative mutations. Add validation on the server for every valuable action instead of relying on a hidden/disabled browser button.
+Responsible for authenticated sessions, player identity, persistent life state, authorization, domain rules, housing/rent, workplaces/ranks, bank and economy actions, and authoritative mutations. Enforce permissions on the server even when the matching UI action is hidden or disabled.
 
 ### PostgreSQL
 
-Source of truth for durable account and game data. Database mutations that couple money with inventory, property or rewards should be atomic or idempotent so retries and reconnects cannot duplicate value.
+The durable source of truth for account and game data. Mutations that couple money with inventory, property, work or rewards should be atomic or idempotent where appropriate.
 
-### Vercel / Railway
+### Vehicle caveat
 
-Vercel can serve suitable web/API/admin experiences and previews. Railway hosts the current real-time WebSocket game server. Do not place the sole persistent multiplayer simulation in a request-only front end.
+Vehicle movement remains largely browser-simulated. Garage ownership and route checks do not constitute full server-authoritative physics, collision validation or multiplayer vehicle replication. Do not mark vehicle security complete until those are implemented and tested.
 
-## Data ownership rules
+## Data ownership
 
-Client-owned transient presentation:
-- camera angle, touch state, animation timing and UI panel state;
-- local rendering and short-lived input.
+**Client-owned transient presentation:** camera angle, touch state, animation timing, UI panel state and short-lived input.
 
-Server-owned valuable/game state:
-- account/session identity;
-- money, bank and transactions;
-- inventory and item grants;
-- owned cars and properties;
-- rent settlement/eviction;
-- work eligibility, rank, task completion and rewards;
-- permissions, health consequences and other persistent progression.
+**Server-owned valuable/game state:** account/session identity, money, bank transactions, inventory, owned cars/properties, rent settlement/eviction, work eligibility, ranks, task completion/rewards, permissions and persistent health consequences.
 
-### Vehicles caveat
+## Android and rendering performance
 
-Driving currently has browser-side simulation. Server-side garage ownership and enter/exit routing are not enough to call vehicle physics authoritative. A future vehicle stage must define and implement server-owned speed/position/collision checks, replication, reconnect handling and exploit tests.
+- Target affordable Android phones, including devices with limited RAM.
+- Keep geometry, textures, draw calls and per-frame work bounded.
+- Seed residential visuals in small asynchronous batches without leaving required homes untracked or repeatedly recreating their meshes.
+- Keep the scene responsive during startup and login.
+- Use cache-busted client script URLs when browser logic changes.
+- Test deployed visuals and touch interactions on a real phone.
 
-## Networking and performance
+## Developer commands
 
-Use the existing WebSocket contract and inspect message handlers before adding new messages. Keep message schemas explicit, validate finite/range-limited inputs, and ensure route failures restore the client to a usable state.
+Run from repository root:
 
-Android is a first-class target:
-- distance-based world content creation and visibility;
-- controlled mesh/material counts, geometry complexity and textures;
-- stable frame pacing rather than detail that overloads low-memory devices;
-- tested touch targets and landscape camera behavior;
-- build and inspect on a real phone after CI.
-
-## Developer workflow and stage gate
-
-From the root:
 ```bash
 npm ci
 npm run build
@@ -81,6 +72,8 @@ npm run test:stage1 --workspace nigeria-rp-game-server
 npm run test:stage2 --workspace nigeria-rp-game-server
 ```
 
-Run/check **Browser Client Build** and **Game Server CI** after pushing. Then verify deployment and test the live game; CI alone does not verify visuals or live interaction.
+Run/check the **Browser Client Build** and **Game Server CI** workflows after source changes, then verify the live Railway deployment. CI and health checks do not prove that a 3D interaction behaves correctly on a phone.
 
-Read [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for all planned stages, current status, acceptance criteria and next tasks. Stage 2 remains the active gate; Stage 3 must not begin before Stage 2 is tested and explicitly approved.
+## Current gate
+
+Stage 3 (workplace/job/rank/faction framework) is the active, approved stage. Stage 4 (market salespeople and bank tellers) is next after the Stage 3 acceptance checklist in [STAGE-3-STATUS.md](STAGE-3-STATUS.md) is passed and the user approves the transition. The Face-Me-I-Face-You visibility fix is deployed and user-confirmed; other housing/garage checks remain regression items rather than evidence that Stage 3 is complete.

@@ -1,14 +1,14 @@
 # Stage 2 — Homes, Rent, Realistic Exteriors, Interiors and Car-Park Routes
 
-**Status: In progress. The user reported that the car horn does not consistently leave the garage, the garage feels too open, there is no on-foot door choice, and respawn lands outside the home. The source rebuild is in progress and requires CI plus live phone verification.** Do not start Stage 3 until the user confirms the Stage 2 experience is correct.
+**Status as of 11 October 2026:** The housing implementation is deployed to Railway. The Face-Me-I-Face-You exterior visibility defect was fixed in commit `6ccc856` and the user confirmed that the buildings now appear on the live map. That closes this specific visual defect only. The entire Stage 2 acceptance checklist is not yet verified in this session; rent/tenancy, interior routing, the garage/horn exit, respawn, two-account visibility and full Android regression checks remain to be recorded. Stage 3 was explicitly approved and is already active, so keep these remaining items as housing closeout/regression checks rather than retroactively undoing that approval.
 
 ## Implemented in the current source
 
-- Places → Homes has a 33-home catalogue with rental prices, district, vacancy/occupancy and rent actions.
+- Places → Homes uses the server-authoritative catalogue of 30 rentable homes with rental prices, district, vacancy/occupancy and rent actions. The client-side visual plot layout currently defines 33 exterior preview slots; the additional client-only slots must not be described as independently rentable until their IDs and coordinates are represented in the server catalogue and its tests.
 - Server-authoritative renting/extension uses player cash, limits players to one rented home, blocks occupied homes, caps prepaid rent at seven days and persists home/life state.
 - Rent is settled against the Nigeria-time day. Online life updates and offline settlement at reconnect are implemented; eviction releases a home.
 - The client creates separate class-specific home exteriors for hut, face-me-I-face-you compound, two-storey flat, estate house, mansion and palace rather than reusing a generic cube.
-- Street rendering has textured asphalt/sidewalk surfaces, lane markings, curbs, crosswalks and streetlights; nearby residential models are built on demand to reduce startup/mobile cost.
+- Street rendering has textured asphalt/sidewalk surfaces, lane markings, curbs, crosswalks and streetlights. The client seeds the residential visual catalogue in small asynchronous batches; server housing snapshots synchronize authoritative tenancy/rent data and entrance points.
 - The rented-home interior is a walkable 3D room with furniture and an EXIT interaction.
 - EXIT opens a choice menu: return to the street on foot, or enter the private car park.
 - The private car park has marked bays and an exit lane. Car spawning is now registered by the server and remains limited to vehicles owned by the account.
@@ -38,7 +38,7 @@ Rent can be prepaid for up to seven days.
 - House coordinates are duplicated between `services/game-server/src/world.ts` and client plot reservations in `services/web-client/index.html`; those definitions must remain aligned.
 - CI passing does not confirm that the player can visually enter the correct room, drive through the actual gate, or view the right camera orientation. Those need real browser/device testing.
 
-## Current rebuild: garage doorway and home respawn
+## Previously reported garage/respawn issues — live acceptance still required
 
 - Replace the open-looking bay with a sealed garage structure: continuous roof, side/rear walls, front doorway/roller-door frame, concrete floor, lights, bay markings, safety details and private-garage signage.
 - Constrain foot and vehicle movement to the garage interior. A vehicle may leave only via the narrow validated doorway after a full stop and a held horn; the gate contract matches the physical doorway bounds.
@@ -70,6 +70,7 @@ Both **Browser Client Build** and **Game Server CI** GitHub workflows must pass 
 
 ## Stage 2 approval checklist
 
+- [x] User confirmed Face-Me-I-Face-You exterior buildings are visible on the live Railway map after the 11 October root-cause fix.
 - [ ] Rent a vacant property, check the correct price/cash deduction and relog to confirm ownership.
 - [ ] Confirm the front entrance lines up with the visible model and enter the correct rented home.
 - [ ] Walk the room, reach EXIT and use the street choice.
@@ -81,13 +82,13 @@ Both **Browser Client Build** and **Game Server CI** GitHub workflows must pass 
 - [ ] Verify two-account visibility, rent expiry/eviction and reconnect behavior.
 - [ ] Both CI workflows pass and the user explicitly approves this stage.
 
-**Next stage after approval:** Stage 3 — shared workplace/job framework, rank 1–5 staff, rank 6 boss, authorized promotion/demotion/fire, clock-in/out, task completion and server-validated payout.
+**Current stage:** Stage 3 — shared workplace/job framework, rank 1–5 staff, rank 6 boss, authorized promotion/demotion/fire, clock-in/out, task completion, workplace interiors and server-validated payout — is approved and active. The next major stage after Stage 3 acceptance is **Stage 4 — market salespeople and bank tellers**.
 
 
-## Follow-up: expanded housing catalogue and map navigation (2026-10-11)
+## Follow-up: Face-Me visual layout and map navigation (2026-10-11)
 
-- Added three additional Face-Me-I-Face-You properties in Rumuola on a separate row; the original 30 house IDs and coordinates remain unchanged, for 33 total properties.
-- Kept server house definitions and client plot reservations synchronized.
+- The client plot layout contains three additional Face-Me-I-Face-You preview slots in Rumuola, but the current authoritative `HOUSES` catalogue and Stage 2 regression test still define 30 rentable properties. Treat 30 as the confirmed server-backed count until the catalogue, rent/tenancy routes, and tests are intentionally expanded together.
+- Keep client house plots, server house IDs/coordinates and collision/entrance positions aligned. The extra local preview slots are a known Stage 2 consistency item; do not promise that all 33 visuals can be rented.
 - Added an **All Places** navigation tab that aggregates registered points of interest, workplaces/organizations, services, shops/stalls, fuel stations, districts and every home without duplicating the same home entry.
 - The Homes tab lists every server-provided home and explicitly labels it YOUR HOME, AVAILABLE or OCCUPIED; occupancy and rent actions remain server-authoritative.
-- Stage 2 remains subject to CI and live-device verification. This update does not skip the Stage 3 acceptance gate or authorize Stage 4 before the required prior-stage approval.
+- The housing visibility fix does not mark Stage 2 fully complete and does not complete Stage 3. Stage 3 remains the active approved stage; Stage 4 must wait until Stage 3's acceptance gate passes.

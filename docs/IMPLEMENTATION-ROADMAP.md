@@ -1,5 +1,9 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
+> **Project status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance is verified. The Face-Me-I-Face-You visibility defect was fixed in commit `6ccc856` and the user confirmed the buildings now appear in the live Railway game; this closes that specific visual defect, not the full housing or Stage 3 acceptance checklist. See [the roadmap](ROADMAP.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
+
+> **Gate rule:** Stage 3 was explicitly approved on 10 October 2026 and is already in progress. The remaining Stage 2 checks are important housing regressions/closeout items; they do not retroactively cancel that approval. Stage 4 is next only after Stage 3's own acceptance is completed and approved.
+
 **Purpose:** Single practical handoff for a developer joining this repository: current state, implementation sequence, dependencies, tests and the next approved task. Read this before changing gameplay.
 
 **Product:** Nigeria Roleplay Simulator (NRS), a persistent multiplayer roleplay world starting in Port Harcourt, Rivers State, Nigeria.  
@@ -22,7 +26,7 @@
 - `docs/` — product specification, architecture, deployment, stage status and developer handoff.
 - `infrastructure/` — deployment/configuration support.
 
-The repo currently uses a browser-native Three.js scene and a TypeScript Node.js WebSocket server. Vite builds the browser client; the server uses `ws` and PostgreSQL. **Do not begin an unapproved engine rewrite or add Unity/PlayCanvas as a side task.** If engine migration is proposed, document the cost, migration route and test plan first.
+The repo currently uses a browser-native Three.js scene and a TypeScript Node.js WebSocket server. Vite builds the browser client; the same Railway service serves the built browser client and runs the server. PostgreSQL holds durable game data. **Do not begin an unapproved engine rewrite or add another engine as a side task.** If engine migration is proposed, document the cost, migration route and test plan first.
 
 ### Data authority
 
@@ -83,10 +87,10 @@ Acceptance:
 - [ ] Verify persistence against the configured database, not browser-only storage.
 
 ### Stage 2 — Homes, rent, exterior buildings, interiors and car-park exits
-**Status: In progress. Do not call finished until live interaction/visual testing and user approval.**
+**Status as of 11 October 2026: Deployed; the Face-Me-I-Face-You visibility defect is fixed and the user confirmed it now appears on the live Railway game. The specific visual defect is closed. The full Stage 2 checklist remains partially unverified (especially the rental catalogue/client preview alignment and garage/respawn flows). Stage 2 should be kept as a regression/closeout checklist while the already-approved Stage 3 continues.**
 
 Scope and intended behavior:
-- Places → Homes lists 30 homes across Mile 1 Market, Rumuola, D-Line, Waterlines, Trans Amadi and Old GRA.
+- The server-authoritative Places → Homes catalogue currently defines 30 rentable homes across Mile 1 Market, Rumuola, D-Line, Waterlines, Trans Amadi and Old GRA. The client visual plot layout currently contains extra preview slots (33 exterior plot definitions); do not describe those extra client previews as server-backed rentable properties until the server catalogue and tests are deliberately brought into sync.
 - Daily rent: Local Hut ₦1,000; Face-Me-I-Face-You ₦2,500; Flat ₦4,000; Estate House ₦7,500; Mansion ₦10,000; Palace ₦20,000.
 - One home per player; occupied homes cannot be rented; up to seven prepaid days; rent settles at Nigeria-time midnight; unpaid homes become vacant.
 - Distinct class-specific 3D architecture: local hut; shared compound; two-storey flat with balcony; modern estate bungalow/garage wing; mansion with portico; palace with columns/dome.
@@ -114,15 +118,16 @@ Acceptance:
 - [ ] Spawn car, drive down the visible exit lane, stop/honk and emerge on the street in that car.
 - [ ] While moving, touch-look cannot rotate the camera and zoom stays fixed; while stopped, camera can be adjusted.
 - [ ] Touch steering, brakes and reverse respond cleanly without screen rotation.
-- [ ] Inspect hut, flat, estate, mansion and palace shape/door/steps and nearby road clearance on Android.
+- [x] User confirmed Face-Me-I-Face-You exterior buildings are visible on the live Railway map after the root-cause fix deployed on 11 October 2026.
+- [ ] Inspect all six home classes, entrance alignment, steps and nearby road clearance on Android.
 - [ ] Run Stage 1/Stage 2 tests and both CI workflows.
 - [ ] Two-account test confirms players in private interiors are hidden from the shared street.
 - [ ] Live behavior is tested and the user approves Stage 2.
 
-**Gate:** Do not begin Stage 3 workplace/rank implementation before Stage 2 is approved.
+**Gate/status note:** Stage 3 was explicitly approved by the user on 10 October 2026 and is already active. Continue to retain the unchecked Stage 2 items as housing regression/closeout checks; do not claim Stage 2 is fully accepted until those specific checks are completed. Do not broaden the housing scope while implementing Stage 3 unless a verified blocker requires it.
 
 ### Stage 3 — Workplace locations and reusable jobs/ranks engine
-**Begin only after Stage 2 passes live testing and the user explicitly approves it.**
+**Status: ACTIVE — explicitly approved on 10 October 2026; implementation is present but acceptance and live verification are still outstanding.**
 
 - Place and label real workplace buildings and doors at aligned server/client coordinates.
 - Build the reusable server-authoritative job service: six titled ranks, rosters, rank-1 hiring/onboarding, clock in/out, shifts, tasks, payout and history.
@@ -130,9 +135,18 @@ Acceptance:
 - Enforce one main job per citizen; keep simple delivery gigs open to all. Rank-based pay uses the shared multipliers above.
 - Add a Work tab and contextual workplace actions; persist work state across logout and reconnect.
 
-Acceptance: two-account hiring and roster test; rank/title changes and pay match the server; self-promotion, boss impersonation, unauthorized firing and double task rewards are rejected.
+Acceptance:
+- [ ] Two-account application, hiring/approval and roster flow works end to end.
+- [ ] All six rank titles and configured pay multipliers match server results.
+- [ ] Only the assigned boss or explicitly authorized admin can promote/demote/fire; ordinary clients cannot claim boss identity.
+- [ ] On-duty/uniform requirements and clock-in/out transitions are enforced by the server.
+- [ ] Tasks require valid context/proximity and cannot be replayed for duplicate payout.
+- [ ] Work state survives refresh, logout and reconnect.
+- [ ] Workplace entrances, reception/staff-room routing and avatar nameplates are visually checked on Android with one and two accounts.
+- [ ] Stage 1/2 regression tests, server typecheck/build, browser build and both CI workflows pass; user approves Stage 3 before Stage 4 starts.
 
 ### Stage 4 — Market salespeople and bank tellers
+**Status: NEXT after Stage 3 acceptance. Some bank transaction, market/storefront and interior groundwork already exists in source; none of it counts as complete until this stage's end-to-end acceptance checks pass.**
 - Market ranks: Hawker, Stall Assistant, Sales Rep, Senior Sales, Market Supervisor, Market Chairman.
 - Bank ranks: Trainee, Teller, Senior Teller, Loan Officer, Operations Manager, Branch Manager.
 - At the market, customers arrive and request listed goods. Staff fulfil the correct order from valid stock and earn commission; stock and cash changes are server-authoritative.
@@ -142,6 +156,7 @@ Acceptance: two-account hiring and roster test; rank/title changes and pay match
 Acceptance: customers receive the right goods; cash, bank balances, stock and commissions reconcile; replayed sales/withdrawals do not duplicate value.
 
 ### Stage 5 — Hospital and parks
+**Scope note:** the two requested hospital exteriors (Mile One General Hospital in Mile 1 and Princess Hospital along Trans Amadi Road) were added as Stage 3 location/content work. This stage covers their validated clinical workflows and the park gameplay, not merely the buildings.
 - Hospital ranks: Orderly, Nurse Aide, Nurse, Senior Nurse, Doctor, Chief Medical Director.
 - Park ranks: Cleaner, Gate Attendant, Ticket Seller, Ranger, Operations Officer, Park Director.
 - Build hospital triage, treatment, ambulance dispatch, medicine/pharmacy trips and injury care. Hurt citizens must pay valid treatment costs through the server settlement flow.
@@ -216,6 +231,22 @@ Acceptance: qualifications and facility access are enforced; production cannot c
 
 Acceptance: new players can understand their first session and earn starter rent; high-value actions resist forgery/replay; Android frame time, memory and interaction targets stay within the agreed budget.
 
+### Stage 14 — Release, load and recovery validation
+- Test production build reproducibility, database backup/restore, startup/recovery after a service restart, reconnect behavior and critical persistent-data migrations.
+- Load-test concurrent users, snapshots, WebSocket reconnects and common economy/workplace flows; record measured limits instead of assuming capacity.
+- Verify operational alerts, moderation/reporting, support/recovery procedures, dependency updates and rollback instructions.
+- Run a final real-device Android matrix for low-memory performance, install/open behavior, touch controls, rendering and network failure recovery.
+
+Acceptance: documented load limits; recoverable backups; no duplicate money/items/work rewards after retries/restarts; no release-blocking client/server errors on the supported device matrix.
+
+### Stage 15 — Additional cities and inter-city travel
+- Expand beyond Port Harcourt only after the first city passes release/load/recovery acceptance.
+- Plan and implement the next city catalogue and server authority boundaries before adding maps; candidate destinations include Lagos, Abuja, Calabar, Aba, Umuahia and Uyo.
+- Implement physical road/flight routes, checkpoints, city-specific workplaces and atomic server-side city transfer; retain identity, finances, inventory, property and progression across transfer.
+- Validate city loading/interest management and bandwidth/performance on Android.
+
+Acceptance: a citizen can complete an authorized inter-city trip, arrive at the correct destination, retain authoritative state, reconnect safely and not duplicate or lose value during transfer.
+
 ### Protected admin and boss assignment — implementation in progress
 The current implementation branch introduces a persistent role hierarchy:
 - `Dbase_Mccoll` (case-insensitive username) is the exclusive main administrator.
@@ -255,9 +286,11 @@ npm run dev
 
 Use `npm run web:dev` to start the browser workspace directly. Check the package scripts before changing commands.
 
-## 5. Current authorized focus — 10 October 2026
+## 5. Current status and production fix — 11 October 2026
 
-The workplace interior and per-login player identity feature is now merged into `main` and deployed to Railway production. Game Server CI passed for the feature head, including server typecheck, Stage 1 and Stage 2 tests, server build, and browser-client build; Railway's latest deployment also succeeded and its health check passed. These automated checks confirm build and service health, but they do not replace the final visual/mobile gameplay checks below. Admin permissions were not changed.
+The latest gameplay fix, commit `6ccc856311d9bf3513b292c615cc3f504cc2bbb3` (**Fix residential exterior registration and plaque refresh**), was deployed to Railway. The deployment succeeded and its health check passed. The user then confirmed that Face-Me-I-Face-You buildings now appear on the live map. This is confirmation of the housing visibility defect only; it is not a claim that the complete Stage 2 checklist or Stage 3 acceptance is finished.
+
+The workplace interior and per-login player identity feature described below remains part of the active Stage 3 scope. Earlier CI results and a healthy Railway service confirm build/host health but do not replace the outstanding live mobile/multiplayer checks. Admin permissions were not changed.
 
 ### Deployed feature — workplace interiors and player identity
 

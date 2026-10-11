@@ -1,5 +1,7 @@
 # NRS Browser Client Architecture
 
+> **Project status — 11 October 2026:** Stage 3 (workplace/job/rank/faction framework) is the active, user-approved stage. Stage 4 (market salespeople and bank tellers) is next after Stage 3 acceptance is verified. The Face-Me-I-Face-You visibility defect was fixed in commit `6ccc856` and the user confirmed the buildings now appear in the live Railway game; this closes that specific visual defect, not the full housing or Stage 3 acceptance checklist. See [the roadmap](ROADMAP.md) and [the full implementation handoff](IMPLEMENTATION-ROADMAP.md).
+
 ## Current implementation
 
 The current playable client is browser-native and uses Three.js with HTML/CSS HUD controls. The game source is primarily in `services/web-client/index.html`; Vite packages the web workspace. Network/session functions and WebSocket message handling live in `services/web-client/public/nrs-online.js`.
@@ -25,7 +27,7 @@ The current browser driving model is still mostly client-simulated. Server valid
 
 1. Keep the phone experience landscape-first while retaining responsive layout and touch targets.
 2. Keep shader/material count and scene geometry reasonable for affordable Android devices.
-3. Create residential exteriors near the player rather than generating the entire visual catalogue at startup.
+3. Seed residential exteriors in small asynchronous batches, and ensure each created house is registered exactly once. The live Face-Me-I-Face-You visibility issue was fixed by correcting house registration/plaque texture references; avoid adding a second render path or duplicate meshes.
 4. Use cache-busted script URLs when shipping browser logic changes so that deployed phones do not keep stale client code.
 5. During vehicle motion, camera orientation and zoom stay steady; touch-look and camera-mode changes are only accepted at rest.
 6. Steering input should respond quickly without using the camera as a steering effect.
@@ -56,4 +58,4 @@ Patches are prohibited as substitutes for root-cause correction. Do not add dupl
 
 ## Current approval gate
 
-Stage 3 careers/factions is approved and in progress. Stage 2 visual acceptance remains pending, and more houses are deferred. Fix the current player-nameplate defect at the root before declaring it done; the local-only and remote-player cases must both be tested.
+Stage 3 careers/factions and workplace interactions is the active, approved stage. The Face-Me-I-Face-You exterior visibility issue is fixed and the user confirmed the live appearance after Railway deployment. Do not treat that single visual confirmation as approval of every housing, garage, multiplayer or workplace acceptance test. Stage 4 market/bank workflows are next after Stage 3 is verified and approved. Nameplates still require single-player and two-player verification on a deployed Android browser.
