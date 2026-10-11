@@ -191,7 +191,9 @@ let world: WorldState = newWorld(clock.dayKey());
 let stage4State = normalizeStage4State(null);
 let stage4MutationQueue: Promise<void> = Promise.resolve();
 
-function withStage4Mutation<T>(operation: () => Promise<T>): Promise<T> {
+// Balance-changing actions share one queue, so jobs, housing, transfers, sales and teller
+// transactions cannot interleave stale cash/bank snapshots within this game-server process.
+function withMoneyMutation<T>(operation: () => Promise<T>): Promise<T> {
   const pending = stage4MutationQueue.then(operation, operation);
   stage4MutationQueue = pending.then(() => undefined, () => undefined);
   return pending;
@@ -1656,6 +1658,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "buyFuel") {
+        await withMoneyMutation(async () => {
         const carId = String(message.carId ?? "");
         const price = FUEL_PRICES[String(message.brand ?? "")];
         const litres = Math.floor(Number(message.litres));
@@ -1690,6 +1693,8 @@ wss.on("connection", (socket) => {
           carId,
           fuel: session.player.fuel[carId],
           cash: session.player.cash,
+        });
+        return;
         });
         return;
       }
@@ -1808,7 +1813,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "marketSale") {
-        await withStage4Mutation(async () => {
+        await withMoneyMutation(async () => {
           const orderId = String(message.orderId ?? "").trim().slice(0, 100);
           const sellerId = String(message.sellerId ?? "").trim().slice(0, 100);
           const quantity = Math.floor(Number(message.quantity));
@@ -1940,7 +1945,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "claimMarketCommission") {
-        await withStage4Mutation(async () => {
+        await withMoneyMutation(async () => {
           const employment = session.player.life.employment;
           const fail = (text: string) => send(socket, {
             type: "marketCommissionResult", ok: false, message: text,
@@ -1996,7 +2001,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "bankTransaction") {
-        await withStage4Mutation(async () => {
+        await withMoneyMutation(async () => {
           const requestId = String(message.requestId ?? "").trim().slice(0, 100);
           const customerId = String(message.customerId ?? "").trim().slice(0, 100);
           const customer = players.get(customerId);
@@ -2259,6 +2264,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "completeWorkTask") {
+        await withMoneyMutation(async () => {
         const employment = session.player.life.employment ?? null;
         const activeTask = session.workTask;
         if (!employment || !activeTask) {
@@ -2309,6 +2315,8 @@ wss.on("connection", (socket) => {
         await persistSession(session);
         sendWorkplaceResult(session, "taskComplete", true, "Task completed: " + task.title + ". You earned ₦" + reward.toLocaleString("en-NG") + ".", { reward, cash: session.player.cash });
         broadcastWorkplaceStates();
+        return;
+        });
         return;
       }
 
@@ -2596,6 +2604,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "transferGameFunds") {
+        await withMoneyMutation(async () => {
         const requestId = String(message.requestId ?? "").slice(0, 120);
         const username = sanitizeUsername(message.username);
         const usernameLower = username.toLowerCase();
@@ -2712,9 +2721,12 @@ wss.on("connection", (socket) => {
           });
         }
         return;
+        });
+        return;
       }
 
       if (message.type === "walletChange") {
+        await withMoneyMutation(async () => {
         const requestId = String(message.requestId ?? "");
         const cashDelta = Math.trunc(Number(message.cashDelta ?? 0));
         const bankDelta = Math.trunc(Number(message.bankDelta ?? 0));
@@ -2799,6 +2811,8 @@ wss.on("connection", (socket) => {
           bank: nextBank,
         });
         return;
+        });
+        return;
       }
 
       if (message.type === "saveProgress") {
@@ -2861,6 +2875,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "rentHouse") {
+        await withMoneyMutation(async () => {
         const houseId = String(message.houseId ?? "");
         const days = Math.floor(Number(message.days));
         const house = findHouse(houseId);
@@ -2914,6 +2929,8 @@ wss.on("connection", (socket) => {
         for (const other of players.values()) {
           if (other.player.id !== session.player.id) sendHousingState(other);
         }
+        return;
+        });
         return;
       }
 
@@ -3002,6 +3019,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "rentApartmentRoom") {
+        await withMoneyMutation(async () => {
         const buildingId = String(message.buildingId ?? "");
         const roomNumber = Math.floor(Number(message.roomNumber));
         const days = Math.floor(Number(message.days));
@@ -3059,6 +3077,8 @@ wss.on("connection", (socket) => {
           message: "You rented Room " + roomNumber + " for ₦" + cost.toLocaleString("en-NG") + ". Rent costs ₦1,500 per day.",
         });
         for (const other of players.values()) if (other.player.id !== session.player.id && other.apartmentBuildingId === buildingId) sendApartmentFloorState(other, "apartmentFloorResult");
+        return;
+        });
         return;
       }
 
@@ -3781,6 +3801,7 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "interact" || message.type === "playerInteraction") {
+        await withMoneyMutation(async () => {
         const targetId = String(message.targetId ?? "").slice(0, 80);
         const action = String(message.action ?? "greet");
         const target = players.get(targetId);
@@ -3840,6 +3861,8 @@ wss.on("connection", (socket) => {
           return;
         }
         send(socket, { type: "playerInteractionResult", ok: false, message: "That contextual action is not available." });
+        });
+        return;
       }
     })().catch((error) => {
       console.error("message-handler", error);
