@@ -310,6 +310,45 @@ body.drv #camB{display:grid}
 #modal.work-menu{height:90vh;max-height:90vh;max-height:90dvh;flex-direction:column;overflow:hidden}
 #modal.work-menu .wm-cards{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
 @media(max-height:520px){#modal.work-menu{height:92vh;max-height:92vh;max-height:92dvh}#modal.work-menu .wm-cards{max-height:none}}
+
+/* Stage 4 market and bank terminals — responsive, no browser-native dialogs. */
+#modal.stage4-menu{box-sizing:border-box;width:min(44rem,calc(100vw - 1rem));max-height:88vh;max-height:88dvh;overflow:auto;overflow-wrap:anywhere;padding:1rem;border:1px solid rgba(90,190,255,.25);border-radius:1rem;background:radial-gradient(circle at 100% 0,rgba(29,111,180,.18),transparent 38%),linear-gradient(145deg,rgba(9,22,36,.985),rgba(3,10,19,.985));box-shadow:0 1.4rem 4rem rgba(0,0,0,.62);line-height:1.42}
+#modal.stage4-menu .s4-head{display:flex;gap:.75rem;align-items:center;padding:.1rem 0 .85rem;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:.8rem}
+#modal.stage4-menu .s4-icon{display:grid;place-items:center;flex:0 0 2.8rem;width:2.8rem;height:2.8rem;border:1px solid rgba(92,193,255,.24);border-radius:.85rem;background:linear-gradient(145deg,rgba(23,137,226,.28),rgba(12,41,70,.6));font-size:1.45rem;box-shadow:inset 0 0 1.2rem rgba(83,174,255,.08)}
+#modal.stage4-menu .s4-head small{color:#76caff;font-size:.59rem;font-weight:900;letter-spacing:.13em}
+#modal.stage4-menu .s4-head h2{margin:.15rem 0;font-size:1.18rem;line-height:1.15;color:#f1f8ff}
+#modal.stage4-menu .s4-head p{margin:.23rem 0 0;color:#a9bdcf;font-size:.73rem}
+#modal.stage4-menu .s4-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin:.7rem 0}
+#modal.stage4-menu .s4-kpi{min-width:0;padding:.62rem .7rem;border:1px solid rgba(255,255,255,.095);border-radius:.65rem;background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.025))}
+#modal.stage4-menu .s4-kpi small{display:block;color:#91aabe;font-size:.57rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+#modal.stage4-menu .s4-kpi strong{display:block;margin-top:.16rem;color:#eaf5ff;font-size:1rem;overflow-wrap:anywhere}
+#modal.stage4-menu .s4-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin:.75rem 0}
+#modal.stage4-menu .s4-product,#modal.stage4-menu .s4-card{min-width:0;padding:.78rem;border:1px solid rgba(126,175,212,.16);border-radius:.75rem;background:linear-gradient(150deg,rgba(255,255,255,.045),rgba(255,255,255,.015))}
+#modal.stage4-menu .s4-producttop{display:flex;justify-content:space-between;gap:.5rem}
+#modal.stage4-menu .s4-product h3,#modal.stage4-menu .s4-card h3{margin:0 0 .2rem;font-size:.88rem;color:#eaf5ff}
+#modal.stage4-menu .s4-muted{color:#9db3c5;font-size:.69rem;line-height:1.45}
+#modal.stage4-menu .s4-price{white-space:nowrap;text-align:right;color:#8df0bc;font-size:.86rem;font-weight:900}
+#modal.stage4-menu .s4-stock{display:inline-block;margin-top:.28rem;padding:.15rem .35rem;border-radius:.3rem;background:rgba(255,255,255,.055);color:#a9bfd0;font-size:.58rem}
+#modal.stage4-menu .s4-field{display:grid;gap:.26rem;margin:.65rem 0;color:#cbdbe7;font-size:.7rem;font-weight:750}
+#modal.stage4-menu .s4-field input,#modal.stage4-menu .s4-field select,#modal.stage4-menu .s4-inline input,#modal.stage4-menu .s4-inline select{box-sizing:border-box;max-width:100%;min-width:0;width:100%;padding:.55rem .62rem;border:1px solid rgba(137,182,215,.23);border-radius:.5rem;background:#0c1c2c;color:#f0f7ff;font:inherit}
+#modal.stage4-menu .s4-inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+#modal.stage4-menu button{box-sizing:border-box;max-width:100%;margin:.32rem .2rem .1rem 0;padding:.55rem .7rem;border:1px solid rgba(98,184,249,.26);border-radius:.55rem;background:linear-gradient(145deg,#1478c4,#10518c);color:#fff;font-size:.7rem;font-weight:850;line-height:1.25;overflow-wrap:anywhere}
+#modal.stage4-menu button.subtle{background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.12);color:#d0e1ee}
+#modal.stage4-menu button:disabled{opacity:.42;cursor:not-allowed}
+#modal.stage4-menu .s4-notice{margin:.65rem 0;padding:.65rem .75rem;border-radius:.6rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);color:#d5e6f4;font-size:.73rem;line-height:1.45}
+#modal.stage4-menu .s4-notice.success{border-color:rgba(62,211,145,.28);background:rgba(40,181,116,.1);color:#a9f5cf}
+#modal.stage4-menu .s4-notice.error{border-color:rgba(255,111,111,.28);background:rgba(188,53,53,.1);color:#ffb9b9}
+#modal.stage4-menu .s4-sectiontitle{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:1rem 0 .42rem;color:#cfe2f2;font-size:.68rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+#modal.stage4-menu .s4-sectiontitle small{color:#7f9db3;font-size:.56rem;letter-spacing:.03em}
+#modal.stage4-menu .s4-list{display:grid;gap:.42rem}
+#modal.stage4-menu .s4-row{display:flex;justify-content:space-between;gap:.65rem;align-items:flex-start;padding:.58rem .62rem;border:1px solid rgba(255,255,255,.075);border-radius:.55rem;background:rgba(255,255,255,.025);font-size:.69rem}
+#modal.stage4-menu .s4-row span{min-width:0;overflow-wrap:anywhere}
+#modal.stage4-menu .s4-row small{display:block;margin-top:.17rem;color:#91a9bc;font-size:.59rem;line-height:1.35}
+#modal.stage4-menu .s4-row strong{flex:none;color:#a4eec7;font-size:.72rem;text-align:right}
+#modal.stage4-menu .s4-receipt{margin:.65rem 0;padding:.7rem;border:1px dashed rgba(99,202,161,.45);border-radius:.7rem;background:rgba(27,130,91,.09)}
+#modal.stage4-menu .s4-receipt h3{margin:0 0 .3rem;color:#a9f5cf;font-size:.8rem}
+#modal.stage4-menu .s4-empty{padding:.85rem;border:1px dashed rgba(151,188,213,.18);border-radius:.65rem;color:#9db3c5;font-size:.71rem;line-height:1.5}
+@media(max-width:560px){#modal.stage4-menu{width:calc(100vw - .65rem);max-height:89vh;max-height:89dvh;padding:.78rem;border-radius:.8rem}#modal.stage4-menu .s4-grid{grid-template-columns:1fr}#modal.stage4-menu .s4-kpis{gap:.32rem}#modal.stage4-menu .s4-kpi{padding:.5rem .42rem}#modal.stage4-menu .s4-kpi strong{font-size:.84rem}#modal.stage4-menu .s4-head h2{font-size:1.05rem}#modal.stage4-menu .s4-inline{grid-template-columns:1fr}}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="hud">
@@ -1761,7 +1800,7 @@ const routeFade=document.createElement('div');routeFade.id='routeFade';routeFade
 let routeFadeTimer=0;
 function routeTransitionIn(){clearTimeout(routeFadeTimer);routeFade.style.opacity='1';}
 function routeTransitionOut(){clearTimeout(routeFadeTimer);routeFadeTimer=setTimeout(()=>{routeFade.style.opacity='0';},280);}
-function panel(h){modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu');modal.innerHTML='<button id="mx" class="modal-close" type="button" aria-label="Close menu">✕ Close</button>'+h;modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu');workplaceMenuOpen=false;forbesBoardOpen=false;};}
+function panel(h){modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu','stage4-menu');modal.innerHTML='<button id="mx" class="modal-close" type="button" aria-label="Close menu">✕ Close</button>'+h;modal.style.display='block';$('mx').onclick=()=>{modal.style.display='none';modal.innerHTML='';modal.classList.remove('house-menu','work-menu','apartment-menu','bank-menu','forbes-menu','stage4-menu');workplaceMenuOpen=false;forbesBoardOpen=false;if(typeof marketMenuOpen!=='undefined')marketMenuOpen=false;if(typeof bankMenuOpen!=='undefined')bankMenuOpen=false;};}
 
 function openExitRouteMenu(){if(!inside)return;const garage=!!inside.isHome&&!!(inside.home?.isOwner||inside.home?.occupiedByMe);panel('<b>🚪 Choose your exit</b><p class="route-copy">Choose how to leave your home.</p><button data-exit-route="street">🚶 Exit to street<br><small>Leave on foot.</small></button>'+(garage?'<button data-exit-route="carpark">🚗 Exit to garage<br><small>Take a vehicle you own, then stop at the garage gate and hold the horn to exit to the street.</small></button>':'')+'');}
 function returnToStreetFromRoom(){const r=inside;if(!r)return;if(r.isHome){const N=window.NRS;if(N&&N.exitHome){routeTransitionIn();modal.style.display='none';modal.innerHTML='';act2.style.display='none';sys('🚪 Returning to the street outside your home…');N.exitHome();}return;}if(r.isApartmentRoom){window.NRS?.exitApartmentRoom();return;}if(r.isApartmentBuilding){window.NRS?.exitApartmentBuilding();return;}routeTransitionIn();inside=null;pos.set(r.ret.x,0,r.ret.z);vel.set(0,0,0);face=Number.isFinite(r.ret.face)?r.ret.face:(Number.isFinite(Number(r.ret.sx))?-Number(r.ret.sx)*Math.PI/2:face);camYaw=Number.isFinite(r.ret.camYaw)?r.ret.camYaw:camYaw;camPitch=Number.isFinite(r.ret.camPitch)?r.ret.camPitch:camPitch;focus.set(pos.x,1.4,pos.z);player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';routeTransitionOut();}
@@ -3317,17 +3356,121 @@ function renderWorkplaceMenu(data){
   }
   const faction=w.faction||{};
   const rankLadder='<details class="wm-rank-ladder"><summary>View six-rank ladder & pay</summary><div class="wm-rank-list">'+(w.rankTitles||[]).map((titles,i)=>'<div class="wm-rank-row"><span>Rank '+(i+1)+'</span><b>'+safeText((titles||[]).join(' / ')||('Rank '+(i+1)))+'</b><small>'+Number(w.rankMultipliers?.[i]??1)+'× pay</small></div>').join('')+'</div></details>';
-  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+management+'</article>';
+  const stage4Shortcut=w.id==='market-mile1'
+    ?'<section class="s4-card"><h3>🛒 Mile 1 Market</h3><p class="s4-muted">Shop from verified on-duty salespeople. Purchased goods are added to your backpack.</p><button data-market-open="1">Open market & product catalogue</button></section>'
+    :w.id==='bank-main'
+      ?'<section class="s4-card"><h3>🏦 Port Harcourt Bank</h3><p class="s4-muted">View your bank receipts or open the teller workstation when you are on duty in uniform.</p><button data-bank-open="1">Open banking services</button></section>'
+      :'';
+  return '<article class="wm-card"><div class="wm-cardtop"><div><span class="wm-kind">'+safeText(faction.category||w.kind)+'</span><h3>'+safeText(w.name)+'</h3><p>'+safeText(faction.description||w.zone)+'</p></div><div class="wm-count"><b>'+Number(w.memberCount||0)+'</b><small>online</small></div></div><div class="wm-meta"><span>📍 '+safeText(w.zone)+'</span><span>'+(w.bossName?'Boss: '+safeText(w.bossName):'Leadership pending')+'</span></div>'+rankLadder+(w.requiresApproval&&!me?'<div class="wm-approval">Faction entry requires approval</div>':'')+actions+stage4Shortcut+management+'</article>';
  }).join('');
  const rootAdminTools=data.canManageAdmins&&!focus?'<section class="wm-management wm-root-admin"><h4>👑 MAIN ADMIN TOOLS · DBASE_MCCOLL</h4><p class="wm-note">Grant or revoke delegated administrator access by account username. Only Dbase_Mccoll can use these controls; the main account cannot be demoted.</p><div class="wm-admin-controls"><input id="nrsAdminTarget" type="text" maxlength="31" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Firstname_lastname" aria-label="Account username"><div class="wm-admin-buttons"><button data-admin-role="admin">Make admin</button><button class="subtle" data-admin-role="player">Remove admin</button></div></div></section>':'';
  panel('<div class="wm-head"><span>💼</span><div><small>PORT HARCOURT · EMPLOYMENT</small><h2>Careers & factions</h2><p>Jobs, public services, medical teams and faction membership.</p></div></div>'+rootAdminTools+intro+historyPanel+'<div class="wm-section-title">'+(focus?'WORKPLACE ENTRANCE':'WORKPLACES & FACTIONS')+' <small>'+places.length+' ORGANISATION'+(places.length===1?'':'S')+'</small></div><div class="wm-cards">'+(cards||'<p>No workplaces are available right now.</p>')+'</div>');
  modal.classList.add('work-menu');modal.style.display='flex';
 }
+
+/* ---------- Stage 4: market counter and bank teller services ---------- */
+let marketMenuOpen=false,bankMenuOpen=false,marketFeedback=null,bankFeedback=null;
+const s4Money=value=>'₦'+Math.max(0,Math.floor(Number(value)||0)).toLocaleString('en-NG');
+const s4Time=value=>{const n=Number(value);return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'}):'Just now';};
+function openMarketConsole(){
+ marketMenuOpen=true;bankMenuOpen=false;workplaceMenuOpen=false;marketFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Live stock, verified salespeople, receipts and commissions.</p></div></div><div class="s4-empty">Connecting to the market inventory…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getMarketState();
+}
+function renderMarketConsole(data){
+ if(!marketMenuOpen)return;
+ data=data||window.NRS?.marketState||{};
+ const products=Array.isArray(data.products)?data.products:[];
+ const sellers=Array.isArray(data.availableSellers)?data.availableSellers:[];
+ const history=Array.isArray(data.salesHistory)?data.salesHistory:[];
+ const canCollect=!!data.canCollectCommission&&Number(data.commissionBalance)>0;
+ const feedback=marketFeedback?'<div class="s4-notice '+(marketFeedback.ok?'success':'error')+'">'+safeText(marketFeedback.message||'')+'</div>':'';
+ const receipt=marketFeedback?.ok&&marketFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Purchase receipt</h3><div class="s4-row"><span><b>'+safeText(marketFeedback.receipt.productName||'Market goods')+'</b><small>Reference '+safeText(marketFeedback.receipt.orderId||marketFeedback.requestId||'')+' · Quantity '+Number(marketFeedback.receipt.quantity||0)+'</small></span><strong>'+s4Money(marketFeedback.receipt.total)+'</strong></div><p class="s4-muted">Goods added to your backpack. Current cash: '+s4Money(window.NRS?.cash)+'</p></div>':'';
+ const sellerOptions=sellers.map(seller=>'<option value="'+safeText(seller.id)+'">'+safeText(seller.name)+' · '+safeText(seller.rankTitle||'Salesperson')+'</option>').join('');
+ const productsHtml=products.map(product=>{
+   const available=Math.max(0,Math.floor(Number(product.stock)||0));
+   return '<article class="s4-product"><div class="s4-producttop"><div><h3>'+safeText(product.name)+'</h3><p class="s4-muted">Sold by unit · Fixed market price</p><span class="s4-stock">'+available+' in stock</span></div><div class="s4-price">'+s4Money(product.unitPrice)+'</div></div><label class="s4-field">Quantity<input data-market-qty="'+safeText(product.id)+'" type="number" min="1" max="99" step="1" inputmode="numeric" value="1" '+(available<1?'disabled':'')+'></label><button data-market-order="'+safeText(product.id)+'" '+(!data.atMarket||!sellers.length||available<1?'disabled':'')+'>Buy from selected salesperson</button></article>';
+ }).join('');
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(sale=>'<div class="s4-row"><span><b>'+safeText(sale.productName||sale.productId)+' × '+Number(sale.quantity||0)+'</b><small>'+safeText(sale.customerName||'Customer')+' · Salesperson '+safeText(sale.sellerName||'Staff')+' · '+s4Time(sale.createdAt)+'</small><small>Receipt '+safeText(sale.orderId||'')+'</small></span><strong>'+s4Money(sale.total)+'</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed market receipts will appear here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🛒</span><div><small>COMMERCE NETWORK · MILE 1</small><h2>Mile 1 Market</h2><p>Shop local goods with on-duty market staff.</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Your cash</small><strong>'+s4Money(window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Commission</small><strong>'+s4Money(data.commissionBalance)+'</strong></div><div class="s4-kpi"><small>Market till</small><strong>'+(data.till===null||data.till===undefined?'Staff only':s4Money(data.till))+'</strong></div></div>'+
+  (data.atMarket?'':'<div class="s4-notice error">You are not at Mile 1 Market. Walk to the market entrance before purchasing.</div>')+
+  (sellers.length?'<label class="s4-field">Available salesperson<select id="s4MarketSeller">'+sellerOptions+'</select></label>':'<div class="s4-notice '+(data.atMarket?'error':'')+'">'+(data.atMarket?'No salesperson is available right now. A market employee must clock in and wear the market uniform.':'On-duty salespeople will appear here when you are at the market.')+'</div>')+
+  (canCollect?'<button data-market-commission="1">Collect commission · '+s4Money(data.commissionBalance)+'</button>':'')+
+  feedback+receipt+
+  '<div class="s4-sectiontitle">Market catalogue <small>PRICES SET BY THE SERVER</small></div>'+
+  (productsHtml?'<div class="s4-grid">'+productsHtml+'</div>':'<div class="s4-empty">The market catalogue is not available yet.</div>')+
+  '<div class="s4-sectiontitle">Recent receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
+  '<button class="subtle" data-market-refresh="1">Refresh market data</button>');
+ modal.classList.add('stage4-menu');
+}
+function openBankConsole(){
+ bankMenuOpen=true;marketMenuOpen=false;workplaceMenuOpen=false;bankFeedback=null;
+ panel('<div class="s4-head"><span class="s4-icon">🏦</span><div><small>FINANCIAL SERVICES · PORT HARCOURT</small><h2>Port Harcourt Bank</h2><p>Customer banking, teller transactions and receipts.</p></div></div><div class="s4-empty">Connecting to the branch ledger…</div>');
+ modal.classList.add('stage4-menu');
+ window.NRS?.getBankState();
+}
+function renderBankConsole(data){
+ if(!bankMenuOpen)return;
+ data=data||window.NRS?.bankState||{};
+ const tellers=Array.isArray(data.availableTellers)?data.availableTellers:[];
+ const customers=Array.isArray(data.nearbyCustomers)?data.nearbyCustomers:[];
+ const history=Array.isArray(data.transactions)?data.transactions:[];
+ const feedback=bankFeedback?'<div class="s4-notice '+(bankFeedback.ok?'success':'error')+'">'+safeText(bankFeedback.message||'')+'</div>':'';
+ const receipt=bankFeedback?.ok&&bankFeedback.receipt
+  ?'<div class="s4-receipt"><h3>✓ Transaction receipt</h3><div class="s4-row"><span><b>'+safeText(String(bankFeedback.receipt.type||'').toUpperCase())+' · '+s4Money(bankFeedback.receipt.amount)+'</b><small>Receipt '+safeText(bankFeedback.receipt.receiptNumber||bankFeedback.receipt.id||'')+'</small><small>'+safeText(bankFeedback.receipt.customerName||'Customer')+' · Teller '+safeText(bankFeedback.receipt.tellerName||'Staff')+'</small></span><strong>'+s4Time(bankFeedback.receipt.createdAt)+'</strong></div></div>':'';
+ const tellerList=tellers.length?'<div class="s4-list">'+tellers.map(teller=>'<div class="s4-row"><span><b>'+safeText(teller.name)+'</b><small>'+safeText(teller.rankTitle||'Bank Teller')+' · On duty and in uniform</small></span><strong>AVAILABLE</strong></div>').join('')+'</div>':'<div class="s4-empty">'+(data.atBank?'No teller is available right now. An authorised teller must be on duty and in uniform.':'Walk to Port Harcourt Bank to see tellers currently serving customers.')+'</div>';
+ const customerOptions=customers.map(customer=>'<option value="'+safeText(customer.id)+'">'+safeText(customer.name)+' · Cash '+s4Money(customer.cash)+' · Bank '+s4Money(customer.bank)+'</option>').join('');
+ const tellerConsole=data.canProcessTransactions
+  ?'<section class="s4-card"><h3>🧾 Teller workstation</h3><p class="s4-muted">Select a player physically present at the branch. Balances are settled by the game server and cannot be edited by the client.</p>'+
+   (customers.length?'<label class="s4-field">Customer<select id="s4BankCustomer">'+customerOptions+'</select></label>':'<div class="s4-empty">No other customers are currently in the branch. Ask the customer to enter the bank and refresh.</div>')+
+   '<div class="s4-inline"><label class="s4-field">Transaction<select id="s4BankType"><option value="deposit">Cash deposit</option><option value="withdrawal">Cash withdrawal</option></select></label><label class="s4-field">Amount (₦)<input id="s4BankAmount" type="number" min="1" max="10000000" step="1" inputmode="numeric" placeholder="e.g. 5000"></label></div>'+
+   '<button data-bank-process="1" '+(!customers.length?'disabled':'')+'>Process transaction & issue receipt</button></section>'
+  :'<section class="s4-card"><h3>Customer counter</h3><p class="s4-muted">Deposits and withdrawals at the teller counter require a rank 2 or higher bank employee who is clocked in, wearing the bank uniform, and physically present at the branch.</p>'+tellerList+'</section>';
+ const historyHtml=history.length?'<div class="s4-list">'+history.map(entry=>'<div class="s4-row"><span><b>'+safeText(entry.type==='deposit'?'Deposit':'Withdrawal')+' · '+s4Money(entry.amount)+'</b><small>Customer '+safeText(entry.customerName||entry.customerId||'Customer')+' · Teller '+safeText(entry.tellerName||entry.tellerId||'Staff')+'</small><small>Receipt '+safeText(entry.id||'')+' · '+s4Time(entry.createdAt)+'</small></span><strong>RECORDED</strong></div>').join('')+'</div>':'<div class="s4-empty">Your completed deposit and withdrawal receipts will appear here.</div>';
+ panel('<div class="s4-head"><span class="s4-icon">🏦</span><div><small>FINANCIAL SERVICES · PORT HARCOURT</small><h2>Port Harcourt Bank</h2><p>'+safeText(data.rankTitle||'Customer banking')+(data.onDuty?' · ON DUTY':'')+'</p></div></div>'+
+  '<div class="s4-kpis"><div class="s4-kpi"><small>Available cash</small><strong>'+s4Money(data.cash??window.NRS?.cash)+'</strong></div><div class="s4-kpi"><small>Bank balance</small><strong>'+s4Money(data.bank??window.NRS?.bank)+'</strong></div><div class="s4-kpi"><small>Branch status</small><strong>'+(data.atBank?'ON SITE':'OFF SITE')+'</strong></div></div>'+
+  (data.atBank?'':'<div class="s4-notice error">You are not at Port Harcourt Bank. Walk to the branch to access teller services.</div>')+
+  feedback+receipt+tellerConsole+
+  '<div class="s4-sectiontitle">Recent transactions & receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
+  '<button class="subtle" data-bank-refresh="1">Refresh balances & receipts</button>');
+ modal.classList.add('stage4-menu');
+}
+window.addEventListener('nrs-market-state',e=>{if(marketMenuOpen)renderMarketConsole(e.detail);});
+window.addEventListener('nrs-market-sale-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen)renderMarketConsole(window.NRS?.marketState||{});});
+window.addEventListener('nrs-market-commission-result',e=>{marketFeedback=e.detail||null;if(marketMenuOpen){renderMarketConsole(window.NRS?.marketState||{});if(e.detail?.ok)window.NRS?.getMarketState();}});
+window.addEventListener('nrs-market-sale-notice',()=>{if(marketMenuOpen)window.NRS?.getMarketState();});
+window.addEventListener('nrs-bank-state',e=>{if(bankMenuOpen)renderBankConsole(e.detail);});
+window.addEventListener('nrs-bank-transaction-result',e=>{bankFeedback=e.detail||null;if(bankMenuOpen)renderBankConsole(window.NRS?.bankState||{});});
+window.addEventListener('nrs-bank-receipt',e=>{bankFeedback=e.detail||null;if(bankMenuOpen){renderBankConsole(window.NRS?.bankState||{});window.NRS?.getBankState();}});
+
 window.addEventListener('nrs-workplaces',e=>{const d=e.detail||window.NRS?.workplaceState||{},employment=d.employment||window.NRS?.life?.employment||null;activeUniformWorkplaceId=employment?.uniformWorkplaceId||null;dress();updateWorkplaceOccupantSigns(d.workplaces||window.NRS?.workplaces||[]);if(workplaceMenuOpen)renderWorkplaceMenu(d);});
 const careerButton=$('ib4');if(careerButton)careerButton.onclick=openWorkplaceMenu;
 modal.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset,N=window.NRS;if(!N)return;
  if(d.openWorkplaces){openWorkplaceMenu();return;}
+ if(d.marketOpen){openMarketConsole();return;}
+ if(d.bankOpen){openBankConsole();return;}
+ if(d.marketRefresh){N.getMarketState();return;}
+ if(d.bankRefresh){N.getBankState();return;}
+ if(d.marketCommission){marketFeedback=null;N.claimMarketCommission();return;}
+ if(d.marketOrder){
+  const sellerId=modal.querySelector('#s4MarketSeller')?.value||'';
+  const quantity=Math.floor(Number(modal.querySelector('[data-market-qty="'+d.marketOrder+'"]')?.value));
+  if(!sellerId){marketFeedback={ok:false,message:'Choose an on-duty salesperson before ordering.'};renderMarketConsole();return;}
+  if(!Number.isInteger(quantity)||quantity<1||quantity>99){marketFeedback={ok:false,message:'Enter a whole quantity between 1 and 99.'};renderMarketConsole();return;}
+  marketFeedback=null;N.placeMarketOrder(sellerId,d.marketOrder,quantity);return;
+ }
+ if(d.bankProcess){
+  const customerId=modal.querySelector('#s4BankCustomer')?.value||'';
+  const transactionType=modal.querySelector('#s4BankType')?.value||'';
+  const amount=Math.floor(Number(modal.querySelector('#s4BankAmount')?.value));
+  if(!customerId){bankFeedback={ok:false,message:'Choose a customer who is present at the branch.'};renderBankConsole();return;}
+  if(!Number.isSafeInteger(amount)||amount<1||amount>10000000){bankFeedback={ok:false,message:'Enter a whole amount between ₦1 and ₦10,000,000.'};renderBankConsole();return;}
+  bankFeedback=null;N.processBankTransaction(customerId,transactionType,amount);return;
+ }
   if(d.receptionCareer){modal.style.display='none';modal.innerHTML='';openWorkplaceMenuFor(d.receptionCareer);return;}
   if(d.staffRoom){workplaceMenuOpen=false;modal.style.display='none';modal.innerHTML='';if(inside?.isWorkplaceInterior&&inside.workplaceId===d.staffRoom)N.enterStaffRoom(d.staffRoom);else N.enterWorkplaceInterior(d.staffRoom);return;}
   if(d.playerAction){modal.style.display='none';modal.innerHTML='';N.interactWithPlayer(d.playerId,d.playerAction);return;}
