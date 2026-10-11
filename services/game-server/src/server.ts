@@ -839,7 +839,8 @@ function hospitalStatePayload(session: Session, requestedHospitalId?: string) {
       candidate.player.life.employment?.workplaceId === hospitalId &&
       candidate.player.life.employment.onDuty === true &&
       candidate.player.life.employment.uniformWorkplaceId === hospitalId &&
-      Number(candidate.player.life.employment.rank) >= 2 &&
+      Number(candidate.player.life.employment.rank) >= 1 &&
+      Number(candidate.player.life.employment.rank) <= 6 &&
       !stage5PrivateContext(candidate))
     .map(candidate => ({
       id: candidate.player.id,
