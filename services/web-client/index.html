@@ -638,7 +638,7 @@ function houseMerge(g,recs){
   e.p.push(geo.attributes.position.array);e.n.push(geo.attributes.normal.array);e.u.push(geo.attributes.uv?geo.attributes.uv.array:new Float32Array(geo.attributes.position.count*2));
   geo.dispose();r.geo.dispose();});
  const cat=a=>{let n=0;a.forEach(x=>n+=x.length);const o=new Float32Array(n);let i=0;a.forEach(x=>{o.set(x,i);i+=x.length;});return o;};
- by.forEach((e,mat)=>{const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(cat(e.p),3));geo.setAttribute('normal',new THREE.BufferAttribute(cat(e.n),3));geo.setAttribute('uv',new THREE.BufferAttribute(cat(e.u),2));g.add(new THREE.Mesh(geo,mat));});
+ by.forEach((e,mat)=>{const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(cat(e.p),3));geo.setAttribute('normal',new THREE.BufferAttribute(cat(e.n),3));geo.setAttribute('uv',new THREE.BufferAttribute(cat(e.u),2));const mesh=new THREE.Mesh(geo,mat);mesh.frustumCulled=false;mesh.visible=true;g.add(mesh);});
 }
 function paintHousePlaque(ctx,ww,hh,h){
  const cls=h.cls||"flat";ctx.clearRect(0,0,ww,hh);
