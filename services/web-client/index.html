@@ -3414,7 +3414,7 @@ function renderMarketConsole(data){
   '<div class="s4-sectiontitle">Market catalogue <small>PRICES SET BY THE SERVER</small></div>'+
   (productsHtml?'<div class="s4-grid">'+productsHtml+'</div>':'<div class="s4-empty">The market catalogue is not available yet.</div>')+
   restockPanel+
-  (data.canRestock?'<div class="s4-sectiontitle">Recent stock purchases <small>'+restockHistory.length+' SHOWN</small></div>'+restockHistoryHtml:'')+
+  (data.canViewRestockHistory?'<div class="s4-sectiontitle">Recent stock purchases <small>'+restockHistory.length+' SHOWN</small></div>'+restockHistoryHtml:'')+
   '<div class="s4-sectiontitle">Recent receipts <small>'+history.length+' SHOWN</small></div>'+historyHtml+
   '<button class="subtle" data-market-refresh="1">Refresh market data</button>');
  modal.classList.add('stage4-menu');
