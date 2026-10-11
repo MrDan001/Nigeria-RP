@@ -1008,6 +1008,7 @@ function parkStatePayload(session: Session) {
     type: "parkState",
     workplaceId: PARK_WORKPLACE_ID,
     workplaceName: workplace.name,
+    today,
     atPark,
     rank,
     rankTitle: member ? workplaceRankTitle(PARK_WORKPLACE_ID, rank) : "",
