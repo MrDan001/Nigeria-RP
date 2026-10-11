@@ -199,6 +199,24 @@ test("hospital pharmacy sells existing usable inventory at fixed prices and reco
   assert.equal(replay.ok, false);
 });
 
+test("pharmacy refuses till overflow without reducing stock or creating a receipt", () => {
+  const state = createStage5State();
+  state.hospital.pharmacyTill["hospital-main"] = Number.MAX_SAFE_INTEGER;
+  const inventory: Record<string, number> = {};
+  const result = purchaseHospitalMedicine({
+    state, requestId: "overflow-pharmacy", idempotencyKey: "overflow-pharmacy-key",
+    hospitalId: "hospital-main", customerId: "customer", workerId: "worker",
+    workerRank: 3, onDuty: true, uniform: true, medicineId: "paracetamol",
+    quantity: 1, customerCash: 5_000, inventory, now: NOW,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, "balance_limit");
+  assert.equal(state.hospital.pharmacyStock["hospital-main:paracetamol"], 30);
+  assert.equal(state.hospital.pharmacyTill["hospital-main"], Number.MAX_SAFE_INTEGER);
+  assert.equal(state.hospital.pharmacyHistory.length, 0);
+  assert.equal(inventory.Paracetamol, undefined);
+});
+
 test("pharmacy blocks self-service, off-duty workers, invalid fractional quantity and stock/cash overruns", () => {
   const state = createStage5State();
   const base = {
