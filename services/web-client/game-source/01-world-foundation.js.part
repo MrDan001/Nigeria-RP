@@ -245,7 +245,7 @@ function building(x,z,w,d,h,col,side,lit,doorWidth=3.2,doorAxis='x',residentialC
 
 /* Residential exteriors are actual multi-part buildings, sized to each rental class. */
 const HOUSE_VISUALS=Object.create(null),HOUSE_MATERIALS=Object.create(null);
-/* ---------- NRS Homes: six redesigned house types (names, materials, shared helpers) ---------- */
+/* ---------- NRS Homes: base type definitions and shared helpers; final geometry is registered by 01a-grand-building.js.part ---------- */
 const HOUSE_LABELS={hut:"VILLAGE HUT",faceme:"COMPOUND ROOMS",flat:"URBAN FLAT",estate:"ESTATE DUPLEX",mansion:"GRAND VILLA",palace:"ROYAL PALACE",grand:"GRAND BUILDING"};
 const HOUSE_PALETTE={
  hut:{wall:0xb9946a,trim:0x5a3d26,roof:0x87603a,door:0x4a2f1c,accent:0xc9803f},
