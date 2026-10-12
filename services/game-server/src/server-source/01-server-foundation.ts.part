@@ -1328,6 +1328,25 @@ function homeInteriorPosition(homeId: string) {
   return { x: 280 + (index % 6) * 34, z: 280 + Math.floor(index / 6) * 32 };
 }
 
+function homeInteriorDepth(cls: string): number {
+  switch (cls) {
+    case "hut": return 8.0;
+    case "faceme": return 8.8;
+    case "flat": return 10.8;
+    case "estate": return 15.2;
+    case "mansion": return 17.2;
+    case "palace": return 19.2;
+    case "grand": return 23;
+    default: return 10.8;
+  }
+}
+
+function homeInteriorSpawnPosition(homeId: string) {
+  const home = findHouse(homeId);
+  const room = homeInteriorPosition(homeId);
+  return { x: room.x, z: room.z + homeInteriorDepth(home?.cls ?? "flat") / 2 - 1.4 };
+}
+
 function staffRoomInteriorPosition(workplaceId: string) {
   const found = WORKPLACES.findIndex((workplace) => workplace.id === workplaceId);
   const index = Math.max(0, found);
