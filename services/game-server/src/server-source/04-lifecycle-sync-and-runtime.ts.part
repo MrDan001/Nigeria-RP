@@ -1256,7 +1256,7 @@
         session.inCarpark = false;
         session.carparkVehicle = null;
         session.player.x = room.x;
-        session.player.z = room.z + 1.4;
+        session.player.z = homeInteriorSpawnPosition(home.id).z;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
@@ -1264,7 +1264,7 @@
         send(socket, {
           type: "homeInterior", ok: true,
           home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: isOwner ? session.player.life.rentDays : 0, isOwner, vacant, locked },
-          roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
+          roomX: room.x, roomZ: room.z, x: room.x, z: homeInteriorSpawnPosition(home.id).z,
           returnX: returnPosition.x, returnZ: returnPosition.z,
           furniture: HOME_FURNITURE[home.cls] ?? [],
         });
@@ -1471,13 +1471,13 @@
           session.inHome = true;
           session.homeReturn = returnPosition;
           session.player.x = room.x;
-          session.player.z = room.z + 1.4;
+          session.player.z = homeInteriorSpawnPosition(home.id).z;
           session.player.yaw = 0;
           await persistSession(session);
           send(socket, {
             type: "carparkFootExitResult", ok: true, route: "home",
             home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
-            roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
+            roomX: room.x, roomZ: room.z, x: room.x, z: homeInteriorSpawnPosition(home.id).z,
             returnX: returnPosition.x, returnZ: returnPosition.z,
             furniture: HOME_FURNITURE[home.cls] ?? [],
             life: session.player.life, today: clock.dayKey(),
@@ -1529,7 +1529,7 @@
         // entrance. The player is not spawned inside the fenced grounds and no
         // existing home/lease is cleared by this fallback.
         const x = room ? room.x : PARK_GATE_APPROACH.x;
-        const z = room ? room.z + 1.4 : PARK_GATE_APPROACH.z;
+        const z = room && home ? homeInteriorSpawnPosition(home.id).z : PARK_GATE_APPROACH.z;
         session.inHome = atHome;
         session.inCarpark = false;
         session.homeReturn = atHome ? (returnPosition ?? { x: home!.x, z: home!.z + 12 }) : null;
