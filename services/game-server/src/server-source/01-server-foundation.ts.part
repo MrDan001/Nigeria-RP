@@ -33,7 +33,6 @@ import {
   findShopInterior,
   shopInteriorPosition,
   workplaceInteriorPosition,
-  APARTMENT_RENT_PER_DAY,
   apartmentRentTierForFloors,
   MAX_APARTMENT_PREPAID_DAYS,
   daysBetween,
