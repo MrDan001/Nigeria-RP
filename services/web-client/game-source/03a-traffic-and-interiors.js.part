@@ -331,15 +331,106 @@ function homeRoom(d){
   A(new THREE.CylinderGeometry(.22,.28,.32,10),M(0x8b5b35),w*.4,.16,depth*.34);
   A(new THREE.SphereGeometry(.42,12,10),M(0x2d813d),w*.4,.62,depth*.34);
  }
- // Collision edges match the visible room shell while leaving the door opening clear.
+ // Add class-specific sleeping suites and premium amenities on the correct level.
+ const extraBed=(x,z,color=0xe8e0d3)=>{
+  A(new THREE.BoxGeometry(2.0,.34,2.35),wood,x,.22,z);
+  A(new THREE.BoxGeometry(1.88,.16,2.2),M(color),x,.47,z);
+  A(new THREE.BoxGeometry(1.92,.62,.14),trim,x,.77,z-1.08);
+  A(new THREE.BoxGeometry(.68,.12,.42),cream,x-.42,.62,z-.72);
+  A(new THREE.BoxGeometry(.68,.12,.42),cream,x+.42,.62,z-.72);
+ };
+ if(cls==='mansion'&&floor===1){
+  extraBed(w*.20,-depth*.20,0xded4c4);
+  extraBed(w*.30,depth*.25,0xd2d0dd);
+  extraBed(-w*.06,depth*.30,0xbeced0);
+ }
+ if(cls==='estate'&&floor===2){
+  extraBed(w*.22,-depth*.20,0xe4e0d2);
+  extraBed(w*.25,depth*.22,0xd9d0c2);
+  A(new THREE.BoxGeometry(2.8,.42,1.0),soft,w*.22,.36,depth*.36);
+  A(new THREE.BoxGeometry(2.8,.68,.15),soft,w*.22,.78,depth*.40);
+ }
+ if(cls==='palace'&&floor===2){
+  extraBed(w*.20,-depth*.23,0xf0e5c9);
+  extraBed(w*.30,depth*.24,0xe4d5b8);
+  extraBed(-w*.04,depth*.31,0xe8dfcf);
+  A(new THREE.BoxGeometry(2.8,.24,1.35),M(0xd0ad55),w*.18,1.05,depth*.05);
+  A(new THREE.BoxGeometry(2.5,.95,.15),M(0x6c252c),w*.18,1.56,depth*.05);
+ }
+ if(cls==='grand'&&floor===2){
+  A(new THREE.BoxGeometry(4.6,.2,2.25),M(0x182027),w*.29,.15,-depth*.25);
+  A(new THREE.BoxGeometry(4.35,2.0,.12),M(0x111820),w*.29,1.35,-depth*.43);
+  A(new THREE.BoxGeometry(3.7,.46,1.05),soft,w*.23,.42,-depth*.02);
+  A(new THREE.BoxGeometry(3.7,.60,.18),soft,w*.23,.84,-depth*.11);
+  A(new THREE.BoxGeometry(2.7,.12,1.25),wood,-w*.27,.78,depth*.28);
+  A(new THREE.BoxGeometry(1.0,.8,.9),wood,-w*.41,.4,depth*.28);
+  A(new THREE.BoxGeometry(.7,.03,.55),M(0x273c48),-w*.27,.86,depth*.28);
+  A(new THREE.BoxGeometry(2.1,2.0,.05),M(0x222a31),-w*.30,1.75,-depth*.46);
+ }
+ if(cls==='grand'&&floor===3){
+  A(new THREE.BoxGeometry(3.6,.18,1.7),M(0x273b42),-w*.28,.30,-depth*.22);
+  A(new THREE.CylinderGeometry(.07,.07,3.2,10),M(0x9da7aa),-w*.28,1.15,-depth*.22);
+  [-1,1].forEach(side=>A(new THREE.CylinderGeometry(.27,.27,.22,12),M(0x252c31),-w*.28+side*1.22,1.15,-depth*.22));
+  A(new THREE.BoxGeometry(3.4,.08,1.1),M(0x147d83),w*.26,.07,depth*.24);
+  A(new THREE.BoxGeometry(3.4,.56,.12),M(0x273b42),w*.26,.38,depth*.30);
+  A(new THREE.BoxGeometry(2.8,.16,1.1),wood,w*.26,.42,-depth*.15);
+  A(new THREE.BoxGeometry(2.6,.08,1.0),M(0x17a9a1),w*.26,.55,-depth*.15);
+  A(new THREE.BoxGeometry(2.6,.12,1.0),M(0x273b42),w*.26,.48,-depth*.02);
+ }
+ // Collision edges match the visible room shell while leaving room dividers walkable.
  const addCollider=(x,z,hw,hd)=>boxes.push({x:ix+x,z:iz+z,hw,hd,homeInteriorId:id});
+ const divider=(x,z,bw,bd,h=2.12)=>{
+  A(new THREE.BoxGeometry(bw,h,bd),wall,x,h/2,z);
+  addCollider(x,z,bw/2,bd/2);
+ };
+ if(cls==='hut'){
+  divider(w*.24,-depth*.28,.13,depth*.43);
+  divider(w*.34,-depth*.08,w*.22,.13);
+  mini('WASHROOM / WC',ix+w*.34,1.95,iz-depth*.31,1.65,'#765338');
+  mini('MAIN ROOM',ix-w*.10,2.05,iz+depth*.08,1.55,'#765338');
+ }else if(cls==='faceme'){
+  divider(0,-depth*.28,.13,depth*.34);
+  divider(0,depth*.18,.13,depth*.23);
+  mini('SLEEPING ROOM',ix-w*.23,2.05,iz-depth*.23,1.45,'#76493c');
+  mini('SHARED LIVING / COOKING',ix+w*.20,2.05,iz+depth*.10,1.75,'#76493c');
+ }else{
+  divider(0,-depth*.24,.14,depth*.42);
+  divider(0,depth*.34,.14,depth*.24);
+  if(['flat','estate','mansion','palace','grand'].includes(cls))divider(-w*.27,depth*.11,w*.36,.14);
+  if(['mansion','palace','grand'].includes(cls))divider(-w*.25,-depth*.30,w*.34,.14);
+  if(['palace','grand'].includes(cls))divider(w*.29,-depth*.22,w*.24,.14);
+  mini(floor>1?'BEDROOM SUITES':'LIVING / DINING',ix+w*.21,2.0,iz+depth*.02,1.8,cls==='grand'?'#174f54':'#6b5542');
+  if(floor===1&&['flat','estate','mansion','palace','grand'].includes(cls))mini('KITCHEN',ix+w*.27,2.0,iz-depth*.38,1.35,cls==='grand'?'#174f54':'#6b5542');
+  if(cls==='grand'&&floor===2)mini('CINEMA / OFFICE',ix+w*.25,2.0,iz-depth*.38,1.8,'#174f54');
+  if(cls==='grand'&&floor===3)mini('GYM / ROOFTOP LOUNGE',ix+w*.20,2.0,iz+depth*.30,1.9,'#174f54');
+ }
+ const targetFloor=floor<homeFloors?floor+1:floor-1;
+ if(homeFloors>1)mini(floor<homeFloors?'STAIRS ↑':'STAIRS ↓',ix+w*.34,2.35,iz+frontZ-2.65,1.8,cls==='grand'?'#147d83':'#805c35');
  addCollider(-w/2,0,.12,depth/2);addCollider(w/2,0,.12,depth/2);
  addCollider(0,-depth/2,w/2,.12);
  addCollider(-doorW/2-frontSeg/2,frontZ,frontSeg/2,.12);
   addCollider(doorW/2+frontSeg/2,frontZ,frontSeg/2,.12);
   addCollider(0,frontZ,doorW/2,.12);
  mini('EXIT',ix,2.45,iz+frontZ-.04,1.55,'#117044');
- return HOME_ROOMS[id]={id,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt'),home:h,group:g,x:ix,z:iz,roomW:w,roomD:depth,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois:[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}],isHome:true};
+ const pois=[{x:ix,z:iz+frontZ-1.0,k:'Exit',name:'Leave home',r:1.7}];
+ if(homeFloors>1)pois.push({x:ix+w*.34,z:iz+frontZ-2.65,k:'Stairs',name:floor<homeFloors?'Go to Floor '+targetFloor:'Return to Floor '+targetFloor,t:'home-floor',floor:targetFloor,r:2.8});
+ return HOME_ROOMS[cacheKey]={id,cacheKey,name:(h.name||'Your home')+' · '+(h.zone||'Port Harcourt')+' · Floor '+floor,home:h,group:g,x:ix,z:iz,roomW:w,roomD:depth,homeFloor:floor,homeFloors,cb:{x:ix-w/2+.65,z:iz+depth*.12,hw:.45,hd:.5},pois,isHome:true};
+}
+function switchHomeFloor(requestedFloor){
+ if(!inside?.isHome)return;
+ const current=inside,target=Math.floor(Number(requestedFloor));
+ if(!Number.isInteger(target)||target<1||target>current.homeFloors||target===current.homeFloor)return;
+ scene.remove(current.group);
+ for(const collider of boxes.slice())if(collider.homeInteriorId===current.id){const index=boxes.indexOf(collider);if(index>=0)boxes.splice(index,1);}
+ delete HOME_ROOMS[current.cacheKey];
+ const next=homeRoom({home:current.home,roomX:current.x,roomZ:current.z,floor:target});
+ next.ret=current.ret;inside=next;
+ pos.set(next.x,0,next.z+next.roomD/2-2.65);vel.set(0,0,0);jv=0;
+ face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);
+ player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
+ modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';
+ if(MP.open)closeMap();plShow(false);
+ sys('You are now on Floor '+target+' of '+next.homeFloors+'.');
 }
 const STAFF_ROOM_VISUALS={};
 function staffRoomInterior(d){
