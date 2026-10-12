@@ -107,6 +107,57 @@ const beacon=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,40,16,1,true),new
 beacon.visible=false;scene.add(beacon);
 /* Interiors are real walkable 3D rooms; coordinates are kept inside server world limits. */
 const HOME_ROOMS=Object.create(null);
+
+// The Grand Building uses a modern glass-and-steel silhouette, rooftop solar and pool,
+ // a multi-car garage, landscaped entry and a wide private gate; it is not a palace reskin.
+HOUSE_BUILDERS.grand=function(K){
+ const {A,m,S,B,C,w,d,H,front,Y}=K;
+ B(w*.78,H*.72,d*.74,m.wall,-w*.04,Y+H*.36,-.1);
+ B(w*.46,H*.96,d*.43,m.trim,w*.22,Y+H*.48,-.35);
+ B(w*.80,.38,d*.78,m.trim,-w*.04,Y+H*.73,-.1);
+ B(w*.49,.18,d*.46,m.concrete,w*.22,Y+H*.98,-.35);
+ // Double-height glazing across the central atrium.
+ B(w*.34,H*.69,.13,m.darkGlass,-w*.07,Y+H*.36,front-.3);
+ B(w*.36,.12,.14,m.metal,-w*.07,Y+H*.15,front-.38);
+ B(w*.36,.12,.14,m.metal,-w*.07,Y+H*.39,front-.38);
+ B(w*.36,.12,.14,m.metal,-w*.07,Y+H*.63,front-.38);
+ for(let i=0;i<7;i++)B(.07,H*.67,.08,m.metal,-w*.24+i*w*.056,Y+H*.36,front-.39);
+ // Contemporary entrance and a full-width garage wing.
+ houseDoor(A,m,-w*.04,Y+1.48,front-.18,1.8,2.75,true);
+ B(4.9,2.78,.15,S.black,w*.27,Y+1.39,front-.15);
+ B(4.65,2.54,.07,m.darkGlass,w*.27,Y+1.37,front-.04);
+ for(let i=1;i<6;i++)B(.035,2.48,.05,m.metal,w*.27-2.325+i*.775,Y+1.37,front+.015);
+ houseFrontWindow(A,m,w*.27,Y+4.9,front-.09,4.0,1.2);
+ houseFrontWindow(A,m,-w*.32,Y+4.9,front-.09,3.8,1.35);
+ // Upper levels and recessed roof terrace.
+ for(const x of [-w*.30,w*.02,w*.32]){
+  B(2.65,1.95,.10,m.darkGlass,x,Y+H*.79,front-.08);
+  B(2.78,.13,.18,m.trim,x,Y+H*.68,front+.01);
+ }
+ B(w*.52,.16,1.45,S.glassRail,-w*.02,Y+H*.84,front+.45);
+ for(let i=0;i<13;i++)C(.035,.035,.9,m.metal,-w*.28+i*w*.043,Y+H*.84,front+.45,6);
+ // Roof plant, solar panels and lift overruns.
+ B(w*.28,.22,d*.30,m.concrete,-w*.26,Y+H+0.33,-d*.17);
+ for(let i=0;i<4;i++){const panel=B(2.2,.06,1.25,m.darkGlass,-w*.32+i*2.35,Y+H+.48,-d*.18);panel.rotation.x=-.12;}
+ B(3.5,1.05,3.2,m.wall,w*.29,Y+H+.58,-d*.17);
+ B(3.0,.12,3.0,m.trim,w*.29,Y+H+1.13,-d*.17);
+ // Pool and outdoor entertaining terrace in the front setback.
+ B(4.5,.32,5.7,S.stoneDk,-w*.34,.18,front+3.55);
+ B(4.15,.12,5.25,S.water,-w*.34,.38,front+3.55);
+ B(4.9,.08,6.1,m.concrete,-w*.34,.08,front+3.55);
+ B(3.1,.12,2.2,S.paver,w*.25,.12,front+3.5);
+ B(2.0,.52,.75,m.trim,w*.25,.42,front+3.4);
+ B(2.1,.08,.86,m.concrete,w*.25,.72,front+3.4);
+ // Private boundary, sliding gate, security posts and modern path lighting.
+ B(4.8,1.65,.28,m.wall,-w*.36,.82,front+4.8);
+ B(4.8,1.65,.28,m.wall,w*.36,.82,front+4.8);
+ B(4.6,1.35,.08,S.black,0,.82,front+4.8);
+ for(let i=0;i<12;i++)B(.045,1.3,.1,m.metal,-2.12+i*.385,.82,front+4.83);
+ [-w*.36,w*.36].forEach(x=>{B(.65,2.05,.65,m.trim,x,1.02,front+4.8);K.S_(.14,S.glow,x,2.1,front+4.8);});
+ B(4.9,.07,4.6,S.paver,0,.13,front+2.8);
+ for(const x of [-w*.43,w*.43]){C(.12,.17,2.4,S.steel,x,1.2,front+2.4,8);K.S_(.4,S.leaf,x,.75,front+2.4,1.4,1,1.4);}
+ return {x:-5.4,y:Y+4.1,z:front+.05,w:4.1};
+};
 function homeRoom(d){
  const h=d.home||{},id=String(h.id||'my-home');
  if(HOME_ROOMS[id]){HOME_ROOMS[id].home=h;return HOME_ROOMS[id];}
