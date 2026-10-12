@@ -263,7 +263,7 @@ export function checkWorkTaskEligibility(args: {
 
 // ---------------------------------------------------------------- houses
 
-export type HouseClassId = "hut" | "faceme" | "flat" | "estate" | "mansion" | "palace";
+export type HouseClassId = "hut" | "faceme" | "flat" | "estate" | "mansion" | "palace" | "grand";
 
 export type HouseClass = {
   id: HouseClassId;
@@ -280,6 +280,7 @@ export const HOUSE_CLASSES: readonly HouseClass[] = [
   { id: "estate", name: "Estate Duplex", rentPerDay: 7500 },
   { id: "mansion", name: "Grand Villa", rentPerDay: 10000 },
   { id: "palace", name: "Royal Palace", rentPerDay: 20000 },
+  { id: "grand", name: "Grand Building", rentPerDay: 30000 },
 ];
 
 export type HouseDef = {
@@ -312,11 +313,14 @@ const HOUSE_PLAN: ReadonlyArray<{ cls: HouseClassId; zone: string; count: number
   { cls: "flat", zone: "D-Line", count: 3, tag: "dl" },
   { cls: "flat", zone: "Waterlines", count: 4, tag: "wl" },
   { cls: "estate", zone: "Trans Amadi", count: 4, tag: "ta" },
+  { cls: "grand", zone: "Trans Amadi", count: 1, tag: "ta" },
   { cls: "mansion", zone: "Old GRA", count: 3, tag: "gra" },
   { cls: "palace", zone: "Old GRA", count: 2, tag: "gra" },
 ];
 
 const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>> = {
+  // Modern Grand Building occupies a reserved Trans Amadi lot away from the estate row and the road.
+  "grand-ta-01": { x: 220, z: -148 },
   // Trans Amadi's road runs east-west at z=-190. Keep the estate row well behind it.
   "estate-ta-01": { x: 128, z: -228 },
   "estate-ta-02": { x: 156, z: -228 },

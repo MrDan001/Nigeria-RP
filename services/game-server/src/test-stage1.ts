@@ -212,9 +212,11 @@ test("house classes and rents match the plan", () => {
       ["Estate Duplex", 7500],
       ["Grand Villa", 10000],
       ["Royal Palace", 20000],
+      ["Grand Building", 30000],
     ],
   );
   assert.equal(houseRent(HOUSES[0].id), 1000);
+  assert.equal(houseRent(HOUSES.find((h) => h.cls === "grand")!.id), 30000);
   assert.equal(new Set(HOUSES.map((h) => h.id)).size, HOUSES.length); // ids unique
 });
 
