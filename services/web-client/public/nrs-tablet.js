@@ -2,24 +2,100 @@
   "use strict";
   const $ = (id) => document.getElementById(id);
   const apps = [
-    { id: "travel", icon: "🚌", name: "Interstate", note: "Waterlines · day and night buses", badge: "COMING SOON" },
+    { id: "travel", icon: "🚌", name: "Interstate Travel", note: "Waterlines · day and night buses", badge: "COMING SOON" },
     { id: "flights", icon: "✈️", name: "NRS Air", note: "Book an in-game flight" },
-    { id: "betting", icon: "🏟️", name: "Betting", note: "Daily sports fixtures and tickets" },
-    { id: "wallet", icon: "💳", name: "Wallet", note: "Game cash and banking" },
+    { id: "betting", icon: "⚽", name: "Betting", note: "Daily sports fixtures and virtual-token tickets" },
+    { id: "wallet", icon: "₦", name: "Wallet", note: "Game cash and banking" },
     { id: "contacts", icon: "👥", name: "Contacts", note: "Players in this city" },
-    { id: "map", icon: "🗺️", name: "City map", note: "Find local services" },
+    { id: "map", icon: "🗺️", name: "City Map", note: "Find local services" },
     { id: "news", icon: "📰", name: "RNN News", note: "In-game city bulletins" },
     { id: "jobs", icon: "💼", name: "Careers", note: "Jobs and workplaces" },
-    { id: "passport", icon: "🛂", name: "Passport", note: "Your state discoveries" }
+    { id: "passport", icon: "🛂", name: "State Passport", note: "Your state discoveries" }
   ];
   const style = document.createElement("style");
-  style.textContent = "#nrsTabletLayer{position:fixed;inset:0;z-index:97000;display:grid;place-items:center;padding:clamp(4px,2vw,22px);box-sizing:border-box;background:rgba(1,7,14,.82);backdrop-filter:blur(9px);font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#f3f8ff;touch-action:manipulation}#nrsTabletLayer[hidden]{display:none!important}#nrsTabletDevice{width:min(1040px,100%);height:min(680px,94dvh);min-height:min(420px,94dvh);display:grid;grid-template-rows:auto auto 1fr auto;overflow:hidden;box-sizing:border-box;border:5px solid #364351;border-radius:25px;background:linear-gradient(145deg,#101d2a,#07111b 65%);box-shadow:0 30px 95px #000b,inset 0 0 0 1px #ffffff19}#nrsTabletHead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 17px;background:linear-gradient(100deg,#13344c,#102030);border-bottom:1px solid #ffffff19}#nrsTabletHead strong{display:block;font-size:15px;letter-spacing:.12em}#nrsTabletHead small{display:block;margin-top:3px;color:#8fb1c6;font-size:10px}#nrsTabletClose{min-width:40px;min-height:38px;border:1px solid #ffffff25;border-radius:10px;background:#203549;color:white;font-size:22px}#nrsTabletStatus{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 17px;color:#8eacbc;font-size:9px;letter-spacing:.08em;background:#0a1621}#nrsTabletStatus .safe{color:#8be4b0;font-weight:900}#nrsTabletBody{overflow:auto;padding:clamp(12px,2.4vw,26px);overscroll-behavior:contain}#nrsTabletFoot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;background:#09131d;border-top:1px solid #ffffff14;color:#7791a4;font-size:9px;letter-spacing:.05em}#nrsTabletFoot button,.nrsTabBtn{border:1px solid #ffffff1e;border-radius:10px;background:#172a3a;color:#f5f8fb;padding:9px 12px;font-weight:800;touch-action:manipulation}#nrsTabletFoot button:disabled{opacity:.4}#nrsTabletHomeTitle{margin:2px 0 5px;font-size:clamp(22px,3vw,31px);letter-spacing:-.04em}#nrsTabletHomeCopy{margin:0 0 18px;color:#9fb4c6;font-size:12px;line-height:1.5}#nrsTabletGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}#nrsTabletGrid button{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:115px;padding:14px;border:1px solid #ffffff17;border-radius:16px;background:linear-gradient(145deg,#172b3c,#0c1a28);color:white;text-align:left;touch-action:manipulation}#nrsTabletGrid button:active{transform:scale(.99);border-color:#54c7ee}#nrsTabletGrid .appIcon{display:grid;place-items:center;width:39px;height:39px;margin-bottom:11px;border-radius:12px;background:#21445b;font-size:22px}#nrsTabletGrid strong{font-size:13px}#nrsTabletGrid small{margin-top:4px;color:#9bb2c4;font-size:10px;line-height:1.35}#nrsTabletGrid .badge{position:absolute;top:8px;right:8px;padding:4px 5px;border-radius:6px;background:#6e4d16;color:#ffe5a0;font-size:7px;font-weight:900;letter-spacing:.03em}#nrsTabletDevice .appTitle{margin:0 0 5px;font-size:23px}#nrsTabletDevice .appCopy{margin:0 0 16px;color:#9fb4c6;font-size:12px;line-height:1.5}#nrsTabletDevice .safeBanner{margin:0 0 15px;padding:11px 12px;border:1px solid #2a5d4b;border-radius:12px;background:#0b2c25;color:#9aefc1;font-size:11px;line-height:1.45}#nrsTabletDevice .infoGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}#nrsTabletDevice .infoCard{min-width:0;padding:13px;border:1px solid #ffffff16;border-radius:13px;background:#0e1c29}#nrsTabletDevice .infoCard small{display:block;color:#93a9bc;font-size:9px;letter-spacing:.06em}#nrsTabletDevice .infoCard strong{display:block;overflow-wrap:anywhere;margin-top:6px;font-size:20px;color:#88e7b4}#nrsTabletDevice .appList{display:grid;gap:9px}#nrsTabletDevice .listRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #ffffff16;border-radius:12px;background:#0c1a27;font-size:12px}#nrsTabletDevice .listRow small{display:block;margin-top:4px;color:#93a9bc;font-size:10px}#nrsTabletDevice .sectionLabel{display:block;margin:17px 0 8px;color:#81a5bd;font-size:9px;font-weight:900;letter-spacing:.12em}#nrsTabletDevice .fixture{margin:10px 0;padding:13px;border:1px solid #ffffff18;border-radius:14px;background:#0e1d2a}#nrsTabletDevice .fixtureName{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:12px}#nrsTabletDevice .picks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}#nrsTabletDevice .pick{min-width:0;padding:10px 4px;border:1px solid #344b5d;border-radius:10px;background:#122536;color:#dbe9f2;font-size:10px;font-weight:800}#nrsTabletDevice .pick.on{border-color:#5ed7ff;background:#16465b;color:#fff}#nrsTabletDevice .pick small{display:block;margin-top:4px;color:#91b6cd;font-size:10px}#nrsTabletDevice .formRow{display:flex;align-items:center;gap:10px;margin:12px 0}#nrsTabletDevice input,#nrsTabletDevice select{box-sizing:border-box;max-width:100%;min-width:0;padding:11px;border:1px solid #30485b;border-radius:10px;background:#071522;color:#fff;font:inherit}#nrsTabletDevice input{flex:1}#nrsTabletDevice .primary{min-height:42px;padding:10px 14px;border:1px solid #4cbee1;border-radius:10px;background:linear-gradient(135deg,#16769b,#164e75);color:#fff;font-size:11px;font-weight:900}#nrsTabletDevice .secondary{min-height:38px;padding:8px 12px;border:1px solid #ffffff22;border-radius:10px;background:#1a2c3b;color:#fff;font-size:11px;font-weight:800}#nrsTabletDevice .feedback{min-height:20px;color:#ffd783;font-size:11px;line-height:1.45}#nrsTabletDevice .tag{display:inline-block;padding:5px 7px;border:1px solid #6b5525;border-radius:7px;background:#3b2d14;color:#ffdf94;font-size:8px;font-weight:900;letter-spacing:.04em}#nrsTabletDevice .empty{padding:14px;border:1px dashed #ffffff22;border-radius:12px;color:#9aafc0;font-size:12px;line-height:1.5}@media(max-width:620px){#nrsTabletDevice{height:96dvh;min-height:0;border-width:3px;border-radius:16px}#nrsTabletHead{padding:8px 11px}#nrsTabletGrid{gap:7px}#nrsTabletGrid button{min-height:94px;padding:9px;border-radius:11px}#nrsTabletGrid .appIcon{width:30px;height:30px;font-size:17px;margin-bottom:7px}#nrsTabletGrid strong{font-size:11px}#nrsTabletGrid small{font-size:8px}#nrsTabletGrid .badge{position:static;order:-1;margin-bottom:5px}#nrsTabletStatus{padding:6px 11px;font-size:8px}#nrsTabletBody{padding:10px}#nrsTabletDevice .infoGrid{gap:7px}#nrsTabletDevice .infoCard{padding:10px}#nrsTabletDevice .formRow{flex-wrap:wrap}#nrsTabletFoot{padding:7px 9px;font-size:7px}}@media(max-height:500px){#nrsTabletGrid button{min-height:78px;padding:7px}#nrsTabletGrid .appIcon{width:26px;height:26px;margin-bottom:4px}#nrsTabletDevice .appTitle{font-size:19px}#nrsTabletDevice .appCopy{margin-bottom:8px}}";
+  style.textContent = `
+#nrsTabletLayer{position:fixed;inset:0;z-index:97000;display:grid;place-items:center;padding:6px;box-sizing:border-box;background:rgba(1,6,16,.76);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f8ff;touch-action:manipulation}
+#nrsTabletLayer[hidden]{display:none!important}
+#nrsTabletDevice{position:relative;width:min(1420px,98vw);height:min(94dvh,960px);min-height:0;display:grid;grid-template-rows:clamp(22px,2.7vh,30px) minmax(0,1fr) clamp(23px,3vh,32px);gap:0;overflow:hidden;box-sizing:border-box;border:2px solid #5c646d;border-radius:30px;background:#05070a;box-shadow:0 30px 95px #000b,inset 0 0 0 2px #ffffff12,inset 0 0 0 7px #15191e;padding:clamp(30px,3.6vh,43px) clamp(11px,2.4vw,34px) clamp(9px,2.1vh,24px)}
+#nrsTabletDevice:before{content:"";position:absolute;z-index:8;top:13px;left:50%;width:7px;height:7px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle at 35% 35%,#526d90 0,#111923 55%,#020304 100%);box-shadow:0 0 0 2px #181c21}
+#nrsTabletStatus{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 clamp(10px,1.7vw,24px);color:#fff;font-size:clamp(9px,.85vw,13px);font-weight:700;letter-spacing:.01em;background:linear-gradient(112deg,#0755d0,#1438a8 74%,#27369b);border-radius:7px 7px 0 0}
+.tabletStatusRight{display:flex;align-items:center;gap:clamp(5px,.7vw,10px);white-space:nowrap}
+.statusWifi{font-size:17px;line-height:1}.statusSignal{font-size:11px;letter-spacing:-2px;transform:scaleY(.88);transform-origin:bottom}.statusBattery{position:relative;display:inline-block;width:17px;height:9px;border:1.5px solid #fff;border-radius:2px;box-sizing:border-box;margin-left:1px}.statusBattery:before{content:"";position:absolute;right:-4px;top:2px;width:2px;height:3px;border-radius:0 1px 1px 0;background:#fff}.statusBattery span{display:block;width:78%;height:100%;background:#fff}
+#nrsTabletClose{display:grid;place-items:center;width:23px;height:23px;min-width:23px;border:1px solid #ffffff32;border-radius:50%;background:#ffffff14;color:#fff;font-size:17px;line-height:1;padding:0;touch-action:manipulation}
+#nrsTabletBody{position:relative;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:none;color:#f7f9ff}#nrsTabletBody::-webkit-scrollbar{display:none}
+#nrsTabletBody.homeScreen{isolation:isolate;background:radial-gradient(ellipse 44% 76% at 95% 77%,#df2874 0%,#f14d3c 28%,transparent 29%),radial-gradient(ellipse 59% 115% at 91% 68%,#ff6d12 0%,#ff8b18 41%,transparent 42%),radial-gradient(ellipse 58% 100% at 92% 9%,#ffc334 0%,#ffb126 39%,transparent 40%),radial-gradient(ellipse 56% 35% at 56% 52%,#1e31bd 0%,transparent 74%),linear-gradient(138deg,#0759db 0%,#073bb7 50%,#142aa1 100%)}
+#nrsTabletBody.homeScreen:before{content:"";position:absolute;z-index:0;pointer-events:none;left:-13%;top:52%;width:88%;height:76%;border-radius:0 68% 0 0/0 52% 0 0;transform:rotate(7deg);background:linear-gradient(153deg,rgba(17,80,219,.98),rgba(8,39,151,.98) 70%);box-shadow:0 -22px 46px rgba(20,84,227,.2)}
+.homeContent{position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column;padding:0 0 clamp(8px,1.6vh,16px)}
+.homeHero{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:clamp(106px,19vh,190px);padding:clamp(13px,2.4vw,32px) clamp(20px,6.2vw,90px) clamp(4px,1vh,12px)}
+.clockBlock{min-width:0}.homeClock{font-size:clamp(36px,6.2vw,78px);font-weight:350;line-height:.98;letter-spacing:-.065em;text-shadow:0 2px 15px #06318c45;font-variant-numeric:tabular-nums}.homeDate{margin-top:9px;font-size:clamp(11px,1.4vw,19px);font-weight:500;letter-spacing:.01em;color:#f4f7ff}
+.weatherWidget{display:flex;align-items:center;gap:clamp(9px,1.6vw,21px);width:clamp(175px,22vw,280px);max-width:43%;padding:clamp(10px,1.8vw,22px);border:1px solid #ffffff18;border-radius:24px;background:rgba(8,55,154,.56);box-shadow:0 14px 32px rgba(4,28,86,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.weatherSymbol{flex:0 0 auto;font-size:clamp(28px,4vw,51px);line-height:1}.weatherReading{min-width:0;display:flex;flex-direction:column;gap:3px}.weatherReading strong{font-size:clamp(25px,3.5vw,43px);font-weight:500;line-height:1}.weatherReading span{font-size:clamp(10px,1.1vw,14px);white-space:nowrap}.weatherReading small{font-size:clamp(9px,.95vw,12px);color:#e3eaff;white-space:nowrap}
+.tabletSearch{display:flex;align-items:center;gap:clamp(9px,1.2vw,17px);width:min(86%,1080px);height:clamp(42px,5.7vh,61px);box-sizing:border-box;margin:clamp(2px,1vh,11px) auto clamp(12px,2.4vh,25px);padding:0 clamp(12px,1.7vw,23px);border:1px solid #ffffffa6;border-radius:999px;background:rgba(255,255,255,.91);box-shadow:0 9px 28px #041f6940;color:#586779}
+.searchBrand{display:grid;place-items:center;flex:0 0 auto;width:clamp(24px,2.4vw,33px);height:clamp(24px,2.4vw,33px);border-radius:50%;background:conic-gradient(#4285f4 0 25%,#34a853 0 48%,#fbbc05 0 68%,#ea4335 0 83%,#4285f4 0);color:#fff;font-size:clamp(12px,1.1vw,16px);font-weight:900;text-shadow:0 1px 2px #163b8855}
+#nrsTabletSearchInput{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:#213347;font:500 clamp(11px,1.15vw,15px) system-ui,-apple-system,sans-serif}#nrsTabletSearchInput::placeholder{color:#7b8795;opacity:1}
+#nrsTabletSearchGo{display:grid;place-items:center;flex:0 0 auto;width:32px;height:32px;border:0;border-radius:50%;background:transparent;color:#2874d8;font-size:23px;font-weight:600}
+#nrsTabletGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:clamp(7px,1.3vh,15px) clamp(4px,1.2vw,16px);padding:0 clamp(14px,3.7vw,55px)}
+#nrsTabletGrid button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;min-width:0;min-height:clamp(74px,12.4vh,126px);padding:5px 3px 7px;border:1px solid transparent;border-radius:17px;background:transparent;color:#fff;text-align:center;touch-action:manipulation}
+#nrsTabletGrid button:active{transform:scale(.97);background:#ffffff15;border-color:#ffffff25}
+#nrsTabletGrid button[hidden]{display:none!important}
+#nrsTabletGrid .appIcon{display:grid;place-items:center;flex:0 0 auto;width:clamp(43px,5.1vw,72px);height:clamp(43px,5.1vw,72px);margin-bottom:9px;border:1px solid #ffffff55;border-radius:clamp(12px,1.4vw,20px);box-shadow:0 7px 16px #07133f35,inset 0 1px 0 #ffffff4c;color:#fff;font-size:clamp(22px,2.5vw,35px);line-height:1}
+#nrsTabletGrid strong{display:block;width:100%;font-size:clamp(9px,.96vw,14px);font-weight:550;line-height:1.22;text-shadow:0 1px 3px #07194e75;overflow-wrap:anywhere}
+#nrsTabletGrid .badge{position:absolute;z-index:1;top:0;right:0;max-width:75%;padding:3px 4px;border-radius:5px;background:#6e4d16;color:#ffe5a0;font-size:clamp(6px,.52vw,7px);font-weight:900;letter-spacing:.02em}
+#nrsTabletGrid button[data-app="travel"] .appIcon{background:linear-gradient(145deg,#159b6c,#075743)}
+#nrsTabletGrid button[data-app="flights"] .appIcon{background:linear-gradient(145deg,#4ca9ff,#1557c7)}
+#nrsTabletGrid button[data-app="betting"] .appIcon{background:linear-gradient(145deg,#ff8152,#d92446)}
+#nrsTabletGrid button[data-app="wallet"] .appIcon{background:linear-gradient(145deg,#21b98b,#078264)}
+#nrsTabletGrid button[data-app="contacts"] .appIcon{background:linear-gradient(145deg,#ff9b58,#ec4a35)}
+#nrsTabletGrid button[data-app="map"] .appIcon{background:linear-gradient(145deg,#6c83ff,#4435c4)}
+#nrsTabletGrid button[data-app="news"] .appIcon{background:linear-gradient(145deg,#f75c9b,#b42175)}
+#nrsTabletGrid button[data-app="jobs"] .appIcon{background:linear-gradient(145deg,#55b47c,#197248)}
+#nrsTabletGrid button[data-app="passport"] .appIcon{background:linear-gradient(145deg,#ab83ff,#6533c9)}
+.tabletDock{display:flex;align-items:center;justify-content:space-evenly;gap:clamp(10px,2.5vw,35px);width:min(70%,740px);box-sizing:border-box;margin:clamp(7px,1.7vh,18px) auto 0;padding:clamp(6px,1.1vh,12px) clamp(12px,2.4vw,30px);border:1px solid #ffffff20;border-radius:25px;background:rgba(7,23,89,.3);box-shadow:0 10px 28px #06184c23;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.tabletDock button{display:grid;place-items:center;flex:0 1 auto;min-width:0;padding:0;border:0;border-radius:15px;background:transparent;touch-action:manipulation}
+.tabletDock button:active{transform:scale(.94)}
+.tabletDock .appIcon{display:grid;place-items:center;width:clamp(37px,4.2vw,57px);height:clamp(37px,4.2vw,57px);border:1px solid #ffffff48;border-radius:clamp(11px,1.3vw,16px);box-shadow:0 5px 13px #05143f42,inset 0 1px 0 #ffffff4c;color:#fff;font-size:clamp(18px,2vw,27px);line-height:1}
+.tabletDock button[data-app="wallet"] .appIcon{background:linear-gradient(145deg,#21b98b,#078264)}.tabletDock button[data-app="contacts"] .appIcon{background:linear-gradient(145deg,#ff9b58,#ec4a35)}.tabletDock button[data-app="map"] .appIcon{background:linear-gradient(145deg,#6c83ff,#4435c4)}.tabletDock button[data-app="betting"] .appIcon{background:linear-gradient(145deg,#ff8152,#d92446)}.tabletDock button[data-app="news"] .appIcon{background:linear-gradient(145deg,#f75c9b,#b42175)}
+#nrsTabletBody.appScreen{isolation:auto;padding:clamp(12px,2.4vw,28px);background:linear-gradient(150deg,#10283b,#07121e 75%);color:#f3f8ff}
+#nrsTabletFoot{display:flex;align-items:center;justify-content:space-evenly;gap:20px;background:rgba(6,18,75,.88);border-radius:0 0 7px 7px}
+#nrsTabletFoot .navRecent{color:#ecf2ff;font-size:17px;letter-spacing:-4px;transform:rotate(90deg)}
+#nrsTabletFoot button{display:grid;place-items:center;width:29px;height:24px;padding:0;border:0;background:transparent;color:#f4f7ff;font-weight:400;font-size:25px;line-height:1;touch-action:manipulation}
+#nrsTabletHome{font-size:20px!important}
+#nrsTabletBack{font-size:30px!important}
+#nrsTabletDevice .appTitle{margin:0 0 5px;font-size:clamp(20px,2.5vw,28px);letter-spacing:-.035em}
+#nrsTabletDevice .appCopy{margin:0 0 16px;color:#9fb4c6;font-size:12px;line-height:1.5}
+#nrsTabletDevice .safeBanner{margin:0 0 15px;padding:11px 12px;border:1px solid #2a5d4b;border-radius:12px;background:#0b2c25;color:#9aefc1;font-size:11px;line-height:1.45}
+#nrsTabletDevice .infoGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+#nrsTabletDevice .infoCard{min-width:0;padding:13px;border:1px solid #ffffff16;border-radius:13px;background:#0e1c29}
+#nrsTabletDevice .infoCard small{display:block;color:#93a9bc;font-size:9px;letter-spacing:.06em}
+#nrsTabletDevice .infoCard strong{display:block;overflow-wrap:anywhere;margin-top:6px;font-size:20px;color:#88e7b4}
+#nrsTabletDevice .appList{display:grid;gap:9px}
+#nrsTabletDevice .listRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #ffffff16;border-radius:12px;background:#0c1a27;font-size:12px}
+#nrsTabletDevice .listRow small{display:block;margin-top:4px;color:#93a9bc;font-size:10px}
+#nrsTabletDevice .sectionLabel{display:block;margin:17px 0 8px;color:#81a5bd;font-size:9px;font-weight:900;letter-spacing:.12em}
+#nrsTabletDevice .fixture{margin:10px 0;padding:13px;border:1px solid #ffffff18;border-radius:14px;background:#0e1d2a}
+#nrsTabletDevice .fixtureName{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:12px}
+#nrsTabletDevice .picks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
+#nrsTabletDevice .pick{min-width:0;padding:10px 4px;border:1px solid #344b5d;border-radius:10px;background:#122536;color:#dbe9f2;font-size:10px;font-weight:800}
+#nrsTabletDevice .pick.on{border-color:#5ed7ff;background:#16465b;color:#fff}
+#nrsTabletDevice .pick small{display:block;margin-top:4px;color:#91b6cd;font-size:10px}
+#nrsTabletDevice .formRow{display:flex;align-items:center;gap:10px;margin:12px 0}
+#nrsTabletDevice input,#nrsTabletDevice select{box-sizing:border-box;max-width:100%;min-width:0;padding:11px;border:1px solid #30485b;border-radius:10px;background:#071522;color:#fff;font:inherit}
+#nrsTabletDevice input{flex:1}
+#nrsTabletDevice .primary{min-height:42px;padding:10px 14px;border:1px solid #4cbee1;border-radius:10px;background:linear-gradient(135deg,#16769b,#164e75);color:#fff;font-size:11px;font-weight:900}
+#nrsTabletDevice .secondary{min-height:38px;padding:8px 12px;border:1px solid #ffffff22;border-radius:10px;background:#1a2c3b;color:#fff;font-size:11px;font-weight:800}
+#nrsTabletDevice .feedback{min-height:20px;color:#ffd783;font-size:11px;line-height:1.45}
+#nrsTabletDevice .tag{display:inline-block;padding:5px 7px;border:1px solid #6b5525;border-radius:7px;background:#3b2d14;color:#ffdf94;font-size:8px;font-weight:900;letter-spacing:.04em}
+#nrsTabletDevice .empty{padding:14px;border:1px dashed #ffffff22;border-radius:12px;color:#9aafc0;font-size:12px;line-height:1.5}
+@media(max-width:800px){#nrsTabletGrid{grid-template-columns:repeat(5,minmax(0,1fr));padding:0 12px}.homeHero{padding-left:clamp(13px,4vw,30px);padding-right:clamp(13px,4vw,30px)}.tabletSearch{width:90%}.tabletDock{width:78%}}
+@media(max-width:620px){#nrsTabletDevice{width:100vw;height:96dvh;border:1px solid #525d67;border-radius:17px;padding:27px 5px 7px;grid-template-rows:22px minmax(0,1fr) 24px;box-shadow:0 18px 50px #0009,inset 0 0 0 2px #171b20}#nrsTabletDevice:before{top:8px;width:5px;height:5px}#nrsTabletStatus{padding:0 8px;font-size:9px}#nrsTabletClose{width:20px;height:20px;min-width:20px;font-size:15px}.homeHero{min-height:101px;padding:10px 12px 2px;gap:7px}.homeClock{font-size:clamp(34px,6vw,48px)}.homeDate{margin-top:5px;font-size:11px}.weatherWidget{width:auto;max-width:48%;gap:7px;padding:8px 9px;border-radius:14px}.weatherSymbol{font-size:27px}.weatherReading strong{font-size:24px}.weatherReading span,.weatherReading small{font-size:8px}.tabletSearch{width:92%;height:39px;margin:7px auto 9px;padding:0 10px}.searchBrand{width:23px;height:23px;font-size:11px}#nrsTabletSearchInput{font-size:11px}#nrsTabletGrid{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px 2px;padding:0 7px}#nrsTabletGrid button{min-height:clamp(64px,14vh,83px);padding:3px 1px 4px;border-radius:10px}#nrsTabletGrid .appIcon{width:clamp(34px,5.6vh,44px);height:clamp(34px,5.6vh,44px);margin-bottom:5px;border-radius:11px;font-size:21px}#nrsTabletGrid strong{font-size:9px}.tabletDock{width:78%;margin-top:6px;padding:5px 10px;gap:9px;border-radius:18px}.tabletDock .appIcon{width:clamp(31px,5vh,39px);height:clamp(31px,5vh,39px);border-radius:10px;font-size:17px}#nrsTabletBody.appScreen{padding:11px}#nrsTabletDevice .formRow{flex-wrap:wrap}#nrsTabletFoot{gap:16px}}
+@media(max-height:500px){.homeHero{min-height:91px;padding-top:7px}.homeClock{font-size:clamp(34px,5vw,47px)}.tabletSearch{height:37px;margin-top:3px;margin-bottom:7px}#nrsTabletGrid{gap:1px 2px}#nrsTabletGrid button{min-height:65px}#nrsTabletGrid .appIcon{width:35px;height:35px;margin-bottom:4px;font-size:19px}.tabletDock{margin-top:3px;padding:4px 9px}.tabletDock .appIcon{width:31px;height:31px}}
+`;
   document.head.appendChild(style);
 
   const layer = document.createElement("div");
   layer.id = "nrsTabletLayer";
   layer.hidden = true;
-  layer.innerHTML = '<section id="nrsTabletDevice" aria-label="Nigeria RP Tablet"><header id="nrsTabletHead"><div><strong>NRS TABLET</strong><small>Everyday apps for your character</small></div><button id="nrsTabletClose" type="button" aria-label="Close Tablet">×</button></header><div id="nrsTabletStatus"><span class="safe">● NIGERIA RP</span><span id="nrsTabletClock"></span></div><main id="nrsTabletBody"></main><footer id="nrsTabletFoot"><button id="nrsTabletHome" type="button">⌂ Home</button><span>NIGERIA ROLEPLAY SERVICES</span></footer></section>';
+  layer.innerHTML = '<section id="nrsTabletDevice" aria-label="Nigeria RP Tablet"><div id="nrsTabletStatus"><span id="nrsTabletTime"></span><div class="tabletStatusRight"><span class="statusWifi" aria-hidden="true">◔</span><span class="statusSignal" aria-hidden="true">▂▅▇</span><span class="statusBattery" aria-hidden="true"><span></span></span><span id="nrsTabletBattery">78%</span><button id="nrsTabletClose" type="button" aria-label="Close Tablet" title="Close Tablet">×</button></div></div><main id="nrsTabletBody" class="homeScreen"></main><footer id="nrsTabletFoot"><span class="navRecent" aria-hidden="true">Ⅲ</span><button id="nrsTabletHome" type="button" aria-label="Home" title="Home">○</button><button id="nrsTabletBack" type="button" aria-label="Back" title="Back">‹</button></footer></section>';
   document.body.appendChild(layer);
   const body = $("nrsTabletBody");
 
@@ -30,35 +106,73 @@
     return node;
   }
   function money(value) { return "₦" + Math.max(0, Math.floor(Number(value) || 0)).toLocaleString("en-NG"); }
-  function timeText() { return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  function timeText() { return new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()); }
+  function dateText() { return new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short" }).format(new Date()); }
   function setScreenTitle(title, copy) {
+    body.className = "appScreen";
     body.replaceChildren();
     body.appendChild(el("h2", "appTitle", title));
     if (copy) body.appendChild(el("p", "appCopy", copy));
   }
   function returnHome() {
+    body.className = "homeScreen";
     body.replaceChildren();
-    body.insertAdjacentHTML("afterbegin", '<h1 id="nrsTabletHomeTitle">Your day, your city.</h1><p id="nrsTabletHomeCopy">Open services, manage your character and explore life across Nigeria RP.</p><div id="nrsTabletGrid"></div>');
+    body.insertAdjacentHTML("afterbegin", '<div class="homeContent"><section class="homeHero"><div class="clockBlock"><div class="homeClock" id="nrsTabletHomeClock"></div><div class="homeDate" id="nrsTabletHomeDate"></div></div><div class="weatherWidget"><span class="weatherSymbol" aria-hidden="true">⛅</span><div class="weatherReading"><strong>28°</strong><span>Port Harcourt</span><small>Partly cloudy</small></div></div></section><div class="tabletSearch"><span class="searchBrand" aria-hidden="true">N</span><input id="nrsTabletSearchInput" type="search" placeholder="Search apps and services" autocomplete="off" aria-label="Search tablet apps"><button id="nrsTabletSearchGo" type="button" aria-label="Find an app">⌕</button></div><div id="nrsTabletGrid"></div><div id="nrsTabletDock" class="tabletDock" aria-label="Pinned apps"></div></div>');
+    $("nrsTabletHomeClock").textContent = timeText();
+    $("nrsTabletHomeDate").textContent = dateText();
     const grid = $("nrsTabletGrid");
     for (const app of apps) {
       const button = el("button", "", "");
       button.type = "button";
       button.dataset.app = app.id;
+      button.dataset.search = (app.name + " " + app.note).toLowerCase();
+      button.setAttribute("aria-label", app.name);
+      button.title = app.name + (app.note ? " — " + app.note : "");
       const icon = el("span", "appIcon", app.icon);
+      icon.setAttribute("aria-hidden", "true");
       const title = el("strong", "", app.name);
-      const note = el("small", "", app.note);
       if (app.badge) button.appendChild(el("span", "badge", app.badge));
-      button.append(icon, title, note);
+      button.append(icon, title);
       grid.appendChild(button);
     }
-    const hint = el("p", "appCopy", "Use your character cash for services and sports tickets. Manage your finances from the Wallet.");
-    hint.style.marginTop = "16px";
-    body.appendChild(hint);
+    const dock = $("nrsTabletDock");
+    for (const id of ["wallet", "contacts", "map", "betting", "news"]) {
+      const app = apps.find((item) => item.id === id);
+      if (!app) continue;
+      const button = el("button", "", "");
+      button.type = "button";
+      button.dataset.app = app.id;
+      button.setAttribute("aria-label", app.name);
+      button.title = app.name;
+      const icon = el("span", "appIcon", app.icon);
+      icon.setAttribute("aria-hidden", "true");
+      button.appendChild(icon);
+      dock.appendChild(button);
+    }
+    const search = $("nrsTabletSearchInput");
+    const searchGo = $("nrsTabletSearchGo");
+    const filterApps = () => {
+      const query = search.value.trim().toLowerCase();
+      for (const button of grid.querySelectorAll("button[data-app]")) {
+        button.hidden = query.length > 0 && !button.dataset.search.includes(query);
+      }
+      dock.hidden = query.length > 0;
+    };
+    search.addEventListener("input", filterApps);
+    search.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const first = Array.from(grid.querySelectorAll("button[data-app]")).find((button) => !button.hidden);
+      if (first) first.click();
+    });
+    searchGo.addEventListener("click", () => {
+      search.focus();
+      if (search.value.trim()) filterApps();
+    });
   }
   function openTablet() {
     layer.hidden = false;
     returnHome();
-    $("nrsTabletClock").textContent = timeText();
+    $("nrsTabletTime").textContent = timeText();
   }
   function closeTablet() { layer.hidden = true; }
 
@@ -166,10 +280,11 @@
   $("ib0")?.addEventListener("click",(event)=>{event.stopImmediatePropagation();openTablet();},true);
   $("nrsTabletClose").addEventListener("click",closeTablet);
   $("nrsTabletHome").addEventListener("click",returnHome);
+  $("nrsTabletBack").addEventListener("click",()=>{if(body.classList.contains("homeScreen"))closeTablet();else returnHome();});
   body.addEventListener("click",(event)=>{const target=event.target.closest("[data-app]");if(target)showApp(target.dataset.app);});
   layer.addEventListener("click",(event)=>{if(event.target===layer)closeTablet();});
   window.addEventListener("keydown",(event)=>{if(event.key==="Escape"&&!layer.hidden)closeTablet();});
-  window.setInterval(()=>{const clock=$("nrsTabletClock");if(clock&&!layer.hidden)clock.textContent=timeText();},15000);
+  window.setInterval(()=>{if(layer.hidden)return;const clock=$("nrsTabletTime");if(clock)clock.textContent=timeText();const homeClock=$("nrsTabletHomeClock");if(homeClock)homeClock.textContent=timeText();const homeDate=$("nrsTabletHomeDate");if(homeDate)homeDate.textContent=dateText();},15000);
   returnHome();
 
   // Local, walk-up 3D transport hubs: bookings work now; full boarding/terminal animation is Coming Soon.
