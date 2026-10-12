@@ -117,7 +117,8 @@ function homeRoom(d){
   flat:{w:12.2,d:10.8,height:3.25,wall:0xe7e2d7,floor:0x9c927e,wood:0x65462e,soft:0x476a80,trim:0x5b4433,accent:0x276276},
   estate:{w:14.2,d:12.2,height:3.5,wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d,accent:0xb89a68},
   mansion:{w:16.2,d:14.2,height:3.9,wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645,accent:0xc0a16a},
-  palace:{w:18.2,d:16.2,height:4.25,wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55,accent:0xe1c678}
+  palace:{w:18.2,d:16.2,height:4.25,wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55,accent:0xe1c678},
+  grand:{w:22.5,d:18.5,height:5.1,wall:0xf5f4ee,floor:0x999d9f,wood:0x252d34,soft:0x28616d,trim:0xd0ad55,accent:0x20adbb}
  };
  const p=plans[cls]||plans.flat,w=p.w,depth=p.d,height=p.height,frontZ=depth/2,doorW=1.75,doorH=2.35;
  const g=new THREE.Group();g.position.set(ix,0,iz);scene.add(g);
@@ -125,7 +126,7 @@ function homeRoom(d){
  const wall=new THREE.MeshLambertMaterial({color:p.wall,side:THREE.DoubleSide});
  const floorMat=M(p.floor),trim=M(p.trim),wood=M(p.wood),soft=M(p.soft),accent=M(p.accent);
  const dark=M(0x202b32),metal=M(0x343b3f),cream=M(0xf4eee0),glass=new THREE.MeshPhongMaterial({color:0x78aebd,transparent:true,opacity:.72,shininess:80,side:THREE.DoubleSide});
- const brass=M(0xc7a55d),rug=M(cls==='hut'?0x8f633d:cls==='palace'?0x6c252c:0x76513b);
+ const brass=M(0xc7a55d),rug=M(cls==='hut'?0x8f633d:cls==='palace'?0x6c252c:cls==='grand'?0x17344a:0x76513b);
  A(new THREE.BoxGeometry(w,.12,depth),floorMat,0,-.06,0);
  A(new THREE.BoxGeometry(w+.06,.045,depth+.06),trim,0,.012,0);
  A(new THREE.PlaneGeometry(w,depth),new THREE.MeshLambertMaterial({color:0xd0cabd,side:THREE.DoubleSide}),0,height,0).rotation.x=-Math.PI/2;
@@ -193,7 +194,7 @@ function homeRoom(d){
  A(new THREE.BoxGeometry(w*.48,.025,depth*.28),rug,w*.08,.075,depth*.11);
  A(new THREE.BoxGeometry(w*.48-.12,.027,depth*.28-.12),accent,w*.08,.093,depth*.11);
  // Bed and wardrobe anchor the sleeping area on the left so the door and walkway stay clear.
- const bedW=cls==='hut'?1.25:cls==='faceme'?1.5:cls==='flat'?1.8:cls==='estate'?2.0:cls==='mansion'?2.15:2.35,bedD=cls==='hut'?2.0:2.45;
+ const bedW=cls==='hut'?1.25:cls==='faceme'?1.5:cls==='flat'?1.8:cls==='estate'?2.0:cls==='mansion'?2.15:cls==='palace'?2.35:2.6,bedD=cls==='hut'?2.0:2.45;
  const bedX=-w*.28,bedZ=-depth*.12;
  A(new THREE.BoxGeometry(bedW+.16,.38,bedD+.18),wood,bedX,.25,bedZ);
  A(new THREE.BoxGeometry(bedW,.18,bedD),cream,bedX,.51,bedZ+.02);
@@ -225,7 +226,7 @@ function homeRoom(d){
   A(new THREE.BoxGeometry(2.12,1.1,.045),dark,-w*.27,1.78,-depth/2+.09);
   A(new THREE.BoxGeometry(2.45,.15,.64),wood,-w*.27,.24,-depth/2+.55);
   A(new THREE.BoxGeometry(2.05,.09,.68),trim,-w*.27,.36,-depth/2+.55);
-  if(['estate','mansion','palace'].includes(cls)){
+  if(['estate','mansion','palace','grand'].includes(cls)){
    // Proper dining area with a table, chairs, and pendant light in larger homes.
    const dx=w*.27,dz=-depth*.24;
    A(new THREE.BoxGeometry(2.55,.15,1.25),wood,dx,.95,dz);
@@ -236,7 +237,7 @@ function homeRoom(d){
     A(new THREE.BoxGeometry(.12,.82,.12),wood,dx+ox,.43,dz+oz);
    }
   }
-  if(['mansion','palace'].includes(cls)){
+  if(['mansion','palace','grand'].includes(cls)){
    A(new THREE.CylinderGeometry(.05,.05,.62,10),brass,sofaX,2.28,sofaZ);
    A(new THREE.SphereGeometry(.22,14,10),new THREE.MeshBasicMaterial({color:0xffe4a1}),sofaX,2.0,sofaZ);
    for(let i=0;i<4;i++){const blade=A(new THREE.BoxGeometry(.08,.025,.7),brass,0,height-.25,0);blade.rotation.y=i*Math.PI/2;}
@@ -244,12 +245,12 @@ function homeRoom(d){
   }
  }
  // More expensive room classes have progressively better kitchen fittings.
- if(['faceme','flat','estate','mansion','palace'].includes(cls)){
+ if(['faceme','flat','estate','mansion','palace','grand'].includes(cls)){
   const shared=cls==='faceme';
-  const kw=shared?1.55:cls==='flat'?2.55:cls==='estate'?2.9:cls==='mansion'?3.2:3.55;
+  const kw=shared?1.55:cls==='flat'?2.55:cls==='estate'?2.9:cls==='mansion'?3.2:cls==='palace'?3.55:3.9;
   const kx=w*.28,kz=-depth/2+.72;
   const cabinets=shared?M(0x79624d):wood;
-  const counter=shared?M(0x857b6b):cls==='flat'?M(0xb8b7b0):cls==='estate'?M(0xc9c7bf):cls==='mansion'?M(0xd9d2c4):M(0xe5d7b0);
+  const counter=shared?M(0x857b6b):cls==='flat'?M(0xb8b7b0):cls==='estate'?M(0xc9c7bf):cls==='mansion'?M(0xd9d2c4):cls==='grand'?M(0xd8e3e4):M(0xe5d7b0);
   A(new THREE.BoxGeometry(kw,.64,.62),cabinets,kx,.39,kz);
   A(new THREE.BoxGeometry(kw+.12,.10,.70),counter,kx,.76,kz);
   A(new THREE.BoxGeometry(kw*.88,shared?.32:.46,.30),cabinets,kx,1.43,kz-.22);
@@ -264,7 +265,7 @@ function homeRoom(d){
    A(new THREE.BoxGeometry(.045,.38,.045),metal,fx+.23,.50,fz+.405);
    A(new THREE.BoxGeometry(.42,.035,.32),M(0x202a30),kx+kw*.23,.818,kz);
    [-.12,.12].forEach(dx=>A(new THREE.TorusGeometry(.07,.018,6,12),metal,kx+kw*.23+dx,.846,kz));
-   if(['mansion','palace'].includes(cls)){
+   if(['mansion','palace','grand'].includes(cls)){
     for(let i=0;i<3;i++)A(new THREE.BoxGeometry(.055,.055,.04),brass,kx-kw*.30+i*kw*.30,1.42,kz);
     A(new THREE.CylinderGeometry(.04,.04,.42,8),brass,kx,2.45,kz+.2);
     A(new THREE.CylinderGeometry(.24,.32,.12,12),brass,kx,2.23,kz+.2);
@@ -272,7 +273,7 @@ function homeRoom(d){
   }
  }
  // Modern and luxury rooms receive a house plant near a window; smaller compounds stay uncluttered.
- if(['flat','estate','mansion','palace'].includes(cls)){
+ if(['flat','estate','mansion','palace','grand'].includes(cls)){
   A(new THREE.CylinderGeometry(.22,.28,.32,10),M(0x8b5b35),w*.4,.16,depth*.34);
   A(new THREE.SphereGeometry(.42,12,10),M(0x2d813d),w*.4,.62,depth*.34);
  }
