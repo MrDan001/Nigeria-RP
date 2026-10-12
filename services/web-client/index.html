@@ -7,26 +7,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Nigeria RP">
+<meta name="mobile-web-app-title" content="Nigeria RP">
 <link rel="icon" href="/nrs-icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/nrs-icon.svg">
 <script>
 window.nrsInstallPrompt = null;
 window.nrsAppInstalled = false;
-window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault();
-  window.nrsInstallPrompt = event;
-  window.dispatchEvent(new Event("nrs-install-ready"));
-});
-window.addEventListener("appinstalled", () => {
-  window.nrsAppInstalled = true;
-  window.dispatchEvent(new Event("nrs-install-ready"));
-});
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-}
+window.addEventListener("beforeinstallprompt", (event) => { event.preventDefault(); window.nrsInstallPrompt = event; window.dispatchEvent(new Event("nrs-install-ready")); });
+window.addEventListener("appinstalled", () => { window.nrsAppInstalled = true; window.dispatchEvent(new Event("nrs-install-ready")); });
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 </script>
 <link rel="stylesheet" href="/nrs-ui.css?v=vehicle-hud-glass-horn-20261011"></head><body>
 <canvas id="c"></canvas>
@@ -39,8 +28,7 @@ if ("serviceWorker" in navigator) {
  <div class="p" id="chat"><div id="tabs"><span>GLOBAL</span><span>LOCAL</span><span>SYSTEM</span><span id="cx">✕</span></div><div id="log"><div><b>System:</b> Welcome to Port Harcourt.</div></div><form id="cf"><input id="ci" placeholder="Type a message..." autocomplete="off"></form></div>
  <div id="col"><button class="ib" id="chatB">✉️<span id="chatBadge">1</span></button><button class="ib" id="ib0">📱</button><button class="ib" id="ib1">👥</button><button class="ib" id="ib2">🎒</button><button class="ib" id="ib3">🗺</button></div>
  <div class="p" id="mis"><i>NEW MISSION</i><b>Get a job from the Job Center</b></div>
- <canvas id="mm" width="240" height="240"></canvas>
- <div id="joy"><div id="knob"></div></div>
+ <canvas id="mm" width="240" height="240"></canvas><div id="joy"><div id="knob"></div></div>
  <div class="p" id="loc">📍 Port Harcourt<br><small>Rivers State</small></div>
  <div class="p" id="stats"><span>♥ <b id="hpv">100</b><span class="bar"><i id="hpb" style="width:100%;background:#ef4a5a"></i></span></span><span>🛡 0<span class="bar"><i style="width:2%;background:#3b82f6"></i></span></span><span>🍴 <b id="hgv">82</b><span class="bar"><i id="hgb" style="width:82%;background:#f5c518"></i></span></span></div>
  <button class="rb" id="fist">✊</button><button class="rb" id="run">🏃</button><button class="rb" id="crch">🧎</button>
@@ -51,11 +39,9 @@ if ("serviceWorker" in navigator) {
 <div id="spd"><div id="spv"><i>00</i>0</div><span id="spk">ENGINE OFF · TAP ⏻</span><span id="spz"></span></div>
 <button class="dbtn" id="ign"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.8 6.8a7.5 7.5 0 1 0 10.4 0"/></svg></button><button class="dbtn" id="lite"><svg viewBox="0 0 24 24"><path d="M10 6C6 6 3 8.5 3 12s3 6 7 6c1 0 2-.4 2-1.2V7.2C12 6.4 11 6 10 6z"/><path d="M15.5 8H21M15.5 12H21M15.5 16H21"/></svg></button></div>
 <div id="wheel"><svg id="wsv" viewBox="0 0 100 100"><circle class="wheel-leather" cx="50" cy="50" r="44" fill="none"/><circle class="wheel-stitch" cx="50" cy="50" r="44" fill="none"/><circle cx="50" cy="50" r="49.3" fill="none" stroke="#a9b1b7" stroke-width="1.2"/><circle cx="50" cy="50" r="38.7" fill="none" stroke="#555d64" stroke-width="1"/><path d="M6 53Q28 47 38 52M94 53Q72 47 62 52M44 62L42 93H58L56 62" fill="#22272b" stroke="#777f86" stroke-width="1.2" stroke-linejoin="round"/><rect x="46" y="1" width="8" height="12" rx="2" fill="#d9bd79"/><circle cx="50" cy="50" r="15" fill="#252b30" stroke="#b7c0c6" stroke-width="2"/><circle cx="50" cy="50" r="9" fill="#16202a" stroke="#d0b46e" stroke-width="1"/><text x="50" y="53.3" font-size="7" font-weight="900" text-anchor="middle" fill="#f5f0e5">NRS</text></svg></div>
-
-<button class="ped" id="brk" data-l="BRAKE" aria-label="Brake"></button><button class="ped" id="gas" data-l="GAS" aria-label="Gas"></button>
-<button class="dbtn" id="hb">HB</button><button class="dbtn" id="radio">📻</button><button class="dbtn" id="hn"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5c1.6 1.2 1.6 3.8 0 5"/></svg></button><button class="dbtn" id="camB"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></button><button class="rb" id="jump">⤴</button>
+<button class="ped" id="brk" data-l="BRAKE" aria-label="Brake"></button><button class="ped" id="gas" data-l="GAS" aria-label="Gas"></button><button class="dbtn" id="hb">HB</button><button class="dbtn" id="radio">📻</button><button class="dbtn" id="hn"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9.5c1.6 1.2 1.6 3.8 0 5"/></svg></button><button class="dbtn" id="camB"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/></svg></button><button class="rb" id="jump">⤴</button>
 <input type="file" id="mf" accept="audio/*" style="display:none">
 <div id="bigmap"><canvas id="bml"></canvas><div id="bmt">🗺 Port Harcourt</div><div id="bmh">Drag: rotate &amp; tilt · Pinch: zoom · ✋ Pan to move the map</div><div id="plc"><div id="plh">📍 Places</div><div id="plt"><button data-t="all" class="on">All Places</button><button data-t="shop">Shops</button><button data-t="svc">Services</button><button data-t="work">🏢 Works / Organization</button><button data-t="fuel">Fuel</button><button data-t="dist">Districts</button><button data-t="homes">Homes</button><button data-t="apartments">Apartments</button></div><div id="pll"></div></div><div id="bmb"><button id="bmpl" class="on">📍 Places</button><button id="bmp">✋ Pan</button><button id="bmm">📍 Me</button><button id="bmx">✕ Close</button></div></div>
 <div id="navb"><i>NAVIGATION</i><b></b><small></small><button id="navx">✕ Cancel</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="/nrs-game-01.js?v=vehicle-hud-glass-horn-20261011"></script><script src="/nrs-game-02.js?v=vehicle-hud-glass-horn-20261011"></script><script src="/nrs-game-03.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-game-04.js?v=server-betting-20261011"></script><script src="/nrs-game-05.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-game-06.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-game-07.js?v=vehicle-hud-glass-horn-20261011"></script><script src="/nrs-online.js?v=account-characters-20261011"></script><script src="/nrs-stage17-passport.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-tablet.js?v=android-tablet-home-20261012b"></script><script src="/nrs-realistic-betting.js?v=server-betting-20261011"></script></body></html>
+<script src="/nrs-game-01.js?v=vehicle-hud-glass-horn-20261011"></script><script src="/nrs-game-02.js?v=vehicle-hud-glass-horn-20261011"></script><script src="/nrs-game-03.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-game-04.js?v=server-betting-20261011"></script><script src="/nrs-game-05.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-game-06.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-game-07.js?v=vehicle-hud-glass-horn-20261011"></script><script src="/nrs-housing-structures.js?v=housing-structures-20261012"></script><script src="/nrs-online.js?v=account-characters-20261011"></script><script src="/nrs-stage17-passport.js?v=stage18-tablet-interstate-20261011"></script><script src="/nrs-tablet.js?v=android-tablet-home-20261012b"></script><script src="/nrs-realistic-betting.js?v=server-betting-20261011"></script></body></html>
