@@ -36,5 +36,4 @@ HOUSE_BUILDERS.grand = function(K) {const {A,m,S,B,C,w,d,front,Y}=K,HM=8.5;
  B(3.4,1.25,.1,S.black,0,.8,front+7.0);for(let i=0;i<12;i++)B(.04,1.15,.12,m.metal,-1.62+i*.295,.8,front+7.02);
  [-1,1].forEach(s=>{K.S_(.52,S.leaf,s*12.1,.5,front+3.2,1.2,1.3,1.2);K.S_(.34,S.leaf2,s*12.1,1.05,front+3.2,1,1.05,1);B(2.1,.45,.45,S.leaf,s*12.8,.25,front+5.1);});
  return {x:0,y:2.55,z:front+7.15,w:9.8};
-}
 };
