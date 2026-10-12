@@ -1,0 +1,78 @@
+/* Restore the original Grand Villa and Royal Palace silhouettes at the source-renderer level.
+ * These builders replace only those two tiers; no duplicate world overlay is created.
+ */
+HOUSE_BUILDERS.mansion = function(K) {
+  const {A,m,S,B,C,w,d,front,Y}=K;
+  // Grand Villa: broad single-storey luxury residence with the original low-profile roof,
+  // balanced frontage, large windows, formal entrance and private pool.
+  const bodyW=Math.max(15.5,w+5.0), bodyD=Math.max(11,d+2.0);
+  B(bodyW,3.6,bodyD,m.wall,0,Y+1.8,0);
+  B(bodyW+.7,.7,bodyD+.5,m.roof2,0,Y+4.05,0);
+  B(bodyW+.2,.22,.32,m.trim,0,Y+3.7,front-.08);
+  B(4.6,.22,2.6,m.concrete,0,Y+.14,front+1.0);
+  B(4.1,.22,.32,S.stone,0,Y+3.35,front+.08);
+  [-1,1].forEach(s=>{
+    B(.32,3.5,.38,m.trim,s*1.7,Y+1.8,front+.35);
+    B(.72,.18,.72,m.trim,s*1.7,Y+.38,front+.35);
+    B(.72,.18,.72,m.trim,s*1.7,Y+3.55,front+.35);
+  });
+  nrsHouseDoor(K,0,Y+1.15,front+.1,1.7,2.35,true);
+  for(let i=-2;i<=2;i++){
+    nrsHouseWindow(K,i*2.6,Y+2.0,front+.08,1.25,1.5);
+  }
+  // Pool and formal paved garden court restore the distinctive villa footprint.
+  B(5.2,.24,2.8,S.water,7.3,.12,front-5.0);
+  B(5.6,.12,3.2,m.trim,7.3,.08,front-5.0);
+  B(4.5,.12,3.4,S.paver,-1.0,.12,front+3.0);
+  B(2.5,.28,1.0,S.white,-1.0,.31,front+3.0);
+  B(2.5,.58,.18,S.white,-1.0,.72,front+2.58);
+  // Garden walls, hedges and low front gate.
+  [-1,1].forEach(s=>{
+    B(2.8,1.35,.25,m.wall,s*7.0,.68,front+4.8);
+    B(2.8,.12,.25,m.trim,s*7.0,1.39,front+4.8);
+    C(.5,.55,1.2,S.leaf,s*9.4,.6,front+3.0,12);
+  });
+  B(3.3,1.1,.08,S.black,0,.72,front+4.8);
+  for(let i=0;i<10;i++)B(.035,1.02,.1,m.metal,-1.45+i*.32,.72,front+4.82);
+  return {x:0,y:Y+2.5,z:front+1.1,w:3.6};
+};
+
+HOUSE_BUILDERS.palace = function(K) {
+  const {A,m,S,B,C,w,d,front,Y}=K;
+  // Royal Palace: the restored taller ceremonial silhouette with central raised block,
+  // gold architectural bands, broad entrance and formal forecourt.
+  const bodyW=Math.max(18,w+7.0), bodyD=Math.max(13,d+2.0);
+  B(bodyW,4.0,bodyD,S.stone,0,Y+2.0,0);
+  B(bodyW-1.5,2.6,bodyD-1.5,S.stone,0,Y+5.25,-1.0);
+  B(bodyW+.5,.72,bodyD+.5,m.roof2,0,Y+6.9,-1.0);
+  // Gold centre crest and side architectural piers.
+  B(1.4,5.2,.5,m.gold,0,Y+3.8,front+.15);
+  B(.8,5.2,.5,m.gold,-7.0,Y+3.8,front+.15);
+  B(.8,5.2,.5,m.gold,7.0,Y+3.8,front+.15);
+  B(10.8,.35,3.2,S.stone,0,Y+.18,front-.7);
+  for(let i=0;i<7;i++){
+    const x=-4.5+i*1.5;
+    C(.27,.32,4.9,S.stone,x,Y+2.55,front+.65,14);
+    B(.7,.2,.7,m.gold,x,Y+.55,front+.65);
+    B(.7,.2,.7,m.gold,x,Y+5.0,front+.65);
+  }
+  B(11.2,.3,.42,m.gold,0,Y+5.2,front+.65);
+  nrsHouseDoor(K,0,Y+1.35,front+.12,1.5,2.6,true);
+  for(let i=-3;i<=3;i+=2){
+    nrsHouseWindow(K,i*2,Y+2.75,front+.08,1.25,1.6);
+  }
+  // Restored formal pool, fountain and ceremonial side landscaping.
+  B(5.5,.25,3.2,S.water,9.0,.12,front-6.0);
+  C(.75,.8,1.5,m.gold,-9.0,.8,front-5.0,16);
+  C(.9,.95,.12,S.water,-9.0,1.58,front-5.0,16);
+  [-1,1].forEach(s=>{
+    C(.72,.78,1.7,S.stone,s*4.3,.85,front+5.0,12);
+    C(.9,.95,.12,S.water,s*4.3,1.72,front+5.0,16);
+    B(2.6,1.25,.25,m.wall,s*8.0,.65,front+5.2);
+    B(2.6,.12,.25,m.gold,s*8.0,1.38,front+5.2);
+  });
+  B(12.8,.08,4.8,S.paver,0,.12,front+4.5);
+  B(3.4,1.2,.08,S.black,0,.78,front+5.2);
+  for(let i=0;i<10;i++)B(.035,1.02,.1,m.metal,-1.45+i*.32,.78,front+5.22);
+  return {x:0,y:Y+4.0,z:front+1.15,w:4.0};
+};
