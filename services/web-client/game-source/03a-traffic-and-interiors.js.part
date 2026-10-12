@@ -713,7 +713,7 @@ function renderApartmentHall(d,ret){
  const tierId=String(d.tierId||apartmentTierForFloors(floors).id),tierName=String(d.tierName||apartmentTierForFloors(floors).name),rentPerDay=Number(d.rentPerDay)||apartmentTierForFloors(floors).rentPerDay;
  const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
  const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
- const floorMat=M(tierId==='luxury'?0xc3b084:tierId==='serviced'?0xa7a197:0x777871),wall=new THREE.MeshLambertMaterial({color:tierId==='luxury'?0xf0e5d1:tierId==='serviced'?0xe4e0d8:0xd8d4c9,side:THREE.DoubleSide}),trim=M(tierId==='luxury'?0xc6a35c:tierId==='serviced'?0x77736b:0x5c5b54),dark=M(0x24313a),door=M(tierId==='luxury'?0x49311f:0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
+ const floorMat=M(tierId==='luxury'?0xc3b084:tierId==='serviced'?0xa7a197:0x777871),wall=new THREE.MeshLambertMaterial({color:tierId==='luxury'?0xf0e5d1:tierId==='serviced'?0xe4e0d8:0xd8d4c9,side:THREE.DoubleSide}),trim=M(tierId==='luxury'?0xc6a35c:tierId==='serviced'?0x77736b:0x5c5b54),wood=M(tierId==='luxury'?0x543b26:tierId==='serviced'?0x75543b:0x6b4934),dark=M(0x24313a),door=M(tierId==='luxury'?0x49311f:0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
  A(new THREE.BoxGeometry(20,.16,24),floorMat,0,-.08,0);
  A(new THREE.BoxGeometry(20,.10,24),M(0xe1d6c1),0,3.48,0);
  if(tierId!=='standard'){
