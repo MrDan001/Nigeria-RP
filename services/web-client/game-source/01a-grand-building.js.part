@@ -1,6 +1,5 @@
 /* Grand Building geometry is a source-level house builder, not a duplicate scene overlay. */
-HOUSE_BUILDERS.grand = function(K) {
-function{const {A,m,S,B,C,w,d,front,Y}=K,HM=8.5;
+HOUSE_BUILDERS.grand = function(K) {const {A,m,S,B,C,w,d,front,Y}=K,HM=8.5;
  // 7. GRAND BUILDING: contemporary high-value residence with a double-height glass foyer,
  // broad side wings, cantilevered upper storey, rooftop solar, private pool and smart gated arrival.
  B(14.8,HM,16.8,m.wall,0,Y+HM/2,-.7);
