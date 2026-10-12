@@ -34,6 +34,7 @@ import {
   shopInteriorPosition,
   workplaceInteriorPosition,
   APARTMENT_RENT_PER_DAY,
+  apartmentRentTierForFloors,
   MAX_APARTMENT_PREPAID_DAYS,
   daysBetween,
   houseRent,
@@ -1323,8 +1324,8 @@ async function setAccountEmployment(accountId: string, workplaceId: string | nul
 function homeInteriorPosition(homeId: string) {
   const found = HOUSES.findIndex((house) => house.id === homeId);
   const index = Math.max(0, found);
-  // Six columns by five rows, each room separated and kept inside WORLD_LIMIT.
-  return { x: 280 + (index % 6) * 28, z: 280 + Math.floor(index / 6) * 27 };
+  // Six columns by six rows; the wider cells fit the larger duplex/palace interiors.
+  return { x: 280 + (index % 6) * 34, z: 280 + Math.floor(index / 6) * 32 };
 }
 
 function staffRoomInteriorPosition(workplaceId: string) {
@@ -1342,6 +1343,7 @@ function houseExteriorDepth(cls: string): number {
     case "estate": return 11;
     case "mansion": return 13;
     case "palace": return 16;
+    case "grand": return 22;
     default: return 10;
   }
 }
@@ -1376,7 +1378,8 @@ function apartmentRoomFloor(roomNumber: number) {
   if (!Number.isInteger(roomNumber) || roomNumber < 1) return 0;
   return Math.floor((roomNumber - 1) / APARTMENT_ROOMS_PER_FLOOR) + 1;
 }
-function apartmentFloorRooms(buildingId: string, floor: number, accountId: string) {
+function apartmentFloorRooms(buildingId: string, floor: number, accountId: string, totalFloors = floor) {
+  const rentTier = apartmentRentTierForFloors(totalFloors);
   return Array.from({ length: APARTMENT_ROOMS_PER_FLOOR }, (_, index) => {
     const roomNumber = (floor - 1) * APARTMENT_ROOMS_PER_FLOOR + index + 1;
     const lease = world.apartmentRooms[apartmentRoomKey(buildingId, roomNumber)];
@@ -1386,7 +1389,9 @@ function apartmentFloorRooms(buildingId: string, floor: number, accountId: strin
       occupiedByMe: lease?.tenantId === accountId,
       locked: lease?.locked === true,
       prepaidDays: lease?.tenantId === accountId ? lease.prepaidDays : 0,
-      rentPerDay: APARTMENT_RENT_PER_DAY,
+      rentPerDay: rentTier.rentPerDay,
+      tierId: rentTier.id,
+      tierName: rentTier.name,
     };
   });
 }
@@ -1410,8 +1415,10 @@ function sendApartmentFloorState(session: Session, type: string, message?: strin
     returnX: session.apartmentReturn?.x ?? session.player.x,
     returnZ: session.apartmentReturn?.z ?? session.player.z,
     returnYaw: session.apartmentReturn?.yaw ?? session.player.yaw,
-    rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id),
-    rentPerDay: APARTMENT_RENT_PER_DAY,
+    rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id, session.apartmentFloors),
+    rentPerDay: apartmentRentTierForFloors(session.apartmentFloors).rentPerDay,
+    tierId: apartmentRentTierForFloors(session.apartmentFloors).id,
+    tierName: apartmentRentTierForFloors(session.apartmentFloors).name,
     message: message ?? ("Apartment floor " + session.apartmentFloor + " of " + session.apartmentFloors + ". Rooms are numbered by floor."),
   });
 }
@@ -1454,5 +1461,6 @@ const HOME_FURNITURE: Record<string, string[]> = {
   estate: ["Large sofa set", "Bedroom suite", "Dining set", "Kitchen cabinets", "Television", "Generator"],
   mansion: ["Luxury sofa set", "Master bedroom suite", "Dining room", "Fitted kitchen", "Television", "Air conditioning"],
   palace: ["Luxury lounge", "Premium bedroom suite", "Formal dining set", "Fitted kitchen", "Multiple televisions", "Air conditioning", "Decorative lighting"],
+  grand: ["Double-height designer lounge", "Seven-bedroom suite", "Formal dining", "Chef's kitchen and pantry", "Private cinema", "Home office", "Gym", "Swimming pool", "Rooftop terrace", "Smart-home security", "Multi-car garage", "Lift"],
 };
 
