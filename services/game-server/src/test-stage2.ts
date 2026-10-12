@@ -25,9 +25,9 @@ function test(name: string, fn: () => void) {
   }
 }
 
-test("housing catalogue has 33 unique homes in the planned districts", () => {
-  assert.equal(HOUSES.length, 33);
-  assert.equal(new Set(HOUSES.map((h) => h.id)).size, 33);
+test("housing catalogue has 34 unique homes in the planned districts", () => {
+  assert.equal(HOUSES.length, 34);
+  assert.equal(new Set(HOUSES.map((h) => h.id)).size, 34);
   assert.ok(HOUSES.every((h) => h.zone && Number.isFinite(h.x) && Number.isFinite(h.z)));
   for (const zone of ["Mile 1 Market", "Rumuola", "D-Line", "Waterlines", "Trans Amadi", "Old GRA"]) {
     assert.ok(HOUSES.some((h) => h.zone === zone), zone);
@@ -36,9 +36,9 @@ test("housing catalogue has 33 unique homes in the planned districts", () => {
 
 test("large residential homes sit off the Trans Amadi Road and their plots do not overlap", () => {
   const widths: Record<string, number> = {
-    hut: 5.6, faceme: 10.5, flat: 11.5, estate: 14, mansion: 17, palace: 21,
+    hut: 5.6, faceme: 10.5, flat: 11.5, estate: 14, mansion: 17, palace: 21, grand: 26,
   };
-  const estateRow = HOUSES.filter((h) => h.zone === "Trans Amadi");
+  const estateRow = HOUSES.filter((h) => h.zone === "Trans Amadi" && h.cls === "estate");
   assert.equal(estateRow.length, 4);
   assert.ok(estateRow.every((h) => h.z <= -220), "estate homes should sit behind Trans Amadi Road (z=-190)");
   const oldGra = HOUSES.filter((h) => h.zone === "Old GRA").sort((a, b) => a.x - b.x);
@@ -52,7 +52,17 @@ test("large residential homes sit off the Trans Amadi Road and their plots do no
   }
 });
 
-test("all six rent prices match the approved housing plan", () => {
+test("Grand Building is a separate, rent-enabled Trans Amadi property", () => {
+  const grand = HOUSES.find((h) => h.cls === "grand");
+  assert.ok(grand, "Grand Building must exist in the authoritative house catalogue");
+  assert.equal(grand.id, "grand-ta-01");
+  assert.equal(grand.zone, "Trans Amadi");
+  assert.equal(grand.x, 220);
+  assert.equal(grand.z, -148);
+  assert.equal(houseRent(grand.id), 30000);
+});
+
+test("all seven rent prices match the approved housing plan", () => {
   assert.deepEqual(HOUSE_CLASSES.map((h) => [h.name, h.rentPerDay]), [
     ["Village Hut", 1000],
     ["Compound Rooms", 2500],
@@ -60,6 +70,7 @@ test("all six rent prices match the approved housing plan", () => {
     ["Estate Duplex", 7500],
     ["Grand Villa", 10000],
     ["Royal Palace", 20000],
+    ["Grand Building", 30000],
   ]);
   for (const house of HOUSES) assert.ok(houseRent(house.id) > 0, house.id);
   assert.equal(MAX_PREPAID_DAYS, 7);
