@@ -159,22 +159,26 @@ HOUSE_BUILDERS.grand=function(K){
  return {x:-5.4,y:Y+4.1,z:front+.05,w:4.1};
 };
 function homeRoom(d){
- const h=d.home||{},id=String(h.id||'my-home');
- if(HOME_ROOMS[id]){HOME_ROOMS[id].home=h;return HOME_ROOMS[id];}
- const ix=Number(d.roomX)||280,iz=Number(d.roomZ)||280,cls=h.cls||'flat';
+ const h=d.home||{},id=String(h.id||'my-home'),cls=h.cls||'flat';
+ const homeFloors=({estate:2,palace:2,grand:3}[cls]||1);
+ const floor=Math.max(1,Math.min(homeFloors,Math.floor(Number(d.floor)||1)));
+ const cacheKey=id+'::floor-'+floor;
+ if(HOME_ROOMS[cacheKey]){HOME_ROOMS[cacheKey].home=h;return HOME_ROOMS[cacheKey];}
+ const ix=Number(d.roomX)||280,iz=Number(d.roomZ)||280;
  const plans={
   hut:{w:8.2,d:8.0,height:2.8,wall:0xbba07c,floor:0x8b7150,wood:0x65462e,soft:0xd2b48c,trim:0x5f412c,accent:0x9a7448},
   faceme:{w:10.2,d:8.8,height:3.0,wall:0xd6c9b0,floor:0x9c8b70,wood:0x694c35,soft:0x91a3ad,trim:0x5f4635,accent:0xb05c43},
   flat:{w:12.2,d:10.8,height:3.25,wall:0xe7e2d7,floor:0x9c927e,wood:0x65462e,soft:0x476a80,trim:0x5b4433,accent:0x276276},
-  estate:{w:14.2,d:12.2,height:3.5,wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d,accent:0xb89a68},
-  mansion:{w:16.2,d:14.2,height:3.9,wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645,accent:0xc0a16a},
-  palace:{w:18.2,d:16.2,height:4.25,wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55,accent:0xe1c678}
+  estate:{w:18.2,d:15.2,height:3.65,wall:0xe9e3d5,floor:0xb5a78d,wood:0x593d2c,soft:0x32624d,trim:0x8b6a3d,accent:0xb89a68},
+  mansion:{w:21.2,d:17.2,height:3.9,wall:0xf0e6d8,floor:0xc0ad92,wood:0x50372b,soft:0x5b416e,trim:0xa98645,accent:0xc0a16a},
+  palace:{w:23.2,d:19.2,height:4.25,wall:0xf4ebd8,floor:0xd2bd91,wood:0x4c321f,soft:0x6c4d20,trim:0xd0ad55,accent:0xe1c678},
+  grand:{w:28,d:23,height:4.6,wall:0xf0f1ed,floor:0x8c949b,wood:0x27333a,soft:0x1d6a71,trim:0x252e35,accent:0x17a9a1}
  };
  const p=plans[cls]||plans.flat,w=p.w,depth=p.d,height=p.height,frontZ=depth/2,doorW=1.75,doorH=2.35;
  const g=new THREE.Group();g.position.set(ix,0,iz);scene.add(g);
  const A=(geo,mat,x,y,z)=>add(geo,mat,x,y,z,g);
  const wall=new THREE.MeshLambertMaterial({color:p.wall,side:THREE.DoubleSide});
- const floorMat=M(p.floor),trim=M(p.trim),wood=M(p.wood),soft=M(p.soft),accent=M(p.accent);
+ const floorMat=M(floor>1&&cls==='grand'?0x555d63:floor>1&&cls==='palace'?0xb09c70:p.floor),trim=M(p.trim),wood=M(p.wood),soft=M(p.soft),accent=M(p.accent);
  const dark=M(0x202b32),metal=M(0x343b3f),cream=M(0xf4eee0),glass=new THREE.MeshPhongMaterial({color:0x78aebd,transparent:true,opacity:.72,shininess:80,side:THREE.DoubleSide});
  const brass=M(0xc7a55d),rug=M(cls==='hut'?0x8f633d:cls==='palace'?0x6c252c:0x76513b);
  A(new THREE.BoxGeometry(w,.12,depth),floorMat,0,-.06,0);
@@ -276,7 +280,7 @@ function homeRoom(d){
   A(new THREE.BoxGeometry(2.12,1.1,.045),dark,-w*.27,1.78,-depth/2+.09);
   A(new THREE.BoxGeometry(2.45,.15,.64),wood,-w*.27,.24,-depth/2+.55);
   A(new THREE.BoxGeometry(2.05,.09,.68),trim,-w*.27,.36,-depth/2+.55);
-  if(['estate','mansion','palace'].includes(cls)){
+  if(floor===1&&['estate','mansion','palace','grand'].includes(cls)){
    // Proper dining area with a table, chairs, and pendant light in larger homes.
    const dx=w*.27,dz=-depth*.24;
    A(new THREE.BoxGeometry(2.55,.15,1.25),wood,dx,.95,dz);
@@ -295,7 +299,7 @@ function homeRoom(d){
   }
  }
  // More expensive room classes have progressively better kitchen fittings.
- if(['faceme','flat','estate','mansion','palace'].includes(cls)){
+ if(floor===1&&['faceme','flat','estate','mansion','palace','grand'].includes(cls)){
   const shared=cls==='faceme';
   const kw=shared?1.55:cls==='flat'?2.55:cls==='estate'?2.9:cls==='mansion'?3.2:3.55;
   const kx=w*.28,kz=-depth/2+.72;
@@ -323,7 +327,7 @@ function homeRoom(d){
   }
  }
  // Modern and luxury rooms receive a house plant near a window; smaller compounds stay uncluttered.
- if(['flat','estate','mansion','palace'].includes(cls)){
+ if(['flat','estate','mansion','palace','grand'].includes(cls)){
   A(new THREE.CylinderGeometry(.22,.28,.32,10),M(0x8b5b35),w*.4,.16,depth*.34);
   A(new THREE.SphereGeometry(.42,12,10),M(0x2d813d),w*.4,.62,depth*.34);
  }
