@@ -346,7 +346,7 @@ function homeRoom(d){
  }
  if(cls==='estate'&&floor===2){
   extraBed(w*.22,-depth*.20,0xe4e0d2);
-  extraBed(w*.25,depth*.22,0xd9d0c2);
+  /* guest room count remains one on the upper floor */
   A(new THREE.BoxGeometry(2.8,.42,1.0),soft,w*.22,.36,depth*.36);
   A(new THREE.BoxGeometry(2.8,.68,.15),soft,w*.22,.78,depth*.40);
  }
@@ -358,6 +358,8 @@ function homeRoom(d){
   A(new THREE.BoxGeometry(2.5,.95,.15),M(0x6c252c),w*.18,1.56,depth*.05);
  }
  if(cls==='grand'&&floor===2){
+  extraBed(w*.10,-depth*.25,0xdadfe0);
+  extraBed(w*.18,depth*.24,0xc8d6d8);
   A(new THREE.BoxGeometry(4.6,.2,2.25),M(0x182027),w*.29,.15,-depth*.25);
   A(new THREE.BoxGeometry(4.35,2.0,.12),M(0x111820),w*.29,1.35,-depth*.43);
   A(new THREE.BoxGeometry(3.7,.46,1.05),soft,w*.23,.42,-depth*.02);
@@ -368,6 +370,8 @@ function homeRoom(d){
   A(new THREE.BoxGeometry(2.1,2.0,.05),M(0x222a31),-w*.30,1.75,-depth*.46);
  }
  if(cls==='grand'&&floor===3){
+  extraBed(w*.12,-depth*.24,0xcad4d9);
+  extraBed(w*.22,depth*.22,0xdce2e4);
   A(new THREE.BoxGeometry(3.6,.18,1.7),M(0x273b42),-w*.28,.30,-depth*.22);
   A(new THREE.CylinderGeometry(.07,.07,3.2,10),M(0x9da7aa),-w*.28,1.15,-depth*.22);
   [-1,1].forEach(side=>A(new THREE.CylinderGeometry(.27,.27,.22,12),M(0x252c31),-w*.28+side*1.22,1.15,-depth*.22));
@@ -425,7 +429,7 @@ function switchHomeFloor(requestedFloor){
  delete HOME_ROOMS[current.cacheKey];
  const next=homeRoom({home:current.home,roomX:current.x,roomZ:current.z,floor:target});
  next.ret=current.ret;inside=next;
- pos.set(next.x,0,next.z+next.roomD/2-2.65);vel.set(0,0,0);jv=0;
+ pos.set(next.x+next.roomW*.34,0,next.z+next.roomD/2-2.65);vel.set(0,0,0);jv=0;
  face=Math.PI;camYaw=0;camPitch=.08;focus.set(pos.x,1.4,pos.z);
  player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);shadow.visible=true;
  modal.style.display='none';modal.innerHTML='';curPoi=null;act2.style.display='none';
