@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = [
   { source: "game-source/01-world-foundation.js.part", output: "public/nrs-game-01.js" },
+  { source: "game-source/01a-grand-building.js.part", output: "public/nrs-grand-building.js" },
   { source: "game-source/02-controls-and-city-architecture.js.part", output: "public/nrs-game-02.js" },
   { source: "game-source/03a-traffic-and-interiors.js.part", output: "public/nrs-game-03.js" },
   { source: "game-source/03b-careers-and-city-services.js.part", output: "public/nrs-game-04.js" },
