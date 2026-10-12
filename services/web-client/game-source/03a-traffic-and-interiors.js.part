@@ -594,15 +594,23 @@ const APARTMENT_INTERIOR_COLLIDERS=[];
 function addApartmentInteriorCollider(x,z,hw,hd,kind='wall'){
  const collider={x,z,hw,hd,apartmentInteriorWall:true,kind};boxes.push(collider);APARTMENT_INTERIOR_COLLIDERS.push(collider);return collider;
 }
+function apartmentTierForFloors(floors){
+ const f=Math.max(2,Math.min(10,Math.floor(Number(floors)||2)));
+ if(f>=8)return {id:'luxury',name:'Luxury Apartment Tower',rentPerDay:7500};
+ if(f>=5)return {id:'serviced',name:'Serviced Apartment Building',rentPerDay:3500};
+ return {id:'standard',name:'Standard Apartment Block',rentPerDay:1500};
+}
 function apartmentBlockId(b){return "apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10);}
 function apartmentBlockNumber(b){return APARTMENT_BLOCK_NUMBERS.get(apartmentBlockId(b))||1;}
 function apartmentBuildingName(b){
- return "Apartment Block #"+String(apartmentBlockNumber(b)).padStart(3,'0');
+ const floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4))),tier=apartmentTierForFloors(floors);
+ return tier.name+" #"+String(apartmentBlockNumber(b)).padStart(3,'0');
 }
 function apartmentBuildingPayload(b){
- const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10),floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
+ const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10),floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4))),tier=apartmentTierForFloors(floors);
  return {buildingId:id,buildingName:apartmentBuildingName(b),x:Number(b.x),z:Number(b.z),
-  entryX:Number(b.entryX),entryZ:Number(b.entryZ),width:Number(b.hw*2),depth:Number(b.hd*2),height:Number(b.h),floors};
+  entryX:Number(b.entryX),entryZ:Number(b.entryZ),width:Number(b.hw*2),depth:Number(b.hd*2),height:Number(b.h),floors,
+  tierId:tier.id,tierName:tier.name,rentPerDay:tier.rentPerDay};
 }
 function addApartmentExteriorDetails(b,id){
  if(APARTMENT_FACADE_DETAILS[id])return;
@@ -628,18 +636,29 @@ function addApartmentExteriorDetails(b,id){
   if(axis==='x')A(new THREE.BoxGeometry(depth,.18,width),step,fx+sign*offset,y,0);
   else A(new THREE.BoxGeometry(width,.18,depth),step,0,y,fz+sign*offset);
  }
- const boardTex=tex(512,112,(g,w,h)=>{
-  g.fillStyle='#17313e';g.fillRect(0,0,w,h);
+ const floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4))),tier=apartmentTierForFloors(floors);
+ const boardTex=tex(512,152,(g,w,h)=>{
+  g.fillStyle=tier.id==='luxury'?'#17252f':tier.id==='serviced'?'#26343d':'#17313e';g.fillRect(0,0,w,h);
   g.fillStyle='#d8ad52';g.fillRect(0,0,w,9);g.fillRect(0,h-9,w,9);
-  const floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
   const block=String(apartmentBlockNumber(b)).padStart(3,'0');
-  g.fillStyle='#fff';g.textAlign='center';g.font='bold 32px system-ui';g.fillText('APARTMENT BLOCK #'+block,w/2,50);
-  g.fillStyle='#b8e7f4';g.font='bold 20px system-ui';g.fillText((floors*APARTMENT_ROOMS_PER_FLOOR)+' UNITS · '+floors+' FLOORS',w/2,84);
+  g.fillStyle='#fff';g.textAlign='center';g.font='bold 27px system-ui';g.fillText(tier.name.toUpperCase()+' #'+block,w/2,45,w-18);
+  g.fillStyle='#b8e7f4';g.font='bold 20px system-ui';g.fillText((floors*APARTMENT_ROOMS_PER_FLOOR)+' UNITS · '+floors+' FLOORS',w/2,79,w-18);
+  g.fillStyle='#d8ad52';g.font='bold 18px system-ui';g.fillText('₦'+tier.rentPerDay.toLocaleString('en-NG')+' / ROOM / DAY',w/2,115,w-18);
  });
  let boardX,boardZ,boardYaw;
  if(axis==='x'){boardX=fx+sign*.19;boardZ=0;boardYaw=sign>0?Math.PI/2:-Math.PI/2;}
  else {boardX=0;boardZ=fz+sign*.19;boardYaw=sign>0?0:Math.PI;}
- readableTextBoard(root,new THREE.PlaneGeometry(3.8,.84),boardTex,boardX,3.25,boardZ,boardYaw);
+ readableTextBoard(root,new THREE.PlaneGeometry(4.1,1.22),boardTex,boardX,3.3,boardZ,boardYaw);
+ if(tier.id==='serviced'){
+  A(new THREE.BoxGeometry(Math.min(4.8,Number(b.hw)*1.25),.16,.9),trim,0,.16,0);
+  A(new THREE.BoxGeometry(Math.min(4.2,Number(b.hw)*1.1),.58,.42),M(0x8a7e6a),0,.48,.12);
+ }
+ if(tier.id==='luxury'){
+  const poolWidth=Math.min(4.8,Number(b.hw)*1.2),poolDepth=Math.min(3.0,Number(b.hd)*.6);
+  A(new THREE.BoxGeometry(poolWidth,.18,poolDepth),M(0x697e8a),0,Number(b.h)+.18,0);
+  A(new THREE.BoxGeometry(poolWidth-.28,.08,poolDepth-.28),M(0x2b9cb4),0,Number(b.h)+.30,0);
+  A(new THREE.BoxGeometry(2.4,.22,1.1),M(0x242e35),0,Number(b.h)+.55,Number(b.hd)*.18);
+ }
  APARTMENT_FACADE_DETAILS[id]=root;
 }
 function refreshApartmentPOIs(){
