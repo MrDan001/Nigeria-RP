@@ -706,11 +706,25 @@ function renderApartmentHall(d,ret){
  clearApartmentInteriorVisual();
  const ix=Number(d.roomX)||450,iz=Number(d.roomZ)||-270,floor=Number(d.floor)||1,floors=Number(d.floors)||2;
  const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
+ const tierId=String(d.tierId||apartmentTierForFloors(floors).id),tierName=String(d.tierName||apartmentTierForFloors(floors).name),rentPerDay=Number(d.rentPerDay)||apartmentTierForFloors(floors).rentPerDay;
  const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
  const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
- const floorMat=M(0x777871),wall=new THREE.MeshLambertMaterial({color:0xd8d4c9,side:THREE.DoubleSide}),trim=M(0x5c5b54),dark=M(0x24313a),door=M(0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
+ const floorMat=M(tierId==='luxury'?0xc3b084:tierId==='serviced'?0xa7a197:0x777871),wall=new THREE.MeshLambertMaterial({color:tierId==='luxury'?0xf0e5d1:tierId==='serviced'?0xe4e0d8:0xd8d4c9,side:THREE.DoubleSide}),trim=M(tierId==='luxury'?0xc6a35c:tierId==='serviced'?0x77736b:0x5c5b54),dark=M(0x24313a),door=M(tierId==='luxury'?0x49311f:0x553928),metal=M(0x343b40),brass=M(0xc9a45f),glass=new THREE.MeshPhongMaterial({color:0x82b5c6,transparent:true,opacity:.58,side:THREE.DoubleSide});
  A(new THREE.BoxGeometry(20,.16,24),floorMat,0,-.08,0);
  A(new THREE.BoxGeometry(20,.10,24),M(0xe1d6c1),0,3.48,0);
+ if(tierId!=='standard'){
+  A(new THREE.BoxGeometry(4.0,.65,1.25),wood,5.7,.36,8.6);
+  A(new THREE.BoxGeometry(4.15,.10,1.35),trim,5.7,.74,8.6);
+  A(new THREE.BoxGeometry(2.2,.55,.85),M(0x526d73),7.2,.32,5.4);
+  A(new THREE.BoxGeometry(2.2,.65,.16),M(0x526d73),7.2,.66,5.8);
+  A(new THREE.BoxGeometry(.7,1.05,.7),M(0x8b5b35),-7.3,.52,7.5);
+  A(new THREE.SphereGeometry(.52,12,10),M(0x2d813d),-7.3,1.22,7.5);
+ }
+ if(tierId==='luxury'){
+  A(new THREE.CylinderGeometry(.72,.9,.15,18),brass,0,3.12,0);
+  A(new THREE.SphereGeometry(.34,14,10),new THREE.MeshBasicMaterial({color:0xffe8a5}),0,2.84,0);
+  A(new THREE.BoxGeometry(2.0,.07,1.1),glass,7.6,3.36,-7.7);
+ }
  A(new THREE.BoxGeometry(.20,3.5,24),wall,-9.9,1.72,0);A(new THREE.BoxGeometry(.20,3.5,24),wall,9.9,1.72,0);
  A(new THREE.BoxGeometry(20,3.5,.20),wall,0,1.72,-11.9);
  A(new THREE.BoxGeometry(8.0,3.5,.20),wall,-6.0,1.72,11.9);A(new THREE.BoxGeometry(8.0,3.5,.20),wall,6.0,1.72,11.9);
@@ -760,7 +774,7 @@ function renderApartmentHall(d,ret){
  pois.push({x:ix-1.2,z:iz-8.4,k:'Elevator',name:'Choose a floor · '+floor+' / '+floors,t:'apartment-elevator',r:3.2});
  if(floor===1)pois.push({x:ix,z:iz+9.9,k:'Exit',name:'Exit to street',t:'apartment-building-exit',r:2.8});
  const prevRet=ret||{x:Number(d.returnX)||0,z:Number(d.returnZ)||24,face:face,camYaw:Math.PI,camPitch:.28};
- inside={name:buildingName,x:ix,z:iz,roomW:18,roomD:22,isApartmentBuilding:true,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentFloor:floor,apartmentFloors:floors,apartmentRooms:numbers,ret:prevRet,pois};
+ inside={name:buildingName,x:ix,z:iz,roomW:18,roomD:22,isApartmentBuilding:true,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentFloor:floor,apartmentFloors:floors,apartmentRooms:numbers,apartmentTierId:tierId,apartmentTierName:tierName,apartmentRentPerDay:rentPerDay,ret:prevRet,pois};
  apartmentPose(d.x??ix,d.z??iz,Math.PI,.08);
 }
 function renderApartmentRoom(d,ret){
@@ -768,9 +782,10 @@ function renderApartmentRoom(d,ret){
  const ix=Number(d.roomX)||450,iz=Number(d.roomZ)||-270,number=Number(d.roomNumber)||1;
  const floor=Number(d.floor)||Math.floor((number-1)/APARTMENT_ROOMS_PER_FLOOR)+1,floors=Number(d.floors)||Math.max(2,floor);
  const buildingId=String(d.buildingId||''),buildingName=String(d.buildingName||'Residential Apartments');
+ const tierId=String(d.tierId||apartmentTierForFloors(floors).id),tierName=String(d.tierName||apartmentTierForFloors(floors).name),rentPerDay=Number(d.rentPerDay)||apartmentTierForFloors(floors).rentPerDay;
  const root=new THREE.Group();root.position.set(ix,0,iz);scene.add(root);APARTMENT_INTERIOR_VISUAL=root;
  const A=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);root.add(o);return o;};
- const wall=new THREE.MeshLambertMaterial({color:0xe9e2d7,side:THREE.DoubleSide}),floorMat=M(0xb4a48b),trim=M(0x4d4137),wood=M(0x6b4934),soft=M(0x526e79),glass=new THREE.MeshPhongMaterial({color:0x7fb4c3,transparent:true,opacity:.56,side:THREE.DoubleSide});
+ const wall=new THREE.MeshLambertMaterial({color:tierId==='luxury'?0xf4ecdb:tierId==='serviced'?0xe9e5dd:0xe9e2d7,side:THREE.DoubleSide}),floorMat=M(tierId==='luxury'?0xc7b27f:tierId==='serviced'?0xbeb5a0:0xb4a48b),trim=M(tierId==='luxury'?0xc0a15e:tierId==='serviced'?0x77736b:0x4d4137),wood=M(tierId==='luxury'?0x543b26:tierId==='serviced'?0x75543b:0x6b4934),soft=M(tierId==='luxury'?0x354c5d:tierId==='serviced'?0x637b7c:0x526e79),glass=new THREE.MeshPhongMaterial({color:0x7fb4c3,transparent:true,opacity:.56,side:THREE.DoubleSide});
  A(new THREE.BoxGeometry(12,.14,12),floorMat,0,-.08,0);A(new THREE.BoxGeometry(12,.10,12),trim,0,.01,0);
  A(new THREE.BoxGeometry(.18,3.15,12),wall,-5.9,1.55,0);A(new THREE.BoxGeometry(.18,3.15,12),wall,5.9,1.55,0);
  A(new THREE.BoxGeometry(12,3.15,.18),wall,0,1.55,-5.9);
@@ -785,6 +800,17 @@ function renderApartmentRoom(d,ret){
  const title=apartmentText(buildingName+' · ROOM '+number);
  readableTextBoard(root,new THREE.PlaneGeometry(6.2,.85),title,0,3.0,-5.78);
  A(new THREE.BoxGeometry(3.5,.42,4.1),wood,-2.75,.25,-2.4);A(new THREE.BoxGeometry(3.35,.22,3.85),M(0xeee7d7),-2.75,.56,-2.35);
+ if(tierId!=='standard'){
+  A(new THREE.BoxGeometry(2.8,.58,.82),soft,2.6,.33,.15);
+  A(new THREE.BoxGeometry(2.8,.56,.13),soft,2.6,.65,.47);
+  A(new THREE.BoxGeometry(1.8,.08,.76),trim,2.8,.82,-1.2);
+  A(new THREE.BoxGeometry(.9,.04,.38),glass,2.35,.88,-1.2);
+ }
+ if(tierId==='luxury'){
+  A(new THREE.BoxGeometry(.62,1.65,.5),M(0xd1d7d9),5.05,1.05,-1.55);
+  A(new THREE.BoxGeometry(.52,.95,.06),glass,5.05,1.18,-1.27);
+  [-1,1].forEach(side=>A(new THREE.SphereGeometry(.12,10,8),M(0xffdfa0),-4.05+side*.34,1.05,-3.9));
+ }
  A(new THREE.BoxGeometry(3.35,.18,2.0),M(0x537b89),-2.75,.72,-3.1);A(new THREE.BoxGeometry(1.05,.17,.65),M(0xf7f2e8),-3.5,.78,-4.05);A(new THREE.BoxGeometry(1.05,.17,.65),M(0xf7f2e8),-2.0,.78,-4.05);
  A(new THREE.BoxGeometry(3.72,.23,.25),trim,-2.75,1.05,-4.4);
  A(new THREE.BoxGeometry(1.55,2.45,.82),wood,4.55,1.23,-3.4);A(new THREE.BoxGeometry(.055,2.05,.04),M(0x9bb4b9),3.7,1.25,-3.4);
@@ -800,7 +826,7 @@ function renderApartmentRoom(d,ret){
  const isTenant=d.isTenant===true,locked=d.locked===true;
  const pois=[{x:ix,z:iz+4.7,k:'Exit',name:'Return to Floor '+floor+' corridor',t:'apartment-room-exit',r:2.6}];
  if(isTenant)pois.push({x:ix+3.8,z:iz+.6,k:'Room settings',name:locked?'Unlock this room':'Lock this room',t:'apartment-room-settings',r:2.6});
- inside={name:buildingName+' · Room '+number,x:ix,z:iz,roomW:12,roomD:12,isApartmentRoom:true,isApartmentRoomOwner:isTenant,apartmentRoomLocked:locked,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentRoomNumber:number,apartmentFloor:floor,apartmentFloors:floors,prepaidDays:Number(d.prepaidDays)||0,ret:ret||null,pois};
+ inside={name:buildingName+' · Room '+number,x:ix,z:iz,roomW:12,roomD:12,isApartmentRoom:true,isApartmentRoomOwner:isTenant,apartmentRoomLocked:locked,apartmentBuildingId:buildingId,apartmentBuildingName:buildingName,apartmentRoomNumber:number,apartmentFloor:floor,apartmentFloors:floors,apartmentTierId:tierId,apartmentTierName:tierName,apartmentRentPerDay:rentPerDay,prepaidDays:Number(d.prepaidDays)||0,ret:ret||null,pois};
  apartmentPose(d.x??ix,d.z??iz,Math.PI,.08);
 }
 function apartmentRoomLockButton(buildingId,roomNumber,locked){
@@ -810,16 +836,17 @@ function openApartmentRoomMenu(p){
  const state=inside?.apartmentRooms?.find(r=>Number(r.roomNumber)===Number(p.roomNumber));
  if(!inside?.isApartmentBuilding||!state){sys("Apartment room information is still loading. Try the numbered door again.");return;}
  const occupied=!state.vacant,own=state.occupiedByMe===true,locked=state.locked===true,life=window.NRS?.life||{},canRent=own||!life.homeId;
- const days=Array.from({length:7},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+' · ₦'+((i+1)*1500).toLocaleString('en-NG')+'</option>').join('');
+ const rentPerDay=Number(state.rentPerDay||inside.apartmentRentPerDay||1500);
+ const days=Array.from({length:7},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+' · ₦'+((i+1)*rentPerDay).toLocaleString('en-NG')+'</option>').join('');
  const status=own?'This is your private apartment. You can lock it to prevent visitors entering.':locked?'🔒 The tenant has locked this room. Visitors cannot enter until it is unlocked.':occupied?'This apartment is rented but unlocked. You may enter and look around; please respect the tenant’s property.':'This apartment is vacant and open for viewing. You can inspect it before renting.';
  const visit=own?'<button data-apartment-enter="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">🚪 Enter my room</button>':
   locked?'<button disabled>🔒 Room locked by tenant</button>':
   '<button data-apartment-enter="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">👀 '+(occupied?'Visit apartment':'Preview apartment')+'</button>';
  const rental=own?'<p><label>Extend tenancy <select id="apartmentRentDays">'+days+'</select></label></p><button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'">Extend rent</button>':
   !occupied?'<p><label>Rent duration <select id="apartmentRentDays">'+days+'</select></label></p><button data-apartment-rent="'+p.roomNumber+'" data-apartment-building="'+p.buildingId+'" '+(canRent?'':'disabled')+'>Rent & enter room '+p.roomNumber+'</button>':'';
- panel('<div class="wm-head"><span>🏠</span><div><small>BLOCK '+safeText(inside.apartmentBuildingName.replace('Apartment Block #',''))+' · FLOOR '+inside.apartmentFloor+'</small><h2>Apartment Room #'+p.roomNumber+'</h2><p>'+safeText(inside.apartmentBuildingName)+' · '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' total units</p></div></div>'+
+ panel('<div class="wm-head"><span>🏠</span><div><small>'+safeText(inside.apartmentTierName||'RESIDENTIAL APARTMENTS')+' · FLOOR '+inside.apartmentFloor+'</small><h2>Apartment Room #'+p.roomNumber+'</h2><p>'+safeText(inside.apartmentBuildingName)+' · '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' total units</p></div></div>'+
   '<p class="wm-note">'+status+' Rooms on this floor are '+((inside.apartmentFloor-1)*APARTMENT_ROOMS_PER_FLOOR+1)+'–'+(inside.apartmentFloor*APARTMENT_ROOMS_PER_FLOOR)+'. This block has '+(inside.apartmentFloors*APARTMENT_ROOMS_PER_FLOOR)+' units in total.</p>'+
-  '<div class="hm-price"><div><small>DAILY RENT</small><strong>₦1,500</strong></div><span>PER DAY</span></div>'+
+  '<div class="hm-price"><div><small>DAILY RENT</small><strong>₦'+rentPerDay.toLocaleString('en-NG')+'</strong></div><span>PER DAY</span></div>'+
   visit+rental+(own?apartmentRoomLockButton(p.buildingId,p.roomNumber,locked):'')+
   (!own&&!occupied&&!canRent?'<p>You already rent a separate house or apartment, so you cannot rent this room.</p>':''));
  modal.classList.add('apartment-menu');
