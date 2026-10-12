@@ -1,37 +1,230 @@
-/* Grand Building geometry is a source-level house builder, not a duplicate scene overlay. */
-HOUSE_BUILDERS.grand = function(K) {const {A,m,S,B,C,w,d,front,Y}=K,HM=8.5;
- // 7. GRAND BUILDING: contemporary high-value residence with a double-height glass foyer,
- // broad side wings, cantilevered upper storey, rooftop solar, private pool and smart gated arrival.
+/* Residential house renderer overrides.
+ * This file replaces the functions used by createHouseExterior itself. It deliberately
+ * does not create standalone meshes in the world, so there is no duplicate old/new overlay.
+ */
+const nrsHouseWindow = (K,x,y,z,w,h) => houseFrontWindow(K.A,K.m,x,y,z,w,h);
+const nrsHouseDoor = (K,x,y,z,w,h,doubleDoor=false) => houseDoor(K.A,K.m,x,y,z,w,h,doubleDoor);
+
+HOUSE_BUILDERS.hut = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K, bodyH=2.45;
+ // Traditional Rivers village cottage: warm mud walls, deep thatch gable and shaded veranda.
+ B(w-1.0,bodyH,d-1.05,m.wall,0,Y+bodyH/2,-.25);
+ B(w+.25,.26,d+.25,m.trim,0,Y+.19,-.25);
+ A(houseGable(w+1.25,d+1.1,1.45),S.thatch,0,Y+bodyH-.25,-.25);
+ B(w+1.5,.14,.24,m.trim,0,Y+bodyH+.02,front+.2);
+ nrsHouseDoor(K,0,Y+1.05,front+.08,1.0,2.05);
+ [-1,1].forEach(s=>nrsHouseWindow(K,s*1.65,Y+1.42,front+.05,1.0,.9));
+ // Timber porch roof, two posts and a simple bench.
+ B(w*.76,.14,1.85,S.thatch,0,Y+2.55,front+1.0);
+ [-1,1].forEach(s=>C(.09,.11,2.45,S.woodDark,s*1.72,Y+1.24,front+1.68,8));
+ B(1.6,.3,.46,S.woodDark,0,Y+.43,front+1.35);
+ B(1.8,.12,.5,S.woodLight,0,Y+.66,front+1.35);
+ // Pots, firewood, water drum and a low woven boundary fence.
+ [[-2.15,front+1.0,.23],[2.05,front+1.12,.2]].forEach(p=>{C(p[2],p[2]*.8,p[2]*1.7,S.clay,p[0],Y+p[2],p[1],10);});
+ C(.34,.34,.85,S.blue,2.5,Y+.45,front+1.15,12);
+ for(let i=0;i<9;i++)C(.025,.03,.72,m.trim,-2.0+i*.5,.42,front+4.45,5);
+ B(4.5,.08,.08,m.trim,0,.82,front+4.45);
+ B(5.5,.1,3.2,S.paver,0,.13,front+2.95);
+ return {x:-2.6,y:Y+2.95,z:front+.5,w:3.3};
+};
+
+HOUSE_BUILDERS.faceme = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K;
+ // Face-me-I-face-you compound: separate doors share an open courtyard and wash area.
+ B(w,H,d,m.wall,0,Y+H/2,-.25);
+ B(w+.35,.17,d+.35,m.trim,0,Y+H+.03,-.25);
+ // Dividing pilasters give each room its own identity.
+ [-3.5,0,3.5].forEach(x=>B(.16,H+.12,.18,m.accent,x,Y+H/2,front-.12));
+ [-3.5,0,3.5].forEach((x,i)=>{
+  nrsHouseDoor(K,x-.55,Y+1.04,front+.12,.82,2.02);
+  nrsHouseWindow(K,x+.78,Y+1.48,front+.1,.78,.8);
+  B(.42,.22,.05,m.accent,x-.55,Y+2.42,front+.16);
+  // Room number tile.
+  B(.13,.13,.035,S.white,x-.55,Y+2.42,front+.2);
+ });
+ // Two zinc roof rows with shared covered veranda.
+ B(w+.6,.16,d*.47,S.zinc,0,Y+H+.14,-2.25);
+ B(w+.6,.16,d*.47,S.zinc,0,Y+H+.14,2.05);
+ B(w+.55,.12,1.35,S.zinc,0,Y+2.68,front+.82);
+ [-4.6,-2.3,0,2.3,4.6].forEach(x=>C(.07,.08,2.55,m.trim,x,Y+1.28,front+1.48,8));
+ // Courtyard floor, washing basins, buckets, line and practical service corner.
+ B(w-.3,.09,2.65,S.concrete,0,Y+.04,.15);
+ B(1.7,.64,.72,S.stoneDk,-3.65,Y+.37,-.25);
+ B(1.8,.09,.8,S.stone,-3.65,Y+.73,-.25);
+ C(.18,.15,.32,S.blue,-4.15,Y+.3,-.85,10);C(.18,.15,.32,S.red,-3.68,Y+.3,-.85,10);
+ [-1,1].forEach(s=>C(.04,.05,2.1,S.woodDark,s*1.7,Y+1.08,.1,6));
+ B(3.5,.035,.035,S.white,0,Y+2.1,.1);
+ for(let i=0;i<4;i++)B(.38,.52,.035,S.cloth[i],-1.1+i*.74,Y+1.8,.1);
+ C(.34,.34,.9,S.blue,4.1,Y+.45,-.1,12);
+ B(5.8,.08,2.9,S.paver,0,.12,front+2.55);
+ return {x:-3.9,y:Y+3.15,z:front+.8,w:3.9};
+};
+
+HOUSE_BUILDERS.flat = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K;
+ // Compact modern urban flat: crisp concrete floor bands, roof parapet, balcony and secure carport.
+ B(w,H,d,m.wall,0,Y+H/2,-.15);
+ B(w+.22,.2,d+.22,m.trim,0,Y+2.1,-.15);
+ B(w+.3,.25,d+.3,m.trim,0,Y+4.25,-.15);
+ B(w+.5,.35,d+.5,m.trim,0,Y+H+.06,-.15);
+ // Distinctive teal stair strip and entrance canopy.
+ B(1.05,H+.3,.22,m.accent,-w/2+.72,Y+(H+.3)/2,front+.03);
+ nrsHouseDoor(K,-1.0,Y+1.12,front+.12,1.05,2.25);
+ B(2.9,.14,1.35,m.accent,-1.0,Y+2.54,front+.72);
+ [-1,1].forEach(s=>nrsHouseWindow(K,s*3.0,Y+1.45,front+.1,1.45,1.3));
+ [-1,1].forEach(s=>nrsHouseWindow(K,s*2.95,Y+3.15,front+.1,1.45,1.3));
+ // Glass balcony and horizontal metal railing.
+ B(6.8,.18,1.25,m.concrete,0,Y+3.0,front+.67);
+ B(6.8,.82,.07,S.glassRail,0,Y+3.52,front+1.27);
+ B(6.9,.06,.09,m.metal,0,Y+4.0,front+1.27);
+ for(let i=0;i<13;i++)B(.035,.75,.045,m.metal,-3.22+i*.537,Y+3.5,front+1.3);
+ // Secure parking bay, sliding gate and roof utilities.
+ B(3.5,2.35,.12,m.metal,3.0,Y+1.18,front-.02);
+ for(let k=0;k<5;k++)B(3.35,.045,.12,S.black,3.0,Y+.35+k*.4,front+.06);
+ B(4.4,.18,4.0,m.trim,3.0,Y+2.55,front-1.4);
+ B(2.1,.14,1.45,m.darkGlass,-2.65,Y+H+.45,-2.0);
+ B(2.1,.14,1.45,m.darkGlass,-.45,Y+H+.45,-2.0);
+ C(.62,.65,1.35,S.black,3.6,Y+H+.72,-2.0,14);
+ B(4.5,.08,2.8,S.paver,1.4,.13,front+2.75);
+ [-1,1].forEach(s=>{B(2.3,1.25,.2,m.wall,s*4.65,.63,front+4.2);B(2.3,.1,.2,m.accent,s*4.65,1.29,front+4.2);});
+ B(3.5,1.15,.08,S.black,0,.74,front+4.2);
+ for(let i=0;i<9;i++)B(.04,1.07,.1,m.metal,-1.55+i*.387,.74,front+4.22);
+ return {x:-4.0,y:1.0,z:front+4.4,w:2.7};
+};
+
+HOUSE_BUILDERS.estate = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K, mainH=6.5;
+ // Estate duplex: two-storey family home, raised entry portal, balcony, garage wing and paved drive.
+ B(9.8,mainH,9.8,m.wall,-1.65,Y+mainH/2,-.5);
+ B(4.6,3.15,8.2,m.wall,5.55,Y+1.575,-1.1);
+ B(10.5,.34,10.35,m.trim,-1.65,Y+mainH+.1,-.5);
+ B(9.9,.22,1.85,m.concrete,-1.65,Y+3.25,front-.2);
+ B(9.9,.28,10.35,m.trim,-1.65,Y+mainH+.14,-.5);
+ // Stone-clad entrance frame and timber architectural fins.
+ B(1.65,5.7,.22,S.stone,-5.15,Y+2.85,front-.6);
+ B(2.25,5.45,.12,m.darkGlass,-1.6,Y+3.1,front-.66);
+ for(let i=0;i<9;i++)B(.11,5.2,.16,S.woodLight,-2.6+i*.25,Y+3.05,front-.48);
+ nrsHouseDoor(K,-1.65,Y+1.4,front-.35,1.55,2.6,true);
+ nrsHouseWindow(K,-4.2,Y+4.65,front-.35,1.35,1.35);
+ nrsHouseWindow(K,1.25,Y+4.65,front-.35,1.35,1.35);
+ // Upper balcony rail.
+ B(4.2,.18,1.5,m.concrete,-1.3,Y+3.2,front+.7);
+ B(4.2,.9,.07,S.glassRail,-1.3,Y+3.76,front+1.42);
+ B(4.25,.06,.1,m.metal,-1.3,Y+4.28,front+1.42);
+ for(let i=0;i<9;i++)B(.035,.82,.04,m.metal,-3.25+i*.49,Y+3.75,front+1.45);
+ [-1,1].forEach(s=>nrsHouseWindow(K,-1.5+s*2.65,Y+4.5,front-.36,1.1,1.25));
+ // Integrated double-width garage and modern sectional shutter.
+ B(4.15,2.55,.12,m.metal,5.55,Y+1.28,3.05);
+ for(let k=0;k<5;k++)B(4.05,.045,.12,S.black,5.55,Y+.38+k*.45,3.12);
+ B(5.0,.2,8.7,m.trim,5.55,Y+3.25,-1.1);
+ B(3.5,.07,5.9,S.paver,5.55,.13,front+.65);
+ B(3.2,.07,4.9,S.paver,-1.65,.13,front+2.55);
+ // Gated driveway, landscape hedges and entrance lamps.
+ [-1,1].forEach(s=>{B(2.8,1.5,.25,m.wall,s*5.8,.75,front+4.65);B(2.8,.14,.25,m.accent,s*5.8,1.55,front+4.65);B(.55,2.0,.55,S.stone,s*3.9,1.0,front+4.7);K.S_(.16,S.glow,s*3.9,2.08,front+4.7);});
+ B(3.1,1.22,.08,S.black,0,.78,front+4.7);
+ for(let i=0;i<10;i++)B(.04,1.12,.1,m.metal,-1.45+i*.32,.78,front+4.72);
+ [-1,1].forEach(s=>{K.S_(.48,S.leaf,s*6.8,.48,front+3.0,1.15,1.2,1);K.S_(.32,S.leaf2,s*6.8,1.02,front+3.0,1,1,1);});
+ return {x:-5.8,y:1.1,z:front+4.82,w:2.6};
+};
+
+HOUSE_BUILDERS.mansion = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K;
+ // Grand Villa: broad luxury residence, layered hip roofs, columned entrance, pool, garden court.
+ B(13.8,4.9,10.7,m.wall,0,Y+2.45,-.35);
+ B(7.2,2.0,7.4,m.wall,0,Y+5.75,-1.35);
+ K.hip(m.roof,14.7,11.6,2.0,0,Y+4.9,-.35);
+ K.hip(m.roof,7.8,8.0,1.35,0,Y+6.75,-1.35);
+ B(13.9,.25,.28,m.trim,0,Y+4.65,front-.08);
+ // Symmetric front windows and stone-trimmed main entrance.
+ [-1,1].forEach(s=>{nrsHouseWindow(K,s*4.75,Y+1.85,front+.06,1.65,1.8);nrsHouseWindow(K,s*4.75,Y+3.7,front+.06,1.5,1.25);});
+ B(4.6,.2,2.6,m.concrete,0,Y+.14,front+1.1);
+ B(4.1,.22,.32,S.stone,0,Y+3.35,front+.1);
+ [-1,1].forEach(s=>{C(.28,.34,4.0,m.trim,s*1.7,Y+2.2,front+1.1,14);B(.7,.18,.7,m.trim,s*1.7,Y+.35,front+1.1);B(.7,.18,.7,m.trim,s*1.7,Y+4.18,front+1.1);});
+ B(4.2,.35,.75,m.trim,0,Y+4.25,front+.92);
+ nrsHouseDoor(K,0,Y+1.4,front+.09,1.7,2.7,true);
+ // Wide glass doors and outdoor lounge face a private rectangular pool.
+ B(3.8,2.2,.12,m.darkGlass,0,Y+2.25,-d/2-.05);
+ B(6.5,.18,3.8,S.water,-8.1,.16,front-.7);
+ B(6.9,.12,4.2,m.trim,-8.1,.08,front-.7);
+ B(4.1,.13,3.3,S.paver,-1.0,.12,front+3.25);
+ B(2.4,.3,1.0,S.white,-1.0,.32,front+3.25);
+ B(2.4,.58,.18,S.white,-1.0,.73,front+2.84);
+ // Pergola, solar panels, garden shrubs and secure front garden.
+ for(let i=0;i<4;i++)B(.12,2.35,.12,S.woodDark,6.4+i*.05,Y+1.18,front+1.0);
+ for(let i=0;i<6;i++)B(1.1,.09,.14,S.woodLight,6.8,Y+2.35,front+.45+i*.36);
+ for(let i=0;i<3;i++){const panel=B(1.55,.07,1.1,m.darkGlass,-3.6+i*1.7,Y+5.15,-2.9);panel.rotation.x=-.12;}
+ [-1,1].forEach(s=>{K.S_(.6,S.leaf,s*9.5,.55,front+2.0,1.25,1.35,1);K.S_(.4,S.leaf2,s*9.5,1.25,front+2.0,1,1,1);B(2.3,.45,.5,S.leaf,s*10.4,.22,front+4.25);});
+ [-1,1].forEach(s=>{B(2.6,1.35,.25,m.wall,s*6.8,.68,front+5.2);B(2.6,.12,.25,m.trim,s*6.8,1.4,front+5.2);});
+ B(3.3,1.1,.08,S.black,0,.72,front+5.2);
+ for(let i=0;i<10;i++)B(.035,1.02,.1,m.metal,-1.45+i*.32,.72,front+5.22);
+ return {x:0,y:Y+3.4,z:front+1.3,w:3.7};
+};
+
+HOUSE_BUILDERS.palace = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K;
+ // Royal Palace: ceremonial central hall, copper-gold dome, corner towers, colonnade and fountains.
+ B(12.2,8.1,11.8,S.stone,0,Y+4.05,-.7);
+ B(7.8,3.1,7.8,S.stone,0,Y+9.55,-1.35);
+ B(14.3,.45,12.9,m.trim,0,Y+8.0,-.7);
+ B(9.0,.34,9.0,m.trim,0,Y+11.15,-1.35);
+ C(3.1,3.25,1.5,S.stone,0,Y+11.95,-1.35,24);
+ A(new THREE.SphereGeometry(3.15,24,14,0,Math.PI*2,0,Math.PI/2),S.copper,0,Y+13.15,-1.35);
+ C(.42,.46,1.0,m.gold,0,Y+15.8,-1.35,10);K.S_(.32,S.goldB,0,Y+16.5,-1.35);
+ // Twin palace wings with stepped parapets and decorative gold banding.
+ [-1,1].forEach(s=>{
+  B(4.6,6.4,9.7,S.stone,s*8.0,Y+3.2,-.15);
+  B(5.0,.42,10.0,m.trim,s*8.0,Y+6.35,-.15);
+  B(5.2,.32,10.2,m.trim,s*8.0,Y+6.72,-.15);
+  for(let i=0;i<3;i++)nrsHouseWindow(K,s*8.0,Y+1.75+i*2.0,front+.04,1.1,1.25);
+  C(1.45,1.65,.35,m.trim,s*8.0,Y+6.8,-.15,16);
+  A(new THREE.ConeGeometry(1.85,2.8,16),S.copper,s*8.0,Y+8.3,-.15);
+ });
+ // Grand colonnade, deep stone steps and double ceremonial entrance.
+ B(10.8,.4,3.6,S.stone,0,Y+.2,front-.8);
+ for(let i=0;i<7;i++){const x=-4.5+i*1.5;C(.27,.32,5.5,S.stone,x,Y+2.9,front+.55,14);B(.68,.2,.68,m.trim,x,Y+.55,front+.55);B(.68,.2,.68,m.trim,x,Y+5.65,front+.55);}
+ B(11.2,.3,.42,m.trim,0,Y+5.8,front+.55);
+ nrsHouseDoor(K,0,Y+1.7,front+.1,2.1,3.3,true);
+ B(3.4,.25,.5,m.gold,0,Y+4.0,front+.16);
+ // Balcony balustrade, twin flagpoles with Nigeria flags and a fountain forecourt.
+ B(11.4,.22,2.6,S.stone,0,Y+6.15,front-.4);
+ for(let i=0;i<23;i++)C(.045,.05,.75,m.trim,-5.4+i*.49,Y+6.55,front+.64,6);
+ [-1,1].forEach(s=>{C(.055,.065,8.8,S.steel,s*6.5,Y+4.4,front+3.4,8);K.S_(.12,S.goldB,s*6.5,Y+8.95,front+3.4);
+  B(.55,.85,.03,S.flagG,s*6.0,Y+7.9,front+3.4);B(.55,.85,.03,S.flagW,s*6.55,Y+7.9,front+3.4);B(.55,.85,.03,S.flagG,s*7.1,Y+7.9,front+3.4);
+  C(.72,.82,1.7,S.stone,s*4.3,.85,front+5.0,12);C(.9,.95,.12,S.water,s*4.3,1.72,front+5.0,16);K.S_(.19,S.goldB,s*4.3,1.95,front+5.0);
+ });
+ B(12.8,.08,4.8,S.paver,0,.12,front+4.5);
+ return {x:0,y:Y+5.5,z:front+1.15,w:4.1};
+};
+
+HOUSE_BUILDERS.grand = function(K) {
+ const {A,m,S,B,C,w,d,H,front,Y}=K,HM=8.5;
+ // Grand Building: modern 7-bedroom residence, double-height glass foyer, automation and pool.
  B(14.8,HM,16.8,m.wall,0,Y+HM/2,-.7);
  B(6.2,5.25,14.4,m.wall,-8.9,Y+2.625,-1.25);
  B(6.2,5.25,14.4,m.wall,8.9,Y+2.625,-1.25);
  B(15.5,.42,17.5,m.trim,0,Y+HM+.12,-.7);
  B(6.7,.3,15.1,m.trim,-8.9,Y+5.3,-1.25);B(6.7,.3,15.1,m.trim,8.9,Y+5.3,-1.25);
- // Architectural fins and a broad dark-glass foyer distinguish this modern tier from the royal palace.
+ // High-tech glass foyer and crisp vertical accent fins.
  B(.48,7.2,.22,m.accent,-7.1,Y+4.0,7.6);B(.48,7.2,.22,m.accent,7.1,Y+4.0,7.6);
  B(4.1,5.7,.14,m.darkGlass,-4.55,Y+4.05,7.74);B(4.1,5.7,.14,m.darkGlass,4.55,Y+4.05,7.74);
- houseDoor(A,m,0,Y+1.62,8.16,1.9,2.85,true);
+ nrsHouseDoor(K,0,Y+1.62,8.16,1.9,2.85,true);
  B(4.6,.22,2.0,m.concrete,0,Y+.14,9.15);B(3.8,.16,1.25,m.trim,0,Y+.31,9.62);
- // Cantilevered upper balcony with glass balustrade and metal rails.
  B(10.6,.28,2.1,m.concrete,0,Y+4.5,8.55);B(10.2,1.12,.08,S.glassRail,0,Y+5.15,9.55);B(10.25,.07,.11,m.metal,0,Y+5.74,9.55);
  for(let i=0;i<19;i++)B(.035,.95,.045,m.metal,-4.8+i*.533,Y+5.12,9.58);
- // Ground-floor windows, sun-shading fins and a premium stone entrance frame.
- [-5.8,5.8].forEach(x=>{houseFrontWindow(A,m,x,Y+2.1,7.78,1.55,1.85);B(.12,2.05,.22,m.accent,x-1.0,Y+2.12,7.9);B(.12,2.05,.22,m.accent,x+1.0,Y+2.12,7.9);});
+ [-5.8,5.8].forEach(x=>{nrsHouseWindow(K,x,Y+2.1,7.78,1.55,1.85);B(.12,2.05,.22,m.accent,x-1.0,Y+2.12,7.9);B(.12,2.05,.22,m.accent,x+1.0,Y+2.12,7.9);});
  B(5.0,.24,.38,S.stone,0,Y+3.35,8.1);
- // Integrated multi-car garage with a sectional door on the right wing.
+ // Integrated multi-car garage and sectional security shutter.
  B(4.75,2.65,.12,m.metal,8.9,Y+1.37,6.08);
  for(let k=0;k<5;k++)B(4.6,.045,.14,S.black,8.9,Y+.42+k*.47,6.17);
  B(5.5,.2,14.9,m.trim,8.9,Y+5.32,-1.25);
- houseFrontWindow(A,m,8.9,Y+3.0,6.11,1.8,.55);
- // Flat roof plant, solar array, security sensors and concealed service equipment.
+ nrsHouseWindow(K,8.9,Y+3.0,6.11,1.8,.55);
  B(4.8,.18,3.0,m.concrete,-3.5,Y+HM+.35,-3.7);
  for(let i=0;i<3;i++){const panel=B(1.4,.07,2.45,m.darkGlass,-4.7+i*1.25,Y+HM+.55,-3.7);panel.rotation.x=-.12;}
  B(1.2,.5,.9,m.trim,5.0,Y+HM+.4,-3.0);B(.95,.12,.72,m.metal,5.0,Y+HM+.72,-3.0);
- // Garden, private pool and a wide driveway occupying the property forecourt.
+ // Private pool, broad arrival court, electronic gate and planted edges.
  B(7.6,.16,4.6,S.water,-9.0,.18,front+1.3);B(8.2,.14,5.2,m.trim,-9.0,.08,front+1.3);
  B(5.1,.12,5.7,S.paver,1.0,.13,front+3.1);
  [-1,1].forEach(s=>{B(4.0,1.45,.25,m.wall,s*8.5,.72,front+6.8);B(4.0,.12,.3,m.accent,s*8.5,1.48,front+6.8);});
- // Sliding security gate, columns with warm LED lights and planted borders.
  [-1,1].forEach(s=>{B(.65,2.1,.65,S.stone,s*6.0,1.05,front+7.0);B(.85,.18,.85,m.trim,s*6.0,2.15,front+7.0);K.S_(.15,S.glow,s*6.0,2.42,front+7.0);});
  B(3.4,1.25,.1,S.black,0,.8,front+7.0);for(let i=0;i<12;i++)B(.04,1.15,.12,m.metal,-1.62+i*.295,.8,front+7.02);
  [-1,1].forEach(s=>{K.S_(.52,S.leaf,s*12.1,.5,front+3.2,1.2,1.3,1.2);K.S_(.34,S.leaf2,s*12.1,1.05,front+3.2,1,1.05,1);B(2.1,.45,.45,S.leaf,s*12.8,.25,front+5.1);});
