@@ -24,6 +24,7 @@ check("public/nrs-realistic-betting.js", readFileSync(path.join(root, "public/nr
 
 const gameSourceParts = [
   "game-source/01-world-foundation.js.part",
+  "game-source/01a-grand-building.js.part",
   "game-source/02-controls-and-city-architecture.js.part",
   "game-source/03a-traffic-and-interiors.js.part",
   "game-source/03b-careers-and-city-services.js.part",
@@ -37,6 +38,7 @@ for (let part = 1; part <= 7; part += 1) {
   const asset = "nrs-game-" + String(part).padStart(2, "0") + ".js";
   check("public/" + asset, readFileSync(path.join(root, "public", asset), "utf8"));
 }
+check("public/nrs-grand-building.js", readFileSync(path.join(root, "public", "nrs-grand-building.js"), "utf8"));
 
 for (const page of ["index.html", "index-multiplayer-lab.html"]) {
   const html = readFileSync(path.join(root, page), "utf8");
