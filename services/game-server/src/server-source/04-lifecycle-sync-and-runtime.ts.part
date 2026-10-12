@@ -745,7 +745,7 @@
         session.lastSyncAt = Date.now();
         await persistSession(session);
         sendApartmentFloorState(session, "apartmentBuildingEnterResult",
-          "Welcome to " + building.name + ". Rooms 1–10 are on Floor 1, 11–20 on Floor 2, 21–30 on Floor 3, and so on. This block has " + (building.floors * APARTMENT_ROOMS_PER_FLOOR) + " rental units across " + building.floors + " floors. Rent is ₦1,500 per day.");
+          "Welcome to " + building.name + ". Rooms 1–10 are on Floor 1, 11–20 on Floor 2, 21–30 on Floor 3, and so on. This block has " + (building.floors * APARTMENT_ROOMS_PER_FLOOR) + " rental units across " + building.floors + " floors. Rent is ₦" + apartmentRentTierForFloors(building.floors).rentPerDay.toLocaleString("en-NG") + " per day.");
         broadcast({ type: "playerLeft", playerId: session.player.id, onlineCount: players.size });
         return;
       }
@@ -792,7 +792,9 @@
         send(socket, {
           type: "apartmentRoomEnterResult", ok: true,
           buildingId, buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
-          floors: session.apartmentFloors, roomNumber, rentPerDay: APARTMENT_RENT_PER_DAY,
+          floors: session.apartmentFloors, roomNumber, rentPerDay: apartmentRentTierForFloors(session.apartmentFloors).rentPerDay,
+          tierId: apartmentRentTierForFloors(session.apartmentFloors).id,
+          tierName: apartmentRentTierForFloors(session.apartmentFloors).name,
           prepaidDays: isTenant && lease ? lease.prepaidDays : 0,
           isTenant, preview: !isTenant, locked: lease?.locked === true,
           roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
@@ -812,8 +814,10 @@
         const fail = (text: string) => send(socket, {
           type: "apartmentRoomRentResult", ok: false, message: text,
           buildingId: session.apartmentBuildingId, floor: session.apartmentFloor, floors: session.apartmentFloors,
-          rooms: session.apartmentBuildingId ? apartmentFloorRooms(session.apartmentBuildingId, session.apartmentFloor, session.player.id) : [],
-          rentPerDay: APARTMENT_RENT_PER_DAY,
+          rooms: session.apartmentBuildingId ? apartmentFloorRooms(session.apartmentBuildingId, session.apartmentFloor, session.player.id, session.apartmentFloors) : [],
+          rentPerDay: apartmentRentTierForFloors(session.apartmentFloors).rentPerDay,
+          tierId: apartmentRentTierForFloors(session.apartmentFloors).id,
+          tierName: apartmentRentTierForFloors(session.apartmentFloors).name,
         });
         if (!session.inApartmentInterior || session.apartmentMode !== "hall" || !session.apartmentBuildingId ||
             buildingId !== session.apartmentBuildingId || !Number.isInteger(roomNumber) ||
@@ -838,7 +842,8 @@
         if (totalDays > MAX_APARTMENT_PREPAID_DAYS) {
           fail("You can keep at most 7 prepaid days. Choose fewer days."); return;
         }
-        const cost = APARTMENT_RENT_PER_DAY * days;
+        const rentTier = apartmentRentTierForFloors(session.apartmentFloors);
+        const cost = rentTier.rentPerDay * days;
         if (session.player.cash < cost) {
           fail("Not enough cash. You need ₦" + cost.toLocaleString("en-NG") + "."); return;
         }
@@ -855,12 +860,13 @@
         send(socket, {
           type: "apartmentRoomRentResult", ok: true,
           buildingId, buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
-          floors: session.apartmentFloors, roomNumber, rentPerDay: APARTMENT_RENT_PER_DAY,
+          floors: session.apartmentFloors, roomNumber, rentPerDay: rentTier.rentPerDay,
+          tierId: rentTier.id, tierName: rentTier.name,
           prepaidDays: totalDays, cost, cash: session.player.cash,
           isTenant: true, preview: false, locked: world.apartmentRooms[key].locked,
           roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
           x: session.player.x, z: session.player.z,
-          message: "You rented Room " + roomNumber + " for ₦" + cost.toLocaleString("en-NG") + ". Rent costs ₦1,500 per day.",
+          message: "You rented Room " + roomNumber + " for ₦" + cost.toLocaleString("en-NG") + ". " + rentTier.name + " rent is ₦" + rentTier.rentPerDay.toLocaleString("en-NG") + " per day.",
         });
         for (const other of players.values()) if (other.player.id !== session.player.id && other.apartmentBuildingId === buildingId) sendApartmentFloorState(other, "apartmentFloorResult");
         return;
@@ -898,9 +904,11 @@
           type: "apartmentRoomLockResult", ok: true, buildingId,
           buildingName: session.apartmentBuildingName, floor: session.apartmentFloor,
           floors: session.apartmentFloors, roomNumber, locked: lease.locked,
-          isTenant: true, rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id),
+          isTenant: true, rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id, session.apartmentFloors),
           roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
-          x: session.player.x, z: session.player.z, rentPerDay: APARTMENT_RENT_PER_DAY,
+          x: session.player.x, z: session.player.z, rentPerDay: apartmentRentTierForFloors(session.apartmentFloors).rentPerDay,
+          tierId: apartmentRentTierForFloors(session.apartmentFloors).id,
+          tierName: apartmentRentTierForFloors(session.apartmentFloors).name,
           message: lease.locked
             ? "Apartment Room " + roomNumber + " is now locked. Visitors cannot enter."
             : "Apartment Room " + roomNumber + " is now unlocked. Visitors may enter and view it.",
@@ -1250,7 +1258,7 @@
         session.inCarpark = false;
         session.carparkVehicle = null;
         session.player.x = room.x;
-        session.player.z = room.z + 1.4;
+        session.player.z = homeInteriorSpawnPosition(home.id).z;
         session.input = { sequence: session.input.sequence, forward: 0, strafe: 0 };
         session.lastInputAt = Date.now();
         session.lastSyncAt = Date.now();
@@ -1258,7 +1266,7 @@
         send(socket, {
           type: "homeInterior", ok: true,
           home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: isOwner ? session.player.life.rentDays : 0, isOwner, vacant, locked },
-          roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
+          roomX: room.x, roomZ: room.z, x: room.x, z: homeInteriorSpawnPosition(home.id).z,
           returnX: returnPosition.x, returnZ: returnPosition.z,
           furniture: HOME_FURNITURE[home.cls] ?? [],
         });
@@ -1465,13 +1473,13 @@
           session.inHome = true;
           session.homeReturn = returnPosition;
           session.player.x = room.x;
-          session.player.z = room.z + 1.4;
+          session.player.z = homeInteriorSpawnPosition(home.id).z;
           session.player.yaw = 0;
           await persistSession(session);
           send(socket, {
             type: "carparkFootExitResult", ok: true, route: "home",
             home: { id: home.id, cls: home.cls, name: cls.name, zone: home.zone, rentDays: session.player.life.rentDays },
-            roomX: room.x, roomZ: room.z, x: room.x, z: room.z + 1.4,
+            roomX: room.x, roomZ: room.z, x: room.x, z: homeInteriorSpawnPosition(home.id).z,
             returnX: returnPosition.x, returnZ: returnPosition.z,
             furniture: HOME_FURNITURE[home.cls] ?? [],
             life: session.player.life, today: clock.dayKey(),
@@ -1523,7 +1531,7 @@
         // entrance. The player is not spawned inside the fenced grounds and no
         // existing home/lease is cleared by this fallback.
         const x = room ? room.x : PARK_GATE_APPROACH.x;
-        const z = room ? room.z + 1.4 : PARK_GATE_APPROACH.z;
+        const z = room && home ? homeInteriorSpawnPosition(home.id).z : PARK_GATE_APPROACH.z;
         session.inHome = atHome;
         session.inCarpark = false;
         session.homeReturn = atHome ? (returnPosition ?? { x: home!.x, z: home!.z + 12 }) : null;

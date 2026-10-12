@@ -1,33 +1,34 @@
 # Stage 2 — Homes, Rent, Realistic Exteriors, Interiors and Car-Park Routes
 
-**Status as of 11 October 2026:** The housing implementation is deployed to Railway. The Face-Me-I-Face-You exterior visibility defect was fixed in commit `6ccc856` and the user confirmed that the buildings now appear on the live map. That closes this specific visual defect only. The entire Stage 2 acceptance checklist is not yet verified in this session; rent/tenancy, interior routing, the garage/horn exit, respawn, two-account visibility and full Android regression checks remain to be recorded. Stage 3 was explicitly approved and is already active, so keep these remaining items as housing closeout/regression checks rather than retroactively undoing that approval.
+**Status as of 12 October 2026:** The housing implementation is deployed to Railway. The Face-Me-I-Face-You exterior visibility defect was fixed in commit `6ccc856` and the user confirmed that the buildings now appear on the live map. That closes this specific visual defect only. The entire Stage 2 acceptance checklist is not yet verified in this session; rent/tenancy, interior routing, the garage/horn exit, respawn, two-account visibility and full Android regression checks remain to be recorded. Stage 3 was explicitly approved and is already active, so keep these remaining items as housing closeout/regression checks rather than retroactively undoing that approval.
 
 ## Implemented in the current source
 
-- Places → Homes uses a server-authoritative catalogue of 33 rentable homes with rental prices, district, vacancy/occupancy and rent actions. The browser map also contains 33 residential exterior slots. The current catalogue-count regression test checks all 33 IDs; physical entrance/collision alignment, rent flows, garage routing and device visibility remain separate acceptance checks.
+- Places → Homes now uses a server-authoritative catalogue of 35 rentable homes across seven house classes, with prices, districts, vacancy/occupancy and rent actions. The browser map includes all 35 residential exterior slots. The catalogue regression test checks all 35 IDs; physical entrance/collision alignment, rent flows, garage routing and device visibility remain separate acceptance checks.
 - Server-authoritative renting/extension uses player cash, limits players to one rented home, blocks occupied homes, caps prepaid rent at seven days and persists home/life state.
 - Rent is settled against the Nigeria-time day. Online life updates and offline settlement at reconnect are implemented; eviction releases a home.
-- The client creates separate class-specific home exteriors for hut, face-me-I-face-you compound, two-storey flat, estate house, mansion and palace rather than reusing a generic cube.
+- The client creates distinct class-specific exteriors for Village Hut, Compound Rooms (face-me-I-face-you), Urban Flat, Estate Duplex, Grand Villa, Royal Palace and the new modern Grand Building; the Grand Building has a glass-and-steel facade, garage, private pool, roof terrace and solar details.
 - Street rendering has textured asphalt/sidewalk surfaces, lane markings, curbs, crosswalks and streetlights. The client seeds the residential visual catalogue in small asynchronous batches; server housing snapshots synchronize authoritative tenancy/rent data and entrance points.
-- The rented-home interior is a walkable 3D room with furniture and an EXIT interaction.
+- Rented-home interiors have walkable, class-specific room arrangements, furnishings, WC/shower/vanity fixtures and an EXIT interaction. Estate Duplexes and Royal Palaces have two navigable levels; Grand Buildings have three levels with upstairs suite areas, cinema/office, gym and roof-lounge details.
 - EXIT opens a choice menu: return to the street on foot, or enter the private car park.
 - The private car park has marked bays and an exit lane. Car spawning is now registered by the server and remains limited to vehicles owned by the account.
 - While a car is in the private garage, the browser streams bounded position samples. The server derives speed from accepted samples and rejects exit requests unless the registered car is recently tracked at the marked gate, stopped, owned by the account and accompanied by a held-horn request. This improves route validation; it is not a substitute for full server-authoritative vehicle physics.
-- The six rental classes now have different interior dimensions and furnishing plans, including a compact hut, a shared-compound room, an apartment lounge, family-house dining space and larger luxury suites. Modern exterior details include rooftop water storage, solar panels and air-conditioning units where appropriate.
+- All seven house classes have different interior dimensions and room/furnishing plans. Three apartment tiers are selected from the building's floor count, and their daily room prices are calculated on the server: Standard (2–4 floors, ₦1,500/room/day), Serviced (5–7 floors, ₦3,500/room/day) and Luxury Tower (8–10 floors, ₦7,500/room/day). Modern homes and apartments have tier-appropriate visual details.
 - Route-error events fade out a transition overlay if the server rejects a route request. Driving camera work freezes camera rotation/touch-look and zoom while the vehicle moves, allows camera adjustment at rest, and uses a more responsive steering curve.
 - Vehicle ownership is separate from rent, so losing a home must not delete the player's owned cars.
-- Test file covers the rent table, 33-home catalogue, parking-state normalization and rent-day settlement. Residential road/lot placement assertions have also been added.
+- Test file covers all seven house prices, the 35-home catalogue, the two new Grand Building plots, apartment pricing tiers and floor-boundary handling, parking-state normalization and rent-day settlement. Residential road/lot placement assertions have also been added.
 
 ## Rental price table
 
 | Home class | Rent per day |
 |---|---:|
-| Local Hut | ₦1,000 |
-| Face-Me-I-Face-You | ₦2,500 |
-| Flat | ₦4,000 |
-| Estate House | ₦7,500 |
-| Mansion | ₦10,000 |
-| Palace | ₦20,000 |
+| Village Hut | ₦1,000 |
+| Compound Rooms | ₦2,500 |
+| Urban Flat | ₦4,000 |
+| Estate Duplex | ₦7,500 |
+| Grand Villa | ₦10,000 |
+| Royal Palace | ₦20,000 |
+| Grand Building | ₦30,000 |
 
 Rent can be prepaid for up to seven days.
 
@@ -78,7 +79,7 @@ Both **Browser Client Build** and **Game Server CI** GitHub workflows must pass 
 - [ ] Drive to the gate, stop, honk and appear on the street in that car.
 - [ ] Confirm the view does not rotate or zoom while moving, but camera adjustment works at rest.
 - [ ] Confirm steering is responsive on touch and does not cause the camera to move.
-- [ ] Inspect the six home classes and road clearance on a real Android screen.
+- [ ] Inspect all seven home classes, apartment tiers and road clearance on a real Android screen.
 - [ ] Verify two-account visibility, rent expiry/eviction and reconnect behavior.
 - [ ] Both CI workflows pass and the user explicitly approves this stage.
 
@@ -87,7 +88,7 @@ Both **Browser Client Build** and **Game Server CI** GitHub workflows must pass 
 
 ## Follow-up: Face-Me visual layout and map navigation (2026-10-11)
 
-- The current authoritative `HOUSES` catalogue and Stage 2 regression test define 33 rentable properties. The former 30-versus-33 count discrepancy is resolved in the regression test; this does not verify every house's live entrance, collision, tenancy or garage routes.
+- The current authoritative `HOUSES` catalogue and Stage 2 regression test define 35 rentable properties across seven house classes. The former 30-versus-33 discrepancy was resolved, and the new 35-property count is covered by tests; this does not verify every house's live entrance, collision, tenancy or garage routes.
 - Keep client house plots, server house IDs/coordinates and collision/entrance positions aligned and verify them in live play. The home-count test no longer treats three Face-Me-I-Face-You visuals as client-only previews.
 - Added an **All Places** navigation tab that aggregates registered points of interest, workplaces/organizations, services, shops/stalls, fuel stations, districts and every home without duplicating the same home entry.
 - The Homes tab lists every server-provided home and explicitly labels it YOUR HOME, AVAILABLE or OCCUPIED; occupancy and rent actions remain server-authoritative.

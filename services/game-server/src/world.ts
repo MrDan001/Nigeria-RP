@@ -263,7 +263,7 @@ export function checkWorkTaskEligibility(args: {
 
 // ---------------------------------------------------------------- houses
 
-export type HouseClassId = "hut" | "faceme" | "flat" | "estate" | "mansion" | "palace";
+export type HouseClassId = "hut" | "faceme" | "flat" | "estate" | "mansion" | "palace" | "grand";
 
 export type HouseClass = {
   id: HouseClassId;
@@ -280,6 +280,7 @@ export const HOUSE_CLASSES: readonly HouseClass[] = [
   { id: "estate", name: "Estate Duplex", rentPerDay: 7500 },
   { id: "mansion", name: "Grand Villa", rentPerDay: 10000 },
   { id: "palace", name: "Royal Palace", rentPerDay: 20000 },
+  { id: "grand", name: "Grand Building", rentPerDay: 30000 },
 ];
 
 export type HouseDef = {
@@ -311,6 +312,7 @@ const HOUSE_PLAN: ReadonlyArray<{ cls: HouseClassId; zone: string; count: number
   { cls: "faceme", zone: "Rumuola", count: 6, tag: "rum" },
   { cls: "flat", zone: "D-Line", count: 3, tag: "dl" },
   { cls: "flat", zone: "Waterlines", count: 4, tag: "wl" },
+  { cls: "grand", zone: "Waterlines", count: 2, tag: "wl" },
   { cls: "estate", zone: "Trans Amadi", count: 4, tag: "ta" },
   { cls: "mansion", zone: "Old GRA", count: 3, tag: "gra" },
   { cls: "palace", zone: "Old GRA", count: 2, tag: "gra" },
@@ -329,6 +331,8 @@ const HOUSE_LAYOUT_OVERRIDES: Readonly<Record<string, { x: number; z: number }>>
   "mansion-gra-02": { x: -144, z: -228 },
   "mansion-gra-03": { x: -117, z: -228 },
   // Separate the Mile 1 hut and face-me rows so their walls/entrances do not overlap.
+  "grand-wl-01": { x: -210, z: 172 },
+  "grand-wl-02": { x: 210, z: 172 },
   "hut-m1-01": { x: -70, z: 87 },
   "hut-m1-02": { x: -56, z: 87 },
   "hut-m1-03": { x: -41, z: 87 },
@@ -686,6 +690,24 @@ export function canManageAdminRoles(role: AdminRole): boolean {
 }
 
 export const APARTMENT_RENT_PER_DAY = 1500;
+
+export const APARTMENT_RENT_TIERS = [
+  { id: "standard", name: "Standard Apartment Block", minFloors: 2, maxFloors: 4, rentPerDay: 1500 },
+  { id: "serviced", name: "Serviced Apartment Building", minFloors: 5, maxFloors: 7, rentPerDay: 3500 },
+  { id: "luxury", name: "Luxury Apartment Tower", minFloors: 8, maxFloors: 10, rentPerDay: 7500 },
+] as const;
+
+export type ApartmentTier = (typeof APARTMENT_RENT_TIERS)[number];
+
+export function apartmentRentTierForFloors(floors: number): ApartmentTier {
+  const normalizedFloors = Number.isFinite(floors)
+    ? Math.max(2, Math.min(10, Math.floor(floors)))
+    : 2;
+  return APARTMENT_RENT_TIERS.find((tier) =>
+    normalizedFloors >= tier.minFloors && normalizedFloors <= tier.maxFloors
+  ) ?? APARTMENT_RENT_TIERS[0];
+}
+
 export const MAX_APARTMENT_PREPAID_DAYS = 7;
 
 export type ApartmentRoomLease = {
