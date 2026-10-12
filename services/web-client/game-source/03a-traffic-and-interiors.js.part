@@ -869,6 +869,15 @@ function openApartmentRoomSettings(){
 }
 
 refreshApartmentPOIs();
+const HOME_PLAN_DETAILS={
+ hut:{layout:"One main room, sleeping corner, cooking nook, washroom/WC and front veranda.",amenities:"Traditional finish, practical storage and private compound."},
+ faceme:{layout:"Room bay with shared living/cooking space and a shared-use courtyard feel.",amenities:"Practical seating, shared utility space and low-cost compound living."},
+ flat:{layout:"One-bedroom self-contained flat with living/dining area, kitchenette, bathroom/WC and balcony-style window zone.",amenities:"Modern fittings, private kitchen, wardrobe and lounge."},
+ estate:{layout:"Three bedrooms across two floors, with guest room, lounge, dining, kitchen and an upstairs family area.",amenities:"Gated driveway, parking, laundry/utility space and two-level privacy."},
+ mansion:{layout:"Four-bedroom single-level villa with formal living, family lounge, dining room and fitted kitchen.",amenities:"Premium bedroom finishes, garden/patio, landscaped entry and pool-style outdoor area."},
+ palace:{layout:"Five bedrooms across two floors, with grand foyer, royal reception, formal dining and private service areas.",amenities:"Ceremonial hall, luxury suites, courtyard character, decorative lighting and premium finishes."},
+ grand:{layout:"Seven bedrooms over three levels, with double-height atrium, dining, home office, cinema and rooftop wellness lounge.",amenities:"Private pool, gym, rooftop terrace, lift, smart-security features and multi-car garage."}
+};
 function openHouseMenu(h){
  const N=window.NRS||{},houses=N.houses||[],latest=houses.find(q=>q.id===h?.id)||h;
  if(!latest)return;h=latest;
@@ -877,10 +886,11 @@ function openHouseMenu(h){
  const daysLeft=Math.max(1,7-(own?Number(life.rentDays||0):0));
  const days=Array.from({length:Math.min(7,daysLeft)},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+' day'+(i?'s':'')+'</option>').join('');
  const state=own?(locked?'LOCKED · OWNER ACCESS':'YOUR HOME · OPEN'):vacant?'VACANT · OPEN FOR VIEWING':locked?'LOCKED BY OWNER':'OCCUPIED · VISITORS ALLOWED';
+ const plan=HOME_PLAN_DETAILS[h.cls]||HOME_PLAN_DETAILS.flat;
  const gate=own?'<button data-house-lock="'+h.id+'" data-house-lock-to="'+(!locked)+'">'+(locked?'🔓 Unlock house':'🔒 Lock house')+'</button>':'';
  const visit=canVisit?'<button data-house-visit="'+h.id+'">🚪 Enter and inspect</button>':'<button disabled>🔒 House locked</button><p>Only the owner can unlock this house.</p>';
  const rent=vacant?'<p><label>Rent duration <select id="houseRentDays">'+days+'</select></label></p><button data-house-rent="'+h.id+'" '+(canRent?'':'disabled')+'>🏠 Rent this house</button>'+(canRent?'':'<p>You already rent another house or have reached the prepaid-rent limit.</p>'):'';
- panel('<div class="hm-head"><span class="hm-icon">⌂</span><div class="hm-title"><small>PROPERTY DETAILS</small><h2>'+(h.name||'House')+'</h2><p>'+String(h.zone||'Port Harcourt')+' · '+h.id+'</p></div><span class="hm-closehint">HOME</span></div><div class="hm-status '+(own?'is-owned':vacant?'is-vacant':'is-occupied')+'"><i></i>'+state+'</div><div class="hm-price"><div><small>DAILY RENT</small><strong>₦'+Number(h.rentPerDay||0).toLocaleString('en-NG')+'</strong></div><span>PER DAY</span></div><div class="hm-actions">'+visit+gate+rent+'</div>');
+ panel('<div class="hm-head"><span class="hm-icon">⌂</span><div class="hm-title"><small>PROPERTY DETAILS</small><h2>'+(h.name||'House')+'</h2><p>'+String(h.zone||'Port Harcourt')+' · '+h.id+'</p></div><span class="hm-closehint">HOME</span></div><div class="hm-status '+(own?'is-owned':vacant?'is-vacant':'is-occupied')+'"><i></i>'+state+'</div><div class="hm-price"><div><small>DAILY RENT</small><strong>₦'+Number(h.rentPerDay||0).toLocaleString('en-NG')+'</strong></div><span>PER DAY</span></div><p class="wm-note"><b>Floor plan:</b> '+plan.layout+'</p><p class="wm-note"><b>Amenities:</b> '+plan.amenities+'</p><div class="hm-actions">'+visit+gate+rent+'</div>');
  modal.classList.add('house-menu');
 }
 function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.pois:POI)){const d=Math.hypot(p.x-pos.x,p.z-pos.z);if(d<bd&&d<(p.r||9)){bd=d;b=p;}}
@@ -888,6 +898,7 @@ function poiAct(){let b=null,bd=3.4;if(!driving)for(const p of(inside?inside.poi
   if(b.t==='apartment-room')act2.textContent='Enter Room '+b.roomNumber;
   else if(b.t==='apartment-elevator')act2.textContent='Use Elevator';
   else if(b.t==='apartment-building-exit')act2.textContent='Exit to Street';
+  else if(b.t==='home-floor')act2.textContent=b.name;
   else if(b.apartmentBuildingPoi)act2.textContent='Enter '+b.apartmentBuilding.buildingName;
   else act2.textContent=b.k+' · '+b.name;
  }}}
@@ -904,7 +915,7 @@ function openWorkplaceReceptionMenu(workplaceId){
  panel('<div class="wm-head"><span>🏢</span><div><small>FRONT DESK · RECEPTION</small><h2>'+name+'</h2><p>Secretary / Reception</p></div></div><p>Welcome. Please tell the reception desk what you need.</p><p class="wm-note">'+guidance+'</p><div class="wm-buttons"><button data-reception-career="'+workplaceId+'">Workplace & staff services</button></div>');
  modal.classList.add('work-menu');modal.style.display='flex';
 }
-act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='forbes'){openForbesBoard();return;}if(p.t==='workplace'){window.NRS?.enterWorkplaceInterior(p.workplaceId);return;}if(p.t==='workplace-service'){openWorkplaceReceptionMenu(p.workplaceId);return;}if(p.t==='workplace-staff-room'){window.NRS?.enterStaffRoom(p.workplaceId);return;}if(p.t==='workplace-exit'){window.NRS?.exitWorkplaceInterior();return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.t==='apartment-elevator'){openApartmentElevatorMenu();return;}if(p.t==='apartment-room'){openApartmentRoomMenu(p);return;}if(p.t==='apartment-room-settings'){openApartmentRoomSettings();return;}if(p.t==='apartment-room-exit'){window.NRS?.exitApartmentRoom();return;}if(p.t==='apartment-building-exit'){window.NRS?.exitApartmentBuilding();return;}if(p.apartmentBuildingPoi){window.NRS?.enterApartmentBuilding(p.apartmentBuilding);return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
+act2.onclick=()=>{const p=curPoi;if(!p)return;if(p.t==='forbes'){openForbesBoard();return;}if(p.t==='workplace'){window.NRS?.enterWorkplaceInterior(p.workplaceId);return;}if(p.t==='workplace-service'){openWorkplaceReceptionMenu(p.workplaceId);return;}if(p.t==='workplace-staff-room'){window.NRS?.enterStaffRoom(p.workplaceId);return;}if(p.t==='workplace-exit'){window.NRS?.exitWorkplaceInterior();return;}if(p.t==='uniform'){window.NRS?.changeWorkUniform(p.workplaceId);return;}if(p.t==='staffroom-exit'){window.NRS?.exitStaffRoom();return;}if(p.t==='apartment-elevator'){openApartmentElevatorMenu();return;}if(p.t==='home-floor'){switchHomeFloor(p.floor);return;}if(p.t==='apartment-room'){openApartmentRoomMenu(p);return;}if(p.t==='apartment-room-settings'){openApartmentRoomSettings();return;}if(p.t==='apartment-room-exit'){window.NRS?.exitApartmentRoom();return;}if(p.t==='apartment-building-exit'){window.NRS?.exitApartmentBuilding();return;}if(p.apartmentBuildingPoi){window.NRS?.enterApartmentBuilding(p.apartmentBuilding);return;}if(p.housePoi){const h=(window.NRS?.houses||[]).find(q=>q.id===p.houseId)||p.house;if(h){openHouseMenu(h);return;}sys('House details are still loading. Please try again.');return;}if(p.k==='Enter')return enterRoom(p);if(p.k==='Exit')return leaveRoom();
  shopP=p;pMsg='';if(p.t==='job')jobUI();else if(p.t==='bank'||p.t==='atm')bankUI();else shopUI();};
 /* bank + ATM */
 function bankUI(){
