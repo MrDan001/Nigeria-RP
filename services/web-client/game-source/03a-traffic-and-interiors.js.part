@@ -387,7 +387,38 @@ function homeRoom(d){
   A(new THREE.BoxGeometry(bw,h,bd),wall,x,h/2,z);
   addCollider(x,z,bw/2,bd/2);
  };
+ const bathroom=(bx,bz,existingWalls=false,label='BATHROOM / WC')=>{
+  if(!existingWalls){
+   divider(bx-1.13,bz,.12,2.25);
+   divider(bx+1.13,bz,.12,2.25);
+   divider(bx,bz-1.13,2.25,.12);
+   divider(bx-.78,bz+1.13,.70,.12);
+   divider(bx+.78,bz+1.13,.70,.12);
+  }
+  // Shower tray and glass screen.
+  A(new THREE.BoxGeometry(.96,.10,.98),M(0xd7dce0),bx-.56,.12,bz-.55);
+  A(new THREE.BoxGeometry(.045,1.72,.98),glass,bx-1.04,.98,bz-.55);
+  A(new THREE.BoxGeometry(.96,1.72,.045),glass,bx-.56,.98,bz-1.04);
+  A(new THREE.BoxGeometry(.12,.12,.12),metal,bx-.83,1.82,bz-.93);
+  A(new THREE.CylinderGeometry(.045,.045,.44,8),metal,bx-.83,1.55,bz-.92);
+  // Toilet with cistern and seat.
+  A(new THREE.CylinderGeometry(.30,.34,.19,14),cream,bx+.52,.20,bz-.62);
+  A(new THREE.CylinderGeometry(.24,.30,.26,14),cream,bx+.52,.39,bz-.55);
+  A(new THREE.BoxGeometry(.46,.50,.16),cream,bx+.52,.62,bz-.92);
+  A(new THREE.BoxGeometry(.37,.055,.045),metal,bx+.52,.77,bz-.82);
+  // Vanity, wash basin, tap and mirror.
+  A(new THREE.BoxGeometry(.77,.72,.45),wood,bx+.52,.43,bz+.58);
+  A(new THREE.BoxGeometry(.83,.09,.49),trim,bx+.52,.83,bz+.58);
+  A(new THREE.BoxGeometry(.50,.045,.30),M(0xdde3e5),bx+.52,.89,bz+.58);
+  A(new THREE.CylinderGeometry(.035,.035,.20,8),metal,bx+.52,1.00,bz+.43);
+  A(new THREE.BoxGeometry(.68,.82,.055),glass,bx+.52,1.72,bz+1.02);
+  mini(label,ix+bx,2.0,iz+bz,1.45,cls==='grand'?'#174f54':'#6b5542');
+ };
  if(cls==='hut'){
+  bathroom(w*.34,-depth*.28,true,'WASHROOM / WC');
+ }else{
+  bathroom(-w*.34,depth*.28,false,cls==='faceme'?'SHARED BATH / WC':'BATHROOM / WC');
+ }
   divider(w*.24,-depth*.28,.13,depth*.43);
   divider(w*.34,-depth*.08,w*.22,.13);
   mini('WASHROOM / WC',ix+w*.34,1.95,iz-depth*.31,1.65,'#765338');
