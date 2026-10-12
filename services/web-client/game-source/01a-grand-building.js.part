@@ -48,7 +48,7 @@ HOUSE_BUILDERS.faceme = function(K) {
  B(w+.55,.12,1.35,S.zinc,0,Y+2.68,front+.82);
  [-4.6,-2.3,0,2.3,4.6].forEach(x=>C(.07,.08,2.55,m.trim,x,Y+1.28,front+1.48,8));
  // Courtyard floor, washing basins, buckets, line and practical service corner.
- B(w-.3,.09,2.65,S.concrete,0,Y+.04,.15);
+ B(w-.3,.09,2.65,m.concrete,0,Y+.04,.15);
  B(1.7,.64,.72,S.stoneDk,-3.65,Y+.37,-.25);
  B(1.8,.09,.8,S.stone,-3.65,Y+.73,-.25);
  C(.18,.15,.32,S.blue,-4.15,Y+.3,-.85,10);C(.18,.15,.32,S.red,-3.68,Y+.3,-.85,10);
