@@ -907,6 +907,8 @@
           isTenant: true, rooms: apartmentFloorRooms(buildingId, session.apartmentFloor, session.player.id, session.apartmentFloors),
           roomX: APARTMENT_INTERIOR_POSITION.x, roomZ: APARTMENT_INTERIOR_POSITION.z,
           x: session.player.x, z: session.player.z, rentPerDay: apartmentRentTierForFloors(session.apartmentFloors).rentPerDay,
+          tierId: apartmentRentTierForFloors(session.apartmentFloors).id,
+          tierName: apartmentRentTierForFloors(session.apartmentFloors).name,
           message: lease.locked
             ? "Apartment Room " + roomNumber + " is now locked. Visitors cannot enter."
             : "Apartment Room " + roomNumber + " is now unlocked. Visitors may enter and view it.",
