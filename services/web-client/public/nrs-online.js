@@ -257,6 +257,25 @@
 
   const status = (message) => { $("nrsStatus").textContent = message || ""; };
   let registerMode = false;
+  let authRequestTimer = null;
+
+  function clearAuthRequestTimer() {
+    if (authRequestTimer !== null) {
+      window.clearTimeout(authRequestTimer);
+      authRequestTimer = null;
+    }
+  }
+
+  function armAuthRequestTimer() {
+    clearAuthRequestTimer();
+    authRequestTimer = window.setTimeout(() => {
+      authRequestTimer = null;
+      if (S.authed || S.accountReady) return;
+      $("nrsSubmit").disabled = false;
+      $("nrsError").textContent = "The game server did not finish your login request. Check your connection and try again.";
+      status("No reply from the game server. Please try again.");
+    }, 14000);
+  }
 
   function setMode(isRegister) {
     registerMode = isRegister;
@@ -437,7 +456,13 @@
 
 
   function send(message) {
-    if (S.ws?.readyState === WebSocket.OPEN) S.ws.send(JSON.stringify(message));
+    if (S.ws?.readyState !== WebSocket.OPEN) return false;
+    try {
+      S.ws.send(JSON.stringify(message));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function online(count) {
@@ -715,6 +740,9 @@
     socket.onmessage = (event) => {
       let message;
       try { message = JSON.parse(event.data); } catch { return; }
+      if (message.type === "authOk" || message.type === "authCharacters" || message.type === "authError") {
+        clearAuthRequestTimer();
+      }
 
       // Betting replies arrive through the authenticated game-server socket.
       // Keep the shared HUD balance in sync and publish them to the betting app.
@@ -1140,6 +1168,7 @@
     };
 
     socket.onclose = () => {
+      clearAuthRequestTimer();
       S.resume = S.authed; // was a real session live when the link dropped?
       S.open = false;
       S.authed = false;
@@ -1197,14 +1226,21 @@
     $("nrsSubmit").disabled = true;
     try { localStorage.setItem(EMAIL_KEY, email); } catch {}
     status(registerMode ? "Creating your account…" : "Logging you in…");
+    armAuthRequestTimer();
 
-    send({
+    const sent = send({
       type: registerMode ? "authRegister" : "authLogin",
       email,
       ...(registerMode ? { username } : {}),
       password,
       characterSelection: true
     });
+    if (!sent) {
+      clearAuthRequestTimer();
+      $("nrsSubmit").disabled = false;
+      status("The connection was interrupted. Reconnecting…");
+      connect();
+    }
   });
 
   function drain() {

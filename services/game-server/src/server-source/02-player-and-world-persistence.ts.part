@@ -407,7 +407,7 @@ async function placeStage18BettingTicket(session: Session, message: any): Promis
 
 async function initStore() {
   if (DATABASE_URL) {
-    pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
+    pool = new Pool({ connectionString: DATABASE_URL, max: 10, connectionTimeoutMillis: 5000, query_timeout: 10000 });
     await pool.query(
       "CREATE TABLE IF NOT EXISTS nrs_accounts (" +
       "id TEXT PRIMARY KEY," +
@@ -1083,6 +1083,7 @@ wss.on("connection", (socket) => {
 
   const authTimer = setTimeout(() => {
     if (!authenticated && !accountReady) {
+      console.warn("[auth] socket timed out before authentication completed");
       send(socket, {
         type: "authError",
         code: "AUTH_REQUIRED",
@@ -1094,7 +1095,9 @@ wss.on("connection", (socket) => {
 
   const sendCharacterSelection = async (owner: Account, token: string, message = "") => {
     const ownerId = String(owner.ownerId || owner.id);
+    console.info("[auth] loading saved characters");
     const characters = await listCharacters(ownerId);
+    console.info("[auth] saved characters loaded: " + characters.length);
     accountReady = true;
     accountOwnerId = ownerId;
     accountToken = token;
@@ -1265,8 +1268,10 @@ wss.on("connection", (socket) => {
           }
 
           if (message.type === "authLogin") {
+            console.info("[auth] login request received");
             const email = sanitizeEmail(message.email);
             const account = await findAccountByEmail(email.toLowerCase());
+            console.info("[auth] account lookup completed: " + (account ? "found" : "not found"));
 
             if (!account || !(await verifyPassword(
               String(message.password ?? ""),
@@ -1276,7 +1281,9 @@ wss.on("connection", (socket) => {
               throw new Error("INVALID_CREDENTIALS");
             }
 
+            console.info("[auth] credentials verified");
             const token = await createSession(account.id);
+            console.info("[auth] login session saved");
             if (message.characterSelection === true) {
               await sendCharacterSelection(account, token, "Account remembered on this device. Choose a character to continue.");
             } else {
@@ -1315,6 +1322,8 @@ wss.on("connection", (socket) => {
           });
         } catch (error) {
           const code = error instanceof Error ? error.message : "AUTH_FAILED";
+          clearTimeout(authTimer);
+          console.error("[auth] " + String(message?.type || "unknown") + " request failed: " + code.slice(0, 120));
           const messages: Record<string, string> = {
             EMAIL_INVALID: "Enter a valid email address.",
             EMAIL_TAKEN: "An account already exists with that email.",
