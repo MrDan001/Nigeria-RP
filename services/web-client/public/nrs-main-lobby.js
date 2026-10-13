@@ -8,95 +8,153 @@
   const style = document.createElement("style");
   style.id = "nrsMainLobbyStyles";
   style.textContent = `
-    #nrsAccount.nrs-character-screen {
-      background:
-        radial-gradient(circle at 12% 0%, rgba(31,101,158,.22), transparent 34%),
-        radial-gradient(circle at 90% 18%, rgba(17,70,113,.18), transparent 32%),
-        linear-gradient(145deg,#07121d 0%,#0a1724 48%,#06101a 100%) !important;
-      color:#f4f8fb;
-    }
+    #nrsAccount.nrs-character-screen { background:#16072a !important; overflow:hidden !important; }
     #nrsAccount.nrs-character-screen .nrs-character-header,
     #nrsAccount.nrs-character-screen .nrs-character-main { display:none !important; }
-    #nrsMainLobby {
-      position:fixed; inset:0; z-index:100001; display:flex; flex-direction:column;
-      overflow:hidden; box-sizing:border-box; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:#f4f8fb; background:
-        radial-gradient(circle at 12% 0%,rgba(35,118,182,.20),transparent 34%),
-        radial-gradient(circle at 90% 18%,rgba(21,78,120,.17),transparent 34%),
-        linear-gradient(145deg,#07121d,#0b1825 52%,#06101a);
-    }
-    #nrsMainLobby .ml-top {
-      flex:0 0 auto; display:flex; align-items:center; gap:14px; min-height:70px;
-      padding:12px clamp(16px,5vw,72px); box-sizing:border-box;
-      border-bottom:1px solid rgba(255,255,255,.08); background:rgba(4,12,20,.64);
-      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    }
-    #nrsMainLobby .ml-logo { width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:12px;background:linear-gradient(145deg,#2d9de4,#1267a5);font-size:25px;font-weight:950;box-shadow:0 7px 22px rgba(0,0,0,.22); }
-    #nrsMainLobby .ml-brand { min-width:0;flex:1; }
-    #nrsMainLobby .ml-brand strong { display:block;font-size:clamp(13px,1.4vw,19px);letter-spacing:.07em; }
-    #nrsMainLobby .ml-brand small { display:block;margin-top:4px;color:#8fa8b9;font-size:8px;letter-spacing:.13em; }
-    #nrsMainLobby .ml-actions { display:flex;align-items:center;gap:8px; }
-    #nrsMainLobby .ml-pill { border:1px solid rgba(112,190,238,.24);border-radius:999px;padding:8px 11px;background:rgba(27,102,151,.12);color:#9ee0ff;font-size:10px;font-weight:850;white-space:nowrap; }
-    #nrsMainLobby .ml-btn { min-height:34px;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:7px 10px;background:rgba(255,255,255,.05);color:#dce9f2;font-size:9px;font-weight:850;letter-spacing:.05em;cursor:pointer; }
-    #nrsMainLobby .ml-content { width:min(1060px,92vw);margin:0 auto;flex:1;min-height:0;overflow:auto;box-sizing:border-box;padding:clamp(24px,5vh,52px) 0 30px;scrollbar-width:thin; }
-    #nrsMainLobby .ml-kicker { margin:0 0 8px;color:#63b8e9;font-size:10px;font-weight:900;letter-spacing:.18em; }
-    #nrsMainLobby h1 { margin:0;color:#fff;font-size:clamp(28px,4vw,46px);line-height:1.02;letter-spacing:-.035em; }
-    #nrsMainLobby .ml-intro { max-width:650px;margin:10px 0 0;color:#9eb2c1;font-size:12px;line-height:1.5; }
-    #nrsMainLobby .ml-account { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:25px 0 11px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.035); }
-    #nrsMainLobby .ml-account span { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#91a8b8;font-size:10px; }
-    #nrsMainLobby .ml-account strong { color:#8fe0b9;font-size:10px;white-space:nowrap; }
-    #nrsMainLobby .ml-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
-    #nrsMainLobby .ml-card { min-width:0;display:grid;grid-template-columns:110px minmax(0,1fr);gap:13px;padding:10px;border:1px solid rgba(116,190,229,.14);border-radius:13px;background:linear-gradient(145deg,rgba(17,39,55,.94),rgba(8,25,38,.94));box-shadow:0 13px 35px rgba(0,0,0,.18); }
-    #nrsMainLobby .ml-avatar { width:110px;height:145px;overflow:hidden;border-radius:9px;background:linear-gradient(150deg,#283f62,#121d34);display:grid;place-items:end center; }
-    #nrsMainLobby .ml-avatar svg { width:100%;height:100%;display:block; }
-    #nrsMainLobby .ml-info { min-width:0;display:flex;flex-direction:column;justify-content:center; }
-    #nrsMainLobby .ml-slot { color:#6f9bb3;font-size:8px;font-weight:900;letter-spacing:.12em; }
-    #nrsMainLobby .ml-name { margin-top:5px;color:#fff;font-size:17px;font-weight:850;overflow-wrap:anywhere; }
-    #nrsMainLobby .ml-city { margin-top:3px;color:#91a8b8;font-size:9px;text-transform:uppercase;letter-spacing:.04em; }
-    #nrsMainLobby .ml-level { margin-top:8px;color:#e7c65b;font-size:9px;font-weight:900; }
-    #nrsMainLobby .ml-money { display:flex;flex-wrap:wrap;gap:5px;margin-top:8px; }
-    #nrsMainLobby .ml-money span { padding:5px 6px;border:1px solid rgba(255,255,255,.08);border-radius:6px;background:rgba(0,0,0,.16);color:#91a8b8;font-size:8px;font-weight:700; }
-    #nrsMainLobby .ml-money b { color:#eaf4fa; }
-    #nrsMainLobby .ml-play { width:100%;min-height:35px;margin-top:10px;border:1px solid rgba(103,193,239,.45);border-radius:8px;background:linear-gradient(180deg,#1679b4,#0d5885);color:#fff;font-size:9px;font-weight:950;letter-spacing:.08em;cursor:pointer;touch-action:manipulation; }
-    #nrsMainLobby .ml-play:disabled { opacity:.55;cursor:wait; }
-    #nrsMainLobby .ml-play:active { transform:scale(.985); }
-    #nrsMainLobby .ml-empty { min-height:145px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:16px;border:1px dashed rgba(116,190,229,.22);border-radius:13px;background:rgba(10,29,44,.45); }
-    #nrsMainLobby .ml-empty .slot { color:#6f9bb3;font-size:8px;font-weight:900;letter-spacing:.12em; }
-    #nrsMainLobby .ml-empty strong { margin-top:7px;font-size:14px; }
-    #nrsMainLobby .ml-empty p { margin:5px 0 10px;color:#8298a8;font-size:9px;line-height:1.4; }
-    #nrsMainLobby .ml-create { min-height:33px;border:1px solid rgba(230,201,92,.45);border-radius:8px;background:rgba(230,201,92,.08);color:#e8ca62;font-size:9px;font-weight:900;cursor:pointer; }
-    #nrsMainLobby .ml-foot { margin-top:18px;color:#657d8d;font-size:9px;text-align:center; }
-    @media (max-width:700px) {
-      #nrsMainLobby .ml-top { min-height:62px;padding:9px 12px; }
-      #nrsMainLobby .ml-logo { width:36px;height:36px;flex-basis:36px;font-size:21px;border-radius:10px; }
-      #nrsMainLobby .ml-brand strong { font-size:12px; }
-      #nrsMainLobby .ml-brand small { font-size:7px; }
-      #nrsMainLobby .ml-pill { padding:7px 8px;font-size:8px; }
-      #nrsMainLobby .ml-btn { font-size:8px;padding:7px 8px; }
-      #nrsMainLobby .ml-content { width:92vw;padding-top:23px; }
-      #nrsMainLobby h1 { font-size:31px; }
-      #nrsMainLobby .ml-grid { grid-template-columns:1fr;gap:9px; }
-      #nrsMainLobby .ml-card { grid-template-columns:86px minmax(0,1fr);padding:8px;gap:10px; }
-      #nrsMainLobby .ml-avatar { width:86px;height:126px; }
-      #nrsMainLobby .ml-name { font-size:15px; }
+    #nrsMainLobby { position:fixed; inset:0; z-index:100001; display:flex; flex-direction:column; overflow:hidden; color:#f7f2ff; font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:linear-gradient(90deg,rgba(35,7,57,.94),rgba(31,8,52,.72)),radial-gradient(circle at 82% 56%,rgba(126,67,156,.25),transparent 45%),radial-gradient(circle at 12% 22%,rgba(101,35,140,.30),transparent 42%),#16072a; isolation:isolate; }
+    #nrsMainLobby::before { content:""; position:absolute; inset:76px 0 0; z-index:-2; background:linear-gradient(rgba(35,8,57,.62),rgba(31,8,52,.84)),url("/nrs-city-bg.svg"); background-size:cover; background-position:center; filter:blur(5px) saturate(.85); opacity:.7; transform:scale(1.035); }
+    #nrsMainLobby::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(circle at 50% 45%,transparent 0 34%,rgba(13,3,25,.22) 74%,rgba(9,2,18,.48) 100%); }
+    #nrsMainLobby .sl-top { min-height:76px; flex:0 0 auto; display:flex; align-items:center; gap:28px; padding:0 clamp(22px,4vw,64px); box-sizing:border-box; background:rgba(16,4,30,.78); border-bottom:1px solid rgba(255,255,255,.035); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+    #nrsMainLobby .sl-back { width:42px;height:42px;flex:0 0 42px;border:1px solid rgba(255,255,255,.7);border-radius:50%;background:rgba(255,255,255,.02);color:#fff;display:grid;place-items:center;font-size:27px;line-height:1;cursor:pointer;touch-action:manipulation; }
+    #nrsMainLobby .sl-title { font-size:clamp(28px,3vw,40px);line-height:1;font-weight:800;letter-spacing:-.025em; }
+    #nrsMainLobby .sl-spacer { flex:1; }
+    #nrsMainLobby .sl-rule { border:0;border-bottom:2px solid #e2b93e;padding:4px 0 3px;background:transparent;color:#e8c348;font-size:clamp(13px,1.5vw,21px);font-weight:700;cursor:pointer;white-space:nowrap; }
+    #nrsMainLobby .sl-stat,#nrsMainLobby .sl-icon { color:#f5effb;white-space:nowrap;font-size:clamp(18px,2vw,27px); }
+    #nrsMainLobby .sl-stat .plus { color:#c05eff;font-weight:900;margin-right:5px; }
+    #nrsMainLobby .sl-stat .gold { color:#e3bd43;margin-left:4px; }
+    #nrsMainLobby .sl-icon { opacity:.82;font-size:28px; }
+    #nrsMainLobby .sl-body { width:min(1335px,calc(100vw - 120px));margin:0 auto;flex:1;min-height:0;overflow:auto;padding:38px 0 34px;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(221,186,244,.35) transparent; }
+    #nrsMainLobby .sl-section-head { display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 18px; }
+    #nrsMainLobby .sl-section-title { margin:0;color:#fff;font-size:clamp(20px,2vw,29px);font-weight:450;letter-spacing:-.02em; }
+    #nrsMainLobby .sl-with-label { margin:0 0 18px;color:#ddd2e8;font-size:clamp(17px,1.65vw,24px);font-weight:500;letter-spacing:.01em; }
+    #nrsMainLobby .sl-sort { color:#cfc4da;font-size:clamp(14px,1.45vw,20px);white-space:nowrap; }
+    #nrsMainLobby .sl-sort strong { font-weight:500; }
+    #nrsMainLobby .sl-chevron { display:inline-grid;place-items:center;width:28px;height:28px;margin-left:8px;border:1px solid rgba(255,255,255,.42);border-radius:50%;color:#d7cae0;font-size:17px; }
+    #nrsMainLobby .sl-server-row,#nrsMainLobby .sl-all-row { display:flex;gap:12px;overflow-x:auto;padding:1px 0 12px;scrollbar-width:none; }
+    #nrsMainLobby .sl-server-row::-webkit-scrollbar,#nrsMainLobby .sl-all-row::-webkit-scrollbar { display:none; }
+    #nrsMainLobby .sl-server { flex:0 0 min(450px,38vw);min-width:330px;padding:11px 12px 12px;box-sizing:border-box;border:1px solid rgba(167,92,210,.15);border-radius:6px;background:linear-gradient(135deg,rgba(90,32,123,.58),rgba(64,25,94,.48));box-shadow:0 12px 28px rgba(10,1,19,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px); }
+    #nrsMainLobby .sl-server-head { display:flex;align-items:center;gap:8px;min-height:28px;color:#efe8f5; }
+    #nrsMainLobby .sl-server-id { font-size:21px;letter-spacing:.02em; }
+    #nrsMainLobby .sl-lang { padding:2px 5px;border:1px solid rgba(255,255,255,.8);border-radius:4px;font-size:12px;line-height:1;font-weight:700; }
+    #nrsMainLobby .sl-online { margin-left:auto;font-size:20px;color:#d9d2df; }
+    #nrsMainLobby .sl-online-dot { display:inline-block;width:13px;height:13px;margin-right:6px;border-radius:50%;background:#62f000;box-shadow:0 0 0 4px rgba(98,240,0,.14);vertical-align:1px; }
+    #nrsMainLobby .sl-online-number { color:#74ff21; }
+    #nrsMainLobby .sl-server-slots { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;margin-top:7px; }
+    #nrsMainLobby .sl-char { position:relative;min-width:0;height:170px;overflow:hidden;border:0;border-radius:2px;background:linear-gradient(145deg,rgba(112,63,154,.48),rgba(57,25,88,.45));color:#f2e8f7;cursor:pointer;padding:0;text-align:left;touch-action:manipulation;transition:transform .15s ease,filter .15s ease,outline-color .15s ease;outline:2px solid transparent;outline-offset:-2px; }
+    #nrsMainLobby .sl-char:hover { filter:brightness(1.12); }
+    #nrsMainLobby .sl-char:active { transform:scale(.985); }
+    #nrsMainLobby .sl-char:focus-visible { outline-color:#f0cb4f; }
+    #nrsMainLobby .sl-char svg { width:100%;height:100%;display:block; }
+    #nrsMainLobby .sl-char-name { position:absolute;left:10px;right:5px;bottom:7px;color:#eee6f3;font-size:14px;font-weight:500;text-shadow:0 2px 7px rgba(0,0,0,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    #nrsMainLobby .sl-char-level { position:absolute;left:8px;top:7px;padding:2px 5px;border-radius:4px;background:rgba(23,8,36,.62);color:#efd56d;font-size:9px;font-weight:800; }
+    #nrsMainLobby .sl-empty-char { display:grid;place-items:center; }
+    #nrsMainLobby .sl-empty-char::before { content:"";width:62px;height:82px;border-radius:45% 45% 38% 38%;background:rgba(202,190,213,.18);box-shadow:0 -8px 0 10px rgba(202,190,213,.08); }
+    #nrsMainLobby .sl-empty-char span { position:absolute;bottom:7px;left:9px;color:#bdaec9;font-size:12px; }
+    #nrsMainLobby .sl-all { margin-top:47px; }
+    #nrsMainLobby .sl-all-server { flex:0 0 min(450px,38vw);min-width:330px;height:52px;padding:0 13px;box-sizing:border-box;display:flex;align-items:center;gap:10px;border-radius:5px;border:1px solid rgba(167,92,210,.13);background:rgba(88,31,121,.38); }
+    #nrsMainLobby .sl-all-server .sl-online { font-size:17px; }
+    #nrsMainLobby .sl-all-server .sl-online-dot { width:11px;height:11px; }
+    #nrsMainLobby .sl-all-server .sl-server-id { font-size:19px; }
+    #nrsMainLobby .sl-hint { margin-top:18px;color:rgba(224,211,235,.68);font-size:11px;text-align:center; }
+    @media (max-width:800px) {
+      #nrsMainLobby .sl-top { min-height:64px;padding:0 13px;gap:10px; }
+      #nrsMainLobby .sl-back { width:37px;height:37px;flex-basis:37px;font-size:24px; }
+      #nrsMainLobby .sl-title { font-size:27px; }
+      #nrsMainLobby .sl-rule { font-size:11px; }
+      #nrsMainLobby .sl-stat { display:none; }
+      #nrsMainLobby .sl-icon { font-size:22px; }
+      #nrsMainLobby .sl-body { width:calc(100vw - 24px);padding:25px 0 24px; }
+      #nrsMainLobby .sl-section-head { margin-bottom:14px; }
+      #nrsMainLobby .sl-section-title { font-size:21px; }
+      #nrsMainLobby .sl-with-label { font-size:17px;margin-bottom:13px; }
+      #nrsMainLobby .sl-sort { font-size:12px; }
+      #nrsMainLobby .sl-chevron { width:24px;height:24px;font-size:14px; }
+      #nrsMainLobby .sl-server { flex-basis:calc(100vw - 24px);min-width:0; }
+      #nrsMainLobby .sl-char { height:170px; }
+      #nrsMainLobby .sl-char-name { font-size:12px; }
+      #nrsMainLobby .sl-all { margin-top:30px; }
+      #nrsMainLobby .sl-all-server { flex-basis:calc(100vw - 24px);min-width:0; }
     }
   `;
   document.head.appendChild(style);
 
-  let lobby = document.getElementById("nrsMainLobby");
+  let lobby = null;
   let lastSignature = "";
   let syncing = false;
 
-  function money(value) {
-    return new Intl.NumberFormat("en-NG").format(Math.max(0, Number(value) || 0));
+  const byId = id => document.getElementById(id);
+  const onlineCount = () => {
+    const n = Number(byId("online-count")?.textContent || 0);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  const oldCards = () => [...view.querySelectorAll(".characterList .characterCard")];
+  const oldEmptySlots = () => [...view.querySelectorAll(".characterList .nrs-empty-slot")];
+  const safeText = (value, fallback) => String(value ?? "").trim() || fallback;
+
+  function createCharButton(oldCard, character, index) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sl-char";
+    button.setAttribute("aria-label", `Play as ${safeText(character.name, "character")}`);
+    const avatar = oldCard?.querySelector(".nrs-avatar-panel");
+    if (avatar) button.innerHTML = avatar.innerHTML;
+    const level = document.createElement("span");
+    level.className = "sl-char-level";
+    level.textContent = `LV ${Math.max(1, Number(character.level) || 1)}`;
+    const name = document.createElement("span");
+    name.className = "sl-char-name";
+    name.textContent = safeText(character.name, `Character ${index + 1}`);
+    button.append(level, name);
+    const oldButton = oldCard?.querySelector(".continueButton");
+    button.disabled = !oldButton || oldButton.disabled;
+    button.addEventListener("click", () => { if (oldButton && !oldButton.disabled) oldButton.click(); });
+    return button;
   }
 
-  function oldCards() {
-    return [...view.querySelectorAll(".characterList .characterCard")];
+  function emptyCharacterButton(oldEmpty, index) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sl-char sl-empty-char";
+    button.setAttribute("aria-label", `Create character slot ${index + 1}`);
+    const label = document.createElement("span");
+    label.textContent = `+ CREATE SLOT ${index + 1}`;
+    button.appendChild(label);
+    const oldAdd = oldEmpty?.querySelector(".nrs-empty-action");
+    if (oldAdd) button.addEventListener("click", () => oldAdd.click());
+    return button;
   }
 
-  function oldEmptySlots() {
-    return [...view.querySelectorAll(".characterList .nrs-empty-slot")];
+  function serverHeader() {
+    const header = document.createElement("div");
+    header.className = "sl-server-head";
+    header.innerHTML = `<span class="sl-server-id"># 001</span><span class="sl-lang">EN</span><span class="sl-online"><i class="sl-online-dot"></i><b class="sl-online-number">${onlineCount()}</b>/1000</span>`;
+    return header;
+  }
+
+  function makeServer(chars, cards, empties) {
+    const server = document.createElement("article");
+    server.className = "sl-server";
+    server.appendChild(serverHeader());
+    const slots = document.createElement("div");
+    slots.className = "sl-server-slots";
+    for (let i = 0; i < 3; i++) {
+      if (chars[i] && cards[i]) slots.appendChild(createCharButton(cards[i], chars[i], i));
+      else if (!chars[i] && empties[i - chars.length]) slots.appendChild(emptyCharacterButton(empties[i - chars.length], i));
+      else {
+        const blank = document.createElement("div");
+        blank.className = "sl-char sl-empty-char";
+        const label = document.createElement("span"); label.textContent = "EMPTY"; blank.appendChild(label); slots.appendChild(blank);
+      }
+    }
+    server.appendChild(slots);
+    return server;
+  }
+
+  function makeAllServer() {
+    const row = document.createElement("article");
+    row.className = "sl-all-server";
+    row.innerHTML = `<span class="sl-server-id"># 001</span><span class="sl-lang">EN</span><span class="sl-online"><i class="sl-online-dot"></i><b class="sl-online-number">${onlineCount()}</b>/1000</span>`;
+    return row;
   }
 
   function makeLobby() {
@@ -109,90 +167,39 @@
 
   function render() {
     if (!root.classList.contains("nrs-character-screen") || view.hidden || !window.NRS?.session?.accountReady) return;
+    const chars = Array.isArray(window.NRS.session.characters) ? window.NRS.session.characters : [];
     const cards = oldCards();
     const empties = oldEmptySlots();
     if (!cards.length && !empties.length) return;
-
-    const chars = window.NRS.session.characters || [];
-    const email = byId("nrsCharacterEmail")?.textContent || "Your saved account";
-    const signature = JSON.stringify(chars.map((c) => [c.id,c.name,c.level,c.cash,c.bank,c.cityId])) + "|" + cards.length + "|" + empties.length;
+    const signature = JSON.stringify(chars.map(c => [c.id,c.name,c.level,c.cash,c.bank,c.cityId])) + `|${cards.length}|${empties.length}|${onlineCount()}`;
     if (signature === lastSignature && lobby) return;
     lastSignature = signature;
 
     const l = makeLobby();
-    const count = chars.length + " / 3 CHARACTERS";
-    l.innerHTML = `
-      <header class="ml-top">
-        <div class="ml-logo">N</div>
-        <div class="ml-brand"><strong>NIGERIA ROLEPLAY</strong><small>PORT HARCOURT · ONLINE WORLD · MAIN LOBBY</small></div>
-        <div class="ml-actions"><span class="ml-pill">${count}</span><button class="ml-btn" id="mlRules" type="button">RULES</button><button class="ml-btn" id="mlSwitch" type="button">SWITCH</button></div>
-      </header>
-      <main class="ml-content">
-        <p class="ml-kicker">CITIZEN LOBBY</p>
-        <h1>Choose your character</h1>
-        <p class="ml-intro">Select the citizen you want to play. Your money, home, job and progress stay with that character.</p>
-        <div class="ml-account"><span>${email.replace(/[<>]/g,"")}</span><strong>${chars.length} SAVED</strong></div>
-        <div class="ml-grid" id="mlGrid"></div>
-        <div class="ml-foot">Choose a character to enter Nigeria RP.</div>
-      </main>`;
+    l.innerHTML = "";
+    const top = document.createElement("header");
+    top.className = "sl-top";
+    top.innerHTML = `<button class="sl-back" id="slBack" type="button" aria-label="Back">←</button><strong class="sl-title">SERVER</strong><span class="sl-spacer"></span><button class="sl-rule" id="slRules" type="button">SERVER RULES</button><span class="sl-stat"><span class="plus">✚</span>16 <span class="gold">Ⓖ</span></span><span class="sl-icon" aria-hidden="true">◉</span>`;
+    l.appendChild(top);
 
-    const grid = l.querySelector("#mlGrid");
-    cards.forEach((oldCard, index) => {
-      const character = chars[index] || {};
-      const card = document.createElement("article");
-      card.className = "ml-card";
-      const avatar = document.createElement("div");
-      avatar.className = "ml-avatar";
-      const oldAvatar = oldCard.querySelector(".nrs-avatar-panel");
-      if (oldAvatar) avatar.innerHTML = oldAvatar.innerHTML;
-      const info = document.createElement("div");
-      info.className = "ml-info";
-      const city = oldCard.querySelector(".characterHeading small")?.textContent || String(character.cityId || "PORT HARCOURT").replace(/-/g," ");
-      const level = Math.max(1, Number(character.level) || 1);
-      info.innerHTML = `
-        <span class="ml-slot">CHARACTER SLOT 0${index + 1}</span>
-        <strong class="ml-name"></strong>
-        <span class="ml-city"></span>
-        <span class="ml-level">LEVEL ${level}</span>
-        <div class="ml-money"><span>CASH <b>₦${money(character.cash)}</b></span><span>BANK <b>₦${money(character.bank)}</b></span></div>
-        <button class="ml-play" type="button">PLAY AS ${String(character.name || "CHARACTER").toUpperCase()}</button>`;
-      info.querySelector(".ml-name").textContent = character.name || "Unnamed citizen";
-      info.querySelector(".ml-city").textContent = city;
-      const play = info.querySelector(".ml-play");
-      const oldButton = oldCard.querySelector(".continueButton");
-      play.disabled = !oldButton || oldButton.disabled;
-      play.addEventListener("click", () => { if (oldButton && !oldButton.disabled) oldButton.click(); });
-      card.append(avatar, info);
-      grid.appendChild(card);
-    });
+    const body = document.createElement("main"); body.className = "sl-body";
+    const head = document.createElement("div"); head.className = "sl-section-head"; head.innerHTML = `<h1 class="sl-section-title">SELECT SERVER</h1>`; body.appendChild(head);
+    const withRow = document.createElement("div"); withRow.className = "sl-section-head"; withRow.innerHTML = `<div class="sl-with-label">WITH CHARACTER:</div><div class="sl-sort">Sort by: <strong>BY ONLINE</strong><span class="sl-chevron">⌄</span></div>`; body.appendChild(withRow);
+    const serverRow = document.createElement("div"); serverRow.className = "sl-server-row"; serverRow.appendChild(makeServer(chars,cards,empties)); body.appendChild(serverRow);
 
-    empties.forEach((oldEmpty, index) => {
-      const card = document.createElement("article");
-      card.className = "ml-empty";
-      card.innerHTML = `<span class="slot">CHARACTER SLOT 0${chars.length + index + 1}</span><strong>Empty character slot</strong><p>Create another citizen to begin a new life in Nigeria RP.</p>`;
-      const oldAdd = oldEmpty.querySelector(".nrs-empty-action");
-      if (oldAdd) {
-        const add = document.createElement("button");
-        add.className = "ml-create"; add.type = "button"; add.textContent = "+ CREATE CHARACTER";
-        add.addEventListener("click", () => oldAdd.click());
-        card.appendChild(add);
-      }
-      grid.appendChild(card);
-    });
+    const all = document.createElement("section"); all.className = "sl-all";
+    const allHead = document.createElement("div"); allHead.className = "sl-section-head"; allHead.innerHTML = `<h2 class="sl-with-label" style="margin:0">ALL:</h2><div class="sl-sort">Sort by: <strong>BY ONLINE</strong><span class="sl-chevron">⌄</span></div>`; all.appendChild(allHead);
+    const allRow = document.createElement("div"); allRow.className = "sl-all-row"; allRow.appendChild(makeAllServer()); all.appendChild(allRow); body.appendChild(all);
 
-    l.querySelector("#mlRules")?.addEventListener("click", () => view.querySelector(".nrs-rules-button")?.click());
-    l.querySelector("#mlSwitch")?.addEventListener("click", () => byId("nrsSwitchAccount")?.click());
+    const hint = document.createElement("p"); hint.className = "sl-hint"; hint.textContent = "Tap your character to enter Port Harcourt RP."; body.appendChild(hint);
+    l.appendChild(body);
+
+    l.querySelector("#slRules")?.addEventListener("click", () => view.querySelector(".nrs-rules-button")?.click());
+    l.querySelector("#slBack")?.addEventListener("click", () => view.querySelector(".nrs-lobby-back")?.click());
   }
 
-  function byId(id) { return document.getElementById(id); }
-
-  function sync() {
-    if (syncing) return;
-    syncing = true;
-    try { render(); } finally { syncing = false; }
-  }
-
-  const observer = new MutationObserver(() => sync());
+  function sync() { if (syncing) return; syncing = true; try { render(); } finally { syncing = false; } }
+  const observer = new MutationObserver(sync);
   observer.observe(view, { childList:true, subtree:true, attributes:true, attributeFilter:["hidden","disabled"] });
   window.setInterval(sync, 800);
   sync();
