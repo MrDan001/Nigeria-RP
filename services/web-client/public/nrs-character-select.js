@@ -880,10 +880,18 @@
 
     if (characterCount) {
       const used = cards.length;
-      count.textContent = used + " / 3 CHARACTERS";
-      characterCount.textContent = used + " / 3 characters";
+      setTextIfChanged(count, used + " / 3 CHARACTERS");
+      setTextIfChanged(characterCount, used + " / 3 characters");
     }
-    if (createButton) createButton.textContent = cards.length >= 3 ? "CHARACTER LIMIT REACHED (3/3)" : "+ CREATE CHARACTER";
+    if (createButton) setTextIfChanged(createButton, cards.length >= 3 ? "CHARACTER LIMIT REACHED (3/3)" : "+ CREATE CHARACTER");
+  }
+
+  // Writing textContent always replaces the child text node, which is a DOM mutation
+  // even when the text is identical. enhanceCards() runs from a MutationObserver that
+  // watches this same subtree, so unconditional writes re-triggered the observer
+  // forever and froze the whole page the moment the socket opened.
+  function setTextIfChanged(el, text) {
+    if (el && el.textContent !== text) el.textContent = text;
   }
 
   function updateOverlayState() {
@@ -895,9 +903,18 @@
   }
 
   back.addEventListener("focus", () => {});
+  let observerBusy = false;
   const observer = new MutationObserver(() => {
-    if (list) enhanceCards();
-    updateOverlayState();
+    if (observerBusy) return;
+    observerBusy = true;
+    try {
+      // Only touch the character list while the character screen is actually showing.
+      if (list && view && !view.hidden && !root.hidden) enhanceCards();
+      updateOverlayState();
+    } finally {
+      observer.takeRecords(); // discard mutations we just caused ourselves
+      observerBusy = false;
+    }
   });
   observer.observe(root, { attributes: true, attributeFilter: ["hidden", "class"], subtree: true, childList: true });
   if (view) observer.observe(view, { attributes: true, attributeFilter: ["hidden"] });
