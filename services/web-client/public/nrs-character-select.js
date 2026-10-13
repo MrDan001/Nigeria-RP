@@ -528,6 +528,44 @@
       letter-spacing: .06em;
       cursor: pointer;
     }
+    @media (max-height: 600px) and (orientation: landscape) {
+      /* Keep the sign-in form reachable on short Android landscape viewports.
+         Scroll the overlay itself rather than trapping the bottom fields in a clipped card. */
+      #nrsAccount:not(.nrs-character-screen) {
+        display: block;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 10px;
+        box-sizing: border-box;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+      }
+      #nrsAccount:not(.nrs-character-screen) #nrsLoginCard {
+        width: min(600px, 100%);
+        max-height: none;
+        overflow: visible;
+        margin: 0 auto;
+        padding: 14px 18px;
+      }
+      #nrsAccount:not(.nrs-character-screen) .brand .logo {
+        width: 36px;
+        height: 36px;
+        font-size: 21px;
+      }
+      #nrsAccount:not(.nrs-character-screen) .eyebrow { margin-top: 12px; }
+      #nrsAccount:not(.nrs-character-screen) h1 {
+        margin: 4px 0;
+        font-size: 22px;
+      }
+      #nrsAccount:not(.nrs-character-screen) .copy { font-size: 11px; }
+      #nrsAccount:not(.nrs-character-screen) .tabs { margin: 11px 0 10px; }
+      #nrsAccount:not(.nrs-character-screen) .tab { min-height: 36px; }
+      #nrsAccount:not(.nrs-character-screen) form { gap: 8px; }
+      #nrsAccount:not(.nrs-character-screen) .field { gap: 4px; }
+      #nrsAccount:not(.nrs-character-screen) input { height: 40px; }
+      #nrsAccount:not(.nrs-character-screen) .submit { min-height: 40px; }
+      #nrsAccount:not(.nrs-character-screen) .status { margin-top: 5px; }
+    }
     @media (max-width: 760px) {
       #nrsAccount.nrs-character-screen .nrs-character-header { padding: 10px 14px; gap: 10px; min-height: 66px; }
       #nrsAccount.nrs-character-screen .nrs-lobby-back { flex-basis: 36px; width: 36px; height: 36px; font-size: 24px; }
