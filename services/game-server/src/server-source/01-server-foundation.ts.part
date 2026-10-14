@@ -165,6 +165,8 @@ type Session = {
   player: PlayerState;
   input: { sequence: number; forward: number; strafe: number };
   lastMessageAt: number;
+  chatLastSentAt?: number;
+  chatLastAdAt?: number;
   lastInputAt: number;
   lastSyncAt: number;
   rejectedSyncs: number;
