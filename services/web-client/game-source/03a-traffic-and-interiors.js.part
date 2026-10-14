@@ -729,6 +729,13 @@ function bankUI(){
 }
 /* Job Center — routes are generated from Port Harcourt's residential catalogue and registered building entrances. */
 function deliveryText(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])).replace(/\s+/g,' ').trim().slice(0,120);}
+const COURIER_FIXED_POINTS=[
+ [-9.55,6],[-9.55,32],[-9.55,-52],[9.55,2],[9.55,28],[-20.55,-90],[20.55,-96],
+ [-79,106],[155,-126],[180,144],[215,144],
+ [-60,40],[-12,-20],[-30,20],[20,-52],[36,-8],[-28,-132],[30,100],[-50.5,-132],[185,-150],[16,54],
+ [-8.4,-1],[-8.4,32],[-8.4,-52],[8.4,-24],[8.4,2],[8.4,28],[-8.4,-20]
+];
+function isKnownCourierPoint(x,z){return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(Number(x)-px,Number(z)-pz)<=.85);}
 function deliveryLocations(){
  const locations=[],ids=new Set();
  const add=(id,name,x,z,kind='building')=>{
@@ -760,16 +767,19 @@ function deliveryLocations(){
   const rawName=String(p.name||'Port Harcourt building').replace(/^(?:Enter|Inspect)\s+/i,'').trim();
   if(p.apartmentBuildingPoi){
    const apt=p.apartmentBuilding||{};
+   if(!isKnownCourierPoint(p.x,p.z))continue;
    add('apartment:'+(apt.buildingId||apt.buildingName||rawName),apt.buildingName||rawName,p.x,p.z,'apartment');
   }else if(kind==='workplace'){
+   if(!isKnownCourierPoint(p.x,p.z))continue;
    add('workplace:'+(p.workplaceId||rawName),rawName,p.x,p.z,'workplace');
   }else{
+   if(!isKnownCourierPoint(p.x,p.z))continue;
    add('poi:'+kind+':'+(p.shopId||rawName),rawName,p.x,p.z,kind);
   }
  }
  // Catch registered city structures that do not have a separate interaction POI.
  (Array.isArray(bld)?bld:[]).forEach((b,index)=>{
-  if(!b)return;
+  if(!b||b.gen)return; // Procedurally seeded blocks need a server-shared world seed before paid routes can target them.
   const cx=Number(b.x),cz=Number(b.z);
   if(!Number.isFinite(cx)||!Number.isFinite(cz))return;
   const ex=Number.isFinite(Number(b.entryX))?Number(b.entryX):cx;
@@ -787,11 +797,13 @@ function buildDeliveryJobs(){
  if(targets.length<2)return [];
  const offset=Math.max(1,Math.floor(targets.length/2));
  return targets.map((destination,index)=>{
-  const pickup=targets[(index+offset)%targets.length];
-  const distance=Math.hypot(destination.x-pickup.x,destination.z-pickup.z);
+  let pickup=targets[(index+offset)%targets.length];
+  let distance=Math.hypot(destination.x-pickup.x,destination.z-pickup.z);
+  if(distance<8){for(let step=1;step<targets.length;step++){const candidate=targets[(index+offset+step)%targets.length],d=Math.hypot(destination.x-candidate.x,destination.z-candidate.z);if(d>=8&&d<=650){pickup=candidate;distance=d;break;}}}
+  if(distance<8||distance>650)return null;
   const pay=Math.max(4500,Math.min(20000,Math.round((4000+distance*35)/500)*500));
   return {id:pickup.id+'->'+destination.id,name:('Delivery: '+pickup.name+' to '+destination.name).slice(0,160),pickup,destination,pay,addressCount:targets.length};
- });
+ }).filter(Boolean);
 }
 function nrsDeliveryWaypoint(){
  if(!job)return null;
