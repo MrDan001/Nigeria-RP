@@ -22,3 +22,6 @@ Server source order:
 4. `04-lifecycle-sync-and-runtime.ts.part`
 
 These files are ordered source fragments, not independent modules. Their purpose is to keep committed source files manageable while preserving existing declarations, shared state, APIs, and startup behavior exactly. Build scripts assemble them automatically.
+
+
+Procedurally seeded apartment blocks are intentionally excluded from paid courier routes until their generated coordinates can be validated against a server-shared seed/catalogue. The courier server validates each pickup and destination, persists pickup state and refuses payout until the player reaches the assigned drop-off. The manual acceptance checklist remains open for real gameplay/device verification.
