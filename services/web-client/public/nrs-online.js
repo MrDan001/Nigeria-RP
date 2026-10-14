@@ -89,81 +89,67 @@
       color:#fff;touch-action:manipulation
     }
     #nrsAccount[hidden]{display:none}
-    #nrsAccount .card{
+    #nrsAccount #nrsLoginCard{
       width:min(420px,100%);max-height:calc(100vh - 36px);overflow:auto;
       box-sizing:border-box;padding:24px 22px 20px;
       border:1px solid rgba(255,255,255,.13);border-radius:22px;
       background:linear-gradient(180deg,#101b2a 0%,#08121f 100%);
       box-shadow:0 28px 90px rgba(0,0,0,.55)
     }
-    #nrsAccount .brand{display:flex;align-items:center;gap:11px}
-    #nrsAccount .logo{
+    #nrsAccount #nrsLoginCard .brand{display:flex;align-items:center;gap:11px}
+    #nrsAccount #nrsLoginCard .logo{
       width:45px;height:45px;border-radius:11px;background:#1e91f3;
       display:grid;place-items:center;font-weight:900;font-size:25px;flex:none
     }
-    #nrsAccount .brand strong{display:block;font-size:15px;letter-spacing:.06em}
-    #nrsAccount .brand small{display:block;margin-top:2px;font-size:9px;letter-spacing:.1em;opacity:.58}
-    #nrsAccount .eyebrow{margin-top:22px;font-size:9px;font-weight:800;letter-spacing:.18em;color:#8da0b5}
-    #nrsAccount h1{margin:7px 0 6px;font-size:27px;line-height:1.08}
-    #nrsAccount .copy{margin:0;color:rgba(255,255,255,.68);font-size:12px;line-height:1.45}
-    #nrsAccount .tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:18px 0 16px}
-    #nrsAccount .tab{
+    #nrsAccount #nrsLoginCard .brand strong{display:block;font-size:15px;letter-spacing:.06em}
+    #nrsAccount #nrsLoginCard .brand small{display:block;margin-top:2px;font-size:9px;letter-spacing:.1em;opacity:.58}
+    #nrsAccount #nrsLoginCard .eyebrow{margin-top:22px;font-size:9px;font-weight:800;letter-spacing:.18em;color:#8da0b5}
+    #nrsAccount #nrsLoginCard h1{margin:7px 0 6px;font-size:27px;line-height:1.08}
+    #nrsAccount #nrsLoginCard .copy{margin:0;color:rgba(255,255,255,.68);font-size:12px;line-height:1.45}
+    #nrsAccount #nrsLoginCard .tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:18px 0 16px}
+    #nrsAccount #nrsLoginCard .tab{
       min-height:44px;border:1px solid rgba(255,255,255,.12);border-radius:10px;
       background:rgba(255,255,255,.045);color:#fff;font-weight:900;font-size:10px;
       letter-spacing:.04em;cursor:pointer;pointer-events:auto;touch-action:manipulation;
       -webkit-tap-highlight-color:transparent
     }
-    #nrsAccount .tab.active{background:#1d8ef0;border-color:#50b0ff;box-shadow:0 8px 22px rgba(29,142,240,.2)}
-    #nrsAccount form{display:grid;gap:12px}
-    #nrsAccount .field{display:grid;gap:6px}
-    #nrsAccount .field>span{font-size:10px;font-weight:800;color:#d7e0e9}
-    #nrsAccount .inputWrap{position:relative}
-    #nrsAccount input{
+    #nrsAccount #nrsLoginCard .tab.active{background:#1d8ef0;border-color:#50b0ff;box-shadow:0 8px 22px rgba(29,142,240,.2)}
+    #nrsAccount #nrsLoginCard form{display:grid;gap:12px}
+    #nrsAccount #nrsLoginCard .field{display:grid;gap:6px}
+    #nrsAccount #nrsLoginCard .field>span{font-size:10px;font-weight:800;color:#d7e0e9}
+    #nrsAccount #nrsLoginCard .inputWrap{position:relative}
+    #nrsAccount #nrsLoginCard input{
       display:block;width:100%;height:48px;box-sizing:border-box;padding:0 48px 0 13px;
       border-radius:10px;border:1px solid rgba(255,255,255,.14);
       background:#07111d;color:#fff;font:inherit;font-size:13px;outline:0;
       pointer-events:auto;touch-action:manipulation;-webkit-appearance:none
     }
-    #nrsAccount input:focus{border-color:#4aa9ff;box-shadow:0 0 0 3px rgba(74,169,255,.12)}
-    #nrsAccount input::placeholder{color:rgba(255,255,255,.3)}
-    #nrsAccount .eye{
+    #nrsAccount #nrsLoginCard input:focus{border-color:#4aa9ff;box-shadow:0 0 0 3px rgba(74,169,255,.12)}
+    #nrsAccount #nrsLoginCard input::placeholder{color:rgba(255,255,255,.3)}
+    #nrsAccount #nrsLoginCard .eye{
       position:absolute;right:5px;top:50%;transform:translateY(-50%);
       width:38px;height:38px;border:0;border-radius:8px;background:transparent;
       color:#aebfd0;display:grid;place-items:center;cursor:pointer;pointer-events:auto;
       touch-action:manipulation;-webkit-tap-highlight-color:transparent
     }
-    #nrsAccount .eye:active{background:rgba(255,255,255,.08)}
-    #nrsAccount .eye svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-    #nrsAccount .error{min-height:18px;color:#ff98a6;font-size:10px;line-height:1.35}
-    #nrsAccount .hint{font-size:9px;color:rgba(255,255,255,.42);line-height:1.3}
-    #nrsAccount .submit{
+    #nrsAccount #nrsLoginCard .eye:active{background:rgba(255,255,255,.08)}
+    #nrsAccount #nrsLoginCard .eye svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    #nrsAccount #nrsLoginCard .error{min-height:18px;color:#ff98a6;font-size:10px;line-height:1.35}
+    #nrsAccount #nrsLoginCard .hint{font-size:9px;color:rgba(255,255,255,.42);line-height:1.3}
+    #nrsAccount #nrsLoginCard .submit{
       width:100%;min-height:48px;border:0;border-radius:10px;
       background:linear-gradient(180deg,#259af5,#177bd0);color:#fff;
       font-weight:900;font-size:11px;letter-spacing:.05em;cursor:pointer;
       pointer-events:auto;touch-action:manipulation;box-shadow:0 8px 20px rgba(29,142,240,.18)
     }
-    #nrsAccount .submit:disabled{opacity:.52;cursor:wait}
-    #nrsAccount .status{text-align:center;margin-top:11px;min-height:18px;color:rgba(255,255,255,.45);font-size:9px}
+    #nrsAccount #nrsLoginCard .submit:disabled{opacity:.52;cursor:wait}
+    #nrsAccount #nrsLoginCard .status{text-align:center;margin-top:11px;min-height:18px;color:rgba(255,255,255,.45);font-size:9px}
     #nrsCharacterView[hidden],#nrsCreateCharacterPanel[hidden]{display:none!important}
-    #nrsAccount .accountSummary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;color:#a7bfd3;font-size:9px;overflow-wrap:anywhere}
-    #nrsAccount .accountSummary strong{color:#8ee9bb;font-size:9px;white-space:nowrap}
-    #nrsAccount .characterList{display:grid;gap:9px;margin:14px 0}
-    #nrsAccount .characterCard{padding:12px;border:1px solid rgba(255,255,255,.13);border-radius:13px;background:linear-gradient(135deg,#12283a,#0a1622)}
-    #nrsAccount .characterCard .characterHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-    #nrsAccount .characterCard strong{display:block;font-size:14px;overflow-wrap:anywhere}
-    #nrsAccount .characterCard small{display:block;margin-top:4px;color:#9cb1c3;font-size:9px;line-height:1.4}
-    #nrsAccount .characterCard .characterLevel{color:#8ce5b6;font-size:9px;font-weight:900;white-space:nowrap}
-    #nrsAccount .characterCard .continueButton{width:100%;min-height:38px;margin-top:10px;border:1px solid #3b9ee6;border-radius:9px;background:#12446a;color:#fff;font-size:10px;font-weight:900;touch-action:manipulation}
-    #nrsAccount .characterCard .continueButton:disabled{opacity:.55}
-    #nrsAccount .subtleButton{width:100%;min-height:38px;margin-top:8px;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:#142333;color:#d7e4ef;font-size:10px;font-weight:800;touch-action:manipulation}
-    #nrsAccount .characterStatus{text-align:center;min-height:19px;margin-top:10px;color:#b7d6e8;font-size:10px;line-height:1.35}
-    #nrsAccount #nrsCreateCharacterForm{display:grid;gap:9px;margin:12px 0}
-    #nrsAccount #nrsCharacterName{padding-right:12px}
     @media(max-width:480px){
-      #nrsAccount{padding:10px}
-      #nrsAccount .card{width:100%;padding:19px 16px 16px;border-radius:18px}
-      #nrsAccount h1{font-size:24px}
-      #nrsAccount .copy{font-size:11px}
+      #nrsAccount:not(.nrs-character-screen){padding:10px}
+      #nrsAccount:not(.nrs-character-screen) #nrsLoginCard{width:100%;padding:19px 16px 16px;border-radius:18px}
+      #nrsAccount:not(.nrs-character-screen) #nrsLoginCard h1{font-size:24px}
+      #nrsAccount:not(.nrs-character-screen) #nrsLoginCard .copy{font-size:11px}
     }
   `;
   document.head.appendChild(style);
@@ -233,9 +219,9 @@
         <div class="logo">N</div>
         <div><strong>NIGERIA ROLEPLAY</strong><small>PORT HARCOURT • ONLINE WORLD</small></div>
       </div>
-      <div class="eyebrow">ACCOUNT REMEMBERED ON THIS DEVICE</div>
-      <h1>Choose your character</h1>
-      <p class="copy">You're signed in. Continue with a saved character or create another one. Each account can have up to three characters.</p>
+      <div class="eyebrow">NIGERIA ROLEPLAY  /  CITIZEN LOBBY</div>
+      <h1>SELECT CHARACTER</h1>
+      <p class="copy">Choose a saved citizen to enter the shared Nigeria RP world. Each character keeps their own money, job, home and progress.</p>
       <div class="accountSummary"><span id="nrsCharacterEmail"></span><strong id="nrsCharacterCount">0 / 3 characters</strong></div>
       <div id="nrsCharacterList" class="characterList"></div>
       <div id="nrsCreateCharacterPanel" hidden>
