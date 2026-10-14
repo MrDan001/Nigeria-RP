@@ -1686,22 +1686,45 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "acceptJob") {
-        const jobName = String(message.name ?? "");
-        const known = JOBS.find((job) => job.n === jobName);
-
-        if (!known) {
-          send(socket, { type: "jobResult", ok: false, message: "Unknown job." });
-          return;
+        const jobName=String(message.name??"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,160);
+        if(session.player.job){send(socket,{type:"jobResult",ok:false,message:"You already have an active job."});return;}
+        let accepted:Exclude<JobState,null>|null=null;
+        if(message.courier===true){
+          const pickupX=Number(message.pickupX),pickupZ=Number(message.pickupZ),x=Number(message.x),z=Number(message.z);
+          const clean=(raw:unknown)=>String(raw??"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,120);
+          const pickupName=clean(message.pickupName),destinationName=clean(message.destinationName);
+          const distance=Math.hypot(x-pickupX,z-pickupZ);
+          const candidate:Exclude<JobState,null>={n:jobName,x,z,pay:courierReward(distance),courier:true,pickupX,pickupZ,pickupName,destinationName,pickedUp:false};
+          if(findStage15City(String(session.player.cityId??""))?.id!=="port-harcourt"||!jobName||!pickupName||!destinationName||!isValidKnownJob(candidate)){
+            send(socket,{type:"jobResult",ok:false,message:"Choose a valid Port Harcourt pickup and building drop-off."});return;
+          }
+          accepted=candidate;
+        }else{
+          const known=JOBS.find((item)=>item.n===jobName);
+          if(!known){send(socket,{type:"jobResult",ok:false,message:"Unknown job."});return;}
+          accepted={...known};
         }
-
-        if (session.player.job) {
-          send(socket, { type: "jobResult", ok: false, message: "You already have an active job." });
-          return;
-        }
-
-        session.player.job = { ...known };
+        session.player.job=accepted;
         await persistSession(session);
-        send(socket, { type: "jobResult", ok: true, job: session.player.job });
+        send(socket,{type:"jobResult",ok:true,job:session.player.job});
+        return;
+      }
+
+      if(message.type==="pickupJob"){
+        const active=session.player.job;
+        if(!active||active.courier!==true||!isValidKnownJob(active)){
+          send(socket,{type:"jobPickupResult",ok:false,message:"There is no valid active courier pickup."});return;
+        }
+        if(findStage15City(String(session.player.cityId??""))?.id!=="port-harcourt"){
+          send(socket,{type:"jobPickupResult",ok:false,message:"Courier pickup is only available in Port Harcourt."});return;
+        }
+        if(active.pickedUp===true){send(socket,{type:"jobPickupResult",ok:true,job:active,message:"Parcel already collected."});return;}
+        if(Math.hypot(session.player.x-Number(active.pickupX),session.player.z-Number(active.pickupZ))>5){
+          send(socket,{type:"jobPickupResult",ok:false,message:"Get closer to the pickup building before collecting the parcel."});return;
+        }
+        session.player.job={...active,pickedUp:true};
+        await persistSession(session);
+        send(socket,{type:"jobPickupResult",ok:true,job:session.player.job,message:"Parcel collected. Take it to the delivery address."});
         return;
       }
 
