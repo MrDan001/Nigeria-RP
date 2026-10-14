@@ -27,7 +27,24 @@ $('gear').onclick=()=>{const g=$('gp');g.style.display=g.style.display==='flex'?
 $('bo').onclick=()=>{look.o=(look.o+1)%OUTFITS.length;dress();};
 $('bs').onclick=()=>{look.s=(look.s+1)%SKIN.length;dress();};
 $('run').onclick=()=>{sprint=!sprint;$('run').classList.toggle('on',sprint);};
-$('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)return;const d=document.createElement('div');d.innerHTML='<b>You:</b> ';d.append(v);$('log').append(d);$('log').scrollTop=1e5;$('ci').value='';};
+let nrsHudChatChannel="GLOBAL";
+$('tabs').addEventListener('click',e=>{
+ const tab=e.target.closest('span');if(!tab)return;
+ const channel=tab.textContent.trim().toUpperCase();
+ if(!['GLOBAL','LOCAL','SYSTEM'].includes(channel))return;
+ nrsHudChatChannel=channel;
+ $('tabs').querySelectorAll('span').forEach(item=>{
+  const name=item.textContent.trim().toUpperCase();
+  if(['GLOBAL','LOCAL','SYSTEM'].includes(name)){item.style.opacity=name===channel?'1':'.55';item.style.fontWeight=name===channel?'900':'600';}
+ });
+});
+$('cf').onsubmit=e=>{
+ e.preventDefault();const v=$('ci').value.trim();if(!v)return;
+ if(nrsHudChatChannel==='SYSTEM'){const d=document.createElement('div');const b=document.createElement('b');b.textContent='System: ';d.append(b,document.createTextNode('SYSTEM is read-only. Choose GLOBAL or LOCAL chat.'));$('log').append(d);$('log').scrollTop=$('log').scrollHeight;return;}
+ const sent=window.NRS?.sendChat?.(v,nrsHudChatChannel);
+ if(!sent){const d=document.createElement('div');const b=document.createElement('b');b.textContent='System: ';d.append(b,document.createTextNode('Chat is disconnected. Reconnect and try again.'));$('log').append(d);$('log').scrollTop=$('log').scrollHeight;return;}
+ $('ci').value='';
+};
 
 /* ---------- Movement: camera-relative, delta-time, one update loop ---------- */
 const pos=new THREE.Vector3(0,0,24),vel=new THREE.Vector3(),focus=new THREE.Vector3(0,1.4,24),camDrivePos=new THREE.Vector3();
