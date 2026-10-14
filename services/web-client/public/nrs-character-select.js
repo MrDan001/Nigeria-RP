@@ -202,7 +202,7 @@
 
     layer.innerHTML = '<div class="shell">' +
       '<header class="top"><div class="brand"><div class="nrsFreshLogo">N</div><div class="nrsFreshBrand"><b>NIGERIA ROLEPLAY</b><small>PORT HARCOURT • ONLINE WORLD</small></div></div>' +
-      '<div class="nrsFreshTopRight"><span>' + (characters || []).length + ' / 3 CHARACTERS</span><button class="nrsFreshLogout" data-act="logout">USE ANOTHER ACCOUNT</button></div></header>' +
+      '<div class="nrsFreshTopRight"><span>' + (characters || []).length + ' / 3 CHARACTERS</span></div></header>' +
       '<main class="main"><p class="nrsFreshKicker">NIGERIA ROLEPLAY / CITIZEN LOBBY</p><h1 class="nrsFreshTitle">SELECT YOUR CHARACTER</h1>' +
       '<p class="nrsFreshCopy">Choose the citizen you want to bring into the shared Nigeria RP world. Every character keeps their own money, job, home and progress.</p>' +
       '<div class="nrsFreshSummary"><span>Signed in as ' + esc(email) + '</span><b>' + (characters || []).length + ' / 3 CHARACTERS</b></div>' +
@@ -242,12 +242,6 @@
       const panel = layer.querySelector("#nrsFreshPanel");
       if (panel) panel.hidden = true;
       status("Choose an existing character or create another one.");
-    });
-    const logout = layer.querySelector('[data-act="logout"]');
-    if (logout) logout.addEventListener("click", () => {
-      const switchButton = document.getElementById("nrsSwitchAccount");
-      if (switchButton) switchButton.click();
-      else location.reload();
     });
   }
 
