@@ -26,24 +26,33 @@
     if (!root || !session) return;
 
     if (!hasSavedSession()) {
-      root.classList.remove("nrs-device-resuming", "nrs-device-character");
+      if (root.classList.contains("nrs-device-resuming")) root.classList.remove("nrs-device-resuming");
+      if (root.classList.contains("nrs-device-character")) root.classList.remove("nrs-device-character");
+      // A missing/expired token needs a usable recovery screen; never leave the
+      // whole account root hidden after the resume attempt has been cleared.
+      if (root.hidden) root.hidden = false;
+      const login = document.getElementById(LOGIN_ID);
+      if (login && !session.accountReady && login.hidden) login.hidden = false;
       return;
     }
 
     if (session.accountReady) {
-      root.classList.remove("nrs-device-resuming");
-      root.classList.add("nrs-device-character");
-      root.hidden = false;
+      if (root.classList.contains("nrs-device-resuming")) root.classList.remove("nrs-device-resuming");
+      if (!root.classList.contains("nrs-device-character")) root.classList.add("nrs-device-character");
+      if (root.hidden) root.hidden = false;
+      // Keep the login DOM intact but hidden. Removing it breaks the normal
+      // recovery path if a remembered server session later becomes invalid.
       const login = document.getElementById(LOGIN_ID);
-      if (login) login.remove();
+      if (login && !login.hidden) login.hidden = true;
       return;
     }
 
     // A remembered account is never sent back to the login page while the
     // saved session is being resumed. nrs-online owns the actual WebSocket
     // authentication; this layer only controls what the player sees.
-    root.classList.add("nrs-device-resuming");
-    root.hidden = true;
+    if (!root.classList.contains("nrs-device-resuming")) root.classList.add("nrs-device-resuming");
+    if (root.classList.contains("nrs-device-character")) root.classList.remove("nrs-device-character");
+    if (!root.hidden) root.hidden = true;
   }
 
   const observer = new MutationObserver(sync);
