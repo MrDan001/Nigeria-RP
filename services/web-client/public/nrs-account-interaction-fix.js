@@ -110,9 +110,6 @@
 
   applyAccountInteractionFix();
   window.setInterval(applyAccountInteractionFix, 500);
-
-  // On a normal visit, bypass the login form when this device has a saved session.
-  // The server still validates the token before the saved character list is trusted.
   showRememberedCharacterLobby();
 
   const start = document.getElementById("start");
@@ -125,20 +122,32 @@
     start.setAttribute("aria-hidden", "true");
   }
 
+  // The old #start overlay is no longer an entry step. Never restore it after
+  // history/cache restores; the purple/gold character lobby is the only pre-game UI.
   function restoreStartOverlay() {
-    if (!start) return;
-    start.classList.remove("nrs-direct-entry-hidden");
-    start.removeAttribute("aria-hidden");
+    hideSecondLobby();
+  }
+
+  function hideCharacterLobbyForEntry() {
+    root.hidden = true;
+    document.body.classList.remove("nrs-account-backdrop");
+    for (const id of ["c", "hud"]) {
+      const el = document.getElementById(id);
+      if (el) el.style.visibility = "visible";
+    }
   }
 
   function beginDirectEntry() {
     enteringCharacter = true;
     hideSecondLobby();
+    hideCharacterLobbyForEntry();
     if (entryTimer) window.clearTimeout(entryTimer);
     entryTimer = window.setTimeout(() => {
+      entryTimer = null;
       if (!window.NRS?.session?.authed) {
         enteringCharacter = false;
-        restoreStartOverlay();
+        root.hidden = false;
+        document.body.classList.add("nrs-account-backdrop");
       }
     }, 15000);
   }
@@ -153,7 +162,9 @@
   }
 
   // A character card is the entry point. Its existing button sends the secure
-  // selectCharacter request; the old start overlay is hidden so there is no second lobby.
+  // selectCharacter request; the old start overlay is hidden and the character
+  // lobby itself is removed immediately so there cannot be a second copy of it
+  // during the transition into the game.
   root.addEventListener("click", (event) => {
     const card = event.target.closest?.(".characterCard");
     if (!card || !root.contains(card)) return;
@@ -173,13 +184,24 @@
 
   const stateObserver = new MutationObserver(() => {
     const session = window.NRS?.session;
-    if (enteringCharacter && session?.authed && root.hidden) finishDirectEntry();
+    if (!enteringCharacter) return;
+
+    // syncAccount() is the successful hand-off to the real game.
+    if (session?.authed) {
+      finishDirectEntry();
+      return;
+    }
+
+    // If the socket sends authCharacters again while a character selection is
+    // already in flight, nrs-online would otherwise repaint the same lobby.
+    // Keep that duplicate UI suppressed until the selection succeeds or times out.
+    if (!root.hidden) {
+      root.hidden = true;
+      document.body.classList.remove("nrs-account-backdrop");
+    }
   });
   stateObserver.observe(root, { attributes: true, attributeFilter: ["hidden"] });
 
-  // Back/forward-cache restores the old page's JavaScript heap. Preserve the
-  // saved token, reconnect the socket, and show the character lobby while the
-  // server refreshes the account. Never force a returning player back to login.
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;
 
@@ -188,7 +210,7 @@
       window.clearTimeout(entryTimer);
       entryTimer = null;
     }
-    restoreStartOverlay();
+    hideSecondLobby();
 
     const session = window.NRS?.session;
     const token = savedToken();
