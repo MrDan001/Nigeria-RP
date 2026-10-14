@@ -191,15 +191,38 @@ modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  }
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();},'bank');return;}bankUI();}
- else if(d.j&&!job){const j=JOBS[jobN%JOBS.length];NRS.acceptJob(j[0],(r)=>{if(r.ok){job={n:j[0],x:j[1],z:j[2],pay:j[3]};inv.Parcel=1;sys('Job accepted: '+job.n);modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
+ else if(d.j&&!job){const routes=buildDeliveryJobs();if(!routes.length){sys('No delivery addresses are available yet. Reopen the Job Center in a moment.');return;}const j=routes[((jobN%routes.length)+routes.length)%routes.length];NRS.acceptJob(j.name,(r)=>{if(r.ok){job={n:j.name,pickupName:j.pickup.name,pickupX:j.pickup.x,pickupZ:j.pickup.z,destinationName:j.destination.name,x:j.destination.x,z:j.destination.z,pay:j.pay,pickedUp:false};delete inv.Parcel;sys('Delivery accepted. Pick up the parcel from '+j.pickup.name+'.');mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
 function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
  const H=Math.round(hunger),P=Math.round(hp);if(H!==lh){lh=H;$('hgv').textContent=H;$('hgb').style.width=H+'%';}if(P!==lp){lp=P;$('hpv').textContent=P;$('hpb').style.width=P+'%';}
- beacon.visible=!!job&&!inside;
- if(job){beacon.position.set(job.x,20,job.z);const d=Math.hypot(pos.x-job.x,pos.z-job.z);
-  if(!inside&&d<5&&job&&!job._claimed){job._claimed=true;NRS.walletChange(job.pay,0,(r)=>{if(r.ok){delete inv.Parcel;sys('Delivered! You earned ₦'+f(job.pay));jobN++;job=null;mis('<i>JOB DONE</i><b>Return to the Job Center for the next job</b>');}else{job._claimed=false;sys(r.message||'Reward failed.');}money();},'job');}
-  else mis('<i>DELIVERY</i><b>'+job.n+'</b>'+Math.round(d/5)*5+' m away');}}
+ const waypoint=nrsDeliveryWaypoint();
+ beacon.visible=!!waypoint&&!inside;
+ if(job&&waypoint){
+  beacon.position.set(waypoint.x,20,waypoint.z);
+  const d=Math.hypot(pos.x-waypoint.x,pos.z-waypoint.z);
+  if(!inside&&d<5&&!job._claimed){
+   if(!job.pickedUp){
+    job.pickedUp=true;inv.Parcel=1;
+    sys('Parcel collected from '+job.pickupName+'. Deliver it to '+job.destinationName+'.');
+    mis('<i>DELIVERY</i><b>Deliver parcel to '+deliveryText(job.destinationName)+'</b>');
+    if(window.NRS?.saveProgress)window.NRS.saveProgress();
+   }else{
+    job._claimed=true;
+    const completedJob=job;
+    NRS.walletChange(completedJob.pay,0,(r)=>{
+     if(r.ok){
+      delete inv.Parcel;if(window.NRS?.saveProgress)window.NRS.saveProgress();
+      sys('Delivered to '+completedJob.destinationName+'. You earned ₦'+f(completedJob.pay));
+      jobN++;if(job===completedJob)job=null;
+      mis('<i>JOB DONE</i><b>Return to the Job Center for your next courier run</b>');
+     }else{completedJob._claimed=false;sys(r.message||'Reward failed.');}
+     money();
+    },'job');
+   }
+  }else mis('<i>'+waypoint.action.toUpperCase()+'</i><b>'+deliveryText(waypoint.name)+'</b>'+Math.round(d/5)*5+' m away');
+ }
+}
 
 /* ---------- Expanded 3D map: tap the minimap or 🗺 ---------- */
 const MP={open:false,x:0,z:0,yaw:0,pitch:.85,dist:220,pan:false,fog:null},mapCam=new THREE.PerspectiveCamera(50,1,1,2500);
@@ -238,7 +261,7 @@ function mapFrame(){const d=Math.min(devicePixelRatio||1,2),W=Math.round(innerWi
  HR.forEach(r=>mlab(r[1],-150,2,r[0],'rgba(29,74,138,.85)',12,d));VR.forEach(r=>mlab(r[1],r[0],2,(r[2]+r[3])/2,'rgba(29,74,138,.85)',12,d));
  if(MP.dist<150)for(const q of POI)mlab(q.name,q.x,4,q.z,'rgba(190,100,20,.9)',11,d);
  for(const s of FS)mlab('⛽ '+s.brand+' · '+s.road,s.x,8,s.z,s.bg,12,d);
- if(job)mlab('📦 Drop-off',job.x,30,job.z,'rgba(190,150,0,.95)',14,d);
+ if(job){const waypoint=nrsDeliveryWaypoint();if(waypoint)mlab('📦 '+waypoint.action,waypoint.x,30,waypoint.z,'rgba(190,150,0,.95)',14,d);}
  if(NAV)mlab('🏁 '+NAV.name,NAV.x,34,NAV.z,'rgba(210,30,45,.95)',14,d);plTick();
  mlab('YOU',p.x,9*s+2,p.z,'rgba(20,120,60,.95)',14,d);}
 

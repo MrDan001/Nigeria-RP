@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Current status, 11 October 2026:** Stage 14 automated release validation is complete. Stage 15 has passed its automated live integration/release gate. Stage 16 — Distinct City Environments & Regional Identity — was accepted by the project owner on 11 October 2026. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main.
+> **Current status, 14 October 2026:** Stage 14 automated release validation is complete. Stage 15 has passed its automated live integration/release gate. Stage 16 — Distinct City Environments & Regional Identity — was accepted by the project owner on 11 October 2026. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main.
 
 ## Stage 15 — Additional cities and inter-city travel
 **Status: COMPLETE FOR AUTOMATED RELEASE GATE**
@@ -57,6 +57,16 @@ Implemented:
 - [ ] Confirm passport progress survives reconnect/restart and inspect the passport sheet on a physical phone.
 
 The existing fare calculation and travel-route authorization remain authoritative. The discovery reward is applied to the same server-side cash transaction, not calculated by the client.
+
+## Gameplay enhancement — Port Harcourt courier routes
+**Status: SOURCE UPDATED; AUTOMATED BUILD AND LIVE PLAYTEST PENDING**
+
+- [x] Delivery routes are generated from the residential catalogue and registered apartment, retail, bank, workplace/public-building and city-structure entrances instead of a fixed list of three coordinates.
+- [x] Each route requires a parcel pickup and a separate recipient drop-off.
+- [x] Route rewards scale with distance and are bounded to a predictable Naira range.
+- [x] The active pickup/drop-off waypoint is reflected in the beacon, mission HUD and map labels.
+- [ ] Run `npm run typecheck` and `npm run build` in `services/web-client`.
+- [ ] Manually test residential and business destinations, reward settlement, reconnect behavior and touch controls on the live game.
 
 ## Stage 14 — Release, load and recovery validation
 **Status: COMPLETE FOR AUTOMATED RELEASE GATE**

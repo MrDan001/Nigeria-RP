@@ -16,7 +16,7 @@ function plData(tab){const o=[],seen={};
   add({n:'Port Harcourt Centre',sub:'District',x:0,z:0,ico:'🏙',c:'#0f5b3a',r:25},'district|Port Harcourt Centre');
  }
  else if(tab==='shop')POI.forEach(q=>{if(((q.k==='Enter'&&q.t==='shop')||q.k==='Talk')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:q.k==='Enter'?'Shop · '+rdName(q.x,q.z):'Street stall · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:hex(q.col),r:7});}});
- else if(tab==='svc'){POI.forEach(q=>{if((q.t==='job'||q.t==='bank'||q.t==='atm')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:'Service · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:q.t==='atm'?'#0a4d8c':hex(q.col),r:7});}});if(job)o.push({n:'Drop-off · '+job.n,sub:'Current job · ₦'+f(job.pay),x:job.x,z:job.z,ico:'📦',c:'#b8860b',r:6});}
+ else if(tab==='svc'){POI.forEach(q=>{if((q.t==='job'||q.t==='bank'||q.t==='atm')&&!seen[q.name]){seen[q.name]=1;o.push({n:q.name,sub:'Service · '+rdName(q.x,q.z),x:q.x,z:q.z,ico:ico(q.name),c:q.t==='atm'?'#0a4d8c':hex(q.col),r:7});}});if(job){const waypoint=nrsDeliveryWaypoint();if(waypoint)o.push({n:waypoint.action+' · '+waypoint.name,sub:'Current courier run · ₦'+f(job.pay),x:waypoint.x,z:waypoint.z,ico:'📦',c:'#b8860b',r:6});}}
  else if(tab==='work'){
   POI.forEach(q=>{
    if(q.t!=='workplace'&&q.k!=='Work')return;

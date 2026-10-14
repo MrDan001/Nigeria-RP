@@ -727,7 +727,85 @@ function bankUI(){
   (pMsg?'<p><i>'+pMsg+'</i></p>':''));
  modal.classList.add('bank-menu');
 }
-/* job center */
-const JOBS=[['Parcel to Mile 1 Market',-6.5,95,6000],['Parcel to Rumuola',110,70,9000],['Parcel to Waterlines',90,150,12000]];
-function jobUI(){if(job)panel('<b>💼 Job Center</b><p>Active job:<br><b>'+job.n+'</b></p><p>Deliver it, then come back for the next one.</p><button data-open-workplaces="1">🏢 Careers & factions</button>');
- else{const j=JOBS[jobN%JOBS.length];panel('<b>💼 Job Center</b><p>“We need a rider for a delivery.”</p><p><b>'+j[0]+'</b><br>Pay: ₦'+f(j[3])+'</p><button data-j="1">Accept job</button><button data-open-workplaces="1">🏢 Careers & factions</button>');}}
+/* Job Center — routes are generated from Port Harcourt's residential catalogue and registered building entrances. */
+function deliveryText(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])).replace(/\s+/g,' ').trim().slice(0,120);}
+function deliveryLocations(){
+ const locations=[],ids=new Set();
+ const add=(id,name,x,z,kind='building')=>{
+  const px=Number(x),pz=Number(z),key=String(id??'');
+  if(!key||!Number.isFinite(px)||!Number.isFinite(pz)||Math.abs(px)>270||Math.abs(pz)>270||ids.has(key))return;
+  const label=deliveryText(name);
+  if(!label)return;
+  // Multiple systems can describe the same doorway (for example an apartment POI and its building collider).
+  if(locations.some(v=>Math.hypot(v.x-px,v.z-pz)<2.2))return;
+  ids.add(key);locations.push({id:key,name:label,x:px,z:pz,kind});
+ };
+ // Start with every authored house/hut/compound/apartment-style home, then overlay live server records.
+ const homes=new Map();
+ if(Array.isArray(HOUSE_PLOTS))HOUSE_PLOTS.forEach(h=>{if(h?.id)homes.set(String(h.id),h);});
+ if(Array.isArray(window.NRS?.houses))window.NRS.houses.forEach(h=>{if(h?.id)homes.set(String(h.id),h);});
+ for(const h of homes.values()){
+  const cls=String(h.cls||'flat'),size=HOUSE_SIZES[cls]||HOUSE_SIZES.flat;
+  const visual=HOUSE_VISUALS[h.id],frontDepth=cls==='hut'?size.w*.48:size.d/2;
+  const door=visual?.entrance||{x:Number(h.x),z:Number(h.z)+frontDepth+2.15};
+  const kindLabel=HOUSE_LABELS[cls]||'HOME';
+  const specific=String(h.name||(kindLabel+' '+String(h.id).replace(/[-_]+/g,' '))).trim();
+  add('home:'+h.id,specific+' · '+String(h.zone||'Port Harcourt'),door.x,door.z,'home');
+ }
+ // Include every registered apartment entrance, shop, bank, Job Center and named workplace/public building.
+ for(const p of (Array.isArray(POI)?POI:[])){
+  if(!p||p.housePoi)continue;
+  const kind=String(p.t||'');
+  if(!(p.apartmentBuildingPoi||kind==='workplace'||kind==='shop'||kind==='bank'||kind==='job'))continue;
+  const rawName=String(p.name||'Port Harcourt building').replace(/^(?:Enter|Inspect)\s+/i,'').trim();
+  if(p.apartmentBuildingPoi){
+   const apt=p.apartmentBuilding||{};
+   add('apartment:'+(apt.buildingId||apt.buildingName||rawName),apt.buildingName||rawName,p.x,p.z,'apartment');
+  }else if(kind==='workplace'){
+   add('workplace:'+(p.workplaceId||rawName),rawName,p.x,p.z,'workplace');
+  }else{
+   add('poi:'+kind+':'+(p.shopId||rawName),rawName,p.x,p.z,kind);
+  }
+ }
+ // Catch registered city structures that do not have a separate interaction POI.
+ (Array.isArray(bld)?bld:[]).forEach((b,index)=>{
+  if(!b)return;
+  const cx=Number(b.x),cz=Number(b.z);
+  if(!Number.isFinite(cx)||!Number.isFinite(cz))return;
+  const ex=Number.isFinite(Number(b.entryX))?Number(b.entryX):cx;
+  const ez=Number.isFinite(Number(b.entryZ))?Number(b.entryZ):cz+Math.max(1,Number(b.hd)||0)+1.8;
+  const id='structure:'+Math.round(cx*10)+':'+Math.round(cz*10);
+  const label=(b.apartmentCandidate||b.gen)?'Residential apartment block '+(index+1):'Port Harcourt building '+(index+1);
+  add(id,label,ex,ez,(b.apartmentCandidate||b.gen)?'apartment':'building');
+ });
+ // Keep the order stable so completing one run advances through the full address pool.
+ locations.sort((a,b)=>a.id.localeCompare(b.id));
+ return locations;
+}
+function buildDeliveryJobs(){
+ const targets=deliveryLocations();
+ if(targets.length<2)return [];
+ const offset=Math.max(1,Math.floor(targets.length/2));
+ return targets.map((destination,index)=>{
+  const pickup=targets[(index+offset)%targets.length];
+  const distance=Math.hypot(destination.x-pickup.x,destination.z-pickup.z);
+  const pay=Math.max(4500,Math.min(20000,Math.round((4000+distance*35)/500)*500));
+  return {id:pickup.id+'->'+destination.id,name:('Delivery: '+pickup.name+' to '+destination.name).slice(0,160),pickup,destination,pay,addressCount:targets.length};
+ });
+}
+function nrsDeliveryWaypoint(){
+ if(!job)return null;
+ if(!job.pickedUp)return {x:Number(job.pickupX),z:Number(job.pickupZ),name:job.pickupName||'Pickup location',action:'Pickup'};
+ return {x:Number(job.x),z:Number(job.z),name:job.destinationName||job.n||'Delivery address',action:'Drop-off'};
+}
+function jobUI(){
+ if(job){
+  const pickup=deliveryText(job.pickupName||'Pickup location'),destination=deliveryText(job.destinationName||job.n||'Delivery address');
+  panel('<b>💼 Job Center</b><p>Active courier run</p><p>Pickup: <b>'+pickup+'</b><br>'+(job.pickedUp?'✅ Parcel collected':'Awaiting parcel pickup')+'</p><p>Drop-off: <b>'+destination+'</b></p><p>Reward: <b>₦'+f(job.pay)+'</b></p><button data-open-workplaces="1">🏢 Careers & factions</button>');
+ }else{
+  const jobs=buildDeliveryJobs();
+  if(!jobs.length){panel('<b>💼 Job Center</b><p>Delivery addresses are still loading. Wait for Port Harcourt to finish loading, then reopen the Job Center.</p>');return;}
+  const j=jobs[((jobN%jobs.length)+jobs.length)%jobs.length];
+  panel('<b>💼 Job Center</b><p>“We need a rider for a delivery.”</p><p><b>Pickup:</b><br>'+deliveryText(j.pickup.name)+'</p><p><b>Deliver to:</b><br>'+deliveryText(j.destination.name)+'</p><p>Reward: <b>₦'+f(j.pay)+'</b></p><p><small>'+j.addressCount+' mapped pickup/drop-off addresses across Port Harcourt, including homes, huts, apartment blocks, shops, offices and public buildings.</small></p><button data-j="1">Accept delivery</button><button data-open-workplaces="1">🏢 Careers & factions</button>');
+ }
+}

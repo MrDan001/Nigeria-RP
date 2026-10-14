@@ -2,7 +2,7 @@
 
 The implementation scope and acceptance checks are in IMPLEMENTATION-ROADMAP.md.
 
-> Status update: 11 October 2026. Stage 16 was accepted by the project owner. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main. Railway is the production host.
+> Status update: 14 October 2026. Stage 16 was accepted by the project owner. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main. Railway is the production host.
 
 | Stage | Canonical scope | Status |
 |---|---|---|
@@ -24,6 +24,7 @@ The implementation scope and acceptance checks are in IMPLEMENTATION-ROADMAP.md.
 | 15 | Additional cities and inter-city travel | Complete for automated release gate |
 | 16 | Distinct city environments and regional identity | Complete — owner accepted |
 | 17 | City Explorer Passport & Discovery Rewards | Active |
+| Enhancement | Port Harcourt courier pickup/drop-off coverage | Source updated; live verification pending |
 
 ## Active stage: Stage 17 — City Explorer Passport & Discovery Rewards
 
@@ -36,3 +37,13 @@ The seven city environments, low-poly landmarks, off-road civic plaza, themed sh
 ## Manual test queue
 
 For Stage 17, verify first-visit rewards, repeat-visit behavior, saved passport progress after reconnect/restart, and the passport sheet on a physical phone. Stage 15–16 visual polish can be recorded separately without blocking the approved Stage 17 work.
+
+## Gameplay enhancement — Port Harcourt courier coverage (14 October 2026)
+
+Implemented in the browser source:
+- [x] Replace the three hard-coded delivery coordinates with a generated address pool sourced from the housing catalogue, apartment entrances, shops, banks, named workplaces/public buildings and registered city structures.
+- [x] Make each courier job a two-stop route: collect the parcel at one address, then deliver it to another.
+- [x] Cycle recipient addresses through the full generated pool so a location can be used as both a pickup and a destination.
+- [x] Calculate distance-based rewards with a minimum and maximum payout.
+- [x] Point the in-world beacon, mission HUD, expanded map and service map at the current pickup/drop-off stop.
+- [ ] Run the browser-client syntax/build checks and manually verify pickup, drop-off and reachability on desktop/mobile.
