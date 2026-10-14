@@ -432,7 +432,7 @@ $('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Bank balance: ₦0</p><p>Job Cen
 $('ib1').onclick=()=>panel('<b>👥 Players online</b><p>1. You</p>');
 $('ib2').onclick=()=>panel('<b>🎒 Backpack</b><p>Phone</p><p>Cash: ₦0</p>');
 $('ib3').onclick=()=>panel('<b>🗺 Map</b><canvas id="fm" width="400" height="400"></canvas>');
-$('go').onclick=async()=>{$('start').style.display='none';try{await document.documentElement.requestFullscreen();await screen.orientation.lock('landscape');}catch(e){}};
+(()=>{const legacyGo=$('go'),legacyStart=$('start');if(legacyGo&&legacyStart)legacyGo.onclick=async()=>{legacyStart.style.display='none';try{await document.documentElement.requestFullscreen();await screen.orientation.lock('landscape');}catch(e){}};})();
 
 /* ---------- Steering wheel, pedals, engine, radio ---------- */
 const wl=$('wheel');let wla=0,wid=null;
