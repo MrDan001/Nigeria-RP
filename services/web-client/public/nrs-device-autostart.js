@@ -25,6 +25,18 @@
     const session = window.NRS && window.NRS.session;
     if (!root || !session) return;
 
+    // Once a character is authenticated, this account layer must stay out of the game.
+    // nrs-online toggles root.hidden on successful entry; never unhide it just because a
+    // previous character-selection response left accountReady true.
+    if (session.authed) {
+      if (root.classList.contains("nrs-device-resuming")) root.classList.remove("nrs-device-resuming");
+      if (root.classList.contains("nrs-device-character")) root.classList.remove("nrs-device-character");
+      if (!root.hidden) root.hidden = true;
+      const login = document.getElementById(LOGIN_ID);
+      if (login && !login.hidden) login.hidden = true;
+      return;
+    }
+
     if (!hasSavedSession()) {
       if (root.classList.contains("nrs-device-resuming")) root.classList.remove("nrs-device-resuming");
       if (root.classList.contains("nrs-device-character")) root.classList.remove("nrs-device-character");
