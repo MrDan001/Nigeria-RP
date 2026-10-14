@@ -61,10 +61,12 @@ The existing fare calculation and travel-route authorization remain authoritativ
 ## Gameplay enhancement — Port Harcourt courier routes
 **Status: SOURCE UPDATED; AUTOMATED BUILD AND LIVE PLAYTEST PENDING**
 
-- [x] Delivery routes are generated from the residential catalogue and registered apartment, retail, bank, workplace/public-building and city-structure entrances instead of a fixed list of three coordinates.
+- [x] Delivery routes cover the full residential catalogue (huts, compound rooms, flats, estates, mansions, palaces and grand homes) plus allowlisted static apartment/building entrances, retail, bank and workplace/public-building addresses instead of three fixed coordinates.
 - [x] Each route requires a parcel pickup and a separate recipient drop-off.
 - [x] Route rewards scale with distance and are bounded to a predictable Naira range.
 - [x] The active pickup/drop-off waypoint is reflected in the beacon, mission HUD and map labels.
+- [x] Parcel pickup is confirmed and persisted by the server; rewards require the confirmed pickup and the assigned drop-off position.
+- [x] Server derives each route payment from distance and validates both addresses against the authored Port Harcourt delivery-point catalogue.
 - [ ] Run `npm run typecheck` and `npm run build` in `services/web-client`.
 - [ ] Manually test residential and business destinations, reward settlement, reconnect behavior and touch controls on the live game.
 
