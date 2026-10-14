@@ -61,7 +61,10 @@ Implemented in the browser source:
 - [x] Redesign the Job Center around pickup and drop-off steps, the ₦ reward, route coverage and a high-contrast, touch-friendly accept button.
 - [x] Refresh Careers & factions quick-service shortcuts for Emergency Services, City News, and Transport & Haulage.
 - [x] Refresh asset query versions for the modified browser scripts and stylesheet.
-- [ ] Pass the web-client production build, syntax checks, and project regression/CI gates.
+- [x] Parse each modified JavaScript source fragment successfully; the stylesheet's braces are balanced.
+- [ ] Run the repository's own web-client syntax/build commands and project regression/CI gates.
 - [ ] Test the Accept delivery action, Careers & factions shortcuts, pickup/drop-off completion, and error feedback on a real Android device.
+
+The current PR's Vercel status points to a `build-rate-limit` page, so it is not evidence of a successful preview build. The repository build and Railway deployment remain unverified for this branch.
 
 These source changes are in a feature branch and are not represented as merged or live in Railway until the branch is reviewed, merged, deployed and manually verified.
