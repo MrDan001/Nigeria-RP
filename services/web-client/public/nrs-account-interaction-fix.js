@@ -7,6 +7,22 @@
   const SESSION_KEY = "nrs_rp_account_session_v3";
   let restoreTimer = null;
 
+  // The old #start screen is a separate legacy lobby. It must not exist in the
+  // live UI at all: character lobby -> game is now the only entry path.
+  function removeLegacyLobby() {
+    const legacy = document.getElementById("start");
+    if (legacy) legacy.remove();
+  }
+
+  removeLegacyLobby();
+  const legacyLobbyObserver = new MutationObserver(removeLegacyLobby);
+  legacyLobbyObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+  const style = document.createElement("style");
+  style.id = "nrsLegacyLobbyRemovalStyles";
+  style.textContent = "#start,#start.nrs-direct-entry-hidden{display:none!important;visibility:hidden!important;pointer-events:none!important}";
+  document.head.appendChild(style);
+
   function savedToken() {
     try {
       return localStorage.getItem(SESSION_KEY) || window.NRS?.session?.token || "";
@@ -35,7 +51,6 @@
         "#nrsAccount .card, #nrsAccount form, #nrsAccount button, #nrsAccount input, #nrsAccount label, #nrsAccount .tab, #nrsAccount .submit, #nrsAccount .subtleButton, #nrsAccount .continueButton { pointer-events: auto !important; touch-action: manipulation !important; }",
         "#nrsAccount button, #nrsAccount input { position: relative; z-index: 1; }",
         "#nrsAccount input { -webkit-user-select: text !important; user-select: text !important; }",
-        "#start.nrs-direct-entry-hidden { display: none !important; }",
         "#nrsAccount.nrs-account-restoring #nrsCharacterList, #nrsAccount.nrs-account-restoring #nrsCreateCharacterButton, #nrsAccount.nrs-account-restoring #nrsSwitchAccount, #nrsAccount.nrs-account-restoring #nrsCreateCharacterPanel { display: none !important; }",
         "#nrsAccount.nrs-account-restoring #nrsCharacterStatus { display: block !important; min-height: 44px; padding: 24px 0; }"
       ].join("\n");
@@ -112,20 +127,11 @@
   window.setInterval(applyAccountInteractionFix, 500);
   showRememberedCharacterLobby();
 
-  const start = document.getElementById("start");
   let enteringCharacter = false;
   let entryTimer = null;
 
-  function hideSecondLobby() {
-    if (!start) return;
-    start.classList.add("nrs-direct-entry-hidden");
-    start.setAttribute("aria-hidden", "true");
-  }
-
-  // The old #start overlay is no longer an entry step. Never restore it after
-  // history/cache restores; the purple/gold character lobby is the only pre-game UI.
-  function restoreStartOverlay() {
-    hideSecondLobby();
+  function hideLegacyLobby() {
+    removeLegacyLobby();
   }
 
   function hideCharacterLobbyForEntry() {
@@ -139,7 +145,7 @@
 
   function beginDirectEntry() {
     enteringCharacter = true;
-    hideSecondLobby();
+    hideLegacyLobby();
     hideCharacterLobbyForEntry();
     if (entryTimer) window.clearTimeout(entryTimer);
     entryTimer = window.setTimeout(() => {
@@ -158,13 +164,12 @@
       window.clearTimeout(entryTimer);
       entryTimer = null;
     }
-    hideSecondLobby();
+    hideLegacyLobby();
   }
 
-  // A character card is the entry point. Its existing button sends the secure
-  // selectCharacter request; the old start overlay is hidden and the character
-  // lobby itself is removed immediately so there cannot be a second copy of it
-  // during the transition into the game.
+  // A character card is the only entry point. Its existing button sends the
+  // secure selectCharacter request. The legacy #start screen is physically
+  // removed rather than merely hidden, so no second lobby can be displayed.
   root.addEventListener("click", (event) => {
     const card = event.target.closest?.(".characterCard");
     if (!card || !root.contains(card)) return;
@@ -183,18 +188,15 @@
   }, true);
 
   const stateObserver = new MutationObserver(() => {
+    removeLegacyLobby();
     const session = window.NRS?.session;
     if (!enteringCharacter) return;
 
-    // syncAccount() is the successful hand-off to the real game.
     if (session?.authed) {
       finishDirectEntry();
       return;
     }
 
-    // If the socket sends authCharacters again while a character selection is
-    // already in flight, nrs-online would otherwise repaint the same lobby.
-    // Keep that duplicate UI suppressed until the selection succeeds or times out.
     if (!root.hidden) {
       root.hidden = true;
       document.body.classList.remove("nrs-account-backdrop");
@@ -210,7 +212,7 @@
       window.clearTimeout(entryTimer);
       entryTimer = null;
     }
-    hideSecondLobby();
+    hideLegacyLobby();
 
     const session = window.NRS?.session;
     const token = savedToken();
