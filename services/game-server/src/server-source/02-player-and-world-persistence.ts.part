@@ -694,66 +694,6 @@ async function saveAccount(account: Account, executor?: any) {
   writeFileStore();
 }
 
-async function createAccount(email: string, username: string, password: string) {
-  email = sanitizeEmail(email);
-  const emailLower = email.toLowerCase();
-  if (!isValidEmail(email)) throw new Error("EMAIL_INVALID");
-  if (username.length < 3) throw new Error("USERNAME_TOO_SHORT");
-  if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) throw new Error("USERNAME_INVALID");
-  if (password.length < 6) throw new Error("PASSWORD_TOO_SHORT");
-
-  const usernameLower = username.toLowerCase();
-  if (usernameLower === MAIN_ADMIN_USERNAME && (!MAIN_ADMIN_EMAIL || emailLower !== MAIN_ADMIN_EMAIL)) {
-    // Never let a new public registration claim the fixed root-admin username.
-    // Configure NRS_MAIN_ADMIN_EMAIL before creating the owner's account if it does not exist.
-    throw new Error("USERNAME_RESERVED");
-  }
-  if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
-  if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
-
-  const { salt, hash } = await hashPassword(password);
-  const now = Date.now();
-  const id = randomUUID();
-  const account: Account = {
-    id,
-    ownerId: id,
-    username,
-    usernameLower,
-    email,
-    emailLower,
-    passwordSalt: salt,
-    passwordHash: hash,
-    cash: 5000,
-    bank: 0,
-    x: 0,
-    z: 24,
-    yaw: Math.PI,
-    hp: 100,
-    hunger: 82,
-    level: 1,
-    xp: 0,
-    job: null,
-    inventory: {},
-    fuel: {},
-    life: newLife(clock.dayKey()),
-    cityId: "port-harcourt",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  try {
-    await insertAccount(account);
-  } catch (error: any) {
-    if (error?.code === "23505") {
-      if (await findAccountByEmail(emailLower)) throw new Error("EMAIL_TAKEN");
-      if (await findAccountByUsername(usernameLower)) throw new Error("USERNAME_TAKEN");
-    }
-    throw error;
-  }
-
-  return account;
-}
-
 /** Return the saved characters attached to an authenticated login owner. */
 async function listCharacters(ownerId: string): Promise<Account[]> {
   if (pool) {
@@ -1250,20 +1190,6 @@ wss.on("connection", (socket) => {
             const owner = await getReadyOwner();
             await createCharacter(owner, String(message.username ?? ""));
             await sendCharacterSelection(owner, accountToken!, "Character created. Select Continue to enter the game.");
-            return;
-          }
-
-          if (message.type === "authRegister") {
-            const email = sanitizeEmail(message.email);
-            const username = sanitizeUsername(message.username);
-            const password = String(message.password ?? "");
-            const account = await createAccount(email, username, password);
-            const token = await createSession(account.id);
-            if (message.characterSelection === true) {
-              await sendCharacterSelection(account, token, "Account created. Choose your first character to enter the city.");
-            } else {
-              await finishAuthentication(account, token);
-            }
             return;
           }
 
