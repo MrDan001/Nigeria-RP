@@ -31,6 +31,7 @@
     transferCallbacks: new Map(),
     transferSeq: 0,
     jobCb: null,
+    jobPickupCb: null,
     fuelCb: null,
     garageSpawnCb: null,
     carparkSyncAt: 0,
@@ -825,6 +826,11 @@
         S.jobCb = null;
         if (message.ok && message.job) job = message.job;
         cb?.(message);
+      } else if (message.type === "jobPickupResult") {
+        const cb = S.jobPickupCb;
+        S.jobPickupCb = null;
+        if (message.ok && message.job) job = message.job;
+        cb?.(message);
       } else if (message.type === "marketState" || message.type === "marketSaleResult" ||
                  message.type === "marketSaleNotice" || message.type === "marketCommissionResult" ||
                  message.type === "marketRestockResult") {
@@ -1221,13 +1227,16 @@
     send({ type: "transferGameFunds", requestId, username: recipient, amount: value });
   };
 
-  N.acceptJob = (name, callback) => {
-    if (!S.authed || !S.open) {
-      callback?.({ ok: false, message: "Not connected to the game server." });
-      return;
-    }
-    S.jobCb = callback;
-    send({ type: "acceptJob", name });
+  N.acceptJob = (route, callback) => {
+    if (!S.authed || !S.open) { callback?.({ok:false,message:"Not connected to the game server."}); return; }
+    S.jobCb=callback;
+    if(typeof route==="string"){send({type:"acceptJob",name:route});return;}
+    const pickup=route?.pickup||{},destination=route?.destination||{};
+    send({type:"acceptJob",courier:true,name:String(route?.name||""),pickupX:Number(pickup.x),pickupZ:Number(pickup.z),pickupName:String(pickup.name||""),x:Number(destination.x),z:Number(destination.z),destinationName:String(destination.name||"")});
+  };
+  N.pickupJob = (callback) => {
+    if(!S.authed||!S.open){callback?.({ok:false,message:"Not connected to the game server."});return;}
+    S.jobPickupCb=callback;send({type:"pickupJob"});
   };
 
   // Stage 3 careers and factions are server-authoritative; this bridge only sends requests.
