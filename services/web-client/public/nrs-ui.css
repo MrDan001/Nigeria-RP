@@ -382,7 +382,7 @@ body.drv #camB{display:grid}
 #modal.job-menu .job-empty{margin:.85rem 1rem;padding:.9rem;border:1px dashed rgba(133,190,225,.27);border-radius:.75rem;background:rgba(255,255,255,.025)}
 #modal.job-menu .job-empty strong{color:#d8edfa;font-size:.8rem}
 #modal.job-menu .job-empty p{margin:.3rem 0 0;color:#99b0c1;font-size:.7rem;line-height:1.45}
-#modal.job-menu #mx{position:sticky;top:.45rem;z-index:5;float:right;min-height:2.4rem;margin:.45rem .55rem .05rem .3rem;padding:.4rem .7rem;border:1px solid rgba(255,255,255,.18);border-radius:.55rem;background:#1b3449;color:#e8f3fb;font-size:.7rem;font-weight:800;touch-action:manipulation}
+#modal.job-menu #mx{position:sticky;top:.45rem;z-index:5;display:block;float:none;width:fit-content;min-height:2.4rem;margin:.45rem .55rem 0 auto;padding:.4rem .7rem;border:1px solid rgba(255,255,255,.18);border-radius:.55rem;background:#1b3449;color:#e8f3fb;font-size:.7rem;font-weight:800;touch-action:manipulation}
 #modal.job-menu:after{content:"";display:block;clear:both}
 #modal.work-menu .wm-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem;margin:.75rem 1rem .85rem}
 #modal.work-menu .wm-shortcuts>button{display:flex;align-items:center;gap:.5rem;min-width:0;min-height:3.7rem;margin:0;padding:.55rem .6rem;border:1px solid rgba(130,190,227,.18);border-radius:.7rem;background:linear-gradient(145deg,rgba(42,101,141,.22),rgba(255,255,255,.025));color:#edf6fc;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
