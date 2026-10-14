@@ -11,7 +11,7 @@
   const style = document.createElement("style");
   style.id = "nrsFreshLobbyStyles";
   style.textContent = [
-    "#nrsFreshLobby{position:fixed!important;inset:0!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important;box-sizing:border-box!important;z-index:2147483000!important;overflow:hidden!important;background:#170923;color:#fff;font-family:system-ui,-apple-system,\\\"Segoe UI\\\",sans-serif;line-height:1.35;display:block}",
+    "#nrsFreshLobby{position:fixed!important;inset:0!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important;box-sizing:border-box!important;z-index:2147483000!important;overflow:hidden!important;background:#170923;color:#fff;font-family:system-ui,Arial,sans-serif;line-height:1.35;display:block}",
     "#nrsFreshLobby[hidden]{display:none!important}#nrsFreshLobby *{box-sizing:border-box}",
     "#nrsFreshLobby .shell{position:absolute;inset:0;display:flex;flex-direction:column;width:100%;min-width:0;height:100%;background:radial-gradient(circle at 12% 0%,rgba(150,70,205,.34),transparent 34%),radial-gradient(circle at 90% 80%,rgba(103,40,165,.25),transparent 36%),linear-gradient(135deg,#170923,#311047 52%,#170923)}",
     "#nrsFreshLobby .top{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:16px;width:100%;min-width:0;padding:14px clamp(16px,4vw,54px);border-bottom:1px solid rgba(255,255,255,.08);background:rgba(10,2,19,.42);backdrop-filter:blur(12px)}",
@@ -36,7 +36,7 @@
     "@media(max-width:900px){#nrsFreshLobby .nrsFreshGrid{grid-template-columns:repeat(2,minmax(0,1fr))}#nrsFreshLobby .nrsFreshCard,#nrsFreshLobby .nrsFreshEmpty{min-height:340px}#nrsFreshLobby .nrsFreshAvatar{height:clamp(110px,23vh,180px)}}",
     "@media(max-width:560px){#nrsFreshLobby .top{gap:10px;padding:10px 12px}#nrsFreshLobby .nrsFreshTopRight span{display:none}#nrsFreshLobby .nrsFreshBrand b{font-size:11px}#nrsFreshLobby .nrsFreshBrand small{font-size:7px}#nrsFreshLobby .nrsFreshLogo{width:36px;height:36px;flex-basis:36px}#nrsFreshLobby .main{padding:16px 12px 20px}#nrsFreshLobby .nrsFreshGrid{grid-template-columns:1fr}#nrsFreshLobby .nrsFreshCard,#nrsFreshLobby .nrsFreshEmpty{min-height:340px}#nrsFreshLobby .nrsFreshAvatar{height:190px}#nrsFreshLobby .nrsFreshTitle{font-size:27px}}",
     "@media(max-height:520px) and (min-width:561px){#nrsFreshLobby .main{padding-top:14px}#nrsFreshLobby .nrsFreshSummary{margin-top:14px}#nrsFreshLobby .nrsFreshCard,#nrsFreshLobby .nrsFreshEmpty{min-height:310px}#nrsFreshLobby .nrsFreshAvatar{height:140px}}"
-  ].join("\\n");
+  ].join("\n");
   document.head.appendChild(style);
 
   const esc = value => String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
@@ -182,7 +182,7 @@
 
   function build(characters) {
     const emailText = (document.getElementById("nrsCharacterEmail") || {}).textContent || "";
-    const email = emailText.replace(/^Signed in as\\s*/i, "") || "Citizen";
+    const email = emailText.replace(/^Signed in as\s*/i, "") || "Citizen";
     const list = (characters || []).map((character, index) => {
       const id = esc(character.id);
       const name = esc(character.name || "Unnamed Citizen");
