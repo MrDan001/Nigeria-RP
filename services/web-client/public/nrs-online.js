@@ -167,10 +167,7 @@
       <h1 id="nrsAuthTitle">Welcome back</h1>
       <p class="copy" id="nrsAuthCopy">Log in to load your character, money, jobs and progress.</p>
 
-      <div class="tabs" role="tablist" aria-label="Account access">
-        <button class="tab active" id="nrsLogin" type="button" role="tab" aria-selected="true">LOG IN</button>
-        <button class="tab" id="nrsReg" type="button" role="tab" aria-selected="false">CREATE ACCOUNT</button>
-      </div>
+      <div class="eyebrow">ACCOUNT ACCESS</div>
 
       <form id="nrsForm" autocomplete="on">
         <label class="field">
@@ -180,29 +177,11 @@
           </div>
         </label>
 
-        <label class="field" id="nrsUsernameWrap" hidden>
-          <span>Username</span>
-          <div class="inputWrap">
-            <input id="nrsUser" name="username" autocomplete="username" maxlength="31" placeholder="Firstname_lastname">
-          </div>
-          <div class="hint">Required format: Firstname_lastname — letters only on both sides of the underscore.</div>
-        </label>
-
         <label class="field">
           <span>Password</span>
           <div class="inputWrap">
             <input id="nrsPass" name="password" type="password" minlength="6" autocomplete="current-password" placeholder="Enter your password" required>
             <button class="eye" id="nrsPassEye" type="button" aria-label="Show password" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.4"/></svg>
-            </button>
-          </div>
-        </label>
-
-        <label class="field" id="nrsConfirmWrap" hidden>
-          <span>Repeat password</span>
-          <div class="inputWrap">
-            <input id="nrsConfirm" name="confirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Repeat your password">
-            <button class="eye" id="nrsConfirmEye" type="button" aria-label="Show password" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.4"/></svg>
             </button>
           </div>
@@ -241,7 +220,6 @@
   document.body.appendChild(auth);
 
   const status = (message) => { $("nrsStatus").textContent = message || ""; };
-  let registerMode = false;
   let authRequestTimer = null;
 
   function clearAuthRequestTimer() {
@@ -262,37 +240,12 @@
     }, 14000);
   }
 
-  function setMode(isRegister) {
-    registerMode = isRegister;
-
-    const usernameWrap = $("nrsUsernameWrap");
-    const usernameInput = $("nrsUser");
-    const confirmWrap = $("nrsConfirmWrap");
-    const confirmInput = $("nrsConfirm");
-
-    $("nrsLogin").classList.toggle("active", !isRegister);
-    $("nrsReg").classList.toggle("active", isRegister);
-    $("nrsLogin").setAttribute("aria-selected", String(!isRegister));
-    $("nrsReg").setAttribute("aria-selected", String(isRegister));
-
-    // Explicitly control visibility and disabled state so LOGIN can only show
-    // Email + Password and the Create Account form remains unchanged.
-    usernameWrap.hidden = !isRegister;
-    usernameWrap.style.display = isRegister ? "grid" : "none";
-    usernameInput.required = isRegister;
-    usernameInput.disabled = !isRegister;
-    confirmWrap.hidden = !isRegister;
-    confirmWrap.style.display = isRegister ? "grid" : "none";
-    confirmInput.required = isRegister;
-    confirmInput.disabled = !isRegister;
-
+  function setMode() {
     $("nrsEmail").autocomplete = "email";
-    $("nrsPass").autocomplete = isRegister ? "new-password" : "current-password";
-    $("nrsAuthTitle").textContent = isRegister ? "Create your citizen account" : "Welcome back";
-    $("nrsAuthCopy").textContent = isRegister
-      ? "Create one account with your email and your Firstname_lastname citizen name."
-      : "Log in with the email linked to your citizen account.";
-    $("nrsSubmit").textContent = isRegister ? "CREATE ACCOUNT" : "LOG IN & ENTER";
+    $("nrsPass").autocomplete = "current-password";
+    $("nrsAuthTitle").textContent = "Welcome back";
+    $("nrsAuthCopy").textContent = "Log in with the email linked to your citizen account.";
+    $("nrsSubmit").textContent = "LOG IN";
     $("nrsError").textContent = "";
   }
 
@@ -303,10 +256,7 @@
     button.setAttribute("aria-pressed", String(show));
   }
 
-  $("nrsLogin").addEventListener("click", () => setMode(false));
-  $("nrsReg").addEventListener("click", () => setMode(true));
   $("nrsPassEye").addEventListener("click", () => togglePassword($("nrsPass"), $("nrsPassEye")));
-  $("nrsConfirmEye").addEventListener("click", () => togglePassword($("nrsConfirm"), $("nrsConfirmEye")));
 
   // Start in LOGIN mode explicitly. Create Account is opt-in via its tab.
   setMode(false);
@@ -1195,24 +1145,12 @@
     event.preventDefault();
 
     const email = $("nrsEmail").value.trim();
-    const username = $("nrsUser").value.trim();
     const password = $("nrsPass").value;
-    const confirm = $("nrsConfirm").value;
 
     $("nrsError").textContent = "";
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       $("nrsError").textContent = "Enter a valid email address.";
-      return;
-    }
-
-    if (registerMode && !/^[A-Za-z]+_[A-Za-z]+$/.test(username)) {
-      $("nrsError").textContent = "Username must be exactly Firstname_lastname, for example Dan_mccoll.";
-      return;
-    }
-
-    if (registerMode && password !== confirm) {
-      $("nrsError").textContent = "Passwords do not match.";
       return;
     }
 
@@ -1224,13 +1162,12 @@
 
     $("nrsSubmit").disabled = true;
     try { localStorage.setItem(EMAIL_KEY, email); } catch {}
-    status(registerMode ? "Creating your account…" : "Logging you in…");
+    status("Logging you in…");
     armAuthRequestTimer();
 
     const sent = send({
-      type: registerMode ? "authRegister" : "authLogin",
+      type: "authLogin",
       email,
-      ...(registerMode ? { username } : {}),
       password,
       characterSelection: true
     });
