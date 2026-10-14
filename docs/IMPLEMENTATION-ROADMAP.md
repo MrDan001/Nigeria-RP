@@ -72,6 +72,20 @@ The existing fare calculation and travel-route authorization remain authoritativ
 - [ ] Resolve/retry the existing Stage 15 live-auth integration timeout; the same `authOk` timeout was recorded on the pre-change baseline.
 - [ ] Manually test residential and business destinations, reward settlement, reconnect behavior and touch controls on the live game.
 
+## UI enhancement — Job Center and Careers & factions
+**Status: IMPLEMENTED ON `fix/job-center-touch-ui-20261014`; web build and real-device checks pending.**
+
+- [x] Fix click delegation so clicks on nested icons/labels resolve their containing button instead of losing the button's `data-j` action.
+- [x] Show the delivery request's pending state, block repeated acceptance taps, and render failed acceptance responses in the Job Center.
+- [x] Present the courier route as separate pickup and drop-off steps, with reward and mapped address count clearly surfaced.
+- [x] Give the Accept delivery action and supporting Careers & factions link larger touch targets, stronger contrast, and responsive layout.
+- [x] Redesign Careers & factions quick-service navigation for Emergency Services, City News and Transport & Haulage.
+- [x] Bump asset query versions for updated client sources/styles to avoid reusing stale cached assets.
+- [ ] Run browser syntax and production build checks plus project CI/regression tests on this branch.
+- [ ] Complete a physical Android/browser walkthrough of job acceptance, pickup, drop-off, failure feedback and careers shortcuts.
+
+Do not mark this enhancement as live until the feature branch has passed automated gates, been reviewed/merged and deployed, and the affected interaction has been manually verified.
+
 ## Stage 14 — Release, load and recovery validation
 **Status: COMPLETE FOR AUTOMATED RELEASE GATE**
 
