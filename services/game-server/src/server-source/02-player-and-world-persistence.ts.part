@@ -1693,9 +1693,13 @@ wss.on("connection", (socket) => {
           const pickupX=Number(message.pickupX),pickupZ=Number(message.pickupZ),x=Number(message.x),z=Number(message.z);
           const clean=(raw:unknown)=>String(raw??"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,120);
           const pickupName=clean(message.pickupName),destinationName=clean(message.destinationName);
+          const pickupMeta=message.pickupMeta===undefined?null:normalizeCourierMeta(message.pickupMeta);
+          const destinationMeta=message.destinationMeta===undefined?null:normalizeCourierMeta(message.destinationMeta);
           const distance=Math.hypot(x-pickupX,z-pickupZ);
-          const candidate:Exclude<JobState,null>={n:jobName,x,z,pay:courierReward(distance),courier:true,pickupX,pickupZ,pickupName,destinationName,pickedUp:false};
-          if(findStage15City(String(session.player.cityId??""))?.id!=="port-harcourt"||!jobName||!pickupName||!destinationName||!isValidKnownJob(candidate)){
+          const candidate:Exclude<JobState,null>={n:jobName,x,z,pay:courierReward(distance),courier:true,pickupX,pickupZ,pickupName,destinationName,
+            ...(pickupMeta?{pickupMeta}:{}),...(destinationMeta?{destinationMeta}:{}),pickedUp:false};
+          if(findStage15City(String(session.player.cityId??""))?.id!=="port-harcourt"||!jobName||!pickupName||!destinationName||\
+            (message.pickupMeta!==undefined&&!pickupMeta)||(message.destinationMeta!==undefined&&!destinationMeta)||!isValidKnownJob(candidate)){
             send(socket,{type:"jobResult",ok:false,message:"Choose a valid Port Harcourt pickup and building drop-off."});return;
           }
           accepted=candidate;
