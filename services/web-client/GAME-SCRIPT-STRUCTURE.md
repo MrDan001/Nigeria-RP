@@ -11,7 +11,7 @@ Browser source order:
 6. `04b-government-finance-and-navigation.js.part`
 7. `04c-hud-fuel-and-runtime.js.part`
 
-Courier delivery routing lives in `game-source/03a-traffic-and-interiors.js.part`: it builds its address pool from the Port Harcourt housing catalogue, apartment/building entrances and registered shop/workplace POIs. `04b-government-finance-and-navigation.js.part` handles parcel pickup, recipient drop-off and reward settlement; `04c-hud-fuel-and-runtime.js.part` displays the current waypoint on the map. Run `npm run typecheck` and `npm run build` from `services/web-client` after changing these fragments; `index.html` script query keys must be bumped when the assembled browser assets change.
+Courier delivery routing lives in `game-source/03a-traffic-and-interiors.js.part`: it builds its address pool from the Port Harcourt housing catalogue, allowlisted static apartment/building entrances and registered shop/workplace POIs. `04b-government-finance-and-navigation.js.part` handles parcel pickup, recipient drop-off and reward settlement; `04c-hud-fuel-and-runtime.js.part` displays the current waypoint on the map. Run `npm run typecheck` and `npm run build` from `services/web-client` after changing these fragments; `index.html` script query keys must be bumped when the assembled browser assets change.
 
 The authoritative server is stored as four ordered fragments under `src/server-source/`, also each below 100 KB. Build, typecheck, development and test commands assemble the exact original `src/server.ts` before TypeScript runs. The generated monolithic source is ignored by Git.
 
