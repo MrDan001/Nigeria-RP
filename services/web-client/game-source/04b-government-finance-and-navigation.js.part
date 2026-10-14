@@ -191,7 +191,7 @@ modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  }
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();},'bank');return;}bankUI();}
- else if(d.j&&!job){const routes=buildDeliveryJobs();if(!routes.length){sys('No delivery addresses are available yet. Reopen the Job Center in a moment.');return;}const j=routes[((jobN%routes.length)+routes.length)%routes.length];NRS.acceptJob(j.name,(r)=>{if(r.ok){job={n:j.name,pickupName:j.pickup.name,pickupX:j.pickup.x,pickupZ:j.pickup.z,destinationName:j.destination.name,x:j.destination.x,z:j.destination.z,pay:j.pay,pickedUp:false};delete inv.Parcel;sys('Delivery accepted. Pick up the parcel from '+j.pickup.name+'.');mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
+ else if(d.j&&!job){const routes=buildDeliveryJobs();if(!routes.length){sys('No delivery addresses are available yet. Reopen the Job Center in a moment.');return;}const j=routes[((jobN%routes.length)+routes.length)%routes.length];NRS.acceptJob({name:j.name,pickup:j.pickup,destination:j.destination},(r)=>{if(r.ok){job=r.job||job;delete inv.Parcel;sys('Delivery accepted. Pick up the parcel from '+j.pickup.name+'.');mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
 function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
@@ -203,10 +203,14 @@ function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt
   const d=Math.hypot(pos.x-waypoint.x,pos.z-waypoint.z);
   if(!inside&&d<5&&!job._claimed){
    if(!job.pickedUp){
-    job.pickedUp=true;inv.Parcel=1;
-    sys('Parcel collected from '+job.pickupName+'. Deliver it to '+job.destinationName+'.');
-    mis('<i>DELIVERY</i><b>Deliver parcel to '+deliveryText(job.destinationName)+'</b>');
-    if(window.NRS?.saveProgress)window.NRS.saveProgress();
+    if(!job._pickupPending){
+     const requestedJobName=job.n;job._pickupPending=true;
+     NRS.pickupJob((r)=>{
+      if(!r.ok){if(job&&job.n===requestedJobName)delete job._pickupPending;sys(r.message||'Parcel pickup was not confirmed.');return;}
+      if(job&&job.n===requestedJobName)job=r.job||job;
+      if(job&&job.n===requestedJobName){delete job._pickupPending;inv.Parcel=1;sys('Parcel collected from '+job.pickupName+'. Deliver it to '+job.destinationName+'.');mis('<i>DELIVERY</i><b>Deliver parcel to '+deliveryText(job.destinationName)+'</b>');if(window.NRS?.saveProgress)window.NRS.saveProgress();}
+     });
+    }
    }else{
     job._claimed=true;
     const completedJob=job;
