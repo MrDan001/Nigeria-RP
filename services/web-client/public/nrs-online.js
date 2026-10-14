@@ -849,6 +849,24 @@
         }
         window.dispatchEvent(new CustomEvent("nrs-stage15-travel-result", { detail: message }));
         if (message.message) sys(message.message);
+      } else if (message.type === "chatMessage") {
+        const log = document.getElementById("log");
+        if (log) {
+          const row = document.createElement("div");
+          const strong = document.createElement("b");
+          const channel = String(message.channel || "GLOBAL").toUpperCase();
+          const label = channel === "DIRECT" ? "🔒 PM" : channel === "AD" ? "📣 CITY AD" : channel;
+          strong.textContent = label + " · " + String(message.senderName || "Citizen") +
+            (message.displayId ? " #" + String(message.displayId) : "") + ": ";
+          row.append(strong, document.createTextNode(String(message.text || "")));
+          log.appendChild(row);
+          while (log.children.length > 120) log.firstElementChild.remove();
+          log.scrollTop = log.scrollHeight;
+        }
+        window.dispatchEvent(new CustomEvent("nrs-chat-message", { detail: message }));
+      } else if (message.type === "chatResult") {
+        window.dispatchEvent(new CustomEvent("nrs-chat-result", { detail: message }));
+        if (message.ok === false && message.message) sys(message.message);
       } else if (message.type === "snapshot") {
         snapshot(message.players || [], message.onlineCount);
       } else if (message.type === "playerJoined") {
@@ -1395,6 +1413,7 @@
   N.changeWorkUniform = (workplaceId) => send({ type: "changeWorkUniform", workplaceId });
   N.exitStaffRoom = () => send({ type: "exitStaffRoom" });
   N.interactWithPlayer = (targetId, action = "greet") => send({ type: "playerInteraction", targetId, action });
+  N.sendChat = (text, channel = "GLOBAL", targetId = "") => send({ type: "chatSend", text, channel, targetId });
 
   N.buyFuel = (carId, litres, brand, callback) => {
     if (!S.authed || !S.open) {
