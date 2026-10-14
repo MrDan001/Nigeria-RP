@@ -107,7 +107,7 @@ import { STAGE18_BET_CLOSE_HOUR, STAGE18_BET_MAX_STAKE, STAGE18_BET_MIN_STAKE, S
 
 const scrypt = promisify(scryptCb);
 
-type JobState = { n: string; x: number; z: number; pay: number } | null;
+type JobState = { n: string; x: number; z: number; pay: number; courier?: true; pickupX?: number; pickupZ?: number; pickupName?: string; destinationName?: string; pickedUp?: boolean } | null;
 type Inventory = Record<string, number>;
 type FuelMap = Record<string, number>;
 
@@ -291,6 +291,30 @@ const JOBS: Array<Exclude<JobState, null>> = [
   { n: "Parcel to Waterlines", x: 90, z: 150, pay: 12000 },
 ];
 
+const COURIER_HOUSE_SIZES: Record<string,{w:number;d:number}> = {
+  hut:{w:5.6,d:6.2}, faceme:{w:10.5,d:8.5}, flat:{w:11.5,d:10},
+  estate:{w:14,d:11.5}, mansion:{w:17,d:14}, palace:{w:21,d:17}, grand:{w:26,d:22},
+};
+// Non-residential entrances mirror the fixed, authored POIs in the browser map.
+const COURIER_FIXED_POINTS: ReadonlyArray<readonly [number,number]> = [
+  [-9.55,6],[-9.55,32],[-9.55,-52],[9.55,2],[9.55,28],[-20.55,-90],[20.55,-96],
+  [-79,106],[155,-126],[180,144],[215,144],
+  [-60,40],[-12,-20],[-30,20],[20,-52],[36,-8],[-28,-132],[30,100],[-50.5,-132],[185,-150],[16,54],
+  [-8.4,-1],[-8.4,32],[-8.4,-52],[8.4,-24],[8.4,2],[8.4,28],[-8.4,-20],
+];
+function isKnownCourierPoint(x:number,z:number){
+  if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>270||Math.abs(z)>270)return false;
+  for(const h of HOUSES){
+    const size=COURIER_HOUSE_SIZES[h.cls]||COURIER_HOUSE_SIZES.flat;
+    const front=h.cls==="hut"?size.w*.48:size.d/2;
+    if(Math.hypot(x-h.x,z-(h.z+front+2.15))<=.85)return true;
+  }
+  return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(x-px,z-pz)<=.85);
+}
+function courierReward(distance:number){
+  return Math.max(4500,Math.min(20000,Math.round((4000+distance*35)/500)*500));
+}
+
 function send(socket: WebSocket, message: unknown) {
   if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
 }
@@ -339,13 +363,16 @@ function normalizeFuel(value: unknown): FuelMap {
 function normalizeJob(value: unknown): JobState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const v = value as Record<string, unknown>;
-  let n = typeof v.n === "string" ? v.n.slice(0, 100) : "";
+  let n = typeof v.n === "string" ? v.n.slice(0, 160) : "";
   if (n === "Parcel to the Waterfront") n = "Parcel to Waterlines"; // renamed; keeps old saved jobs payable
-  const x = Number(v.x);
-  const z = Number(v.z);
-  const pay = Number(v.pay);
+  const x = Number(v.x), z = Number(v.z), pay = Number(v.pay);
   if (!n || !Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(pay)) return null;
-  return { n, x, z, pay };
+  if (v.courier !== true) return { n, x, z, pay };
+  const pickupX=Number(v.pickupX),pickupZ=Number(v.pickupZ);
+  const clean=(raw:unknown)=>String(raw??"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,120);
+  const pickupName=clean(v.pickupName),destinationName=clean(v.destinationName);
+  if(!Number.isFinite(pickupX)||!Number.isFinite(pickupZ)||!pickupName||!destinationName)return null;
+  return {n,x,z,pay,courier:true,pickupX,pickupZ,pickupName,destinationName,pickedUp:v.pickedUp===true};
 }
 
 function normalizeAccount(account: Account): Account {
