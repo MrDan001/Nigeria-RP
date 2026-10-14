@@ -62,9 +62,10 @@ Implemented in the browser source:
 - [x] Refresh Careers & factions quick-service shortcuts for Emergency Services, City News, and Transport & Haulage.
 - [x] Refresh asset query versions for the modified browser scripts and stylesheet.
 - [x] Parse each modified JavaScript source fragment successfully; the stylesheet's braces are balanced.
-- [ ] Run the repository's own web-client syntax/build commands and project regression/CI gates.
+- [x] GitHub Actions `Railway build and betting tests` passed, including the production build for this branch.
+- [ ] Clear the separate Game Server CI failure: the Stage 15 live-auth test timed out waiting for `authOk` (`src/test-stage15-live.ts:120`); the same pre-change baseline timeout is already tracked above, and later CI steps were skipped.
 - [ ] Test the Accept delivery action, Careers & factions shortcuts, pickup/drop-off completion, and error feedback on a real Android device.
 
-The current PR's Vercel status points to a `build-rate-limit` page, so it is not evidence of a successful preview build. The repository build and Railway deployment remain unverified for this branch.
+The current PR's Vercel status points to a `build-rate-limit` page, so its Vercel preview remains unavailable. GitHub Actions has independently passed the production build and Railway build/betting workflow; the production Railway deployment for this branch is not verified or released.
 
 These source changes are in a feature branch and are not represented as merged or live in Railway until the branch is reviewed, merged, deployed and manually verified.
