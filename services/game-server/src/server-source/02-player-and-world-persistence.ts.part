@@ -1381,6 +1381,75 @@ wss.on("connection", (socket) => {
         return;
       }
 
+      if (message.type === "chatSend") {
+        const text = String(message.text ?? "")
+          .replace(/[\\u0000-\\u001f\\u007f]/g, " ")
+          .replace(/\\s+/g, " ")
+          .trim()
+          .slice(0, 220);
+        if (!text) {
+          send(socket, { type: "chatResult", ok: false, message: "Enter a message." });
+          return;
+        }
+
+        const now = Date.now();
+        const requestedChannel = String(message.channel ?? "GLOBAL").trim().toUpperCase();
+        const channel = ["LOCAL", "DIRECT", "AD"].includes(requestedChannel) ? requestedChannel : "GLOBAL";
+        if (channel === "AD") {
+          if (now - (session.chatLastAdAt ?? 0) < 90_000) {
+            send(socket, { type: "chatResult", ok: false, channel, message: "Wait before posting another city advert." });
+            return;
+          }
+          session.chatLastAdAt = now;
+          session.chatLastSentAt = now;
+        } else {
+          if (now - (session.chatLastSentAt ?? 0) < 650) {
+            send(socket, { type: "chatResult", ok: false, channel, message: "Please wait a moment before sending another message." });
+            return;
+          }
+          session.chatLastSentAt = now;
+        }
+
+        const packet = {
+          type: "chatMessage",
+          messageId: now.toString(36) + "-" + session.player.id,
+          channel,
+          senderId: session.player.id,
+          senderName: String(session.player.name || "Citizen").slice(0, 40),
+          displayId: session.displayId,
+          cityId: session.player.cityId,
+          text,
+          at: now,
+        };
+
+        if (channel === "DIRECT") {
+          const targetId = String(message.targetId ?? "").trim().slice(0, 100);
+          const target = [...players.values()].find((candidate) =>
+            candidate.player.id === targetId &&
+            candidate.player.cityId === session.player.cityId
+          );
+          if (!target || target === session) {
+            send(socket, { type: "chatResult", ok: false, channel, message: "Choose another citizen who is online in this city." });
+            return;
+          }
+          const directPacket = { ...packet, targetId: target.player.id };
+          send(socket, directPacket);
+          send(target.socket, directPacket);
+        } else {
+          for (const recipient of players.values()) {
+            if (recipient.player.cityId !== session.player.cityId) continue;
+            if (channel === "LOCAL" && Math.hypot(
+              recipient.player.x - session.player.x,
+              recipient.player.z - session.player.z
+            ) > 80) continue;
+            send(recipient.socket, packet);
+          }
+        }
+
+        send(socket, { type: "chatResult", ok: true, channel, message: channel === "AD" ? "Your advert was posted to the city feed." : "Message sent." });
+        return;
+      }
+
       if (message.type === "posSync") {
         if (session.inHome || session.inStaffRoom || session.inApartmentInterior) return;
         const x = Number(message.x);
