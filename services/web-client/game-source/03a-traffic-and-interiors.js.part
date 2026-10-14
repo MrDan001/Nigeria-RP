@@ -457,7 +457,8 @@ function apartmentBuildingName(b){
 function apartmentBuildingPayload(b){
  const id="apt-"+Math.round(b.x*10)+"-"+Math.round(b.z*10),floors=Math.max(2,Math.min(10,Math.floor(Number(b.h)/4)));
  return {buildingId:id,buildingName:apartmentBuildingName(b),x:Number(b.x),z:Number(b.z),
-  entryX:Number(b.entryX),entryZ:Number(b.entryZ),width:Number(b.hw*2),depth:Number(b.hd*2),height:Number(b.h),floors};
+  entryX:Number(b.entryX),entryZ:Number(b.entryZ),width:Number(b.hw*2),depth:Number(b.hd*2),height:Number(b.h),floors,
+  entryAxis:b.entryAxis||'x',entrySign:Number(b.entrySign)||1,generated:b.gen===true};
 }
 function addApartmentExteriorDetails(b,id){
  if(APARTMENT_FACADE_DETAILS[id])return;
@@ -735,17 +736,25 @@ const COURIER_FIXED_POINTS=[
  [-60,40],[-12,-20],[-30,20],[20,-52],[36,-8],[-28,-132],[30,100],[-50.5,-132],[185,-150],[16,54],
  [-8.4,-1],[-8.4,32],[-8.4,-52],[8.4,-24],[8.4,2],[8.4,28],[-8.4,-20]
 ];
-function isKnownCourierPoint(x,z){return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(Number(x)-px,Number(z)-pz)<=.85);}
+function isKnownGeneratedApartmentPoint(x,z,meta){
+ if(!meta||meta.generatedApartment!==true)return false;
+ const cx=Number(meta.centerX),cz=Number(meta.centerZ),w=Number(meta.width),d=Number(meta.depth),h=Number(meta.height),axis=meta.entryAxis,sign=Number(meta.entrySign),id=String(meta.buildingId||'');
+ if(![cx,cz,w,d,h].every(Number.isFinite)||Math.abs(cx)>270||Math.abs(cz)>270||w<8||w>40||d<8||d>40||h<5||h>60||(axis!=='x'&&axis!=='z')||(sign!==1&&sign!==-1)||id!=='apt-'+Math.round(cx*10)+'-'+Math.round(cz*10))return false;
+ let gxOK=false,gzOK=false;for(let gx=-228;gx<=228;gx+=24)if(Math.abs(cx-gx)<=3.001){gxOK=true;break;}for(let gz=-228;gz<=180;gz+=24)if(Math.abs(cz-gz)<=3.001){gzOK=true;break;}if(!gxOK||!gzOK)return false;
+ const ex=axis==='x'?cx+sign*(w/2+1.45):cx,ez=axis==='z'?cz+sign*(d/2+1.45):cz;
+ return Math.hypot(Number(x)-ex,Number(z)-ez)<=.85;
+}
+function isKnownCourierPoint(x,z,meta){return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(Number(x)-px,Number(z)-pz)<=.85)||isKnownGeneratedApartmentPoint(x,z,meta);}
 function deliveryLocations(){
  const locations=[],ids=new Set();
- const add=(id,name,x,z,kind='building')=>{
+ const add=(id,name,x,z,kind='building',meta=null)=>{
   const px=Number(x),pz=Number(z),key=String(id??'');
   if(!key||!Number.isFinite(px)||!Number.isFinite(pz)||Math.abs(px)>270||Math.abs(pz)>270||ids.has(key))return;
   const label=deliveryText(name);
   if(!label)return;
   // Multiple systems can describe the same doorway (for example an apartment POI and its building collider).
   if(locations.some(v=>Math.hypot(v.x-px,v.z-pz)<2.2))return;
-  ids.add(key);locations.push({id:key,name:label,x:px,z:pz,kind});
+  ids.add(key);locations.push({id:key,name:label,x:px,z:pz,kind,...(meta?{meta}:{})});
  };
  // Start with every authored house/hut/compound/apartment-style home, then overlay live server records.
  const homes=new Map();
@@ -767,8 +776,9 @@ function deliveryLocations(){
   const rawName=String(p.name||'Port Harcourt building').replace(/^(?:Enter|Inspect)\s+/i,'').trim();
   if(p.apartmentBuildingPoi){
    const apt=p.apartmentBuilding||{};
-   if(!isKnownCourierPoint(p.x,p.z))continue;
-   add('apartment:'+(apt.buildingId||apt.buildingName||rawName),apt.buildingName||rawName,p.x,p.z,'apartment');
+   const meta=apt.generated===true?{generatedApartment:true,centerX:Number(apt.x),centerZ:Number(apt.z),width:Number(apt.width),depth:Number(apt.depth),height:Number(apt.height),entryAxis:apt.entryAxis,entrySign:Number(apt.entrySign),buildingId:String(apt.buildingId||'')}:undefined;
+   if(!isKnownCourierPoint(p.x,p.z,meta))continue;
+   add('apartment:'+(apt.buildingId||apt.buildingName||rawName),apt.buildingName||rawName,p.x,p.z,'apartment',meta);
   }else if(kind==='workplace'){
    if(!isKnownCourierPoint(p.x,p.z))continue;
    add('workplace:'+(p.workplaceId||rawName),rawName,p.x,p.z,'workplace');
