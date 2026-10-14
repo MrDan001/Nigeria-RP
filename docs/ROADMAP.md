@@ -47,4 +47,5 @@ Implemented in the browser source:
 - [x] Calculate distance-based rewards with a minimum and maximum payout.
 - [x] Point the in-world beacon, mission HUD, expanded map and service map at the current pickup/drop-off stop.
 - [x] Validate route endpoints, pickup completion and payout on the game server; calculate rewards server-side.
-- [ ] Run the browser-client syntax/build checks and manually verify pickup, drop-off and reachability on desktop/mobile.
+- [x] Browser-client production build passed in GitHub Actions.
+- [ ] Manually verify pickup, drop-off, reachability and touch controls on desktop/mobile.
