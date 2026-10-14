@@ -107,7 +107,8 @@ import { STAGE18_BET_CLOSE_HOUR, STAGE18_BET_MAX_STAKE, STAGE18_BET_MIN_STAKE, S
 
 const scrypt = promisify(scryptCb);
 
-type JobState = { n: string; x: number; z: number; pay: number; courier?: true; pickupX?: number; pickupZ?: number; pickupName?: string; destinationName?: string; pickedUp?: boolean } | null;
+type CourierPointMeta = { generatedApartment: true; centerX: number; centerZ: number; width: number; depth: number; height: number; entryAxis: "x" | "z"; entrySign: 1 | -1; buildingId: string };
+type JobState = { n: string; x: number; z: number; pay: number; courier?: true; pickupX?: number; pickupZ?: number; pickupName?: string; destinationName?: string; pickupMeta?: CourierPointMeta; destinationMeta?: CourierPointMeta; pickedUp?: boolean } | null;
 type Inventory = Record<string, number>;
 type FuelMap = Record<string, number>;
 
@@ -302,14 +303,36 @@ const COURIER_FIXED_POINTS: ReadonlyArray<readonly [number,number]> = [
   [-60,40],[-12,-20],[-30,20],[20,-52],[36,-8],[-28,-132],[30,100],[-50.5,-132],[185,-150],[16,54],
   [-8.4,-1],[-8.4,32],[-8.4,-52],[8.4,-24],[8.4,2],[8.4,28],[-8.4,-20],
 ];
-function isKnownCourierPoint(x:number,z:number){
+function normalizeCourierMeta(value:unknown):CourierPointMeta|null{
+  if(!value||typeof value!=="object"||Array.isArray(value))return null;
+  const v=value as Record<string,unknown>,axis=v.entryAxis==="x"||v.entryAxis==="z"?v.entryAxis:null,sign=Number(v.entrySign);
+  const centerX=Number(v.centerX),centerZ=Number(v.centerZ),width=Number(v.width),depth=Number(v.depth),height=Number(v.height);
+  const buildingId=typeof v.buildingId==="string"?v.buildingId.slice(0,64):"";
+  if(v.generatedApartment!==true||!axis||(sign!==1&&sign!==-1)||!buildingId||![centerX,centerZ,width,depth,height].every(Number.isFinite))return null;
+  return {generatedApartment:true,centerX,centerZ,width,depth,height,entryAxis:axis,entrySign:sign,buildingId};
+}
+function isValidGeneratedApartmentPoint(x:number,z:number,meta?:CourierPointMeta){
+  if(!meta||meta.generatedApartment!==true)return false;
+  const {centerX:cx,centerZ:cz,width,depth,height,entryAxis,entrySign,buildingId}=meta;
+  if(Math.abs(cx)>270||Math.abs(cz)>270||width<8||width>40||depth<8||depth>40||height<5||height>60)return false;
+  if(buildingId!=="apt-"+Math.round(cx*10)+"-"+Math.round(cz*10))return false;
+  let validXGrid=false,validZGrid=false;
+  for(let gx=-228;gx<=228;gx+=24)if(Math.abs(cx-gx)<=3.001){validXGrid=true;break;}
+  for(let gz=-228;gz<=180;gz+=24)if(Math.abs(cz-gz)<=3.001){validZGrid=true;break;}
+  if(!validXGrid||!validZGrid)return false;
+  const expectedX=entryAxis==="x"?cx+entrySign*(width/2+1.45):cx;
+  const expectedZ=entryAxis==="z"?cz+entrySign*(depth/2+1.45):cz;
+  return Math.hypot(x-expectedX,z-expectedZ)<=.85;
+}
+function isKnownCourierPoint(x:number,z:number,meta?:CourierPointMeta){
   if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>270||Math.abs(z)>270)return false;
   for(const h of HOUSES){
     const size=COURIER_HOUSE_SIZES[h.cls]||COURIER_HOUSE_SIZES.flat;
     const front=h.cls==="hut"?size.w*.48:size.d/2;
     if(Math.hypot(x-h.x,z-(h.z+front+2.15))<=.85)return true;
   }
-  return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(x-px,z-pz)<=.85);
+  if(COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(x-px,z-pz)<=.85))return true;
+  return isValidGeneratedApartmentPoint(x,z,meta);
 }
 function courierReward(distance:number){
   return Math.max(4500,Math.min(20000,Math.round((4000+distance*35)/500)*500));
@@ -371,8 +394,12 @@ function normalizeJob(value: unknown): JobState {
   const pickupX=Number(v.pickupX),pickupZ=Number(v.pickupZ);
   const clean=(raw:unknown)=>String(raw??"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,120);
   const pickupName=clean(v.pickupName),destinationName=clean(v.destinationName);
-  if(!Number.isFinite(pickupX)||!Number.isFinite(pickupZ)||!pickupName||!destinationName)return null;
-  return {n,x,z,pay,courier:true,pickupX,pickupZ,pickupName,destinationName,pickedUp:v.pickedUp===true};
+  const pickupMeta=v.pickupMeta===undefined?null:normalizeCourierMeta(v.pickupMeta);
+  const destinationMeta=v.destinationMeta===undefined?null:normalizeCourierMeta(v.destinationMeta);
+  if(!Number.isFinite(pickupX)||!Number.isFinite(pickupZ)||!pickupName||!destinationName||
+    (v.pickupMeta!==undefined&&!pickupMeta)||(v.destinationMeta!==undefined&&!destinationMeta))return null;
+  return {n,x,z,pay,courier:true,pickupX,pickupZ,pickupName,destinationName,
+    ...(pickupMeta?{pickupMeta}:{}),...(destinationMeta?{destinationMeta}:{}),pickedUp:v.pickedUp===true};
 }
 
 function normalizeAccount(account: Account): Account {
