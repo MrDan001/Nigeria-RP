@@ -235,7 +235,6 @@
         </form>
       </div>
       <button class="submit" id="nrsCreateCharacterButton" type="button">＋ CREATE NEW CHARACTER</button>
-      <button class="subtleButton" id="nrsSwitchAccount" type="button">USE ANOTHER ACCOUNT</button>
       <div class="characterStatus" id="nrsCharacterStatus" role="status" aria-live="polite"></div>
     </div>
   `;
@@ -430,14 +429,6 @@
     $("nrsCreateCharacterSubmit").disabled = true;
     $("nrsCharacterStatus").textContent = "Creating your new character…";
     send({ type: "createCharacter", token: S.token, username });
-  });
-  $("nrsSwitchAccount").addEventListener("click", () => {
-    const email = $("nrsCharacterEmail").textContent.replace(/^Signed in as /, "");
-    writeToken("");
-    try { localStorage.removeItem(LAST_CHARACTER_KEY); localStorage.removeItem(LAST_OWNER_KEY); } catch {}
-    $("nrsEmail").value = email || rememberedEmail();
-    showLoginView();
-    setMode(false);
   });
 
 
@@ -751,6 +742,10 @@
       if (message.type === "authOk") {
         writeToken(message.token);
         syncAccount(message.player);
+        // Character selection is finished. Keep accountReady reserved for the lobby only;
+        // otherwise the lobby observer can reopen the overlay after successful entry.
+        S.accountReady = false;
+        S.characters = [];
         N.houses = message.houses || [];
         N.workplaces = message.workplaces || [];
         N.factions = message.factions || [];
