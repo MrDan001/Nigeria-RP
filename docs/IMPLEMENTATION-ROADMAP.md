@@ -72,6 +72,24 @@ The existing fare calculation and travel-route authorization remain authoritativ
 - [ ] Resolve/retry the existing Stage 15 live-auth integration timeout; the same `authOk` timeout was recorded on the pre-change baseline.
 - [ ] Manually test residential and business destinations, reward settlement, reconnect behavior and touch controls on the live game.
 
+## UI enhancement — Job Center and Careers & factions
+**Status: IMPLEMENTED ON `fix/job-center-touch-ui-20261014`; web build and real-device checks pending.**
+
+- [x] Fix click delegation so clicks on nested icons/labels resolve their containing button instead of losing the button's `data-j` action.
+- [x] Show the delivery request's pending state, block repeated acceptance taps, and render failed acceptance responses in the Job Center.
+- [x] Present the courier route as separate pickup and drop-off steps, with reward and mapped address count clearly surfaced.
+- [x] Give the Accept delivery action and supporting Careers & factions link larger touch targets, stronger contrast, and responsive layout.
+- [x] Redesign Careers & factions quick-service navigation for Emergency Services, City News and Transport & Haulage.
+- [x] Bump asset query versions for updated client sources/styles to avoid reusing stale cached assets.
+- [x] Parse each modified JavaScript source fragment successfully; the stylesheet's braces are balanced.
+- [x] GitHub Actions `Railway build and betting tests` passed, including the production build for this branch.
+- [ ] Clear the separate Game Server CI failure: the Stage 15 live-auth test timed out waiting for `authOk` (`src/test-stage15-live.ts:120`); the same pre-change baseline timeout is already recorded in the general roadmap, so this branch's later server-CI steps were skipped.
+- [ ] Complete a physical Android/browser walkthrough of job acceptance, pickup, drop-off, failure feedback and careers shortcuts.
+
+The current PR's Vercel status points to a `build-rate-limit` page, so the Vercel preview remains unavailable. GitHub Actions independently passed the production build and Railway build/betting workflow. No production Railway deployment of this feature branch has been performed or verified.
+
+Do not mark this enhancement as live until the feature branch has passed automated gates, been reviewed/merged and deployed, and the affected interaction has been manually verified.
+
 ## Stage 14 — Release, load and recovery validation
 **Status: COMPLETE FOR AUTOMATED RELEASE GATE**
 

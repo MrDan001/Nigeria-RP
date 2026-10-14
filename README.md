@@ -2,7 +2,7 @@
 
 A browser-native, mobile-first multiplayer roleplay game set in Port Harcourt, Rivers State, Nigeria.
 
-> **Current status — 11 October 2026:** Stage 7 (Police, Army, FRSC and Fire Service) is implemented on `main`, passed its 13 Stage 7 domain tests alongside Stage 1–6 regression, typecheck and builds, and deployed to Railway successfully. Real-device and two-account gameplay checks remain a separate manual limitation. Stage 8 (Rivers News Network) is implemented on `main`; its automated verification and Railway release follow this commit.
+> **Current status — 14 October 2026:** Stage 16 (distinct city environments) has been accepted, and Stage 17 (City Explorer Passport & Discovery Rewards) is active. Railway remains the production host. Port Harcourt courier pickup/drop-off address coverage has been updated in source; full live route and touch-control verification remains a manual acceptance item. The focused branch `fix/job-center-touch-ui-20261014` also contains a Job Center touch-interaction fix and a Careers & factions UI refresh; these changes are not yet merged into `main` or confirmed live.
 
 ## Production and deployment
 
