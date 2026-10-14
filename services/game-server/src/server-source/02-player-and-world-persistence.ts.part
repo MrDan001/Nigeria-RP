@@ -1698,8 +1698,15 @@ wss.on("connection", (socket) => {
           const distance=Math.hypot(x-pickupX,z-pickupZ);
           const candidate:Exclude<JobState,null>={n:jobName,x,z,pay:courierReward(distance),courier:true,pickupX,pickupZ,pickupName,destinationName,
             ...(pickupMeta?{pickupMeta}:{}),...(destinationMeta?{destinationMeta}:{}),pickedUp:false};
-          if(findStage15City(String(session.player.cityId??""))?.id!=="port-harcourt"||!jobName||!pickupName||!destinationName||\
-            (message.pickupMeta!==undefined&&!pickupMeta)||(message.destinationMeta!==undefined&&!destinationMeta)||!isValidKnownJob(candidate)){
+          if (
+            findStage15City(String(session.player.cityId ?? ""))?.id !== "port-harcourt" ||
+            !jobName ||
+            !pickupName ||
+            !destinationName ||
+            (message.pickupMeta !== undefined && !pickupMeta) ||
+            (message.destinationMeta !== undefined && !destinationMeta) ||
+            !isValidKnownJob(candidate)
+          ) {
             send(socket,{type:"jobResult",ok:false,message:"Choose a valid Port Harcourt pickup and building drop-off."});return;
           }
           accepted=candidate;
