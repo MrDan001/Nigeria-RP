@@ -61,12 +61,12 @@ The existing fare calculation and travel-route authorization remain authoritativ
 ## Gameplay enhancement — Port Harcourt courier routes
 **Status: SOURCE UPDATED; browser production build and Railway build/tests passed; full server CI and live playtest pending**
 
-- [x] Delivery routes cover the full residential catalogue (huts, compound rooms, flats, estates, mansions, palaces and grand homes) plus allowlisted static apartment/building entrances, retail, bank and workplace/public-building addresses instead of three fixed coordinates.
+- [x] Delivery routes cover the full residential catalogue (huts, compound rooms, flats, estates, mansions, palaces and grand homes) plus allowlisted static and procedurally generated apartment/building entrances, retail, bank and workplace/public-building addresses instead of three fixed coordinates.
 - [x] Each route requires a parcel pickup and a separate recipient drop-off.
 - [x] Route rewards scale with distance and are bounded to a predictable Naira range.
 - [x] The active pickup/drop-off waypoint is reflected in the beacon, mission HUD and map labels.
 - [x] Parcel pickup is confirmed and persisted by the server; rewards require the confirmed pickup and the assigned drop-off position.
-- [x] Server derives each route payment from distance and validates both addresses against the authored Port Harcourt delivery-point catalogue.
+- [x] Server derives each route payment from distance and validates both addresses against house/building coordinates or a procedurally generated apartment's grid position, dimensions and entry metadata.
 - [x] Browser production build passed in GitHub Actions.
 - [x] Game-server TypeScript typecheck passed in CI.
 - [ ] Resolve/retry the existing Stage 15 live-auth integration timeout; the same `authOk` timeout was recorded on the pre-change baseline.
