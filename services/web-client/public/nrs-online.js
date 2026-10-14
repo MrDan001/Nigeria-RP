@@ -1232,7 +1232,7 @@
     S.jobCb=callback;
     if(typeof route==="string"){send({type:"acceptJob",name:route});return;}
     const pickup=route?.pickup||{},destination=route?.destination||{};
-    send({type:"acceptJob",courier:true,name:String(route?.name||""),pickupX:Number(pickup.x),pickupZ:Number(pickup.z),pickupName:String(pickup.name||""),x:Number(destination.x),z:Number(destination.z),destinationName:String(destination.name||"")});
+    send({type:"acceptJob",courier:true,name:String(route?.name||""),pickupX:Number(pickup.x),pickupZ:Number(pickup.z),pickupName:String(pickup.name||""),pickupMeta:pickup.meta,x:Number(destination.x),z:Number(destination.z),destinationName:String(destination.name||""),destinationMeta:destination.meta});
   };
   N.pickupJob = (callback) => {
     if(!S.authed||!S.open){callback?.({ok:false,message:"Not connected to the game server."});return;}
