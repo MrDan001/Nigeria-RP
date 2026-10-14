@@ -257,7 +257,9 @@
     const session = SESSION();
     const shouldShow = !!(root && !root.hidden && view && !view.hidden && session && session.accountReady);
     if (!shouldShow) {
-      layer.hidden = true;
+      // Do not rewrite the same attribute from inside a MutationObserver.
+      // Repeated hidden-attribute mutations can spin the page and make it unresponsive.
+      if (!layer.hidden) layer.hidden = true;
       if (root && root.hidden) busy = false;
       return;
     }
@@ -267,7 +269,7 @@
       lastSignature = nextSignature;
       build(characters);
     }
-    layer.hidden = false;
+    if (layer.hidden) layer.hidden = false;
   }
 
   const observer = new MutationObserver(refresh);
