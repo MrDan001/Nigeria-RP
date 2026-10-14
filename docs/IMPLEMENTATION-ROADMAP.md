@@ -81,8 +81,11 @@ The existing fare calculation and travel-route authorization remain authoritativ
 - [x] Give the Accept delivery action and supporting Careers & factions link larger touch targets, stronger contrast, and responsive layout.
 - [x] Redesign Careers & factions quick-service navigation for Emergency Services, City News and Transport & Haulage.
 - [x] Bump asset query versions for updated client sources/styles to avoid reusing stale cached assets.
-- [ ] Run browser syntax and production build checks plus project CI/regression tests on this branch.
+- [x] Parse each modified JavaScript source fragment successfully; the stylesheet's braces are balanced.
+- [ ] Run the repository's own web-client syntax/build commands plus project CI/regression tests on this branch.
 - [ ] Complete a physical Android/browser walkthrough of job acceptance, pickup, drop-off, failure feedback and careers shortcuts.
+
+The current PR's Vercel status points to a `build-rate-limit` page; no successful preview build is available from that check. This does not establish whether the source build passes, so the repository build and Railway release remain pending.
 
 Do not mark this enhancement as live until the feature branch has passed automated gates, been reviewed/merged and deployed, and the affected interaction has been manually verified.
 
