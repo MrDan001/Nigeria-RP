@@ -41,11 +41,11 @@ For Stage 17, verify first-visit rewards, repeat-visit behavior, saved passport 
 ## Gameplay enhancement — Port Harcourt courier coverage (14 October 2026)
 
 Implemented in the browser source:
-- [x] Replace the three hard-coded delivery coordinates with an address pool spanning the full housing catalogue (huts, compound rooms, flats, estates, mansions, palaces and grand homes), plus allowlisted static apartment/building entrances, shops, banks and named workplaces/public buildings.
+- [x] Replace the three hard-coded delivery coordinates with an address pool spanning the full housing catalogue (huts, compound rooms, flats, estates, mansions, palaces and grand homes), plus allowlisted static and procedurally generated apartment/building entrances, shops, banks and named workplaces/public buildings.
 - [x] Make each courier job a two-stop route: collect the parcel at one address, then deliver it to another.
 - [x] Cycle recipient addresses through the full generated pool so a location can be used as both a pickup and a destination.
 - [x] Calculate distance-based rewards with a minimum and maximum payout.
 - [x] Point the in-world beacon, mission HUD, expanded map and service map at the current pickup/drop-off stop.
-- [x] Validate route endpoints, pickup completion and payout on the game server; calculate rewards server-side.
+- [x] Validate static and procedurally generated apartment entrance metadata, pickup completion and payout on the game server; calculate rewards server-side.
 - [x] Browser-client production build passed in GitHub Actions.
 - [ ] Manually verify pickup, drop-off, reachability and touch controls on desktop/mobile.
