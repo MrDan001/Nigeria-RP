@@ -59,7 +59,7 @@ Implemented:
 The existing fare calculation and travel-route authorization remain authoritative. The discovery reward is applied to the same server-side cash transaction, not calculated by the client.
 
 ## Gameplay enhancement — Port Harcourt courier routes
-**Status: SOURCE UPDATED; AUTOMATED BUILD AND LIVE PLAYTEST PENDING**
+**Status: SOURCE UPDATED; browser production build and Railway build/tests passed; full server CI and live playtest pending**
 
 - [x] Delivery routes cover the full residential catalogue (huts, compound rooms, flats, estates, mansions, palaces and grand homes) plus allowlisted static apartment/building entrances, retail, bank and workplace/public-building addresses instead of three fixed coordinates.
 - [x] Each route requires a parcel pickup and a separate recipient drop-off.
@@ -67,7 +67,9 @@ The existing fare calculation and travel-route authorization remain authoritativ
 - [x] The active pickup/drop-off waypoint is reflected in the beacon, mission HUD and map labels.
 - [x] Parcel pickup is confirmed and persisted by the server; rewards require the confirmed pickup and the assigned drop-off position.
 - [x] Server derives each route payment from distance and validates both addresses against the authored Port Harcourt delivery-point catalogue.
-- [ ] Run `npm run typecheck` and `npm run build` in `services/web-client`.
+- [x] Browser production build passed in GitHub Actions.
+- [x] Game-server TypeScript typecheck passed in CI.
+- [ ] Resolve/retry the existing Stage 15 live-auth integration timeout; the same `authOk` timeout was recorded on the pre-change baseline.
 - [ ] Manually test residential and business destinations, reward settlement, reconnect behavior and touch controls on the live game.
 
 ## Stage 14 — Release, load and recovery validation
