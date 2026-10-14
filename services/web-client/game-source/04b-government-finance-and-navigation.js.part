@@ -176,7 +176,7 @@ const FX={'Jollof Rice & Chicken':[35,0],'Pounded Yam & Egusi':[40,0],'Bole & Fi
 function bagUI(){bagK=Object.keys(inv).filter(n=>inv[n]>0);panel('<b>🎒 Backpack</b><p>📱 Phone</p>'+(bagK.length?bagK.map((n,i)=>'<p>'+n+' ×'+inv[n]+' '+(FX[n]?'<button data-u="'+i+'">Use</button> ':'')+(n==='Parcel'?'<i>(job item)</i>':'<button data-d="'+i+'">Drop</button>')+'</p>').join(''):'<p><i>Empty. Buy something first.</i></p>')+'<p>Cash: ₦'+f(cash)+'</p>'+(bagMsg?'<p><i>'+bagMsg+'</i></p>':''));}
 $('ib2').onclick=()=>{bagMsg='';bagUI();};
 $('ib0').onclick=()=>panel('<b>📱 Phone</b><p>Cash: ₦'+f(cash)+'</p><p>Bank balance: ₦'+f(bank)+'</p><p>Job: '+(job?job.n:'none (visit the Job Center)')+'</p><button data-open-workplaces="1">💼 Careers & factions</button><p>Time: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</p>');
-modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
+modal.addEventListener('click',e=>{const target=e.target instanceof Element?e.target.closest('button'):null;if(!target)return;const d=target.dataset;
  if(d.moneyTransfer!==undefined){
   const username=String(modal.querySelector('#moneyTransferUsername')?.value||'').trim();
   const amount=Math.floor(Number(modal.querySelector('#moneyTransferAmount')?.value));
@@ -191,7 +191,25 @@ modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  }
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();},'bank');return;}bankUI();}
- else if(d.j&&!job){const routes=buildDeliveryJobs();if(!routes.length){sys('No delivery addresses are available yet. Reopen the Job Center in a moment.');return;}const j=routes[((jobN%routes.length)+routes.length)%routes.length];NRS.acceptJob({name:j.name,pickup:j.pickup,destination:j.destination},(r)=>{if(r.ok){job=r.job||job;delete inv.Parcel;sys('Delivery accepted. Pick up the parcel from '+j.pickup.name+'.');mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
+ else if(d.j&&!job&&!jobAcceptPending){
+  const routes=buildDeliveryJobs();
+  if(!routes.length){jobFeedback={ok:false,message:'No delivery addresses are available yet. Reopen the Job Center in a moment.'};sys(jobFeedback.message);jobUI();return;}
+  const j=routes[((jobN%routes.length)+routes.length)%routes.length],accept=window.NRS?.acceptJob;
+  if(typeof accept!=='function'){jobFeedback={ok:false,message:'The game connection is not ready. Reconnect and try again.'};jobUI();return;}
+  jobAcceptPending=true;jobFeedback=null;jobUI();
+  accept({name:j.name,pickup:j.pickup,destination:j.destination},(r)=>{
+   jobAcceptPending=false;
+   if(r?.ok&&r.job){
+    job=r.job;jobFeedback=null;delete inv.Parcel;
+    sys('Delivery accepted. Pick up the parcel from '+j.pickup.name+'.');
+    mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');
+    modal.style.display='none';
+   }else{
+    jobFeedback={ok:false,message:r?.message||'Could not accept this delivery. Please try again.'};
+    sys(jobFeedback.message);jobUI();
+   }
+  });
+ }
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
 function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
