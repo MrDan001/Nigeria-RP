@@ -841,7 +841,7 @@
       const reason=String(message.reason||"ended");
       phoneClosePeer();
       phoneCall=null;
-      const readable=reason==="no-answer"?"No answer. The call was missed.":reason==="declined"?"The other citizen declined the call.":reason==="disconnected"?"The other citizen disconnected.":"Call ended.";
+      const readable=reason==="no-answer"?"No answer. The call was missed.":reason==="declined"?"The call was declined.":reason==="disconnected"?"The other citizen disconnected.":"Call ended.";
       phoneSetFeedback(readable,reason==="no-answer"||reason==="disconnected");
       if(activeAppId==="phone")renderPhone();
     }
