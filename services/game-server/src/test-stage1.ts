@@ -324,6 +324,15 @@ test("save/load: life survives a JSON round trip; bad data is repaired", () => {
   assert.deepEqual(normalizeLife(null, today).ownedCars, [...CAR_IDS]);
 });
 
+test("life: phone numbers persist and malformed SIM numbers are repaired", () => {
+  const today = new GameClock().dayKey();
+  const life = { ...newLife(today), phoneNumber: "08012345678" };
+  assert.equal(newLife(today).phoneNumber, null);
+  assert.equal(normalizeLife(JSON.parse(JSON.stringify(life)), today).phoneNumber, "08012345678");
+  assert.equal(normalizeLife({ phoneNumber: "12345" }, today).phoneNumber, null);
+  assert.equal(normalizeLife({ phoneNumber: "0801234567x" }, today).phoneNumber, null);
+});
+
 test("world: bosses are set by hand in the data and survive a round trip", () => {
   const today = new GameClock().dayKey();
   const world = newWorld(today);
