@@ -1,6 +1,6 @@
 # Nigeria RP — Full Implementation Roadmap & Developer Handoff
 
-> **Current status, 14 October 2026:** Stage 14 automated release validation is complete. Stage 15 has passed its automated live integration/release gate. Stage 16 — Distinct City Environments & Regional Identity — was accepted by the project owner on 11 October 2026. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main.
+> **Current status, 15 October 2026:** Stage 14 automated release validation is complete. Stage 15 has passed its automated live integration/release gate. Stage 16 — Distinct City Environments & Regional Identity — was accepted by the project owner. Stage 17 — City Explorer Passport & Discovery Rewards — remains active on main. The Citizen Tablet Phone, SIM, SMS & Voice Calls enhancement is in progress on feat/citizen-tablet-phone-comms and is not accepted/deployed yet.
 
 ## Stage 15 — Additional cities and inter-city travel
 **Status: COMPLETE FOR AUTOMATED RELEASE GATE**
@@ -40,6 +40,36 @@ Optional post-acceptance polish:
 - [ ] Physical-device visual walkthrough of landmark clearance, movement, frame performance and touch usability.
 
 The owner's acceptance is recorded as an explicit decision to proceed; it does not claim that a physical-device test was independently run. The low-poly landmark models are stylized, not 1:1 photogrammetric replicas.
+
+## Gameplay enhancement — Citizen Tablet Phone, SIM, SMS & Voice Calls
+**Status: IN PROGRESS — branch feat/citizen-tablet-phone-comms**
+
+Goal: give every citizen an optional persistent phone number and allow private communications from different locations/cities using the tablet.
+
+Implemented in the current feature branch:
+- [x] Add Phone, Messages, Shop Finder and Help & guide tablet apps.
+- [x] Add a ₦3,500 SIM catalogue item at Kings Phones & Gadgets; the server rejects purchases outside the shop, without enough cash, or when the character already has a SIM.
+- [x] Persist the unique assigned phone number as part of saved Life state and include regression checks for the valid/invalid save shape.
+- [x] Deliver private SMS to both the sender and the recipient using their saved phone numbers when both citizens are online, regardless of their current city.
+- [x] Key locally cached message threads by the active citizen ID and clear the in-memory thread cache on active-character changes.
+- [x] Coordinate incoming/outgoing call state on the authoritative server, including answer/decline, timeout, hang-up, disconnect cleanup and WebRTC audio signaling.
+- [x] Add rate limits for repeat calls and SMS.
+- [x] Restore the prior SIM/number, inventory and cash state if persistence fails during a SIM purchase.
+
+Release/acceptance gate — still outstanding:
+- [x] Server TypeScript check/build and browser generated-script syntax check/production build pass on the current PR merge commit.
+- [x] Stage 1 tests (including the phone-number persistence/validation case) and Stage 18 tests pass.
+- [ ] Full Game Server CI is blocked at the pre-existing Stage 15 live test, which still sends authRegister and waits for authOk even though that legacy request is absent from the current main-branch server. The feature is not responsible for adding that obsolete route; update the test harness in a separate scoped fix.
+- [ ] Verify number uniqueness and persistence using two independent accounts across reconnects.
+- [ ] Verify sender and receiver see SMS in both directions from distinct in-game locations/cities.
+- [ ] Verify incoming ring, answer, reject, missed-call timeout, hang-up and disconnect cleanup.
+- [ ] Verify microphone permission, audio playback and peer connection on two mobile devices/networks. Current ICE configuration uses public STUN servers; configure a TURN relay before promising connectivity on restrictive networks.
+- [ ] Confirm production release only after checks and owner approval; test Railway deployment and script cache versions.
+
+Implementation notes:
+- Phone numbers are server-assigned; the browser cannot select its number or bypass the SIM price/shop checks.
+- Online SMS content is sent through the authenticated game WebSocket; this iteration stores recent conversation display history locally in the browser, not a durable server-side SMS inbox. Offline delivery is not part of this scope.
+- Voice media goes peer-to-peer via WebRTC; the game server routes signaling and validates call membership but does not transport the actual audio.
 
 ## Stage 17 — City Explorer Passport & Discovery Rewards
 **Status: IN PROGRESS**

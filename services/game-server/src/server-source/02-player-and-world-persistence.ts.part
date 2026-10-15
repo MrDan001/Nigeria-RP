@@ -1,3 +1,42 @@
+function phoneStatePacket(session: Session) {
+  const number = session.player.life.phoneNumber ?? null;
+  const contacts = [...players.values()]
+    .filter((candidate) => candidate.player.id !== session.player.id && /^080\d{8}$/.test(String(candidate.player.life.phoneNumber ?? "")))
+    .map((candidate) => ({
+      id: candidate.player.id,
+      name: String(candidate.player.name || "Citizen"),
+      phoneNumber: String(candidate.player.life.phoneNumber),
+      cityId: String(candidate.player.cityId || "port-harcourt"),
+      online: true,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 100);
+  return {
+    type: "phoneState",
+    phoneNumber: number,
+    hasSim: !!number,
+    cash: session.player.cash,
+    inPhoneShop: session.inShopInterior && session.currentShopId === "kings-phones",
+    contacts,
+    message: number ? "" : "Buy a SIM card at Kings Phones & Gadgets to activate phone calls and SMS.",
+  };
+}
+
+async function phoneNumberExists(phoneNumber: string) {
+  if (pool) {
+    const result = await pool.query("SELECT 1 FROM nrs_accounts WHERE life->>'phoneNumber'=$1 LIMIT 1", [phoneNumber]);
+    return result.rows.length > 0;
+  }
+  return Object.values(fileStore.accounts).some((account) =>
+    normalizeLife(account.life, clock.dayKey()).phoneNumber === phoneNumber
+  );
+}
+
+function normalisePhoneNumber(value: unknown) {
+  const digits = String(value ?? "").replace(/\D/g, "").slice(0, 11);
+  return /^0\d{10}$/.test(digits) ? digits : "";
+}
+
 // Settle one online player's life up to today's Nigeria-time day (rent days used, home lost).
 // Returns null when no midnight has passed since the last settle.
 function settleSession(session: Session) {
@@ -1373,6 +1412,219 @@ wss.on("connection", (socket) => {
         }
 
         send(socket, { type: "chatResult", ok: true, channel, message: channel === "AD" ? "Your advert was posted to the city feed." : "Message sent." });
+        return;
+      }
+
+      if (message.type === "getPhoneState") {
+        send(socket, phoneStatePacket(session));
+        return;
+      }
+
+      if (message.type === "buyPhoneSim") {
+        await withMoneyMutation(async () => {
+          const fail = (text: string) => send(socket, {
+            type: "phoneSimResult", ok: false, message: text,
+            phoneNumber: session.player.life.phoneNumber ?? null, cash: session.player.cash,
+          });
+          if (!session.inShopInterior || session.currentShopId !== "kings-phones") {
+            fail("SIM cards can only be purchased inside Kings Phones & Gadgets.");
+            return;
+          }
+          if (session.player.life.phoneNumber) {
+            fail("This citizen already has an active SIM card and phone number.");
+            return;
+          }
+          const simPrice = 3500;
+          if (session.player.cash < simPrice) {
+            fail("You need ₦3,500 in cash to buy a SIM card.");
+            return;
+          }
+
+          let phoneNumber = "";
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            const suffix = String(randomBytes(4).readUInt32BE(0) % 90_000_000 + 10_000_000);
+            const candidate = "080" + suffix;
+            if (!(await phoneNumberExists(candidate))) {
+              phoneNumber = candidate;
+              break;
+            }
+          }
+          if (!phoneNumber) {
+            fail("Phone numbers are temporarily unavailable. Please try again.");
+            return;
+          }
+
+          const previous = {
+            life: session.player.life,
+            inventory: session.player.inventory,
+            cash: session.player.cash,
+            accountLife: session.account.life,
+            accountInventory: session.account.inventory,
+            accountCash: session.account.cash,
+          };
+          session.player.life = { ...session.player.life, phoneNumber };
+          session.player.inventory = {
+            ...session.player.inventory,
+            "SIM Card": (session.player.inventory["SIM Card"] || 0) + 1,
+          };
+          session.player.cash -= simPrice;
+          try {
+            await persistSession(session);
+          } catch (error) {
+            session.player.life = previous.life;
+            session.player.inventory = previous.inventory;
+            session.player.cash = previous.cash;
+            session.account.life = previous.accountLife;
+            session.account.inventory = previous.accountInventory;
+            session.account.cash = previous.accountCash;
+            console.error("phone-sim-save", error);
+            fail("The SIM purchase could not be saved. No charge was applied; please try again.");
+            return;
+          }
+          send(socket, {
+            type: "phoneSimResult", ok: true, phoneNumber,
+            cash: session.player.cash, price: simPrice,
+            message: "SIM activated. Your number is " + phoneNumber + ".",
+          });
+          send(socket, phoneStatePacket(session));
+        });
+        return;
+      }
+
+      if (message.type === "phoneTextSend") {
+        const fromNumber = normalisePhoneNumber(session.player.life.phoneNumber);
+        const toNumber = normalisePhoneNumber(message.toNumber);
+        const text = String(message.text ?? "")
+          .replace(/[\u0000-\u001f\u007f]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 400);
+        const fail = (reason: string) => send(socket, { type: "phoneTextResult", ok: false, message: reason });
+        if (!fromNumber) { fail("Buy a SIM card before sending SMS."); return; }
+        if (!toNumber) { fail("Enter a valid 11-digit Nigerian phone number."); return; }
+        if (fromNumber === toNumber) { fail("You cannot text your own number."); return; }
+        if (!text) { fail("Type a message first."); return; }
+        const smsNow = Date.now();
+        if (smsNow - (session.phoneLastSmsAt ?? 0) < 700) { fail("Please wait a moment before sending another SMS."); return; }
+        session.phoneLastSmsAt = smsNow;
+        const target = [...players.values()].find((candidate) =>
+          candidate.player.id !== session.player.id &&
+          normalisePhoneNumber(candidate.player.life.phoneNumber) === toNumber
+        );
+        if (!target) { fail("That number is not online on the Nigeria RP network right now."); return; }
+        const now = Date.now();
+        const packet = {
+          type: "phoneTextReceived",
+          messageId: randomUUID(),
+          senderId: session.player.id,
+          senderName: String(session.player.name || "Citizen").slice(0, 40),
+          recipientId: target.player.id,
+          recipientName: String(target.player.name || "Citizen").slice(0, 40),
+          fromNumber, toNumber, text, at: now,
+        };
+        send(session.socket, packet);
+        send(target.socket, packet);
+        send(socket, { type: "phoneTextResult", ok: true, toNumber, message: "SMS sent." });
+        return;
+      }
+
+      if (message.type === "phoneCallStart") {
+        const fromNumber = normalisePhoneNumber(session.player.life.phoneNumber);
+        const toNumber = normalisePhoneNumber(message.toNumber);
+        const fail = (reason: string) => send(socket, { type: "phoneCallResult", ok: false, message: reason });
+        if (!fromNumber) { fail("Buy a SIM card before making calls."); return; }
+        if (!toNumber) { fail("Enter a valid 11-digit Nigerian phone number."); return; }
+        if (fromNumber === toNumber) { fail("You cannot call your own number."); return; }
+        const target = [...players.values()].find((candidate) =>
+          candidate.player.id !== session.player.id &&
+          normalisePhoneNumber(candidate.player.life.phoneNumber) === toNumber
+        );
+        if (!target) { fail("That citizen is offline or does not have an active SIM."); return; }
+        const occupied = [...phoneCalls.values()].some((call) =>
+          call.callerId === session.player.id || call.calleeId === session.player.id ||
+          call.callerId === target.player.id || call.calleeId === target.player.id
+        );
+        if (occupied) { fail("One of these citizens is already on a call."); return; }
+        const now = Date.now();
+        if (now - (session.phoneLastCallAt ?? 0) < 5000) { fail("Please wait a few seconds before placing another call."); return; }
+        session.phoneLastCallAt = now;
+
+        const callId = randomUUID();
+        const call: PhoneCall = {
+          id: callId,
+          callerId: session.player.id,
+          calleeId: target.player.id,
+          createdAt: Date.now(),
+          answered: false,
+          timer: null,
+        };
+        call.timer = setTimeout(() => endPhoneCall(callId, "no-answer"), 40_000);
+        phoneCalls.set(callId, call);
+        send(socket, {
+          type: "phoneCallStatus", state: "ringing", callId,
+          targetId: target.player.id, targetName: target.player.name,
+          targetNumber: toNumber,
+        });
+        send(target.socket, {
+          type: "phoneIncomingCall", callId,
+          callerId: session.player.id, callerName: session.player.name,
+          callerNumber: fromNumber, createdAt: call.createdAt,
+        });
+        return;
+      }
+
+      if (message.type === "phoneCallAnswer") {
+        const callId = String(message.callId ?? "");
+        const call = phoneCalls.get(callId);
+        if (!call || call.calleeId !== session.player.id || call.answered) {
+          send(socket, { type: "phoneCallResult", ok: false, message: "This incoming call is no longer available." });
+          return;
+        }
+        if (message.accepted !== true) {
+          endPhoneCall(callId, "declined");
+          return;
+        }
+        const caller = players.get(call.callerId);
+        const callee = players.get(call.calleeId);
+        if (!caller || !callee) { endPhoneCall(callId, "disconnected"); return; }
+        call.answered = true;
+        if (call.timer) clearTimeout(call.timer);
+        call.timer = null;
+        const packet = {
+          type: "phoneCallAnswered", callId,
+          callerId: call.callerId, calleeId: call.calleeId,
+          callerName: caller.player.name, calleeName: callee.player.name,
+          callerNumber: caller.player.life.phoneNumber,
+          calleeNumber: callee.player.life.phoneNumber,
+        };
+        send(caller.socket, packet);
+        send(callee.socket, packet);
+        return;
+      }
+
+      if (message.type === "phoneCallSignal") {
+        const callId = String(message.callId ?? "");
+        const call = phoneCalls.get(callId);
+        const actorId = session.player.id;
+        if (!call || !call.answered || (call.callerId !== actorId && call.calleeId !== actorId)) return;
+        const signalKind = String(message.signalKind ?? "");
+        if (!["offer", "answer", "candidate"].includes(signalKind)) return;
+        let payloadText = "";
+        try { payloadText = JSON.stringify(message.payload); } catch { return; }
+        if (!payloadText || payloadText.length > 16_000 || !message.payload || typeof message.payload !== "object" || Array.isArray(message.payload)) return;
+        const peerId = call.callerId === actorId ? call.calleeId : call.callerId;
+        const peer = players.get(peerId);
+        if (!peer) { endPhoneCall(callId, "disconnected"); return; }
+        send(peer.socket, { type: "phoneCallSignal", callId, signalKind, payload: message.payload });
+        return;
+      }
+
+      if (message.type === "phoneCallEnd") {
+        const callId = String(message.callId ?? "");
+        const call = phoneCalls.get(callId);
+        if (call && (call.callerId === session.player.id || call.calleeId === session.player.id)) {
+          endPhoneCall(callId, "ended");
+        }
         return;
       }
 

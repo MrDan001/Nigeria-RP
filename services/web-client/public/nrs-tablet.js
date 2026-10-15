@@ -2,14 +2,18 @@
   "use strict";
   const $ = (id) => document.getElementById(id);
   const apps = [
-    { id: "travel", icon: "🚌", name: "Interstate Travel", note: "Waterlines · day and night buses", badge: "COMING SOON" },
+    { id: "phone", icon: "📞", name: "Phone", note: "SIM card, dialler and voice calls", badge: "NEW" },
+    { id: "messages", icon: "💬", name: "Messages", note: "Private SMS between citizens", badge: "NEW" },
+    { id: "travel", icon: "🚌", name: "Interstate Travel", note: "Waterlines · day and night buses" },
     { id: "flights", icon: "✈️", name: "NRS Air", note: "Book an in-game flight" },
     { id: "betting", icon: "⚽", name: "Betting", note: "Daily sports fixtures and virtual-token tickets" },
     { id: "wallet", icon: "₦", name: "Wallet", note: "Game cash and banking" },
-    { id: "contacts", icon: "👥", name: "Contacts", note: "Players in this city" },
-    { id: "map", icon: "🗺️", name: "City Map", note: "Find local services" },
+    { id: "contacts", icon: "👥", name: "Contacts", note: "Online citizens and phone numbers" },
+    { id: "map", icon: "🗺️", name: "City Map", note: "Find local services and shops" },
     { id: "news", icon: "📰", name: "RNN News", note: "In-game city bulletins" },
     { id: "jobs", icon: "💼", name: "Careers", note: "Jobs and workplaces" },
+    { id: "services", icon: "🏪", name: "Shop finder", note: "Find the phone shop and city services" },
+    { id: "help", icon: "💡", name: "Help & guide", note: "Phone, calls, SMS and game controls" },
     { id: "passport", icon: "🛂", name: "State Passport", note: "Your state discoveries" }
   ];
   const style = document.createElement("style");
@@ -91,6 +95,7 @@
 @media(max-width:620px){#nrsTabletDevice{width:100vw;height:96dvh;border:1px solid #525d67;border-radius:17px;padding:27px 5px 7px;grid-template-rows:22px minmax(0,1fr) 24px;box-shadow:0 18px 50px #0009,inset 0 0 0 2px #171b20}#nrsTabletDevice:before{top:8px;width:5px;height:5px}#nrsTabletStatus{padding:0 8px;font-size:9px}#nrsTabletClose{width:20px;height:20px;min-width:20px;font-size:15px}.homeHero{min-height:101px;padding:10px 12px 2px;gap:7px}.homeClock{font-size:clamp(34px,6vw,48px)}.homeDate{margin-top:5px;font-size:11px}.weatherWidget{width:auto;max-width:48%;gap:7px;padding:8px 9px;border-radius:14px}.weatherSymbol{font-size:27px}.weatherReading strong{font-size:24px}.weatherReading span,.weatherReading small{font-size:8px}.tabletSearch{width:92%;height:39px;margin:7px auto 9px;padding:0 10px}.searchBrand{width:23px;height:23px;font-size:11px}#nrsTabletSearchInput{font-size:11px}#nrsTabletGrid{grid-template-columns:repeat(5,minmax(0,1fr));gap:3px 2px;padding:0 7px}#nrsTabletGrid button{min-height:clamp(64px,14vh,83px);padding:3px 1px 4px;border-radius:10px}#nrsTabletGrid .appIcon{width:clamp(34px,5.6vh,44px);height:clamp(34px,5.6vh,44px);margin-bottom:5px;border-radius:11px;font-size:21px}#nrsTabletGrid strong{font-size:9px}.tabletDock{width:78%;margin-top:6px;padding:5px 10px;gap:9px;border-radius:18px}.tabletDock .appIcon{width:clamp(31px,5vh,39px);height:clamp(31px,5vh,39px);border-radius:10px;font-size:17px}#nrsTabletBody.appScreen{padding:11px}#nrsTabletDevice .formRow{flex-wrap:wrap}#nrsTabletFoot{gap:16px}}
 @media(max-height:500px){.homeHero{min-height:91px;padding-top:7px}.homeClock{font-size:clamp(34px,5vw,47px)}.tabletSearch{height:37px;margin-top:3px;margin-bottom:7px}#nrsTabletGrid{gap:1px 2px}#nrsTabletGrid button{min-height:65px}#nrsTabletGrid .appIcon{width:35px;height:35px;margin-bottom:4px;font-size:19px}.tabletDock{margin-top:3px;padding:4px 9px}.tabletDock .appIcon{width:31px;height:31px}}
 `;
+  style.textContent += "\n#nrsTabletGrid button[data-app=\"phone\"] .appIcon{background:linear-gradient(145deg,#31c7a1,#087c70)}\n#nrsTabletGrid button[data-app=\"messages\"] .appIcon{background:linear-gradient(145deg,#65b7ff,#275dd5)}\n#nrsTabletGrid button[data-app=\"help\"] .appIcon{background:linear-gradient(145deg,#f9d24c,#e78a16)}\n#nrsTabletGrid button[data-app=\"services\"] .appIcon{background:linear-gradient(145deg,#a7e45a,#278342)}\n#nrsTabletDevice .phoneNumberHero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:16px;border:1px solid #ffffff1c;border-radius:15px;background:linear-gradient(130deg,#0c5248,#0d2430)}\n#nrsTabletDevice .phoneNumberHero small{display:block;color:#a4cabb;font-size:9px;font-weight:900;letter-spacing:.12em}\n#nrsTabletDevice .phoneNumberHero strong{display:block;margin-top:5px;color:#a4f2c8;font-size:clamp(19px,3vw,27px);letter-spacing:.02em}\n#nrsTabletDevice .phoneStatus{color:#b7c9d8;font-size:11px;line-height:1.45}\n#nrsTabletDevice .phoneActions{display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:flex-end}\n#nrsTabletDevice .phoneActions button{margin:0;padding:7px 9px;min-height:32px}\n#nrsTabletDevice .phoneThread{display:flex;flex-direction:column;gap:8px;max-height:min(48vh,390px);overflow:auto;padding:9px 3px;margin:8px 0 12px;overscroll-behavior:contain}\n#nrsTabletDevice .phoneBubble{align-self:flex-start;max-width:84%;padding:9px 11px;border:1px solid #ffffff15;border-radius:13px 13px 13px 3px;background:#142c3c;color:#f1f7fb;font-size:12px;line-height:1.4;overflow-wrap:anywhere}\n#nrsTabletDevice .phoneBubble.outgoing{align-self:flex-end;border-color:#24785b;border-radius:13px 13px 3px 13px;background:#104b3d}\n#nrsTabletDevice .phoneBubble small{display:block;margin-top:4px;color:#94aebf;font-size:9px}\n#nrsTabletDevice .phoneThreadHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0;padding-bottom:9px;border-bottom:1px solid #ffffff15}\n#nrsTabletDevice .phoneThreadHead strong{font-size:14px}\n#nrsTabletDevice .phoneFeedback{margin:9px 0;padding:9px 10px;border:1px solid #765e2d;border-radius:10px;background:#332813;color:#ffdf9d;font-size:11px;line-height:1.4}\n#nrsTabletDevice .phoneFeedback.error{border-color:#693e47;background:#321921;color:#ffbbc5}\n#nrsTabletDevice .phoneContactButtons{display:flex;flex-wrap:wrap;gap:5px}\n#nrsTabletDevice .phoneContactButtons button{margin:0;padding:6px 8px;font-size:10px}\n#nrsTabletDevice .phoneIncoming{margin:9px 0;padding:14px;border:1px solid #2d8f72;border-radius:14px;background:linear-gradient(135deg,#0b372f,#102b3b)}\n#nrsTabletDevice .phoneIncoming h3{margin:0 0 4px;font-size:16px}\n#nrsTabletDevice .phoneIncoming p{color:#b9d3d7;font-size:11px;line-height:1.45}\n#nrsTabletDevice .phoneCallControls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}\n#nrsTabletDevice .phoneCallControls button{flex:1 1 120px;margin:0}\n#nrsTabletDevice .phoneHangup{background:linear-gradient(135deg,#d94857,#951f37)!important;border-color:#ff8891!important}\n#nrsTabletDevice .phoneDialRow{display:flex;gap:7px;margin:9px 0 14px}\n#nrsTabletDevice .phoneDialRow input{min-width:0;flex:1;width:1%;font-size:13px}\n#nrsTabletDevice .phoneForm{display:flex;gap:7px;margin:10px 0}\n#nrsTabletDevice .phoneForm input{min-width:0;flex:1;width:1%}\n#nrsTabletDevice .phoneForm button{flex:0 0 auto;margin:0}\n#nrsTabletGrid button[data-app=\"phone\"] .badge,#nrsTabletGrid button[data-app=\"messages\"] .badge{background:#d83255;color:#fff}\n@media(max-width:620px){#nrsTabletDevice .phoneNumberHero{padding:12px}#nrsTabletDevice .phoneThread{max-height:37vh}#nrsTabletDevice .phoneBubble{max-width:92%}#nrsTabletDevice .phoneDialRow{flex-wrap:wrap}#nrsTabletDevice .phoneDialRow input{flex:1 1 100%;width:100%}}\n";
   document.head.appendChild(style);
 
   const layer = document.createElement("div");
@@ -109,6 +114,454 @@
   function money(value) { return "₦" + Math.max(0, Math.floor(Number(value) || 0)).toLocaleString("en-NG"); }
   function timeText() { return new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()); }
   function dateText() { return new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short" }).format(new Date()); }
+  let activeAppId = "";
+  let phoneState = { phoneNumber: null, hasSim: false, inPhoneShop: false, cash: 0, contacts: [] };
+  let phoneFeedback = "";
+  let phoneFeedbackError = false;
+  let activePhoneThread = "";
+  let phoneThreads = null;
+  let phoneCall = null;
+  let phoneRtc = null;
+  let phoneRtcReady = null;
+  let phoneRtcCallId = "";
+  let phoneLocalStream = null;
+  let phoneRemoteAudio = null;
+  let phoneRtcPendingCandidates = [];
+
+  function phoneSelfId() {
+    return String(window.NRS?.playerIdentity?.id || window.NRS?.session?.id || "");
+  }
+  function phoneStorageKey() {
+    return "nrs-phone-threads-v1:" + (phoneSelfId() || "local-citizen");
+  }
+  // This bridge event fires when a citizen is authenticated or the active
+  // character changes. Do not retain the previous character's in-memory inbox.
+  window.addEventListener("nrs-player-identity", () => {
+    phoneThreads = null;
+    activePhoneThread = "";
+    if (activeAppId === "messages") {
+      phoneLoadThreads();
+      renderMessages();
+    }
+  });
+  function phoneLoadThreads() {
+    if (phoneThreads) return phoneThreads;
+    try {
+      const parsed = JSON.parse(localStorage.getItem(phoneStorageKey()) || "{}");
+      phoneThreads = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) { phoneThreads = {}; }
+    return phoneThreads;
+  }
+  function phoneSaveThreads() {
+    const threads = phoneLoadThreads();
+    const keys = Object.keys(threads);
+    for (const key of keys) {
+      if (!Array.isArray(threads[key])) delete threads[key];
+      else threads[key] = threads[key].slice(-100);
+    }
+    const recent = Object.keys(threads).sort((a,b) =>
+      Number(threads[b]?.[threads[b].length - 1]?.at || 0) - Number(threads[a]?.[threads[a].length - 1]?.at || 0)
+    );
+    for (const key of recent.slice(40)) delete threads[key];
+    try { localStorage.setItem(phoneStorageKey(), JSON.stringify(threads)); } catch (_) {}
+  }
+  function phoneRequestState() {
+    const send = window.NRS?.sendPhoneMessage;
+    if (typeof send !== "function" || !send("getPhoneState")) {
+      phoneFeedback = "Phone services are reconnecting. Try again in a moment.";
+      phoneFeedbackError = true;
+    }
+  }
+  function phoneSetFeedback(message, isError) {
+    phoneFeedback = String(message || "");
+    phoneFeedbackError = !!isError;
+  }
+  function phoneTime(value) {
+    const date = new Date(Number(value) || Date.now());
+    return new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+  }
+  function phoneCleanNumber(value) {
+    return String(value || "").replace(/\D/g, "").slice(0, 11);
+  }
+  function phoneButton(label, dataset, className) {
+    const button = el("button", className || "secondary", label);
+    button.type = "button";
+    for (const [key,value] of Object.entries(dataset || {})) button.dataset[key] = String(value);
+    return button;
+  }
+  function phoneContactRow(contact) {
+    const row = el("div", "listRow");
+    const detail = el("span", "", String(contact.name || "Citizen"));
+    detail.appendChild(el("small", "", String(contact.phoneNumber || "No number") + " · " + String(contact.cityId || "unknown city").replace(/-/g, " ")));
+    row.appendChild(detail);
+    const actions = el("div", "phoneActions");
+    if (contact.phoneNumber) {
+      actions.appendChild(phoneButton("Call", { phoneCallTarget: contact.phoneNumber }, "primary"));
+      actions.appendChild(phoneButton("Message", { phoneMessageTarget: contact.phoneNumber }, "secondary"));
+    }
+    row.appendChild(actions);
+    return row;
+  }
+  function phoneStoreIncomingText(packet) {
+    const outgoing = String(packet.senderId || "") === phoneSelfId();
+    const peerNumber = outgoing ? String(packet.toNumber || "") : String(packet.fromNumber || "");
+    if (!/^0\d{10}$/.test(peerNumber)) return;
+    const threads = phoneLoadThreads();
+    const list = Array.isArray(threads[peerNumber]) ? threads[peerNumber] : [];
+    const messageId = String(packet.messageId || (String(packet.at || Date.now()) + "-" + Math.random()));
+    if (list.some((item) => item.id === messageId)) return;
+    list.push({
+      id: messageId,
+      at: Number(packet.at) || Date.now(),
+      direction: outgoing ? "outgoing" : "incoming",
+      name: outgoing ? String(packet.recipientName || peerNumber) : String(packet.senderName || peerNumber),
+      text: String(packet.text || "").slice(0, 400),
+      fromNumber: String(packet.fromNumber || ""),
+      toNumber: String(packet.toNumber || ""),
+    });
+    threads[peerNumber] = list.slice(-100);
+    phoneSaveThreads();
+    if (activeAppId === "messages") renderMessages();
+  }
+  function phoneRequestApp(id) {
+    activeAppId = id;
+    phoneRequestState();
+    if (id === "phone") renderPhone();
+    else if (id === "messages") renderMessages();
+    else if (id === "contacts") renderContacts();
+  }
+  function phoneEnsureTabletApp(id) {
+    if (layer.hidden) openTablet();
+    showApp(id);
+  }
+  function phoneStartCall(rawNumber) {
+    const number = phoneCleanNumber(rawNumber);
+    if (!phoneState.hasSim) { phoneSetFeedback("Buy a SIM card at Kings Phones & Gadgets before making calls.", true); phoneEnsureTabletApp("phone"); return; }
+    if (!/^0\d{10}$/.test(number)) { phoneSetFeedback("Enter an 11-digit Nigerian phone number.", true); phoneEnsureTabletApp("phone"); return; }
+    if (phoneCall) { phoneSetFeedback("Finish your current call before starting another.", true); phoneEnsureTabletApp("phone"); return; }
+    phoneCall = { mode: "outgoing", targetNumber: number, targetName: number, state: "dialling", callId: "" };
+    phoneSetFeedback("Calling " + number + "…", false);
+    if (!window.NRS?.sendPhoneMessage?.("phoneCallStart", { toNumber: number })) {
+      phoneCall = null;
+      phoneSetFeedback("The phone network is disconnected. Reconnect and try again.", true);
+    }
+    phoneEnsureTabletApp("phone");
+  }
+  function phoneSendText(rawNumber, rawText) {
+    const number = phoneCleanNumber(rawNumber);
+    const text = String(rawText || "").trim().slice(0, 400);
+    if (!phoneState.hasSim) { phoneSetFeedback("Buy a SIM card before sending SMS.", true); renderMessages(); return; }
+    if (!/^0\d{10}$/.test(number)) { phoneSetFeedback("Choose a contact with a valid phone number.", true); renderMessages(); return; }
+    if (!text) { phoneSetFeedback("Type a message first.", true); renderMessages(); return; }
+    phoneSetFeedback("Sending SMS…", false);
+    if (!window.NRS?.sendPhoneMessage?.("phoneTextSend", { toNumber: number, text })) {
+      phoneSetFeedback("The phone network is disconnected. Reconnect and try again.", true);
+      renderMessages();
+      return;
+    }
+    activePhoneThread = number;
+    const input = $("nrsPhoneTextInput");
+    if (input) input.value = "";
+    if (activeAppId === "messages") renderMessages();
+  }
+  function phoneClosePeer() {
+    if (phoneRtc) {
+      try { phoneRtc.onicecandidate = null; phoneRtc.ontrack = null; phoneRtc.onconnectionstatechange = null; phoneRtc.close(); } catch (_) {}
+    }
+    phoneRtc = null;
+    if (phoneLocalStream) for (const track of phoneLocalStream.getTracks()) track.stop();
+    phoneLocalStream = null;
+    if (phoneRemoteAudio) {
+      try { phoneRemoteAudio.pause(); phoneRemoteAudio.srcObject = null; phoneRemoteAudio.remove(); } catch (_) {}
+    }
+    phoneRemoteAudio = null;
+    phoneRtcCallId = "";
+    phoneRtcReady = null;
+    phoneRtcPendingCandidates = [];
+  }
+  async function phoneEnsurePeer(callId, isCaller) {
+    if (phoneRtcCallId === callId && phoneRtcReady) return phoneRtcReady;
+    phoneClosePeer();
+    phoneRtcCallId = callId;
+    phoneRtcReady = (async () => {
+      if (!navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection === "undefined") {
+        throw new Error("Voice calls need a supported browser and microphone permission over HTTPS.");
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      if (phoneRtcCallId !== callId) {
+        for (const track of stream.getTracks()) track.stop();
+        return null;
+      }
+      const peer = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]
+      });
+      phoneRtc = peer;
+      phoneLocalStream = stream;
+      for (const track of stream.getTracks()) peer.addTrack(track, stream);
+      peer.onicecandidate = (event) => {
+        if (!event.candidate || phoneRtcCallId !== callId) return;
+        window.NRS?.sendPhoneMessage?.("phoneCallSignal", {
+          callId, signalKind: "candidate", payload: event.candidate.toJSON()
+        });
+      };
+      peer.ontrack = (event) => {
+        if (phoneRtcCallId !== callId) return;
+        if (!phoneRemoteAudio) {
+          phoneRemoteAudio = document.createElement("audio");
+          phoneRemoteAudio.id = "nrsPhoneRemoteAudio";
+          phoneRemoteAudio.autoplay = true;
+          phoneRemoteAudio.playsInline = true;
+          phoneRemoteAudio.style.display = "none";
+          document.body.appendChild(phoneRemoteAudio);
+        }
+        phoneRemoteAudio.srcObject = event.streams[0];
+        const playing = phoneRemoteAudio.play();
+        if (playing && typeof playing.catch === "function") playing.catch(() => {
+          phoneSetFeedback("Tap the screen once to allow call audio.", false);
+        });
+      };
+      peer.onconnectionstatechange = () => {
+        if (phoneRtcCallId !== callId || !phoneCall || phoneCall.callId !== callId) return;
+        if (peer.connectionState === "connected") {
+          phoneCall.state = "connected";
+          phoneSetFeedback("Call connected. Your microphone is live.", false);
+          if (activeAppId === "phone") renderPhone();
+        } else if (peer.connectionState === "failed") {
+          phoneCall.state = "failed";
+          phoneSetFeedback("Voice connection failed. Hang up and try again; some networks require a relay connection.", true);
+          if (activeAppId === "phone") renderPhone();
+        }
+      };
+      return peer;
+    })();
+    return phoneRtcReady;
+  }
+  async function phoneFlushCandidates(peer) {
+    const pending = phoneRtcPendingCandidates.splice(0);
+    for (const candidate of pending) {
+      try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
+    }
+  }
+  async function phoneHandleSignal(message) {
+    if (!phoneCall || phoneCall.callId !== message.callId) return;
+    try {
+      const peer = await phoneEnsurePeer(message.callId, false);
+      if (!peer) return;
+      const payload = message.payload;
+      if (message.signalKind === "offer") {
+        await peer.setRemoteDescription(new RTCSessionDescription(payload));
+        await phoneFlushCandidates(peer);
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        window.NRS?.sendPhoneMessage?.("phoneCallSignal", {
+          callId: message.callId, signalKind: "answer",
+          payload: { type: peer.localDescription.type, sdp: peer.localDescription.sdp }
+        });
+      } else if (message.signalKind === "answer") {
+        await peer.setRemoteDescription(new RTCSessionDescription(payload));
+        await phoneFlushCandidates(peer);
+      } else if (message.signalKind === "candidate") {
+        if (peer.remoteDescription) {
+          try { await peer.addIceCandidate(new RTCIceCandidate(payload)); } catch (_) {}
+        } else {
+          phoneRtcPendingCandidates.push(payload);
+        }
+      }
+    } catch (error) {
+      phoneSetFeedback((error && error.message) || "Could not start voice audio. Check microphone permission and try again.", true);
+      if (activeAppId === "phone") renderPhone();
+      window.NRS?.sendPhoneMessage?.("phoneCallEnd", { callId: message.callId });
+    }
+  }
+  async function phoneStartRtcAsCaller(callId) {
+    try {
+      const peer = await phoneEnsurePeer(callId, true);
+      if (!peer || phoneCall?.callId !== callId) return;
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      window.NRS?.sendPhoneMessage?.("phoneCallSignal", {
+        callId, signalKind: "offer",
+        payload: { type: peer.localDescription.type, sdp: peer.localDescription.sdp }
+      });
+    } catch (error) {
+      phoneSetFeedback((error && error.message) || "Could not access the microphone. Allow microphone permission and try again.", true);
+      if (activeAppId === "phone") renderPhone();
+      window.NRS?.sendPhoneMessage?.("phoneCallEnd", { callId });
+    }
+  }
+  function renderPhone() {
+    activeAppId = "phone";
+    setScreenTitle("Phone", "Your personal number, contacts, messages and voice calls.");
+    const hasNumber = !!phoneState.phoneNumber;
+    const hero = el("div", "phoneNumberHero");
+    const detail = el("div");
+    detail.appendChild(el("small", "", hasNumber ? "YOUR ACTIVE NIGERIAN NUMBER" : "NO SIM INSTALLED"));
+    detail.appendChild(el("strong", "", hasNumber ? phoneState.phoneNumber : "SIM not activated"));
+    hero.appendChild(detail);
+    if (hasNumber) hero.appendChild(phoneButton("Copy number", { phoneCopy: phoneState.phoneNumber }, "secondary"));
+    body.appendChild(hero);
+    if (!hasNumber) {
+      body.appendChild(el("p", "appCopy", "Buy one SIM card at Kings Phones & Gadgets for ₦3,500. Your number is saved to this citizen and stays yours when you log out."));
+      body.appendChild(el("div", "safeBanner", phoneState.inPhoneShop ? "You are inside Kings Phones & Gadgets. The shop can activate your SIM now." : "Walk into Kings Phones & Gadgets in Port Harcourt and use the shop counter to purchase a SIM."));
+      if (phoneState.inPhoneShop) body.appendChild(phoneButton("Buy SIM card · ₦3,500", { phoneBuySim: "1" }, "primary"));
+    } else {
+      const grid = el("div", "infoGrid");
+      const stateCard = el("div", "infoCard");
+      stateCard.append(el("small", "", "SIM STATUS"), el("strong", "", "ACTIVE"));
+      const cashCard = el("div", "infoCard");
+      cashCard.append(el("small", "", "AVAILABLE CASH"), el("strong", "", money(phoneState.cash ?? window.NRS?.cash)));
+      grid.append(stateCard, cashCard);
+      body.appendChild(grid);
+      body.appendChild(el("span", "sectionLabel", "DIAL A PHONE NUMBER"));
+      const form = el("form", "phoneDialRow");
+      form.id = "nrsPhoneCallForm";
+      const input = el("input");
+      input.id = "nrsPhoneDialInput";
+      input.type = "tel";
+      input.inputMode = "numeric";
+      input.maxLength = 11;
+      input.placeholder = "080XXXXXXXX";
+      input.autocomplete = "tel";
+      input.value = phoneCall?.mode === "outgoing" ? String(phoneCall.targetNumber || "") : "";
+      input.setAttribute("aria-label", "Phone number to call");
+      const callButton = el("button", "primary", "Call");
+      callButton.type = "submit";
+      form.append(input, callButton);
+      body.appendChild(form);
+      const quickActions = el("div", "phoneContactButtons");
+      quickActions.append(
+        phoneButton("Open Messages", { phoneOpenMessages: "1" }, "secondary"),
+        phoneButton("Refresh contacts", { phoneRefresh: "1" }, "secondary")
+      );
+      body.appendChild(quickActions);
+    }
+
+    if (phoneCall) {
+      const card = el("div", "phoneIncoming");
+      const title = phoneCall.mode === "incoming" ? "Incoming call" : phoneCall.state === "connected" ? "Call connected" : "Call status";
+      card.appendChild(el("h3", "", title));
+      const party = phoneCall.mode === "incoming"
+        ? String(phoneCall.callerName || phoneCall.callerNumber || "Citizen")
+        : String(phoneCall.targetName || phoneCall.targetNumber || "Citizen");
+      card.appendChild(el("p", "", party + (phoneCall.mode === "incoming" ? " is calling you." : " · " + String(phoneCall.state || "calling").replace(/-/g, " ") + ".")));
+      const controls = el("div", "phoneCallControls");
+      if (phoneCall.mode === "incoming" && phoneCall.state === "incoming") {
+        controls.append(
+          phoneButton("Answer", { phoneAnswer: "1" }, "primary"),
+          phoneButton("Decline", { phoneDecline: "1" }, "phoneHangup")
+        );
+      } else {
+        controls.append(phoneButton("Hang up", { phoneHangup: "1" }, "phoneHangup"));
+      }
+      card.appendChild(controls);
+      if (phoneCall.state === "connected") card.appendChild(el("p", "appCopy", "Keep this tablet open or return to the game. Tap Hang up to end the call."));
+      body.appendChild(card);
+    }
+
+    if (phoneFeedback) body.appendChild(el("div", "phoneFeedback" + (phoneFeedbackError ? " error" : ""), phoneFeedback));
+    body.appendChild(el("span", "sectionLabel", "CITIZENS ONLINE WITH A SIM"));
+    const contacts = Array.isArray(phoneState.contacts) ? phoneState.contacts : [];
+    if (!hasNumber) body.appendChild(el("div", "empty", "Activate a SIM card to call or message other citizens."));
+    else if (!contacts.length) body.appendChild(el("div", "empty", "No other SIM-enabled citizens are online right now. Their numbers will appear here when they join."));
+    else {
+      const list = el("div", "appList");
+      contacts.forEach((contact) => list.appendChild(phoneContactRow(contact)));
+      body.appendChild(list);
+    }
+  }
+  function renderMessages() {
+    activeAppId = "messages";
+    setScreenTitle("Messages", "Private SMS uses phone numbers, so friends can chat from different places and cities.");
+    const hasNumber = !!phoneState.phoneNumber;
+    if (!hasNumber) body.appendChild(el("div", "safeBanner", "You need an active SIM from Kings Phones & Gadgets before you can send SMS."));
+    else body.appendChild(el("div", "safeBanner", "Your number: " + phoneState.phoneNumber + " · Messages are delivered live when the other citizen is online."));
+    if (activePhoneThread) {
+      const threads = phoneLoadThreads();
+      const thread = Array.isArray(threads[activePhoneThread]) ? threads[activePhoneThread] : [];
+      const contact = (phoneState.contacts || []).find((item) => item.phoneNumber === activePhoneThread);
+      const head = el("div", "phoneThreadHead");
+      const heading = el("div");
+      heading.append(el("strong", "", contact?.name || thread[thread.length - 1]?.name || activePhoneThread), el("small", "", activePhoneThread));
+      head.append(heading, phoneButton("All messages", { phoneThreadHome: "1" }, "secondary"));
+      body.appendChild(head);
+      const log = el("div", "phoneThread");
+      if (!thread.length) log.appendChild(el("div", "empty", "No messages yet. Send the first message below."));
+      for (const item of thread) {
+        const bubble = el("div", "phoneBubble" + (item.direction === "outgoing" ? " outgoing" : ""));
+        bubble.appendChild(el("span", "", item.text));
+        bubble.appendChild(el("small", "", (item.direction === "outgoing" ? "You" : item.name || activePhoneThread) + " · " + phoneTime(item.at)));
+        log.appendChild(bubble);
+      }
+      body.appendChild(log);
+      const form = el("form", "phoneForm");
+      form.id = "nrsPhoneTextForm";
+      const input = el("input");
+      input.id = "nrsPhoneTextInput";
+      input.maxLength = 400;
+      input.placeholder = hasNumber ? "Type an SMS…" : "Install a SIM to send messages";
+      input.autocomplete = "off";
+      input.disabled = !hasNumber;
+      input.setAttribute("aria-label", "SMS message");
+      const button = el("button", "primary", "Send");
+      button.type = "submit";
+      button.disabled = !hasNumber;
+      form.append(input, button);
+      body.appendChild(form);
+    } else {
+      const threads = phoneLoadThreads();
+      const numbers = Object.keys(threads).sort((a,b) =>
+        Number(threads[b]?.[threads[b].length - 1]?.at || 0) - Number(threads[a]?.[threads[a].length - 1]?.at || 0)
+      );
+      body.appendChild(el("span", "sectionLabel", "RECENT CONVERSATIONS"));
+      const recent = el("div", "appList");
+      for (const number of numbers) {
+        const items = threads[number] || [];
+        const last = items[items.length - 1];
+        const row = el("div", "listRow");
+        const detail = el("span", "", last?.name || number);
+        detail.appendChild(el("small", "", number + " · " + String(last?.text || "").slice(0, 85)));
+        row.append(detail, phoneButton("Open", { phoneThread: number }, "secondary"));
+        recent.appendChild(row);
+      }
+      if (!numbers.length) recent.appendChild(el("div", "empty", "Your conversations will appear here. Choose an online citizen below to start one."));
+      body.appendChild(recent);
+      body.appendChild(el("span", "sectionLabel", "ONLINE PHONE CONTACTS"));
+      const contacts = el("div", "appList");
+      const online = Array.isArray(phoneState.contacts) ? phoneState.contacts : [];
+      online.forEach((contact) => {
+        const row = el("div", "listRow");
+        const detail = el("span", "", contact.name || "Citizen");
+        detail.appendChild(el("small", "", contact.phoneNumber + " · " + String(contact.cityId || "").replace(/-/g, " ")));
+        row.append(detail, phoneButton("Message", { phoneThread: contact.phoneNumber }, "secondary"));
+        contacts.appendChild(row);
+      });
+      if (!online.length) contacts.appendChild(el("div", "empty", "No other SIM-enabled citizens are online right now. You can open a previous conversation above."));
+      body.appendChild(contacts);
+    }
+    if (phoneFeedback) body.appendChild(el("div", "phoneFeedback" + (phoneFeedbackError ? " error" : ""), phoneFeedback));
+  }
+  function renderHelp() {
+    setScreenTitle("Help & guide", "A quick guide to using your citizen tablet.");
+    const entries = [
+      ["Phone number", "Enter Kings Phones & Gadgets in Port Harcourt, then buy one SIM for ₦3,500. Each character keeps the number after logging out."],
+      ["Voice calls", "Open Phone, enter a citizen's 11-digit number and tap Call. The other player sees an incoming call and can Answer or Decline. Allow microphone access."],
+      ["Private SMS", "Open Messages, choose an online phone contact and send text. Both players see the same conversation even when they are in different places or cities."],
+      ["Contacts", "Phone contacts show online citizens who have activated a SIM. You can open a message thread or start a voice call from a contact row."],
+      ["Shop finder", "Open City Map, choose Shops and walk to Kings Phones & Gadgets. Enter the store before purchasing your SIM."],
+      ["Safety", "Only share your in-game phone number with people you want to contact. Calls and SMS work while both citizens are online."]
+    ];
+    const list = el("div", "appList");
+    for (const [title,copy] of entries) {
+      const row=el("div","listRow"),detail=el("span");
+      detail.append(el("strong","",title),el("small","",copy));
+      list.appendChild(row);row.appendChild(detail);
+    }
+    body.appendChild(list);
+    body.appendChild(phoneButton("Find shops on the map", { phoneOpenMap: "1" }, "primary"));
+  }
   function setScreenTitle(title, copy) {
     body.className = "appScreen";
     body.replaceChildren();
@@ -197,22 +650,21 @@
     body.appendChild(el("p", "appCopy", "To use normal character banking, visit a bank in the city. Banking actions are processed by the game server."));
   }
   function renderContacts() {
-    setScreenTitle("Contacts", "Citizens currently visible to your game session.");
+    activeAppId = "contacts";
+    setScreenTitle("Contacts", "Online citizens with an active SIM can be reached from anywhere in the roleplay world.");
     const list = el("div", "appList");
     const session = window.NRS && window.NRS.session;
-    const currentName = session && session.name ? session.name : "You";
-    list.appendChild(el("div", "listRow", "You · " + currentName));
-    const remotes = session && session.remotes instanceof Map ? Array.from(session.remotes.values()) : [];
-    for (const player of remotes.slice(0, 60)) {
-      const row = el("div", "listRow");
-      const detail = el("span", "", String(player.username || player.name || player.displayName || "Citizen"));
-      const level = el("small", "", "Level " + Math.max(1, Number(player.level) || 1));
-      detail.appendChild(level);
-      row.appendChild(detail);
-      list.appendChild(row);
-    }
-    if (!remotes.length) list.appendChild(el("div", "empty", "No other citizens are visible in this city right now."));
+    const currentName = window.NRS?.playerIdentity?.name || (session && session.name) || "You";
+    const self = el("div", "listRow");
+    self.appendChild(el("span", "", "You · " + currentName));
+    self.appendChild(el("small", "", phoneState.phoneNumber || "No SIM installed"));
+    list.appendChild(self);
+    const contacts = Array.isArray(phoneState.contacts) ? phoneState.contacts : [];
+    for (const contact of contacts) list.appendChild(phoneContactRow(contact));
+    if (!contacts.length) list.appendChild(el("div", "empty", "No other SIM-enabled citizens are online. Numbers will appear when citizens connect and activate a SIM."));
+    if (!phoneState.hasSim) body.appendChild(el("div", "safeBanner", "You need a SIM from Kings Phones & Gadgets to call or message a citizen."));
     body.appendChild(list);
+    body.appendChild(phoneButton("Open Phone", { phoneOpenPhone: "1" }, "primary"));
   }
   function renderNews() {
     setScreenTitle("Rivers News Network", "The official news desk inside Nigeria RP.");
@@ -262,12 +714,17 @@
   }
   function renderBetting() { window.dispatchEvent(new Event("nrs-open-betting")); }
   function showApp(id) {
+    activeAppId = id;
     switch(id){
+      case "phone": phoneRequestApp("phone"); return;
+      case "messages": phoneRequestApp("messages"); return;
+      case "help": renderHelp(); return;
+      case "services": setScreenTitle("Shop finder", "Find the shops, homes and public services built into Port Harcourt."); body.appendChild(el("div", "safeBanner", "Kings Phones & Gadgets sells SIM cards for ₦3,500. Open City Map, select Shops, then walk inside the store to activate yours.")); body.appendChild(phoneButton("Open City Map", { phoneOpenMap: "1" }, "primary")); return;
       case "travel": openTravel("day-bus"); return;
       case "flights": openTravel("flight"); return;
       case "betting": renderBetting();return;
       case "wallet": renderWallet();return;
-      case "contacts": renderContacts();return;
+      case "contacts": phoneRequestApp("contacts");return;
       case "map": closeTablet();$("ib3")?.click();return;
       case "news": renderNews();return;
       case "jobs": renderJobs();return;
@@ -282,7 +739,123 @@
   $("nrsTabletClose").addEventListener("click",closeTablet);
   $("nrsTabletHome").addEventListener("click",returnHome);
   $("nrsTabletBack").addEventListener("click",()=>{if(body.classList.contains("homeScreen"))closeTablet();else returnHome();});
-  body.addEventListener("click",(event)=>{const target=event.target.closest("[data-app]");if(target)showApp(target.dataset.app);});
+  body.addEventListener("click",(event)=>{
+    const button=event.target.closest("button");
+    if(button){
+      const d=button.dataset;
+      if(d.phoneBuySim){
+        phoneSetFeedback("Activating SIM and assigning your personal number…",false);
+        if(!window.NRS?.sendPhoneMessage?.("buyPhoneSim"))phoneSetFeedback("The game server is disconnected. Reconnect and try again.",true);
+        renderPhone();return;
+      }
+      if(d.phoneCallTarget){phoneStartCall(d.phoneCallTarget);return;}
+      if(d.phoneMessageTarget){activePhoneThread=d.phoneMessageTarget;phoneEnsureTabletApp("messages");return;}
+      if(d.phoneThread){activePhoneThread=d.phoneThread;renderMessages();return;}
+      if(d.phoneThreadHome){activePhoneThread="";renderMessages();return;}
+      if(d.phoneAnswer&&phoneCall?.callId){
+        phoneCall.state="connecting";phoneSetFeedback("Connecting your microphone…",false);renderPhone();
+        window.NRS?.sendPhoneMessage?.("phoneCallAnswer",{callId:phoneCall.callId,accepted:true});return;
+      }
+      if(d.phoneDecline&&phoneCall?.callId){
+        window.NRS?.sendPhoneMessage?.("phoneCallAnswer",{callId:phoneCall.callId,accepted:false});
+        phoneSetFeedback("Call declined.",false);return;
+      }
+      if(d.phoneHangup&&phoneCall?.callId){
+        const callId=phoneCall.callId;
+        window.NRS?.sendPhoneMessage?.("phoneCallEnd",{callId});
+        phoneCall.state="ending";phoneSetFeedback("Ending call…",false);renderPhone();return;
+      }
+      if(d.phoneOpenMessages){phoneEnsureTabletApp("messages");return;}
+      if(d.phoneOpenPhone){phoneEnsureTabletApp("phone");return;}
+      if(d.phoneRefresh){phoneRequestState();phoneSetFeedback("Refreshing phone contacts…",false);renderPhone();return;}
+      if(d.phoneOpenMap){closeTablet();$("ib3")?.click();return;}
+      if(d.phoneCopy){
+        const number=String(d.phoneCopy);
+        if(navigator.clipboard?.writeText)navigator.clipboard.writeText(number).then(()=>phoneSetFeedback("Number copied.",false)).catch(()=>phoneSetFeedback("Your number is "+number+".",false));
+        else phoneSetFeedback("Your number is "+number+".",false);
+        if(activeAppId==="phone")renderPhone();return;
+      }
+    }
+    const target=event.target.closest("[data-app]");
+    if(target)showApp(target.dataset.app);
+  });
+  body.addEventListener("submit",(event)=>{
+    if(event.target.id==="nrsPhoneCallForm"){
+      event.preventDefault();
+      phoneStartCall($("nrsPhoneDialInput")?.value||"");
+      return;
+    }
+    if(event.target.id==="nrsPhoneTextForm"){
+      event.preventDefault();
+      phoneSendText(activePhoneThread,$("nrsPhoneTextInput")?.value||"");
+    }
+  });
+  window.addEventListener("nrs-phone-message",(event)=>{
+    const message=event.detail||{};
+    if(message.type==="phoneState"){
+      phoneState={
+        phoneNumber:message.phoneNumber||null,
+        hasSim:!!message.hasSim,
+        inPhoneShop:!!message.inPhoneShop,
+        cash:Number(message.cash)||0,
+        contacts:Array.isArray(message.contacts)?message.contacts:[]
+      };
+      if(activeAppId==="phone")renderPhone();
+      else if(activeAppId==="messages")renderMessages();
+      else if(activeAppId==="contacts")renderContacts();
+    }else if(message.type==="phoneSimResult"){
+      phoneSetFeedback(message.message||(message.ok?"SIM activated.":"SIM purchase failed."),!message.ok);
+      if(message.ok&&message.phoneNumber)phoneState.phoneNumber=message.phoneNumber,phoneState.hasSim=true;
+      if(activeAppId==="phone")renderPhone();
+    }else if(message.type==="phoneTextReceived"){
+      phoneStoreIncomingText(message);
+      if(activeAppId==="messages")renderMessages();
+    }else if(message.type==="phoneTextResult"){
+      phoneSetFeedback(message.message|| (message.ok?"SMS sent.":"SMS failed."),!message.ok);
+      if(activeAppId==="messages")renderMessages();
+    }else if(message.type==="phoneCallResult"){
+      phoneSetFeedback(message.message||"Call could not be started.",true);
+      if(!message.ok)phoneCall=null;
+      if(activeAppId==="phone")renderPhone();
+      else if(phoneCall)phoneEnsureTabletApp("phone");
+    }else if(message.type==="phoneCallStatus"){
+      phoneCall={mode:"outgoing",state:message.state||"ringing",callId:String(message.callId||""),targetNumber:String(message.targetNumber||""),targetName:String(message.targetName||message.targetNumber||"Citizen")};
+      phoneSetFeedback("Ringing "+phoneCall.targetName+"…",false);
+      if(activeAppId==="phone")renderPhone();
+    }else if(message.type==="phoneIncomingCall"){
+      phoneCall={mode:"incoming",state:"incoming",callId:String(message.callId||""),callerId:String(message.callerId||""),callerName:String(message.callerName||"Citizen"),callerNumber:String(message.callerNumber||"")};
+      phoneSetFeedback("Incoming call from "+phoneCall.callerName+".",false);
+      phoneEnsureTabletApp("phone");
+    }else if(message.type==="phoneCallAnswered"){
+      const self=phoneSelfId(),isCaller=String(message.callerId||"")===self;
+      phoneCall={
+        mode:isCaller?"outgoing":"incoming",
+        state:"connecting",
+        callId:String(message.callId||""),
+        isCaller,
+        targetNumber:isCaller?String(message.calleeNumber||""):String(message.callerNumber||""),
+        targetName:isCaller?String(message.calleeName||"Citizen"):String(message.callerName||"Citizen"),
+        callerName:String(message.callerName||"Citizen")
+      };
+      phoneSetFeedback("Call answered. Connecting voice audio…",false);
+      if(activeAppId==="phone")renderPhone();
+      if(isCaller)void phoneStartRtcAsCaller(phoneCall.callId);
+      else void phoneEnsurePeer(phoneCall.callId,false).catch((error)=>{
+        phoneSetFeedback((error&&error.message)||"Could not access the microphone.",true);
+        window.NRS?.sendPhoneMessage?.("phoneCallEnd",{callId:phoneCall?.callId});
+        if(activeAppId==="phone")renderPhone();
+      });
+    }else if(message.type==="phoneCallSignal"){
+      void phoneHandleSignal(message);
+    }else if(message.type==="phoneCallEnded"){
+      const reason=String(message.reason||"ended");
+      phoneClosePeer();
+      phoneCall=null;
+      const readable=reason==="no-answer"?"No answer. The call was missed.":reason==="declined"?"The call was declined.":reason==="disconnected"?"The other citizen disconnected.":"Call ended.";
+      phoneSetFeedback(readable,reason==="no-answer"||reason==="disconnected");
+      if(activeAppId==="phone")renderPhone();
+    }
+  });
   layer.addEventListener("click",(event)=>{if(event.target===layer)closeTablet();});
   window.addEventListener("keydown",(event)=>{if(event.key==="Escape"&&!layer.hidden)closeTablet();});
   window.setInterval(()=>{if(layer.hidden)return;const clock=$("nrsTabletTime");if(clock)clock.textContent=timeText();const homeClock=$("nrsTabletHomeClock");if(homeClock)homeClock.textContent=timeText();const homeDate=$("nrsTabletHomeDate");if(homeDate)homeDate.textContent=dateText();},15000);

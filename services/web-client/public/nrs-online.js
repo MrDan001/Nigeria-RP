@@ -393,6 +393,14 @@
     }
   }
 
+  // The tablet communicates through the authenticated game socket. Server handlers
+  // remain authoritative for SIM ownership, call participants and message delivery.
+  N.sendPhoneMessage = (type, fields = {}) => {
+    if (typeof type !== "string" || !type.startsWith("phone") && type !== "getPhoneState") return false;
+    const payload = fields && typeof fields === "object" ? fields : {};
+    return send({ ...payload, type });
+  };
+
   function online(count) {
     S.online = Math.max(0, Number(count) || 0);
     const exact = $("online-count");
@@ -754,6 +762,16 @@
       }
 
       if (!S.authed) return;
+
+      if (typeof message.type === "string" && message.type.startsWith("phone")) {
+        if (message.type === "phoneSimResult" && message.cash !== undefined && Number.isFinite(Number(message.cash))) {
+          cash = Math.max(0, Math.floor(Number(message.cash) || 0));
+          N.cash = cash;
+          money();
+        }
+        window.dispatchEvent(new CustomEvent("nrs-phone-message", { detail: message }));
+        return;
+      }
 
       if (message.type === "stage15TravelState") {
         N.stage15TravelState = message;
