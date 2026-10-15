@@ -1090,6 +1090,13 @@ modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.b;
   shopUI();return;
  }
  if(cash>=it[1]){NRS.walletChange(-it[1],0,(r)=>{if(r.ok){inv[it[0]]=(inv[it[0]]||0)+1;pMsg='Bought '+it[0]+'.';if(window.NRS?.saveProgress)window.NRS.saveProgress();}else pMsg=r.message||'Purchase failed.';money();shopUI();});return;}else pMsg='Not enough cash.';shopUI();});
+window.addEventListener('nrs-phone-message',e=>{
+ const m=e.detail||{};if(m.type!=='phoneSimResult')return;
+ pMsg=String(m.message||(m.ok?'SIM activated.':'SIM purchase failed.'));
+ if(m.ok){inv['SIM Card']=Math.max(Number(inv['SIM Card'])||0,1);money();}
+ const tablet=document.getElementById('nrsTabletLayer');
+ if(shopP?.name==='Kings Phones & Gadgets'&&modal.style.display==='block'&&(!tablet||tablet.hidden))shopUI();
+});
 modal.addEventListener('click',e=>{
  const floorButton=e.target.closest('[data-apartment-floor]');
  if(floorButton){
