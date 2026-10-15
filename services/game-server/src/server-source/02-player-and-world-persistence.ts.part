@@ -1454,13 +1454,33 @@ wss.on("connection", (socket) => {
             return;
           }
 
+          const previous = {
+            life: session.player.life,
+            inventory: session.player.inventory,
+            cash: session.player.cash,
+            accountLife: session.account.life,
+            accountInventory: session.account.inventory,
+            accountCash: session.account.cash,
+          };
           session.player.life = { ...session.player.life, phoneNumber };
           session.player.inventory = {
             ...session.player.inventory,
             "SIM Card": (session.player.inventory["SIM Card"] || 0) + 1,
           };
           session.player.cash -= simPrice;
-          await persistSession(session);
+          try {
+            await persistSession(session);
+          } catch (error) {
+            session.player.life = previous.life;
+            session.player.inventory = previous.inventory;
+            session.player.cash = previous.cash;
+            session.account.life = previous.accountLife;
+            session.account.inventory = previous.accountInventory;
+            session.account.cash = previous.accountCash;
+            console.error("phone-sim-save", error);
+            fail("The SIM purchase could not be saved. No charge was applied; please try again.");
+            return;
+          }
           send(socket, {
             type: "phoneSimResult", ok: true, phoneNumber,
             cash: session.player.cash, price: simPrice,
