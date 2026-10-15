@@ -1042,7 +1042,7 @@ OTHER_WORKPLACE_ENTRIES.forEach(w=>{
 })();
 const SH=[[-1,6,'Mama Put Kitchen','#b3402a',[['Jollof Rice & Chicken',2500],['Pounded Yam & Egusi',3000],['Bole & Fish',3500],['Zobo Drink',500]],'mama-put-kitchen'],
  [-1,32,'Rivers Pharmacy','#1c7a4a',[['Paracetamol',300],['Bandage Kit',500],['Vitamin C',800]],'rivers-pharmacy'],
- [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000]],'kings-phones'],
+ [-1,-52,'Kings Phones & Gadgets','#1d4a8a',[['Phone Charger',2500],['Earphones',3500],['Power Bank',9000],['SIM Card',3500]],'kings-phones'],
  [1,-24,'Sapele Fashion House','#8a2a6a',[['Ankara Shirt',8000],['Sneakers',15000],['Face Cap',2500]],'sapele-fashion'],
  [1,2,'Rivers Supermart','#c98a10',[['Garri (1 bag)',1500],['Indomie Carton',6500],['Bread',1200]],'rivers-supermart'],
  [1,28,'Job Center','#444d58',null,'job-center'],
@@ -1083,6 +1083,12 @@ function shopUI(){const p=shopP;if(!p.items){panel('<b>'+p.name+'</b><p>Jobs and
  panel('<b>'+p.name+'</b><p>'+(p.k==='Talk'?'“Wetin you wan buy?”':'Welcome in!')+'</p><p>Cash: ₦'+cash.toLocaleString()+'</p>'+p.items.map((it,i)=>'<button data-b="'+i+'">'+it[0]+' – ₦'+it[1].toLocaleString()+'</button>').join('<br>')+(pMsg?'<p><i>'+pMsg+'</i></p>':''));}
 act2.onclick=()=>{if(curPoi){shopP=curPoi;pMsg='';shopUI();}};
 modal.addEventListener('click',e=>{const i=e.target.dataset&&e.target.dataset.b;if(i===undefined||!shopP||!shopP.items)return;const it=shopP.items[+i];
+ if(shopP.name==='Kings Phones & Gadgets'&&it[0]==='SIM Card'){
+  const send=window.NRS?.sendPhoneMessage;
+  if(typeof send!=='function'||!send('buyPhoneSim'))pMsg='Phone network is reconnecting. Try again in a moment.';
+  else pMsg='Checking SIM purchase with Kings Phones & Gadgets…';
+  shopUI();return;
+ }
  if(cash>=it[1]){NRS.walletChange(-it[1],0,(r)=>{if(r.ok){inv[it[0]]=(inv[it[0]]||0)+1;pMsg='Bought '+it[0]+'.';if(window.NRS?.saveProgress)window.NRS.saveProgress();}else pMsg=r.message||'Purchase failed.';money();shopUI();});return;}else pMsg='Not enough cash.';shopUI();});
 modal.addEventListener('click',e=>{
  const floorButton=e.target.closest('[data-apartment-floor]');
