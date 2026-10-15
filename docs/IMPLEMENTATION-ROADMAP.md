@@ -56,8 +56,9 @@ Implemented in the current feature branch:
 - [x] Restore the prior SIM/number, inventory and cash state if persistence fails during a SIM purchase.
 
 Release/acceptance gate — still outstanding:
-- [ ] Server TypeScript check/build and all game-server regression tests pass on this exact branch.
-- [ ] Browser generated-script syntax check and production build pass.
+- [x] Server TypeScript check/build and browser generated-script syntax check/production build pass on the current PR merge commit.
+- [x] Stage 1 tests (including the phone-number persistence/validation case) and Stage 18 tests pass.
+- [ ] Full Game Server CI is blocked at the pre-existing Stage 15 live test, which still sends authRegister and waits for authOk even though that legacy request is absent from the current main-branch server. The feature is not responsible for adding that obsolete route; update the test harness in a separate scoped fix.
 - [ ] Verify number uniqueness and persistence using two independent accounts across reconnects.
 - [ ] Verify sender and receiver see SMS in both directions from distinct in-game locations/cities.
 - [ ] Verify incoming ring, answer, reject, missed-call timeout, hang-up and disconnect cleanup.
