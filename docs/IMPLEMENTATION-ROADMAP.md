@@ -51,6 +51,7 @@ Implemented in the current feature branch:
 - [x] Add a ₦3,500 SIM catalogue item at Kings Phones & Gadgets; the server rejects purchases outside the shop, without enough cash, or when the character already has a SIM.
 - [x] Persist the unique assigned phone number as part of saved Life state and include regression checks for the valid/invalid save shape.
 - [x] Deliver private SMS to both the sender and the recipient using their saved phone numbers when both citizens are online, regardless of their current city.
+- [x] Key locally cached message threads by the active citizen ID and clear the in-memory thread cache on active-character changes.
 - [x] Coordinate incoming/outgoing call state on the authoritative server, including answer/decline, timeout, hang-up, disconnect cleanup and WebRTC audio signaling.
 - [x] Add rate limits for repeat calls and SMS.
 - [x] Restore the prior SIM/number, inventory and cash state if persistence fails during a SIM purchase.
