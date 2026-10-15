@@ -268,6 +268,28 @@ function withMoneyMutation<T>(operation: () => Promise<T>): Promise<T> {
 const players = new Map<string, Session>();
 const activeAccounts = new Map<string, WebSocket>();
 
+type PhoneCall = {
+  id: string;
+  callerId: string;
+  calleeId: string;
+  createdAt: number;
+  answered: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
+};
+const phoneCalls = new Map<string, PhoneCall>();
+
+function endPhoneCall(callId: string, reason: string) {
+  const call = phoneCalls.get(callId);
+  if (!call) return;
+  if (call.timer) clearTimeout(call.timer);
+  phoneCalls.delete(callId);
+  const packet = { type: "phoneCallEnded", callId, reason };
+  const caller = players.get(call.callerId);
+  const callee = players.get(call.calleeId);
+  if (caller) send(caller.socket, packet);
+  if (callee && callee !== caller) send(callee.socket, packet);
+}
+
 // Short display IDs belong to live login sessions, never to saved accounts. The account
 // UUID remains the internal key for persistence and player interactions.
 let nextDisplayPlayerNumber = Math.floor(Math.random() * 999);
