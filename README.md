@@ -2,7 +2,7 @@
 
 A browser-native, mobile-first multiplayer roleplay game set in Port Harcourt, Rivers State, Nigeria.
 
-> **Current status — 11 October 2026:** Stage 7 (Police, Army, FRSC and Fire Service) is implemented on `main`, passed its 13 Stage 7 domain tests alongside Stage 1–6 regression, typecheck and builds, and deployed to Railway successfully. Real-device and two-account gameplay checks remain a separate manual limitation. Stage 8 (Rivers News Network) is implemented on `main`; its automated verification and Railway release follow this commit.
+> **Current status — 15 October 2026:** Stage 17 — City Explorer Passport & Discovery Rewards — remains the active roadmap stage on main. The citizen phone/SIM, private SMS and voice-call flow is being developed on feat/citizen-tablet-phone-comms; the enhancement is pending CI, multiplayer testing and an approved production release. Do not treat branch changes as deployed.
 
 ## Production and deployment
 
@@ -40,6 +40,12 @@ Read [the full implementation roadmap](docs/IMPLEMENTATION-ROADMAP.md) before ch
 ## First multiplayer foundation milestone
 
 Five real players on Android/browser devices should be able to open the game, connect to one shared world, see and move around with one another, interact, use a vehicle, communicate, complete a physical taxi workflow, receive server-validated Naira, and disconnect/reconnect with progress intact.
+
+## Citizen phone and communications enhancement (in progress)
+
+The feature branch feat/citizen-tablet-phone-comms adds Phone, Messages, Shop Finder and Help apps to the in-game tablet. The intended player flow is: enter Kings Phones & Gadgets, buy a server-validated ₦3,500 SIM, receive a persistent 080 phone number, then call or send private SMS to another online SIM-enabled citizen regardless of their current city. SMS uses the authenticated game WebSocket; voice audio uses WebRTC with the server routing call setup/signaling.
+
+The implementation is not considered accepted until server and browser builds/regression tests pass, two separate accounts verify number persistence and cross-location SMS, and real-device microphone/call behaviour is checked. Voice connectivity may require a TURN relay on networks where STUN-only WebRTC cannot establish a peer connection.
 
 ## Accounts
 
