@@ -805,6 +805,7 @@
       if(activeAppId==="messages")renderMessages();
     }else if(message.type==="phoneCallResult"){
       phoneSetFeedback(message.message||"Call could not be started.",true);
+      if(!message.ok)phoneCall=null;
       if(activeAppId==="phone")renderPhone();
       else if(phoneCall)phoneEnsureTabletApp("phone");
     }else if(message.type==="phoneCallStatus"){
