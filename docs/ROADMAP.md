@@ -43,6 +43,7 @@ The seven city environments, low-poly landmarks, off-road civic plaza, themed sh
 - [x] Add a SIM item at Kings Phones & Gadgets, with server-side checks for shop location, funds, duplicate SIM and phone-number assignment.
 - [x] Persist a citizen's assigned Nigerian 080 phone number in the saved life record.
 - [x] Add private SMS delivery between online citizens by phone number, without a same-city restriction; show a conversation on both clients.
+- [x] Keep locally cached conversation threads separated by citizen and reset the in-memory inbox when active character identity changes.
 - [x] Add server-coordinated incoming/outgoing call states, answer/decline/hang-up and WebRTC audio signaling.
 - [x] Add regression coverage for SIM-number persistence and invalid saved numbers.
 - [x] Roll back the SIM's number, inventory and cash in memory when persistence fails; rate-limit repeated SMS and call requests.
