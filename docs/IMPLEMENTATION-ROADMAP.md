@@ -53,6 +53,7 @@ Implemented in the current feature branch:
 - [x] Deliver private SMS to both the sender and the recipient using their saved phone numbers when both citizens are online, regardless of their current city.
 - [x] Coordinate incoming/outgoing call state on the authoritative server, including answer/decline, timeout, hang-up, disconnect cleanup and WebRTC audio signaling.
 - [x] Add rate limits for repeat calls and SMS.
+- [x] Restore the prior SIM/number, inventory and cash state if persistence fails during a SIM purchase.
 
 Release/acceptance gate — still outstanding:
 - [ ] Server TypeScript check/build and all game-server regression tests pass on this exact branch.
