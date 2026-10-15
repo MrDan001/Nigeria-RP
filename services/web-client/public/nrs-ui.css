@@ -452,3 +452,5 @@ body.drv #camB{display:grid}
 #modal.job-center-menu .jc-actions .jc-accept:disabled{opacity:.7;cursor:wait}
 #modal.job-center-menu .jc-footnote{padding-top:.1rem}
 @media(max-width:520px){#modal.job-center-menu .jc-actions .jc-accept{min-height:2.9rem}}
+
+#modal.job-center-menu .jc-actions .jc-accept:only-child{grid-column:1/-1}

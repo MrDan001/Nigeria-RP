@@ -854,7 +854,7 @@ function createCourierNpc(kind,targetX,targetZ,meta){
  add(new THREE.BoxGeometry(.48,.66,.29),shirt,0,1.14,0,g);add(new THREE.BoxGeometry(.5,.075,.31),trim,0,1.39,.01,g);
  const head=new THREE.Mesh(new THREE.SphereGeometry(.19,14,12),skin);head.position.set(0,1.66,.025);g.add(head);
  const cap=new THREE.Mesh(new THREE.SphereGeometry(.197,14,9,0,Math.PI*2,0,Math.PI/2),hair);cap.position.set(0,1.72,.02);g.add(cap);
- const face=mkFace(skin,hair,.185);face.position.set(0,1.65,.177);g.add(face);
+ const face=mkFace(skin,hair,.185);face.position.set(0,1.65,.04);g.add(face);
  const l=new THREE.Mesh(new THREE.BoxGeometry(.14,.48,.15),shirt);l.position.set(-.31,1.15,.02);g.add(l);
  const r=new THREE.Mesh(new THREE.BoxGeometry(.14,.48,.15),shirt);r.position.set(.31,1.15,.02);g.add(r);
  if(!p){l.rotation.x=-.75;r.rotation.x=-.75;l.rotation.z=-.24;r.rotation.z=.24;}else{r.rotation.z=-.32;r.rotation.x=-.18;}
