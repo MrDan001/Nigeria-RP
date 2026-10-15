@@ -550,7 +550,7 @@
           const activeJob=session.player.job;
           const isCourier=activeJob?.courier===true;
           const atDropoff=!!activeJob&&Math.hypot(session.player.x-activeJob.x,session.player.z-activeJob.z)<=7;
-          const courierReady=isCourier&&activeJob?.pickedUp===true&&findStage15City(String(session.player.cityId??""))?.id==="port-harcourt";
+          const courierReady=isCourier&&activeJob?.pickedUp===true;
           if(reason!=="job"||!activeJob||!isValidKnownJob(activeJob)||!atDropoff||(isCourier&&!courierReady)||cashDelta!==Math.trunc(activeJob.pay)){
             send(socket,{type:"walletResult",requestId,ok:false,message:"Job reward is not valid here. Collect the parcel first and deliver it to the assigned address."});return;
           }

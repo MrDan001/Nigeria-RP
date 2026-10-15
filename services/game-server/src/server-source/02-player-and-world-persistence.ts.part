@@ -1503,6 +1503,10 @@ wss.on("connection", (socket) => {
             requestId,
           });
 
+          if(session.player.job?.courier===true){
+            fail("Finish your active courier delivery before travelling to another city.");
+            return;
+          }
           if (!requestId) { fail("Travel request ID is required. Please retry from the travel terminal."); return; }
           if (session.inHome || session.inCarpark || session.inStaffRoom || session.inWorkplaceInterior ||
               session.inShopInterior || session.inApartmentInterior) {
@@ -1698,8 +1702,12 @@ wss.on("connection", (socket) => {
           const distance=Math.hypot(x-pickupX,z-pickupZ);
           const candidate:Exclude<JobState,null>={n:jobName,x,z,pay:courierReward(distance),courier:true,pickupX,pickupZ,pickupName,destinationName,
             ...(pickupMeta?{pickupMeta}:{}),...(destinationMeta?{destinationMeta}:{}),pickedUp:false};
-          if (findStage15City(String(session.player.cityId ?? ""))?.id !== "port-harcourt") {
-            send(socket,{type:"jobResult",ok:false,message:"Courier deliveries are only available in Port Harcourt. Travel there and reopen the Job Center."});return;
+          // Accept courier contracts only at the physical Job Center.
+          // A stale saved Stage 15 cityId is corrected at this trusted point instead of
+          // incorrectly rejecting a player who is standing at the Port Harcourt Job Center.
+          const atJobCenter=Math.hypot(session.player.x-8.4,session.player.z-28)<=14;
+          if(!atJobCenter){
+            send(socket,{type:"jobResult",ok:false,message:"Walk to the Job Center entrance in Port Harcourt before accepting a courier delivery."});return;
           }
           if (!jobName || !pickupName || !destinationName) {
             send(socket,{type:"jobResult",ok:false,message:"This delivery offer is incomplete. Reopen the Job Center and choose another route."});return;
@@ -1716,8 +1724,37 @@ wss.on("connection", (socket) => {
           if(!known){send(socket,{type:"jobResult",ok:false,message:"Unknown job."});return;}
           accepted={...known};
         }
+        const previousCityId=String(session.player.cityId||"port-harcourt");
+        const repairedCity=message.courier===true&&previousCityId!=="port-harcourt";
+        const previousJob=session.player.job;
         session.player.job=accepted;
-        await persistSession(session);
+        if(repairedCity)session.player.cityId="port-harcourt";
+        try {
+          await persistSession(session);
+        } catch(error) {
+          session.player.job=previousJob;
+          if(repairedCity)session.player.cityId=previousCityId;
+          console.error("courier-job-accept-persist",error);
+          send(socket,{type:"jobResult",ok:false,message:"Your delivery could not be saved. No job was accepted; please try again."});return;
+        }
+        if(repairedCity){
+          for(const recipient of players.values()){
+            if(recipient===session)continue;
+            if(recipient.player.cityId===previousCityId){
+              send(recipient.socket,{type:"playerLeft",playerId:session.player.id,onlineCount:cityOnlineCount(previousCityId)});
+            }else if(recipient.player.cityId==="port-harcourt"){
+              send(recipient.socket,{type:"playerJoined",player:publicPlayer(session.player),onlineCount:cityOnlineCount("port-harcourt")});
+            }
+          }
+          send(socket,{
+            type:"stage15TravelState",cities:stage15Cities(),routes:stage15Routes(),cityId:"port-harcourt",
+            currentCity:findStage15City("port-harcourt"),environments:stage16Environments(),
+            currentEnvironment:findStage16Environment("port-harcourt"),
+            stage17Passport:stage17Passport(stage17State,session.player.id,"port-harcourt"),
+            cash:session.player.cash,
+            recentTrips:stage15State.ledger.filter(entry=>entry.accountId===session.player.id).slice(-12).reverse(),
+          });
+        }
         send(socket,{type:"jobResult",ok:true,job:session.player.job});
         return;
       }
@@ -1726,9 +1763,6 @@ wss.on("connection", (socket) => {
         const active=session.player.job;
         if(!active||active.courier!==true||!isValidKnownJob(active)){
           send(socket,{type:"jobPickupResult",ok:false,message:"There is no valid active courier pickup."});return;
-        }
-        if(findStage15City(String(session.player.cityId??""))?.id!=="port-harcourt"){
-          send(socket,{type:"jobPickupResult",ok:false,message:"Courier pickup is only available in Port Harcourt."});return;
         }
         if(active.pickedUp===true){send(socket,{type:"jobPickupResult",ok:true,job:active,message:"Parcel already collected."});return;}
         if(Math.hypot(session.player.x-Number(active.pickupX),session.player.z-Number(active.pickupZ))>5){
