@@ -2,7 +2,7 @@
 
 The implementation scope and acceptance checks are in IMPLEMENTATION-ROADMAP.md.
 
-> Status update: 14 October 2026. Stage 16 was accepted by the project owner. Stage 17 — City Explorer Passport & Discovery Rewards — is active on main. Railway is the production host.
+> Status update: 15 October 2026. Stage 16 was accepted by the project owner. Stage 17 — City Explorer Passport & Discovery Rewards — remains active on main. Citizen Tablet Phone, SIM, SMS & Voice Calls is being developed on feat/citizen-tablet-phone-comms; CI, two-account multiplayer testing and production release are pending. Railway remains the production host.
 
 | Stage | Canonical scope | Status |
 |---|---|---|
@@ -25,6 +25,7 @@ The implementation scope and acceptance checks are in IMPLEMENTATION-ROADMAP.md.
 | 16 | Distinct city environments and regional identity | Complete — owner accepted |
 | 17 | City Explorer Passport & Discovery Rewards | Active |
 | Enhancement | Port Harcourt courier pickup/drop-off coverage | Source updated; live verification pending |
+| Enhancement | Citizen tablet phone, SIM, private SMS and voice calls | In progress on feature branch; CI and real-device verification pending |
 
 ## Active stage: Stage 17 — City Explorer Passport & Discovery Rewards
 
@@ -33,6 +34,21 @@ Players receive a persistent passport showing cities visited and a one-time ₦1
 ## Stage 16 — Accepted
 
 The seven city environments, low-poly landmarks, off-road civic plaza, themed shopfronts and local-district guide are deployed. The project owner accepted Stage 16 and authorized progression on 11 October 2026. Physical-device visual review remains optional polish and is not claimed as independently performed.
+
+## Gameplay enhancement — Citizen Tablet Phone, SIM & Communications (15 October 2026)
+
+**Status: IN PROGRESS — feature branch only; not deployed.**
+
+- [x] Add Phone and Messages apps to the existing tablet home screen, plus Shop Finder and Help & guide.
+- [x] Add a SIM item at Kings Phones & Gadgets, with server-side checks for shop location, funds, duplicate SIM and phone-number assignment.
+- [x] Persist a citizen's assigned Nigerian 080 phone number in the saved life record.
+- [x] Add private SMS delivery between online citizens by phone number, without a same-city restriction; show a conversation on both clients.
+- [x] Add server-coordinated incoming/outgoing call states, answer/decline/hang-up and WebRTC audio signaling.
+- [x] Add regression coverage for SIM-number persistence and invalid saved numbers.
+- [ ] Pass server TypeScript build, browser syntax checks, full production build and existing regression suite.
+- [ ] Test two independent characters/accounts purchasing unique SIMs, logging out/in, cross-location SMS, inbound calls, decline, missed call, hang-up and reconnect.
+- [ ] Verify microphone permissions, audio playback and call setup on two real devices/networks. Add/configure TURN before claiming robust calling across restrictive carrier NATs.
+- [ ] Merge/release only after CI and manual acceptance; then confirm Railway deployment and cache invalidation.
 
 ## Manual test queue
 
