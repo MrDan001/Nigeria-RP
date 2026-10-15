@@ -513,12 +513,14 @@ export type Life = {
   parkedCars: string[];
   /** Recent server-paid work completions, stored with the account's durable life data. */
   workHistory: WorkHistoryEntry[];
+  /** Assigned by the server when this character purchases a SIM card. */
+  phoneNumber: string | null;
 };
 
 export function newLife(todayKey: string): Life {
   return {
     v: 1, employment: null, homeId: null, rentDays: 0, lastDay: todayKey,
-    ownedCars: [...CAR_IDS], parkedCars: [], workHistory: [],
+    ownedCars: [...CAR_IDS], parkedCars: [], workHistory: [], phoneNumber: null,
   };
 }
 
@@ -551,6 +553,8 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
 
   const lastDay = typeof v.lastDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.lastDay) ? v.lastDay : todayKey;
 
+  const phoneNumber = typeof v.phoneNumber === "string" && /^080\d{8}$/.test(v.phoneNumber) ? v.phoneNumber : null;
+
   const ownedCars = Array.isArray(v.ownedCars)
     ? [...new Set(v.ownedCars.map(String).filter((id) => CAR_IDS.includes(id)))]
     : base.ownedCars;
@@ -580,7 +584,7 @@ export function normalizeLife(value: unknown, todayKey: string): Life {
     workHistory.push({ id, workplaceId, taskId, taskTitle, rank, amount, paidAt });
   }
 
-  return { v: 1, employment, homeId, rentDays, lastDay, ownedCars, parkedCars, workHistory };
+  return { v: 1, employment, homeId, rentDays, lastDay, ownedCars, parkedCars, workHistory, phoneNumber };
 }
 
 // ---------------------------------------------------------------- rent over time
