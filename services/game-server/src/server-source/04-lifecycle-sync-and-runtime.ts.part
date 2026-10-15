@@ -1641,6 +1641,11 @@
     const session = players.get(accountId);
     if (!session || session.socket !== socket) return;
 
+    for (const call of [...phoneCalls.values()]) {
+      if (call.callerId === accountId || call.calleeId === accountId) {
+        endPhoneCall(call.id, "disconnected");
+      }
+    }
     void persistSession(session).catch((error) => console.error("save-on-close", error));
 
     players.delete(accountId);
