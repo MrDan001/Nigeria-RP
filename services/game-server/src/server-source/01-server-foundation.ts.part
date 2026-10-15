@@ -475,8 +475,43 @@ function snapshot(cityId?: string) {
 }
 
 function isValidKnownJob(value: JobState) {
-  return value === null || JOBS.some(
-    (job) => job.n === value?.n && job.x === value.x && job.z === value.z && job.pay === value.pay,
+  if (value === null) return true;
+
+  // Courier contracts are generated from the live, whitelisted Port Harcourt address catalogue.
+  // Validate both doorways and the route itself instead of comparing them to the legacy JOBS list.
+  if (value.courier === true) {
+    const pickupX = Number(value.pickupX);
+    const pickupZ = Number(value.pickupZ);
+    const destinationX = Number(value.x);
+    const destinationZ = Number(value.z);
+    const cleanName = (raw: unknown) => String(raw ?? "")
+      .replace(/[\u0000-\u001f\u007f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
+    const pickupName = cleanName(value.pickupName);
+    const destinationName = cleanName(value.destinationName);
+    const distance = Math.hypot(destinationX - pickupX, destinationZ - pickupZ);
+    const expectedName = ("Delivery: " + pickupName + " to " + destinationName).slice(0, 160);
+
+    return Number.isFinite(pickupX) &&
+      Number.isFinite(pickupZ) &&
+      Number.isFinite(destinationX) &&
+      Number.isFinite(destinationZ) &&
+      pickupName.length > 0 &&
+      destinationName.length > 0 &&
+      value.n === expectedName &&
+      Number.isFinite(distance) &&
+      distance >= 8 &&
+      distance <= 650 &&
+      value.pay === courierReward(distance) &&
+      isKnownCourierPoint(pickupX, pickupZ, value.pickupMeta) &&
+      isKnownCourierPoint(destinationX, destinationZ, value.destinationMeta);
+  }
+
+  // Preserve existing validation for non-courier jobs.
+  return JOBS.some(
+    (job) => job.n === value.n && job.x === value.x && job.z === value.z && job.pay === value.pay,
   );
 }
 

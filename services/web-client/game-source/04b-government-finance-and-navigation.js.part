@@ -191,7 +191,33 @@ modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  }
  if(d.a){const dep=d.a[0]==='d',v=d.a.slice(1),have=dep?cash:bank,n=v==='all'?have:+v;
   if(n<=0||have<n)pMsg=dep?'Not enough cash.':'Not enough in the bank.';else{NRS.walletChange(dep?-n:n,dep?n:-n,(r)=>{pMsg=r.ok?(dep?'Deposited ₦':'Withdrew ₦')+f(n)+'.':(r.message||'Transaction failed.');money();bankUI();},'bank');return;}bankUI();}
- else if(d.j&&!job){const routes=buildDeliveryJobs();if(!routes.length){sys('No delivery addresses are available yet. Reopen the Job Center in a moment.');return;}const j=routes[((jobN%routes.length)+routes.length)%routes.length];NRS.acceptJob({name:j.name,pickup:j.pickup,destination:j.destination},(r)=>{if(r.ok){job=r.job||job;delete inv.Parcel;sys('Delivery accepted. Pick up the parcel from '+j.pickup.name+'.');mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');modal.style.display='none';}else sys(r.message||'Could not accept job.');});}
+ else if(d.j&&!job){
+ if(jobAcceptancePending)return;
+ const routes=buildDeliveryJobs();
+ if(!routes.length){
+  jobAcceptanceFeedback='No verified courier pickup and drop-off routes are available right now.';
+  sys(jobAcceptanceFeedback);jobUI();return;
+ }
+ const j=routes[((jobN%routes.length)+routes.length)%routes.length];
+ const api=window.NRS;
+ if(!api?.acceptJob){
+  jobAcceptanceFeedback='The game connection is not ready. Reconnect and reopen the Job Center.';
+  sys(jobAcceptanceFeedback);jobUI();return;
+ }
+ jobAcceptancePending=true;jobAcceptanceFeedback='';jobUI();
+ api.acceptJob({name:j.name,pickup:j.pickup,destination:j.destination},(r)=>{
+  jobAcceptancePending=false;
+  if(r?.ok&&r.job){
+   job=r.job;jobAcceptanceFeedback='';delete inv.Parcel;
+   sys('✅ Delivery accepted! Pick up the parcel from '+j.pickup.name+'.');
+   mis('<i>PICKUP</i><b>Collect parcel at '+deliveryText(j.pickup.name)+'</b>');
+   modal.style.display='none';modal.innerHTML='';modal.classList.remove('job-center-menu');
+  }else{
+   jobAcceptanceFeedback=r?.message||'The server did not confirm this delivery. Please try another verified route.';
+   sys(jobAcceptanceFeedback);
+   if(modal.style.display!=='none'&&modal.classList.contains('job-center-menu'))jobUI();
+  }
+ });}
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
 function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);

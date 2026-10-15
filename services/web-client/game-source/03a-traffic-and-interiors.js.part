@@ -93,7 +93,7 @@ function spawnWander(n,x1,x2,z1,z2){for(let i=0;i<n;i++){let x,z,k=0;do{x=x1+Mat
 spawnWander(7,-83,-14,80,111);spawnWander(5,22,78,125,185);
 
 /* ---------- Stage 6: shop interiors, working backpack, ATM + bank, Job Center missions ---------- */
-let bank=0,hp=100,hunger=82,lh=-1,lp=-1,bagMsg='',bagK=[],job=null,jobN=0,misT='';
+let bank=0,hp=100,hunger=82,lh=-1,lp=-1,bagMsg='',bagK=[],job=null,jobN=0,jobAcceptancePending=false,jobAcceptanceFeedback='',misT='';
 const f=n=>Math.round(n).toLocaleString();
 function sys(t){const d=document.createElement('div');d.innerHTML='<b>System:</b> ';d.append(t);$('log').append(d);$('log').scrollTop=1e5;}
 function mis(h){if(h!==misT){misT=h;$('mis').innerHTML=h;}}
@@ -750,6 +750,8 @@ function deliveryLocations(){
  const add=(id,name,x,z,kind='building',meta=null)=>{
   const px=Number(x),pz=Number(z),key=String(id??'');
   if(!key||!Number.isFinite(px)||!Number.isFinite(pz)||Math.abs(px)>270||Math.abs(pz)>270||ids.has(key))return;
+  // Never show a job address unless the authoritative server validates this exact entrance.
+  if(!isKnownCourierPoint(px,pz,meta||undefined))return;
   const label=deliveryText(name);
   if(!label)return;
   // Multiple systems can describe the same doorway (for example an apartment POI and its building collider).
@@ -821,13 +823,39 @@ function nrsDeliveryWaypoint(){
  return {x:Number(job.x),z:Number(job.z),name:job.destinationName||job.n||'Delivery address',action:'Drop-off'};
 }
 function jobUI(){
+ const feedback=jobAcceptanceFeedback
+  ?'<div class="jc-feedback" role="alert"><span aria-hidden="true">!</span><div><b>Delivery request not confirmed</b><small>'+deliveryText(jobAcceptanceFeedback)+'</small></div></div>'
+  :'';
  if(job){
-  const pickup=deliveryText(job.pickupName||'Pickup location'),destination=deliveryText(job.destinationName||job.n||'Delivery address');
-  panel('<b>💼 Job Center</b><p>Active courier run</p><p>Pickup: <b>'+pickup+'</b><br>'+(job.pickedUp?'✅ Parcel collected':'Awaiting parcel pickup')+'</p><p>Drop-off: <b>'+destination+'</b></p><p>Reward: <b>₦'+f(job.pay)+'</b></p><button data-open-workplaces="1">🏢 Careers & factions</button>');
- }else{
-  const jobs=buildDeliveryJobs();
-  if(!jobs.length){panel('<b>💼 Job Center</b><p>Delivery addresses are still loading. Wait for Port Harcourt to finish loading, then reopen the Job Center.</p>');return;}
-  const j=jobs[((jobN%jobs.length)+jobs.length)%jobs.length];
-  panel('<b>💼 Job Center</b><p>“We need a rider for a delivery.”</p><p><b>Pickup:</b><br>'+deliveryText(j.pickup.name)+'</p><p><b>Deliver to:</b><br>'+deliveryText(j.destination.name)+'</p><p>Reward: <b>₦'+f(j.pay)+'</b></p><p><small>'+j.addressCount+' mapped pickup/drop-off addresses across Port Harcourt, including homes, huts, apartment blocks, shops, offices and public buildings.</small></p><button data-j="1">Accept delivery</button><button data-open-workplaces="1">🏢 Careers & factions</button>');
+  const pickup=deliveryText(job.pickupName||'Pickup location');
+  const destination=deliveryText(job.destinationName||job.n||'Delivery address');
+  const status=job.pickedUp?'DELIVERY IN PROGRESS':'PICKUP REQUIRED';
+  panel('<div class="jc-head"><div class="jc-emblem" aria-hidden="true">📦</div><div class="jc-heading"><small class="jc-eyebrow">PORT HARCOURT · COURIER NETWORK</small><h2>Job Center</h2><p>Your active delivery contract</p></div><span class="jc-status jc-active">IN PROGRESS</span></div>'+
+   '<div class="jc-quote"><strong>'+(job.pickedUp?'Parcel collected — you are on the way.':'Your delivery is ready to begin.')+'</strong><small>Follow the highlighted route to complete the contract.</small></div>'+
+   '<div class="jc-route"><div class="jc-stop"><span class="jc-stop-icon jc-pickup">01</span><div class="jc-stop-copy"><small>PICKUP LOCATION</small><b>'+pickup+'</b><span>'+(job.pickedUp?'Parcel collected ✓':'Get close to this entrance to collect your parcel')+'</span></div></div><div class="jc-route-arrow" aria-hidden="true">↓</div><div class="jc-stop"><span class="jc-stop-icon jc-dropoff">02</span><div class="jc-stop-copy"><small>DELIVER TO</small><b>'+destination+'</b><span>'+(job.pickedUp?'Bring the parcel here to get paid':'Your drop-off destination')+'</span></div></div></div>'+
+   '<div class="jc-reward"><div><small>DELIVERY REWARD</small><strong>₦'+f(job.pay)+'</strong></div><span class="jc-reward-note">'+status+'<br>Paid on successful delivery</span></div>'+
+   '<p class="jc-address-note">✓ Server-verified Port Harcourt address</p>'+feedback+
+   '<button class="jc-careers" data-open-workplaces="1" type="button"><span>🏢 Careers &amp; factions</span><b aria-hidden="true">→</b></button>');
+  modal.classList.add('job-center-menu');
+  return;
  }
+
+ const jobs=buildDeliveryJobs();
+ if(!jobs.length){
+  panel('<div class="jc-head"><div class="jc-emblem" aria-hidden="true">📦</div><div class="jc-heading"><small class="jc-eyebrow">PORT HARCOURT · COURIER NETWORK</small><h2>Job Center</h2><p>Local delivery contracts</p></div></div>'+
+   '<div class="jc-empty"><span aria-hidden="true">🗺️</span><b>Preparing verified delivery routes</b><p>The address list is still syncing. Wait for the city to finish loading, then reopen the Job Center.</p></div>'+feedback+
+   '<button class="jc-careers" data-open-workplaces="1" type="button"><span>🏢 Careers &amp; factions</span><b aria-hidden="true">→</b></button>');
+  modal.classList.add('job-center-menu');
+  return;
+ }
+
+ const j=jobs[((jobN%jobs.length)+jobs.length)%jobs.length];
+ panel('<div class="jc-head"><div class="jc-emblem" aria-hidden="true">📦</div><div class="jc-heading"><small class="jc-eyebrow">PORT HARCOURT · COURIER NETWORK</small><h2>Job Center</h2><p>Verified local delivery contracts</p></div><span class="jc-status">AVAILABLE NOW</span></div>'+
+  '<div class="jc-quote"><strong>“We need a rider for a delivery.”</strong><small>Accept this contract, collect the parcel, and deliver it to earn your reward.</small></div>'+
+  '<div class="jc-route"><div class="jc-stop"><span class="jc-stop-icon jc-pickup">01</span><div class="jc-stop-copy"><small>PICKUP LOCATION</small><b>'+deliveryText(j.pickup.name)+'</b><span>First stop · Collect the parcel here</span></div></div><div class="jc-route-arrow" aria-hidden="true">↓</div><div class="jc-stop"><span class="jc-stop-icon jc-dropoff">02</span><div class="jc-stop-copy"><small>DELIVERY DESTINATION</small><b>'+deliveryText(j.destination.name)+'</b><span>Final stop · Reward paid after delivery</span></div></div></div>'+
+  '<div class="jc-reward"><div><small>DELIVERY REWARD</small><strong>₦'+f(j.pay)+'</strong></div><span class="jc-reward-note">No upfront fee<br>Earn on completion</span></div>'+
+  '<p class="jc-address-note">✓ Verified delivery entrances <span>·</span> '+j.addressCount+' mapped locations</p>'+feedback+
+  '<div class="jc-actions"><button class="jc-accept" type="button" data-j="1" '+(jobAcceptancePending?'disabled aria-busy="true"':'')+'><span class="jc-accept-label">'+(jobAcceptancePending?'Connecting to server…':'Accept delivery')+'</span><span class="jc-accept-icon" aria-hidden="true">'+(jobAcceptancePending?'…':'→')+'</span></button><button class="jc-careers" data-open-workplaces="1" type="button"><span>🏢 Careers &amp; factions</span><b aria-hidden="true">→</b></button></div>'+
+  '<p class="jc-footnote">The job becomes active only when the game server confirms acceptance.</p>');
+ modal.classList.add('job-center-menu');
 }

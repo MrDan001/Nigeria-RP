@@ -1698,16 +1698,17 @@ wss.on("connection", (socket) => {
           const distance=Math.hypot(x-pickupX,z-pickupZ);
           const candidate:Exclude<JobState,null>={n:jobName,x,z,pay:courierReward(distance),courier:true,pickupX,pickupZ,pickupName,destinationName,
             ...(pickupMeta?{pickupMeta}:{}),...(destinationMeta?{destinationMeta}:{}),pickedUp:false};
-          if (
-            findStage15City(String(session.player.cityId ?? ""))?.id !== "port-harcourt" ||
-            !jobName ||
-            !pickupName ||
-            !destinationName ||
-            (message.pickupMeta !== undefined && !pickupMeta) ||
-            (message.destinationMeta !== undefined && !destinationMeta) ||
-            !isValidKnownJob(candidate)
-          ) {
-            send(socket,{type:"jobResult",ok:false,message:"Choose a valid Port Harcourt pickup and building drop-off."});return;
+          if (findStage15City(String(session.player.cityId ?? ""))?.id !== "port-harcourt") {
+            send(socket,{type:"jobResult",ok:false,message:"Courier deliveries are only available in Port Harcourt. Travel there and reopen the Job Center."});return;
+          }
+          if (!jobName || !pickupName || !destinationName) {
+            send(socket,{type:"jobResult",ok:false,message:"This delivery offer is incomplete. Reopen the Job Center and choose another route."});return;
+          }
+          if ((message.pickupMeta !== undefined && !pickupMeta) || (message.destinationMeta !== undefined && !destinationMeta)) {
+            send(socket,{type:"jobResult",ok:false,message:"A building entrance could not be verified. Reopen the Job Center to refresh the delivery addresses."});return;
+          }
+          if (!isValidKnownJob(candidate)) {
+            send(socket,{type:"jobResult",ok:false,message:"This delivery route could not be verified. Reopen the Job Center and choose another route."});return;
           }
           accepted=candidate;
         }else{

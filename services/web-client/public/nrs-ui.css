@@ -322,3 +322,126 @@ body.drv #camB{display:grid}
 #modal.work-menu .wm-card .s4-card{margin:.55rem 0 0;padding:.65rem;border:1px solid rgba(98,184,249,.22);border-radius:.65rem;background:linear-gradient(145deg,rgba(21,93,143,.13),rgba(255,255,255,.015))}
 #modal.work-menu .wm-card .s4-card h3{margin:0 0 .2rem;font-size:.78rem;color:#dcefff}
 #modal.work-menu .wm-card .s4-card p{margin:.25rem 0 .4rem;font-size:.65rem;color:#9fb7ca;line-height:1.4}
+
+
+/* Job Center — premium courier contract card */
+#modal.job-center-menu{
+ box-sizing:border-box;width:min(40rem,calc(100vw - 1rem));max-width:calc(100vw - 1rem);
+ max-height:87vh;padding:.9rem 1rem 1rem;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere;
+ border:1px solid rgba(145,202,235,.3);border-radius:1.15rem;
+ background:radial-gradient(ellipse at 8% 0%,rgba(35,128,187,.19),transparent 42%),linear-gradient(150deg,rgba(10,25,40,.985),rgba(5,14,25,.985));
+ box-shadow:0 1.6rem 4rem rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.055);
+ backdrop-filter:blur(18px) saturate(125%);line-height:1.42;font-size:clamp(.76rem,1.45vw,.92rem);
+}
+#modal.job-center-menu #mx.modal-close{
+ position:absolute;top:.55rem;right:.6rem;float:none;z-index:12;display:block;min-width:0;min-height:2rem;
+ margin:0;padding:.38rem .58rem;border:1px solid rgba(255,255,255,.16);border-radius:.6rem;
+ background:rgba(255,255,255,.07);color:#dbe8f2;font-size:.66rem;font-weight:850;box-shadow:none;
+}
+#modal.job-center-menu .jc-head{
+ display:grid;grid-template-columns:3rem minmax(0,1fr);align-items:center;gap:.68rem;
+ padding:.05rem 4.1rem .78rem 0;border-bottom:1px solid rgba(166,207,233,.13);
+}
+#modal.job-center-menu .jc-emblem{
+ display:grid;place-items:center;width:3rem;height:3rem;border:1px solid rgba(111,192,246,.3);border-radius:.9rem;
+ background:linear-gradient(145deg,#199feb,#14519a);font-size:1.45rem;box-shadow:0 .55rem 1.4rem rgba(13,106,178,.24);
+}
+#modal.job-center-menu .jc-heading{display:grid;gap:.07rem;min-width:0}
+#modal.job-center-menu .jc-eyebrow{color:#72ceff;font-size:.59rem;font-weight:900;letter-spacing:.12em}
+#modal.job-center-menu .jc-heading h2{margin:0;color:#f4f8fc;font-size:1.35rem;line-height:1.18;font-weight:900;letter-spacing:-.025em}
+#modal.job-center-menu .jc-heading p{margin:.12rem 0 0;color:#9bb1c3;font-size:.72rem}
+#modal.job-center-menu .jc-status{
+ grid-column:2;justify-self:start;margin-top:-.1rem;padding:.24rem .48rem;border:1px solid rgba(104,226,169,.25);
+ border-radius:99px;background:rgba(36,170,111,.12);color:#90efbd;font-size:.55rem;font-weight:900;letter-spacing:.09em;
+}
+#modal.job-center-menu .jc-status:before{content:"";display:inline-block;width:.36rem;height:.36rem;margin-right:.32rem;border-radius:50%;background:#58e39b;box-shadow:0 0 .55rem rgba(88,227,155,.5)}
+#modal.job-center-menu .jc-status.jc-active{color:#ffd786;border-color:rgba(248,192,87,.28);background:rgba(173,117,21,.13)}
+#modal.job-center-menu .jc-status.jc-active:before{background:#ffc95d;box-shadow:0 0 .5rem rgba(255,201,93,.4)}
+#modal.job-center-menu .jc-quote{
+ display:grid;gap:.2rem;margin:.78rem 0;padding:.72rem .8rem;border:1px solid rgba(133,194,231,.14);border-radius:.8rem;
+ background:linear-gradient(110deg,rgba(39,82,113,.27),rgba(255,255,255,.025));
+}
+#modal.job-center-menu .jc-quote strong{color:#f0f6fb;font-size:.9rem;font-weight:850}
+#modal.job-center-menu .jc-quote small{color:#a8bdcd;font-size:.7rem;line-height:1.45}
+#modal.job-center-menu .jc-route{
+ display:grid;gap:.48rem;padding:.78rem;border:1px solid rgba(255,255,255,.09);border-radius:.85rem;
+ background:rgba(3,11,21,.32);
+}
+#modal.job-center-menu .jc-stop{display:grid;grid-template-columns:2.25rem minmax(0,1fr);align-items:start;gap:.65rem;min-width:0}
+#modal.job-center-menu .jc-stop-icon{
+ display:grid;place-items:center;width:2.15rem;height:2.15rem;border-radius:.68rem;font-size:.72rem;font-weight:950;
+ border:1px solid rgba(89,220,166,.28);background:rgba(34,157,111,.14);color:#7ff0ba;
+}
+#modal.job-center-menu .jc-stop-icon.jc-dropoff{border-color:rgba(104,178,255,.3);background:rgba(41,119,213,.17);color:#8acaff}
+#modal.job-center-menu .jc-stop-copy{display:grid;gap:.12rem;min-width:0}
+#modal.job-center-menu .jc-stop-copy small{color:#85a7bd;font-size:.57rem;font-weight:900;letter-spacing:.1em}
+#modal.job-center-menu .jc-stop-copy b{color:#f1f6fa;font-size:.84rem;line-height:1.35;font-weight:800;overflow-wrap:anywhere}
+#modal.job-center-menu .jc-stop-copy span{color:#94aabd;font-size:.66rem;line-height:1.4}
+#modal.job-center-menu .jc-route-arrow{margin-left:.79rem;margin-top:-.12rem;margin-bottom:-.12rem;color:#5e89a4;font-size:1rem;line-height:1}
+#modal.job-center-menu .jc-reward{
+ display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:.75rem 0 .35rem;padding:.78rem .85rem;
+ border:1px solid rgba(97,224,163,.24);border-radius:.85rem;
+ background:linear-gradient(105deg,rgba(20,126,82,.2),rgba(27,88,72,.11));
+}
+#modal.job-center-menu .jc-reward>div{display:grid;gap:.1rem}
+#modal.job-center-menu .jc-reward small{color:#a3cbb9;font-size:.58rem;font-weight:900;letter-spacing:.12em}
+#modal.job-center-menu .jc-reward strong{color:#7bf0b2;font-size:1.55rem;line-height:1.15;letter-spacing:-.025em;font-weight:950}
+#modal.job-center-menu .jc-reward-note{color:#b4c9d2;font-size:.65rem;line-height:1.5;text-align:right}
+#modal.job-center-menu .jc-address-note{margin:.48rem 0;color:#7fa4ba;font-size:.63rem;line-height:1.45}
+#modal.job-center-menu .jc-address-note span{color:#4d7085;padding:0 .15rem}
+#modal.job-center-menu .jc-feedback{
+ display:grid;grid-template-columns:1.5rem minmax(0,1fr);gap:.55rem;align-items:start;margin:.55rem 0;padding:.65rem .7rem;
+ border:1px solid rgba(255,151,131,.28);border-radius:.7rem;background:rgba(153,51,43,.16);color:#ffd0c8;
+}
+#modal.job-center-menu .jc-feedback>span{display:grid;place-items:center;width:1.35rem;height:1.35rem;border-radius:50%;background:rgba(255,116,94,.17);font-weight:950}
+#modal.job-center-menu .jc-feedback div{display:grid;gap:.12rem;min-width:0}
+#modal.job-center-menu .jc-feedback b{font-size:.73rem}
+#modal.job-center-menu .jc-feedback small{color:#f3b9b0;font-size:.68rem;line-height:1.45}
+#modal.job-center-menu .jc-actions{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:.5rem;margin-top:.65rem}
+#modal.job-center-menu .jc-accept,#modal.job-center-menu .jc-careers{
+ box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:.5rem;width:100%;min-width:0;min-height:2.85rem;
+ margin:0;padding:.72rem .8rem;border:1px solid transparent;border-radius:.75rem;color:#fff;font-size:.78rem;font-weight:900;line-height:1.25;text-align:left;
+ white-space:normal;overflow-wrap:anywhere;transition:transform .16s ease,border-color .16s ease,filter .16s ease;
+}
+#modal.job-center-menu .jc-accept{background:linear-gradient(110deg,#1da2f3,#1768c3);box-shadow:0 .45rem 1.15rem rgba(23,104,195,.24)}
+#modal.job-center-menu .jc-accept-icon{display:grid;place-items:center;flex:0 0 1.65rem;height:1.65rem;border-radius:.5rem;background:rgba(255,255,255,.15);font-size:1.15rem}
+#modal.job-center-menu .jc-accept:disabled{opacity:.68;cursor:wait;filter:saturate(.7)}
+#modal.job-center-menu .jc-careers{border-color:rgba(255,255,255,.13);background:rgba(255,255,255,.055);color:#d8e5ed}
+#modal.job-center-menu .jc-careers b{color:#81cfff;font-size:1.05rem}
+#modal.job-center-menu .jc-accept:hover:not(:disabled),#modal.job-center-menu .jc-careers:hover{filter:brightness(1.1);transform:translateY(-1px)}
+#modal.job-center-menu .jc-accept:focus-visible,#modal.job-center-menu .jc-careers:focus-visible{outline:2px solid #8bd3ff;outline-offset:2px}
+#modal.job-center-menu .jc-footnote{margin:.6rem 0 0;color:#708da2;font-size:.61rem;line-height:1.4;text-align:center}
+#modal.job-center-menu .jc-empty{display:grid;justify-items:center;gap:.35rem;margin:.8rem 0;padding:1.5rem .8rem;border:1px dashed rgba(137,187,219,.2);border-radius:.8rem;background:rgba(255,255,255,.025);text-align:center}
+#modal.job-center-menu .jc-empty>span{font-size:1.8rem}
+#modal.job-center-menu .jc-empty>b{color:#e7f1f8;font-size:.84rem}
+#modal.job-center-menu .jc-empty p{max-width:24rem;margin:.1rem 0;color:#9bb0c0;font-size:.7rem;line-height:1.5}
+#modal.job-center-menu .jc-empty~.jc-careers{width:100%}
+@media(max-width:520px){
+ #modal.job-center-menu{width:calc(100vw - .75rem);max-width:calc(100vw - .75rem);padding:.78rem;border-radius:1rem}
+ #modal.job-center-menu #mx.modal-close{top:.45rem;right:.45rem;padding:.34rem .48rem;font-size:.62rem}
+ #modal.job-center-menu .jc-head{gap:.5rem;grid-template-columns:2.55rem minmax(0,1fr);padding-right:3.45rem}
+ #modal.job-center-menu .jc-emblem{width:2.55rem;height:2.55rem;border-radius:.72rem;font-size:1.2rem}
+ #modal.job-center-menu .jc-eyebrow{font-size:.52rem;letter-spacing:.08em}
+ #modal.job-center-menu .jc-heading h2{font-size:1.18rem}
+ #modal.job-center-menu .jc-heading p{font-size:.66rem}
+ #modal.job-center-menu .jc-quote{margin:.62rem 0;padding:.65rem}
+ #modal.job-center-menu .jc-route{padding:.65rem;gap:.42rem}
+ #modal.job-center-menu .jc-stop{grid-template-columns:1.95rem minmax(0,1fr);gap:.55rem}
+ #modal.job-center-menu .jc-stop-icon{width:1.9rem;height:1.9rem;font-size:.65rem}
+ #modal.job-center-menu .jc-stop-copy b{font-size:.78rem}
+ #modal.job-center-menu .jc-reward{align-items:flex-start;gap:.4rem;padding:.68rem;flex-direction:column}
+ #modal.job-center-menu .jc-reward strong{font-size:1.4rem}
+ #modal.job-center-menu .jc-reward-note{text-align:left}
+ #modal.job-center-menu .jc-actions{grid-template-columns:1fr}
+ #modal.job-center-menu .jc-accept,#modal.job-center-menu .jc-careers{min-height:2.65rem}
+}
+@media(max-height:520px){
+ #modal.job-center-menu{max-height:91vh;padding:.62rem .8rem}
+ #modal.job-center-menu .jc-quote{margin:.45rem 0;padding:.52rem .65rem}
+ #modal.job-center-menu .jc-route{padding:.55rem;gap:.3rem}
+ #modal.job-center-menu .jc-reward{margin:.5rem 0 .25rem;padding:.56rem .7rem}
+ #modal.job-center-menu .jc-reward strong{font-size:1.25rem}
+ #modal.job-center-menu .jc-actions{margin-top:.42rem}
+ #modal.job-center-menu .jc-accept,#modal.job-center-menu .jc-careers{min-height:2.35rem;padding:.52rem .7rem}
+ #modal.job-center-menu .jc-footnote{margin-top:.35rem}
+}
