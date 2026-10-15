@@ -1484,6 +1484,9 @@ wss.on("connection", (socket) => {
         if (!toNumber) { fail("Enter a valid 11-digit Nigerian phone number."); return; }
         if (fromNumber === toNumber) { fail("You cannot text your own number."); return; }
         if (!text) { fail("Type a message first."); return; }
+        const smsNow = Date.now();
+        if (smsNow - (session.phoneLastSmsAt ?? 0) < 700) { fail("Please wait a moment before sending another SMS."); return; }
+        session.phoneLastSmsAt = smsNow;
         const target = [...players.values()].find((candidate) =>
           candidate.player.id !== session.player.id &&
           normalisePhoneNumber(candidate.player.life.phoneNumber) === toNumber
@@ -1522,6 +1525,9 @@ wss.on("connection", (socket) => {
           call.callerId === target.player.id || call.calleeId === target.player.id
         );
         if (occupied) { fail("One of these citizens is already on a call."); return; }
+        const now = Date.now();
+        if (now - (session.phoneLastCallAt ?? 0) < 5000) { fail("Please wait a few seconds before placing another call."); return; }
+        session.phoneLastCallAt = now;
 
         const callId = randomUUID();
         const call: PhoneCall = {
