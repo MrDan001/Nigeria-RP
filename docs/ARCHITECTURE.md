@@ -51,6 +51,16 @@ Vehicle movement remains largely browser-simulated. Garage ownership and route c
 
 **Server-owned valuable/game state:** account/session identity, money, bank transactions, inventory, owned cars/properties, rent settlement/eviction, work eligibility, ranks, task completion/rewards, permissions and persistent health consequences.
 
+## Citizen phone, SMS and voice-call architecture
+
+The phone/communications enhancement is being developed on feat/citizen-tablet-phone-comms; it is not yet a production capability. The design keeps valuable state and authorization on the game server:
+
+- **Identity/persistence:** Life.phoneNumber stores a server-assigned 080XXXXXXXX number, normalized and saved alongside the citizen's other life state in the existing PostgreSQL/file-store persistence layer.
+- **SIM purchase:** Kings Phones & Gadgets is the authorized location. The server verifies that the citizen is inside that shop, has enough cash, has no existing number, and that the new number is not already assigned before deducting ₦3,500 and saving the SIM/number.
+- **SMS:** the authenticated WebSocket routes a validated private message to the account holding the destination number. City and physical distance do not restrict delivery, but both recipients must currently be online. The current client saves a bounded copy of recent threads in local storage; server-side/offline inbox history is not implemented.
+- **Calls:** the server coordinates ring, answer/decline, timeout, hang-up and disconnect cleanup, and forwards WebRTC offer/answer/ICE signaling only between the two participants in the active call. Audio media itself is peer-to-peer; the initial ICE config uses public STUN servers only, so a TURN relay may be needed for reliable calling on restrictive mobile networks.
+- **Verification:** build success alone does not prove working audio or cross-location messaging. Test two separate authenticated clients, unique/persistent numbers, SMS in both directions, incoming calls and microphone/audio setup on real devices before release.
+
 ## Android and rendering performance
 
 - Target affordable Android phones, including devices with limited RAM.
