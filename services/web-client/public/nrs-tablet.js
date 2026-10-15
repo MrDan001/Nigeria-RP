@@ -134,6 +134,16 @@
   function phoneStorageKey() {
     return "nrs-phone-threads-v1:" + (phoneSelfId() || "local-citizen");
   }
+  // This bridge event fires when a citizen is authenticated or the active
+  // character changes. Do not retain the previous character's in-memory inbox.
+  window.addEventListener("nrs-player-identity", () => {
+    phoneThreads = null;
+    activePhoneThread = "";
+    if (activeAppId === "messages") {
+      phoneLoadThreads();
+      renderMessages();
+    }
+  });
   function phoneLoadThreads() {
     if (phoneThreads) return phoneThreads;
     try {
