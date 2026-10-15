@@ -445,3 +445,10 @@ body.drv #camB{display:grid}
  #modal.job-center-menu .jc-accept,#modal.job-center-menu .jc-careers{min-height:2.35rem;padding:.52rem .7rem}
  #modal.job-center-menu .jc-footnote{margin-top:.35rem}
 }
+
+
+/* Courier NPC handover actions */
+#modal.job-center-menu .jc-actions .jc-accept{min-height:3rem}
+#modal.job-center-menu .jc-actions .jc-accept:disabled{opacity:.7;cursor:wait}
+#modal.job-center-menu .jc-footnote{padding-top:.1rem}
+@media(max-width:520px){#modal.job-center-menu .jc-actions .jc-accept{min-height:2.9rem}}

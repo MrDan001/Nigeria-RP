@@ -828,6 +828,74 @@ function buildDeliveryJobs(){
   return {id:pickup.id+'->'+destination.id,name:('Delivery: '+pickup.name+' to '+destination.name).slice(0,160),pickup,destination,pay,addressCount:targets.length};
  }).filter(Boolean);
 }
+const courierNPCs=[];
+let courierPickupPending=false,courierDeliveryPending=false;
+function clearCourierNPCs(){
+ for(const npc of courierNPCs.splice(0)){
+  scene.remove(npc.g);
+  npc.g.traverse(o=>{if(o.geometry&&![FG.s,FG.x,FG.t].includes(o.geometry))o.geometry.dispose();if(o.isSprite&&o.material?.map)o.material.map.dispose();});
+ }
+}
+function courierNpcNameTexture(kind){
+ const p=kind==='pickup';
+ return tex(512,128,(g,w,h)=>{
+  g.clearRect(0,0,w,h);g.fillStyle=p?'rgba(9,32,49,.96)':'rgba(7,43,34,.96)';g.fillRect(4,4,w-8,h-8);
+  g.strokeStyle=p?'#65caff':'#6be1b0';g.lineWidth=5;g.strokeRect(7,7,w-14,h-14);
+  g.textAlign='center';g.fillStyle='#fff';g.font='900 32px system-ui';g.fillText(p?'PARCEL PICKUP':'DELIVERY RECIPIENT',w/2,51);
+  g.fillStyle=p?'#8edcff':'#99f1c9';g.font='800 21px system-ui';g.fillText(p?'HOLD TO COLLECT':'HOLD TO DELIVER',w/2,86);
+ });
+}
+function createCourierNpc(kind,targetX,targetZ,meta){
+ const p=kind==='pickup',g=new THREE.Group();
+ const skin=M(0x70472c),hair=M(0x171a20),shirt=M(p?0x176da5:0x167954),pants=M(0x273445),shoe=M(0x151a20),trim=M(p?0xf2bd55:0x67dfac);
+ if(meta?.generatedApartment===true)g.rotation.y=meta.entryAxis==='x'?Number(meta.entrySign||1)*Math.PI/2:(Number(meta.entrySign)===-1?Math.PI:0);
+ let x=targetX,z=targetZ;if(meta?.generatedApartment===true&&meta.entryAxis==='x')z+=.9;else x+=.9;
+ g.position.set(x,0,z);g.userData.courierNpcId=kind;
+ add(new THREE.BoxGeometry(.48,.66,.29),shirt,0,1.14,0,g);add(new THREE.BoxGeometry(.5,.075,.31),trim,0,1.39,.01,g);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.19,14,12),skin);head.position.set(0,1.66,.025);g.add(head);
+ const cap=new THREE.Mesh(new THREE.SphereGeometry(.197,14,9,0,Math.PI*2,0,Math.PI/2),hair);cap.position.set(0,1.72,.02);g.add(cap);
+ const face=mkFace(skin,hair,.185);face.position.set(0,1.65,.177);g.add(face);
+ const l=new THREE.Mesh(new THREE.BoxGeometry(.14,.48,.15),shirt);l.position.set(-.31,1.15,.02);g.add(l);
+ const r=new THREE.Mesh(new THREE.BoxGeometry(.14,.48,.15),shirt);r.position.set(.31,1.15,.02);g.add(r);
+ if(!p){l.rotation.x=-.75;r.rotation.x=-.75;l.rotation.z=-.24;r.rotation.z=.24;}else{r.rotation.z=-.32;r.rotation.x=-.18;}
+ for(const side of [-1,1]){add(new THREE.BoxGeometry(.17,.44,.19),pants,side*.125,.46,0,g);add(new THREE.BoxGeometry(.19,.12,.27),shoe,side*.125,.1,.055,g);}
+ if(p){
+  const parcel=new THREE.Group();parcel.position.set(.38,1.01,.23);g.add(parcel);
+  add(new THREE.BoxGeometry(.3,.3,.28),M(0xb88751),0,0,0,parcel);
+  add(new THREE.BoxGeometry(.065,.305,.292),M(0xe2cc8b),0,.002,0,parcel);
+  add(new THREE.BoxGeometry(.305,.055,.292),M(0xe2cc8b),0,.035,0,parcel);
+  add(new THREE.BoxGeometry(.13,.035,.11),M(0x9b6a39),0,.17,0,parcel);
+ }else add(new THREE.BoxGeometry(.18,.13,.035),trim,0,1.05,.17,g);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.42,.57,28),new THREE.MeshBasicMaterial({color:p?0x42c5ff:0x46e5a0,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=.035;g.add(ring);
+ const hit=new THREE.Mesh(new THREE.SphereGeometry(.47,10,8),new THREE.MeshBasicMaterial({transparent:true,opacity:0,colorWrite:false,depthWrite:false,side:THREE.DoubleSide}));hit.position.y=1.05;hit.scale.set(1,1.9,.9);g.add(hit);
+ const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:courierNpcNameTexture(kind),transparent:true,depthWrite:false,fog:false}));tag.scale.set(2.15,.54,1);tag.position.set(0,2.35,.02);g.add(tag);
+ keepVehicleVisible(g);scene.add(g);
+ const npc={id:kind,kind,g,targetX,targetZ,x,z};courierNPCs.push(npc);return npc;
+}
+function syncCourierNpcForJob(navigate){
+ clearCourierNPCs();if(!job||job.courier!==true)return;
+ const pickup=!job.pickedUp,targetX=Number(pickup?job.pickupX:job.x),targetZ=Number(pickup?job.pickupZ:job.z);
+ const targetName=String(pickup?job.pickupName:(job.destinationName||job.n)||'delivery address'),meta=pickup?job.pickupMeta:job.destinationMeta;
+ if(!Number.isFinite(targetX)||!Number.isFinite(targetZ))return;
+ createCourierNpc(pickup?'pickup':'recipient',targetX,targetZ,meta);
+ if(navigate&&typeof navStart==='function')navStart({n:(pickup?'Pickup parcel · ':'Deliver parcel · ')+targetName,x:targetX,z:targetZ,ico:'📦',r:6});
+ if(pickup)mis('<i>PICKUP</i><b>Follow the route and hold the courier to collect your parcel</b>');
+ else mis('<i>DELIVERY</i><b>Follow the route and hold the recipient to deliver your parcel</b>');
+}
+function openCourierInteractionMenu(npcId){
+ const npc=courierNPCs.find(n=>n.id===npcId&&n.g.visible);
+ if(!npc||!job||job.courier!==true)return;
+ const p=npc.kind==='pickup';if((p&&job.pickedUp===true)||(!p&&job.pickedUp!==true))return;
+ const range=Math.hypot(pos.x-npc.targetX,pos.z-npc.targetZ);
+ if(range>(p?5:6)){sys('Move closer to the courier before opening the parcel handover.');return;}
+ const title=p?'Parcel pickup':'Parcel delivery',place=deliveryText(p?job.pickupName:(job.destinationName||job.n));
+ panel('<div class="jc-head"><div class="jc-emblem" aria-hidden="true">'+(p?'📦':'🤝')+'</div><div class="jc-heading"><small class="jc-eyebrow">PORT HARCOURT · COURIER NETWORK</small><h2>'+title+'</h2><p>'+place+'</p></div><span class="jc-status">'+(p?'PARCEL READY':'RECIPIENT WAITING')+'</span></div>'+
+  '<div class="jc-quote"><strong>'+(p?'Your parcel is ready for collection.':'The recipient is waiting for this delivery.')+'</strong><small>'+(p?'Collect the parcel from the person standing at the pickup entrance.':'Hand the collected parcel to the person waiting at the delivery entrance.')+'</small></div>'+
+  '<div class="jc-actions"><button class="jc-accept" type="button" data-courier-action="'+(p?'pickup':'deliver')+'"><span>'+(p?'Collect parcel':'Deliver parcel')+'</span><span class="jc-accept-icon" aria-hidden="true">→</span></button></div>'+
+  '<p class="jc-footnote">The handover and reward are verified by the game server.</p>');
+ modal.classList.add('job-center-menu');modal.style.display='flex';
+}
+window.addEventListener('nrs-job-state',e=>{job=e.detail?.job||null;syncCourierNpcForJob(!!job?.courier);});
 function nrsDeliveryWaypoint(){
  if(!job)return null;
  if(!job.pickedUp)return {x:Number(job.pickupX),z:Number(job.pickupZ),name:job.pickupName||'Pickup location',action:'Pickup'};

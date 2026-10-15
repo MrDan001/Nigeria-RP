@@ -220,38 +220,52 @@ modal.addEventListener('click',e=>{const d=e.target.dataset;if(!d)return;
  });}
  else if(d.u!==undefined){const n=bagK[+d.u],x=FX[n];if(inv[n]>0&&x){inv[n]--;hunger=Math.min(100,hunger+x[0]);hp=Math.min(100,hp+x[1]);bagMsg='Used '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}
  else if(d.d!==undefined){const n=bagK[+d.d];if(inv[n]>0&&n!=='Parcel'){inv[n]--;bagMsg='Dropped '+n+'.';bagUI();if(window.NRS?.saveProgress)window.NRS.saveProgress();}}});
-function s6(dt){hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
- const H=Math.round(hunger),P=Math.round(hp);if(H!==lh){lh=H;$('hgv').textContent=H;$('hgb').style.width=H+'%';}if(P!==lp){lp=P;$('hpv').textContent=P;$('hpb').style.width=P+'%';}
- const waypoint=nrsDeliveryWaypoint();
- beacon.visible=!!waypoint&&!inside;
- if(job&&waypoint){
-  beacon.position.set(waypoint.x,20,waypoint.z);
-  const d=Math.hypot(pos.x-waypoint.x,pos.z-waypoint.z);
-  if(!inside&&d<5&&!job._claimed){
-   if(!job.pickedUp){
-    if(!job._pickupPending){
-     const requestedJobName=job.n;job._pickupPending=true;
-     NRS.pickupJob((r)=>{
-      if(!r.ok){if(job&&job.n===requestedJobName)delete job._pickupPending;sys(r.message||'Parcel pickup was not confirmed.');return;}
-      if(job&&job.n===requestedJobName)job=r.job||job;
-      if(job&&job.n===requestedJobName){delete job._pickupPending;inv.Parcel=1;sys('Parcel collected from '+job.pickupName+'. Deliver it to '+job.destinationName+'.');mis('<i>DELIVERY</i><b>Deliver parcel to '+deliveryText(job.destinationName)+'</b>');if(window.NRS?.saveProgress)window.NRS.saveProgress();}
-     });
-    }
-   }else{
-    job._claimed=true;
-    const completedJob=job;
-    NRS.walletChange(completedJob.pay,0,(r)=>{
-     if(r.ok){
-      delete inv.Parcel;if(window.NRS?.saveProgress)window.NRS.saveProgress();
-      sys('Delivered to '+completedJob.destinationName+'. You earned ₦'+f(completedJob.pay));
-      jobN++;if(job===completedJob)job=null;
-      mis('<i>JOB DONE</i><b>Return to the Job Center for your next courier run</b>');
-     }else{completedJob._claimed=false;sys(r.message||'Reward failed.');}
-     money();
-    },'job');
-   }
-  }else mis('<i>'+waypoint.action.toUpperCase()+'</i><b>'+deliveryText(waypoint.name)+'</b>'+Math.round(d/5)*5+' m away');
+modal.addEventListener('click',e=>{
+ const button=e.target.closest('[data-courier-action]');if(!button)return;
+ const action=button.dataset.courierAction;
+ if(action==='pickup'){
+  if(!job||job.courier!==true||job.pickedUp===true||courierPickupPending)return;
+  const api=window.NRS;if(!api?.pickupJob){sys('The game connection is not ready. Reconnect and try again.');return;}
+  courierPickupPending=true;button.disabled=true;button.querySelector('span')&&(button.querySelector('span').textContent='Collecting parcel…');
+  const requestedJob=job.n;
+  api.pickupJob(r=>{
+   courierPickupPending=false;
+   if(!r?.ok||!r.job){sys(r?.message||'The server could not confirm this parcel handover.');if(job?.n===requestedJob&&modal.style.display!=='none')openCourierInteractionMenu('pickup');return;}
+   job=r.job;inv.Parcel=1;syncCourierNpcForJob(true);
+   modal.style.display='none';modal.innerHTML='';modal.classList.remove('job-center-menu');
+   sys('✅ Parcel collected from '+deliveryText(job.pickupName)+'. Follow the route to '+deliveryText(job.destinationName)+'.');
+   if(window.NRS?.saveProgress)window.NRS.saveProgress();
+  });return;
  }
+ if(action==='deliver'){
+  if(!job||job.courier!==true||job.pickedUp!==true||courierDeliveryPending)return;
+  const api=window.NRS;if(!api?.walletChange){sys('The game connection is not ready. Reconnect and try again.');return;}
+  const completedJob=job;courierDeliveryPending=true;button.disabled=true;
+  button.querySelector('span')&&(button.querySelector('span').textContent='Confirming delivery…');
+  api.walletChange(Math.trunc(completedJob.pay),0,r=>{
+   courierDeliveryPending=false;
+   if(r?.ok){
+    delete inv.Parcel;if(job===completedJob||job?.n===completedJob.n)job=null;
+    clearCourierNPCs();if(typeof navStop==='function')navStop('Delivery completed. Your reward has been paid.');
+    beacon.visible=false;modal.style.display='none';modal.innerHTML='';modal.classList.remove('job-center-menu');
+    sys('✅ Delivered to '+deliveryText(completedJob.destinationName)+'. You earned ₦'+f(completedJob.pay)+'.');
+    mis('<i>JOB DONE</i><b>Return to the Job Center for your next courier run</b>');
+    if(window.NRS?.saveProgress)window.NRS.saveProgress();
+   }else{sys(r?.message||'The delivery could not be confirmed. Keep the parcel and try again at the correct entrance.');if(modal.style.display!=='none')openCourierInteractionMenu('recipient');}
+   money();
+  },'job');
+ }
+});
+function s6(dt){
+ hunger=Math.max(0,hunger-dt/14);if(hunger<1)hp=Math.max(10,hp-dt*.6);else if(hunger>50)hp=Math.min(100,hp+dt*.25);
+ const H=Math.round(hunger),P=Math.round(hp);if(H!==lh){lh=H;$('hgv').textContent=H;$('hgb').style.width=H+'%';}if(P!==lp){lp=P;$('hpv').textContent=P;$('hpb').style.width=P+'%';}
+ const waypoint=nrsDeliveryWaypoint();beacon.visible=!!waypoint&&!inside;
+ if(!job||!waypoint)return;
+ beacon.position.set(waypoint.x,20,waypoint.z);
+ const d=Math.hypot(pos.x-waypoint.x,pos.z-waypoint.z);if(inside)return;
+ const action=job.pickedUp?'DELIVERY':'PICKUP';
+ const instruction=d<6?(job.pickedUp?'Hold the recipient to hand over the parcel':'Hold the courier to collect your parcel'):deliveryText(waypoint.name)+' · '+Math.max(0,Math.round(d/5)*5)+' m away';
+ mis('<i>'+action+'</i><b>'+instruction+'</b>');
 }
 
 /* ---------- Expanded 3D map: tap the minimap or 🗺 ---------- */

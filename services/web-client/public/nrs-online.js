@@ -428,6 +428,7 @@
     hp = Number(player.hp) || 100;
     hunger = Number(player.hunger) || 82;
     job = player.job || null;
+    window.dispatchEvent(new CustomEvent("nrs-job-state", { detail: { job } }));
 
     // Server-owned "life" state (job rank, home, prepaid rent, cars). Read-only on the client.
     N.life = player.life || null;
@@ -824,7 +825,10 @@
       } else if (message.type === "jobResult") {
         const cb = S.jobCb;
         S.jobCb = null;
-        if (message.ok && message.job) job = message.job;
+        if (message.ok && message.job) {
+          job = message.job;
+          window.dispatchEvent(new CustomEvent("nrs-job-state", { detail: { job } }));
+        }
         cb?.(message);
       } else if (message.type === "jobPickupResult") {
         const cb = S.jobPickupCb;
