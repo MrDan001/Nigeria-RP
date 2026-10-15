@@ -744,7 +744,18 @@ function isKnownGeneratedApartmentPoint(x,z,meta){
  const ex=axis==='x'?cx+sign*(w/2+1.45):cx,ez=axis==='z'?cz+sign*(d/2+1.45):cz;
  return Math.hypot(Number(x)-ex,Number(z)-ez)<=.85;
 }
-function isKnownCourierPoint(x,z,meta){return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(Number(x)-px,Number(z)-pz)<=.85)||isKnownGeneratedApartmentPoint(x,z,meta);}
+function isKnownCourierHousePoint(x,z){
+ const px=Number(x),pz=Number(z);
+ if(!Number.isFinite(px)||!Number.isFinite(pz))return false;
+ // Mirror the server's HOUSES entrance calculation so valid house and hut routes remain available.
+ for(const h of HOUSE_PLOTS){
+  const cls=String(h.cls||'flat'),size=HOUSE_SIZES[cls]||HOUSE_SIZES.flat;
+  const front=cls==='hut'?size.w*.48:size.d/2;
+  if(Math.hypot(px-Number(h.x),pz-(Number(h.z)+front+2.15))<=.85)return true;
+ }
+ return false;
+}
+function isKnownCourierPoint(x,z,meta){return COURIER_FIXED_POINTS.some(([px,pz])=>Math.hypot(Number(x)-px,Number(z)-pz)<=.85)||isKnownCourierHousePoint(x,z)||isKnownGeneratedApartmentPoint(x,z,meta);}
 function deliveryLocations(){
  const locations=[],ids=new Set();
  const add=(id,name,x,z,kind='building',meta=null)=>{
