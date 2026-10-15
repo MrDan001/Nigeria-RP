@@ -45,6 +45,7 @@ The seven city environments, low-poly landmarks, off-road civic plaza, themed sh
 - [x] Add private SMS delivery between online citizens by phone number, without a same-city restriction; show a conversation on both clients.
 - [x] Add server-coordinated incoming/outgoing call states, answer/decline/hang-up and WebRTC audio signaling.
 - [x] Add regression coverage for SIM-number persistence and invalid saved numbers.
+- [x] Roll back the SIM's number, inventory and cash in memory when persistence fails; rate-limit repeated SMS and call requests.
 - [ ] Pass server TypeScript build, browser syntax checks, full production build and existing regression suite.
 - [ ] Test two independent characters/accounts purchasing unique SIMs, logging out/in, cross-location SMS, inbound calls, decline, missed call, hang-up and reconnect.
 - [ ] Verify microphone permissions, audio playback and call setup on two real devices/networks. Add/configure TURN before claiming robust calling across restrictive carrier NATs.
