@@ -168,6 +168,8 @@ type Session = {
   lastMessageAt: number;
   chatLastSentAt?: number;
   chatLastAdAt?: number;
+  phoneLastSmsAt?: number;
+  phoneLastCallAt?: number;
   lastInputAt: number;
   lastSyncAt: number;
   rejectedSyncs: number;
