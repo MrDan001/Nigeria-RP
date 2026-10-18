@@ -12,7 +12,7 @@
   const topColors = { cream:"#f1ece1", black:"#17191d", green:"#167c53", red:"#a83232", blue:"#2e66a6" };
   const bottomColors = { denim:"#41658b", black:"#1b1d20", khaki:"#8a7954", white:"#e8e5df" };
   const shoeColors = { white:"#eeeeea", black:"#17191b", brown:"#654027" };
-  let tab = "appearance", scene = null, renderer = null, camera = null, avatar = null, raf = 0, previewAnimator = null, previewBaseY = 0;
+  let tab = "appearance", scene = null, renderer = null, camera = null, avatar = null, raf = 0, previewAnimator = null, previewBaseY = 0, diagTimer = 0;
   let drag = false, lastX = 0, rotation = 0, previewModelIndex = 0, onSaveHandler = null, previewLoadToken = 0;
   let cachedDieselGLTF = null, dieselGLTFLoading = false, dieselGLTFWaiters = [];
 
@@ -66,7 +66,7 @@
   function render(){
     const root=q("nrsSimsCreator"); if(!root) return;
     const oldName=q("scNameInput")?.value || q("nrsCharacterName")?.value || "";
-    root.innerHTML=`<header class="sc-head"><button class="sc-back" id="scBack" aria-label="Back">‹</button><div class="sc-title"><b>CREATE YOUR CHARACTER</b><small>PERSONALIZE YOUR NIGERIA RP CITIZEN</small></div><button class="sc-save-top" id="scTopSave">CREATE CHARACTER</button></header><main class="sc-body"><section class="sc-stage"><div class="sc-stage-label">3D CHARACTER PREVIEW <span class="sc-build-badge" style="display:inline-block;margin-left:.45rem;padding:.18rem .42rem;border:1px solid #ff4fa3;border-radius:999px;color:#ff78b8;font-size:.68em;letter-spacing:.06em;font-weight:700;vertical-align:middle">BUILD S1 · 65 BONES</span></div><canvas id="scCanvas"></canvas><button type="button" class="sc-model-nav sc-model-prev" id="scModelPrev" aria-label="Previous character preview">‹</button><button type="button" class="sc-model-nav sc-model-next" id="scModelNext" aria-label="Next character preview">›</button><div class="sc-model-count" id="scModelCount">PREVIEW 1 / 3</div><div class="sc-hint">Drag to rotate • Live preview</div><div class="sc-nameplate"><b>${esc(oldName||"New Citizen")}</b><small>${esc(state.trait)} • Port Harcourt</small></div></section><section class="sc-panel"><nav class="sc-tabs">${["appearance","hair","outfit","personality"].map(x=>`<button class="sc-tab ${tab===x?"active":""}" data-tab="${x}">${x.toUpperCase()}</button>`).join("")}</nav><div class="sc-content">${panelHtml(oldName)}</div><div class="sc-error" id="scError"></div><footer class="sc-footer"><button class="sc-cancel" id="scCancel">CANCEL</button><button class="sc-create" id="scCreate">CREATE CHARACTER</button></footer></section></main>`;
+    root.innerHTML=`<header class="sc-head"><button class="sc-back" id="scBack" aria-label="Back">‹</button><div class="sc-title"><b>CREATE YOUR CHARACTER</b><small>PERSONALIZE YOUR NIGERIA RP CITIZEN</small></div><button class="sc-save-top" id="scTopSave">CREATE CHARACTER</button></header><main class="sc-body"><section class="sc-stage"><div class="sc-stage-label">3D CHARACTER PREVIEW</div><canvas id="scCanvas"></canvas><button type="button" class="sc-model-nav sc-model-prev" id="scModelPrev" aria-label="Previous character preview">‹</button><button type="button" class="sc-model-nav sc-model-next" id="scModelNext" aria-label="Next character preview">›</button><div class="sc-model-count" id="scModelCount">PREVIEW 1 / 3</div><div class="sc-hint">Drag to rotate • Live preview</div><div class="sc-nameplate"><b>${esc(oldName||"New Citizen")}</b><small>${esc(state.trait)} • Port Harcourt</small></div></section><section class="sc-panel"><nav class="sc-tabs">${["appearance","hair","outfit","personality"].map(x=>`<button class="sc-tab ${tab===x?"active":""}" data-tab="${x}">${x.toUpperCase()}</button>`).join("")}</nav><div class="sc-content">${panelHtml(oldName)}</div><div class="sc-error" id="scError"></div><footer class="sc-footer"><button class="sc-cancel" id="scCancel">CANCEL</button><button class="sc-create" id="scCreate">CREATE CHARACTER</button></footer></section></main>`;
     q("scBack").onclick=close;q("scCancel").onclick=close;q("scCreate").onclick=create;q("scTopSave").onclick=create;q("scModelPrev").onclick=()=>cyclePreview(-1);q("scModelNext").onclick=()=>cyclePreview(1);
     root.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();init3D()});
     const input=q("scNameInput"); if(input) input.oninput=()=>{const n=q("nrsCharacterName");if(n)n.value=input.value;const plate=document.querySelector(".sc-nameplate b");if(plate)plate.textContent=input.value||"New Citizen"};
@@ -139,6 +139,9 @@
       imported.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
       avatar=imported;scene.add(avatar);
       const mapped=window.NRS?.applyDieselModelAppearance?.(avatar,state);previewAnimator=window.NRS?.attachDieselAnimator?.(avatar,gltf.animations||[])||null;previewBaseY=avatar.position.y;
+      {let bodyMat=null;avatar.traverse(o=>{if(o.isMesh&&/body/i.test(o.name))bodyMat=o.material;});clearInterval(diagTimer);
+       diagTimer=setInterval(()=>{const lab=document.querySelector(".sc-stage-label");if(!lab||!previewAnimator)return;const aq=previewAnimator.bones&&previewAnimator.bones.LeftArm?previewAnimator.bones.LeftArm.quaternion:null;
+        lab.textContent="3D PREVIEW · S1 · "+previewAnimator.fallbackBoneCount+"b · armQ "+(aq?aq.z.toFixed(2):"?")+" · skin "+(bodyMat&&bodyMat.color?bodyMat.color.getHexString():"?")+" · clips "+previewAnimator.animationNames.length;},400);}
       fitCamera();renderer.__nrsFitCamera=fitCamera;setError("");
       console.info("[Nigeria RP] Creator loaded Diesel model.",{meshes:countMeshes(avatar),animations:previewAnimator?.animationNames||[],mappedParts:mapped?.mappedParts||[],styleVariants:mapped?.styleVariants||0,fallbackBones:previewAnimator?.fallbackBoneCount||0});
     };
@@ -156,7 +159,7 @@
     };loop();
   }
   function stop3D(){
-    previewLoadToken++;if(raf)cancelAnimationFrame(raf);raf=0;
+    previewLoadToken++;if(raf)cancelAnimationFrame(raf);raf=0;clearInterval(diagTimer);
     if(previewAnimator?.reset)previewAnimator.reset();previewAnimator=null;
     if(avatar?.parent)avatar.parent.remove(avatar);
     if(renderer){renderer.dispose();if(renderer.__nrsResize)window.removeEventListener("resize",renderer.__nrsResize);}

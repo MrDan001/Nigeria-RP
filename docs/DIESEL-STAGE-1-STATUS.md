@@ -1,35 +1,30 @@
-# Diesel character — Stage 1: pose and animation
-
-**Date:** 18 October 2026  
-**Scope:** in-world Diesel avatar and character creator animation entry point.
+# Diesel character — Stage 1: pose and animation (18 October 2026)
 
 ## Changed
-- services/web-client/game-source/01b-character-and-avatar.js.part: rewrote attachDieselAnimator.
-- services/web-client/index.html: bumped the generated character-script revision.
-- services/web-client/public/sw.js: bumped the PWA shell cache name.
+- `services/web-client/game-source/01b-character-and-avatar.js.part`: `attachDieselAnimator` rewritten.
+- `services/web-client/index.html` and `services/web-client/public/sw.js`: cache keys bumped.
 
-## Problem addressed
-- The previous fallback inferred bone type from loose name fragments and rotated local Z, which can swing arms sideways on a Mixamo skeleton.
-- The previous fallback posed both shoulder and upper-arm matches, potentially applying the arm correction twice.
-- The knee direction produced a forward kick, and the procedural gait was based on wall-clock time rather than movement speed.
+## What was wrong
+- Arm pose rotated local Z, which on the Mixamo rig swings arms sideways; it also rotated both `Shoulder` and `Arm`, so each arm was rotated twice.
+- Knee bend had the wrong sign (foot kicked forward).
+- Legs/arms used a fixed time-based cycle unrelated to speed.
 
-## Stage 1 behavior
-- Finds common Mixamo bone names and converts target model-space pose rotations through each bone's parent/rest orientation.
-- Applies the arm-down base pose to upper-arm bones only.
-- Adds a relaxed idle posture with breathing, small head/weight movement and bent elbows.
-- Blends into speed-driven walk/run animation with opposing arm/leg swings, knee and foot response, hip/spine movement and a run lean.
-- Uses available GLB animation clips when the asset supplies them; procedural posing runs only when there are no clips.
-- Exposes the same animator through window.NRS.attachDieselAnimator for the creator and local in-world model.
+## What it does now
+- Bones are found by Mixamo name (`mixamorig:*`) and driven with rotations defined in model space (+Y up, +Z forward), converted to each bone's local axes, so it does not depend on bone orientation.
+- Base pose lowers the arms from the T-pose (`ARM_DOWN`, radians, in the animator).
+- Idle: breathing, slight head and weight shift, relaxed elbows.
+- Walk/run: stride phase follows movement speed; legs, knees, feet, opposite-arm swing, hip/spine twist and run lean; smooth blend between idle and walk.
+- If the GLB later contains animation clips, the clips are used and the procedural pose is skipped.
+- Same function drives the creator preview and the in-world player.
 
-## Acceptance status
-- [x] Source fragment contains the new named-bone pose solver.
-- [x] Character asset URL and service-worker cache version are changed so clients can fetch the updated code.
-- [ ] Railway release must reach a terminal successful state.
-- [ ] Manually inspect the creator preview and in-world avatar on a real phone.
-- [ ] Check arm angle and sleeve/body clipping, knee bend, walking/running transition and frame performance.
-- [ ] Check remote-player appearance/animation separately; this stage does not alter the remote-player model-cloning path.
+## Verified
+- Syntax check and game assembly pass.
+- Ran the real function on Diesel's skeleton (three r128, Node): idle hands hang at the sides, knees bend backward, opposite arm/leg swing, reset returns to T-pose.
 
-A successful build or HTTP response does not prove the avatar looks correct in-game. Do not mark visual acceptance complete until the phone check is performed.
+## Not verified (needs a real phone)
+- Visual quality in the creator and in the live world.
+- Mesh clipping (jacket sleeves against the body) at the lowered-arm angle; adjust `ARM_DOWN` if needed.
+- Remote players still use `model.clone(true)` and are Stage 6 work.
 
-## Stage 2 handoff
-Stage 2 is not started in this change. It is reserved for the next package from the project owner and will cover asset preparation such as neutral textures, eye mapping, texture-size optimization and additional hairstyle assets.
+## Next
+Stage 2 — asset prep (neutral textures, eye mapping, smaller textures, new hairstyles). Requires user approval.
