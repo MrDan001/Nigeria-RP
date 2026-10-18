@@ -179,3 +179,9 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Simplified the animation loop so it updates the imported Diesel model and no longer manipulates the removed body joints.
 - [x] Kept Diesel.glb as the sole visible avatar asset, with no block fallback, and changed cache revisions again.
 - [ ] Confirm the Diesel mesh pose, animation and mapped custom appearance choices on a live client.
+
+
+## Character preview controls and relaxed arms (18 October 2026)
+- [x] Added previous/next preview buttons and three appearance presets synchronised to the creator state.
+- [x] Improved upper-arm/clavicle bone matching and relaxed-pose rotation to reduce the T-pose.
+- [ ] Verify precise pose and all mesh/material mappings in a live browser; hairstyle/accessory variants depend on model geometry.

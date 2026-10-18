@@ -139,11 +139,11 @@ function attachDieselAnimator(root, clips) {
  root.traverse(node=>{
   if(!node.isBone)return;
   const n=lower(node.name).replace(/[^a-z0-9]/g,'');let kind='';
-  if(/(upperarm|leftarm|rightarm|arm[lr])/.test(n)&&!/(fore|lower|hand|shoulder|twist)/.test(n))kind='arm';
+  if(/(upperarm|leftarm|rightarm|arm[lr]|shoulder|clavicle)/.test(n)&&!/(fore|lower|hand|twist)/.test(n))kind='arm';
   else if(/(forearm|lowerarm|leftforearm|rightforearm|armroll)/.test(n))kind='forearm';
   else if(/(upperleg|upleg|thigh|leftupleg|rightupleg|leg[lr])/.test(n)&&!/(lower|calf|shin|foot)/.test(n))kind='thigh';
   else if(/(lowerleg|leftleg|rightleg|calf|shin|knee)/.test(n)&&!/(upper|thigh|upleg)/.test(n))kind='shin';
-  if(!kind||tracks.some(t=>t.includes(lower(node.name))))return;
+  if(!kind)return;
   const wp=new THREE.Vector3();node.getWorldPosition(wp);
   const sign=kind==='arm'||kind==='forearm'?(wp.x>=center.x?-1:1):(wp.x>=center.x?1:-1);
   fallbackBones.push({bone:node,base:node.quaternion.clone(),kind,sign,phase:wp.x>=center.x?0:Math.PI});
@@ -151,7 +151,7 @@ function attachDieselAnimator(root, clips) {
  function pose(t,speed) {
   const walk=Math.max(0,Math.min(1,Math.abs(Number(speed)||0)/2.5));
   for(const p of fallbackBones){let x=0,y=0,z=0;
-   if(p.kind==='arm')z=p.sign*(.72+Math.sin(t*1.65+p.phase)*.025+Math.sin(t*6+p.phase)*walk*.24);
+   if(p.kind==='arm')z=p.sign*(1.18+Math.sin(t*1.65+p.phase)*.018+Math.sin(t*6+p.phase)*walk*.16);
    else if(p.kind==='forearm')z=p.sign*(.12+Math.max(0,Math.sin(t*6+p.phase))*walk*.34);
    else if(p.kind==='thigh')x=Math.sin(t*6+p.phase)*walk*.38;
    else if(p.kind==='shin')x=Math.max(0,Math.sin(t*6+p.phase))*walk*.42;

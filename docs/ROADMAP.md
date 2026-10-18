@@ -131,3 +131,9 @@ Implemented in the browser source:
 - [x] The visible player now depends on Diesel.glb; model load failures do not swap in the old block avatar.
 - [x] Refreshed character and animation script cache keys.
 - [ ] Visual production verification of the imported model and its rig remains outstanding.
+
+
+### Character preview controls and arm pose — 18 October 2026
+- [x] Added previous/next preview buttons and three appearance presets.
+- [x] Improved arm bone matching and relaxed-pose rotation.
+- [ ] Live visual verification remains outstanding; hairstyle/accessory variants require model geometry.
