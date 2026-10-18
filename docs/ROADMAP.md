@@ -96,3 +96,10 @@ Implemented in the browser source:
 - [x] Added bounds-based full-body camera fitting and resize recalculation.
 - [x] Legacy in-world avatar now hides before Diesel loading begins.
 - [ ] Production visual verification still required; successful deployment alone does not prove GLB rendering.
+
+
+## Character slots — delete and recreate (18 October 2026)
+- [x] Citizen lobby cards now include a DELETE button with a permanent-deletion confirmation.
+- [x] Server validates ownership and refuses deletion of an online character; deleting a secondary character frees one of the account's three slots.
+- [x] Account-root character is protected to preserve the account's login/ownership anchor.
+- [ ] Verify deletion, slot count refresh and replacement-character creation in production.

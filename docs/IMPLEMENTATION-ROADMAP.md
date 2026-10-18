@@ -136,3 +136,12 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] In-world legacy avatar is hidden at load start; it is not shown as a loading fallback.
 - [x] Bumped script URLs and service-worker cache version to force clients to request corrected scripts.
 - [ ] Verify GLTF parsing and visually confirm full-body Diesel in creator and game world on production.
+
+
+## Character management — delete and replace a slot (18 October 2026)
+- [x] Add a DELETE action to each saved character card in the citizen lobby.
+- [x] Require a browser confirmation before permanent deletion; clearly warn that saved progress is removed.
+- [x] Handle deletion on the server, verify the character belongs to the signed-in account, refresh the saved character list and make the slot available under the three-character limit.
+- [x] Reject deletion of a character currently online.
+- [x] Protect the account's original/root character because it anchors account credentials and ownership; a different character must be deleted to free a slot.
+- [ ] Run the server build/tests and verify deletion plus recreation on Railway. Do not treat a source commit or deployment success as proof of the live flow.

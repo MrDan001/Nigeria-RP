@@ -713,6 +713,25 @@ async function listCharacters(ownerId: string): Promise<Account[]> {
     .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 }
 
+
+async function deleteCharacter(owner: Account, rawCharacterId: string): Promise<void> {
+  const characterId = String(rawCharacterId || "").trim();
+  const ownerId = String(owner.ownerId || owner.id);
+  if (!characterId) throw new Error("CHARACTER_NOT_FOUND");
+  const character = await findAccountById(characterId);
+  if (!character || String(character.ownerId || character.id) !== ownerId) throw new Error("CHARACTER_NOT_FOUND");
+  // The account root record anchors login credentials and ownership, so keep it intact.
+  if (character.id === owner.id) throw new Error("PRIMARY_CHARACTER_PROTECTED");
+  if (players.has(character.id)) throw new Error("CHARACTER_IN_USE");
+  if (pool) {
+    const result = await pool.query("DELETE FROM nrs_accounts WHERE id=$1 AND owner_id=$2 RETURNING id", [character.id, ownerId]);
+    if (!result.rowCount) throw new Error("CHARACTER_NOT_FOUND");
+    return;
+  }
+  delete fileStore.accounts[character.usernameLower];
+  writeFileStore();
+}
+
 async function createCharacter(owner: Account, rawUsername: string, rawAppearance?: unknown): Promise<Account> {
   const username = sanitizeUsername(rawUsername);
   const ownerId = String(owner.ownerId || owner.id);
@@ -1201,6 +1220,13 @@ wss.on("connection", (socket) => {
             return;
           }
 
+          if (message.type === "deleteCharacter") {
+            const owner = await getReadyOwner();
+            await deleteCharacter(owner, String(message.characterId ?? ""));
+            await sendCharacterSelection(owner, accountToken!, "Character deleted. The slot is now available for a new character.");
+            return;
+          }
+
           if (message.type === "authLogin") {
             console.info("[auth] login request received");
             const email = sanitizeEmail(message.email);
@@ -1268,6 +1294,8 @@ wss.on("connection", (socket) => {
             USERNAME_RESERVED: "Dbase_Mccoll is reserved for the main administrator. The owner must use the configured NRS_MAIN_ADMIN_EMAIL.",
             CHARACTER_LIMIT: "One account can have a maximum of three characters.",
             CHARACTER_NOT_FOUND: "That character does not belong to this account. Refresh and try again.",
+            CHARACTER_IN_USE: "This character is currently in the city. Log out of that character before deleting it.",
+            PRIMARY_CHARACTER_PROTECTED: "Your account's original character cannot be deleted because it anchors your login. Delete another character to free a slot.",
             ACCOUNT_SESSION_REQUIRED: "Your remembered account could not be verified. Please log in again.",
             INVALID_CREDENTIALS: "Incorrect email or password.",
             INVALID_SESSION: "Your session has expired. Please log in again.",

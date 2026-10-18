@@ -30,6 +30,7 @@
     "#nrsFreshLobby .nrsFreshInfo{padding:14px 15px 0}#nrsFreshLobby .nrsFreshName{overflow-wrap:anywhere;font-size:17px;font-weight:850}#nrsFreshLobby .nrsFreshMeta{margin-top:5px;color:#cbb9d8;font-size:10px;text-transform:uppercase}",
     "#nrsFreshLobby .nrsFreshMoney{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}#nrsFreshLobby .nrsFreshChip{padding:6px 8px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(8,2,15,.2);color:#d8c7e5;font-size:9px}#nrsFreshLobby .nrsFreshChip b{color:#f4e5a4}",
     "#nrsFreshLobby .nrsFreshEnter{margin:auto 14px 14px;min-height:44px;border:1px solid #f1d76f;border-radius:9px;background:linear-gradient(#f3d86e,#c89b32);color:#25112d;font-size:10px;font-weight:950;letter-spacing:.08em;cursor:pointer;touch-action:manipulation}#nrsFreshLobby .nrsFreshEnter:disabled{opacity:.55;cursor:wait}",
+    "#nrsFreshLobby .nrsFreshCardActions{display:flex;gap:8px;margin:auto 14px 14px}#nrsFreshLobby .nrsFreshCardActions .nrsFreshEnter{flex:1;margin:0}#nrsFreshLobby .nrsFreshDelete{min-height:44px;padding:0 12px;border:1px solid rgba(255,120,140,.5);border-radius:9px;background:rgba(110,20,42,.25);color:#ffb3c0;font-size:9px;font-weight:950;letter-spacing:.04em;cursor:pointer;touch-action:manipulation}#nrsFreshLobby .nrsFreshDelete:disabled{opacity:.5;cursor:wait}",
     "#nrsFreshLobby .nrsFreshEmpty{display:flex;flex-direction:column;justify-content:center;align-items:center;border-style:dashed;padding:24px;text-align:center;color:#bca7cd}#nrsFreshLobby .nrsFreshEmpty b{color:#e3d4ee}#nrsFreshLobby .nrsFreshEmpty span{margin:8px 0 14px;font-size:10px}",
     "#nrsFreshLobby .nrsFreshButton{min-height:40px;padding:0 14px;border-radius:9px;border:1px solid #efd56d;background:transparent;color:#efd56d;font-size:10px;font-weight:900;cursor:pointer;touch-action:manipulation}#nrsFreshLobby .nrsFreshBottom{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:16px}#nrsFreshLobby .nrsFreshStatus{min-height:18px;color:#e5d5ef;font-size:11px;overflow-wrap:anywhere}",
     "#nrsFreshLobby .nrsFreshPanel{margin-top:14px;padding:16px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(8,2,15,.25)}#nrsFreshLobby .nrsFreshPanel[hidden]{display:none!important}#nrsFreshLobby .nrsFreshPanel label{display:block;color:#ddd0e7;font-size:10px;font-weight:800}",
@@ -149,6 +150,49 @@
     }
   }
 
+
+  function deleteCharacter(characterId, characterName) {
+    if (busy) return;
+    const session = SESSION();
+    if (!session || !session.token || !session.ws || session.ws.readyState !== WebSocket.OPEN || !session.accountReady) {
+      status("Your game connection is reconnecting. Please try again.");
+      return;
+    }
+    const label = String(characterName || "this character");
+    if (!window.confirm('Delete "' + label + '" permanently? This removes the character and their saved progress. This cannot be undone.')) return;
+    busy = true;
+    layer.querySelectorAll(".nrsFreshEnter,.nrsFreshDelete,[data-act=\\"create\\"]").forEach(el => { el.disabled = true; });
+    status("Deleting " + label + "…");
+    const socket = session.ws;
+    let settled = false, timeout = null;
+    function finish(success, message) {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      socket.removeEventListener("message", onMessage);
+      busy = false;
+      if (success) {
+        lastSignature = "";
+        status(message || "Character deleted. The slot is now available.");
+        refresh();
+      } else {
+        layer.querySelectorAll(".nrsFreshEnter,.nrsFreshDelete,[data-act=\\"create\\"]").forEach(el => { el.disabled = false; });
+        status(message || "Could not delete this character. Please try again.");
+      }
+    }
+    function onMessage(event) {
+      let message;
+      try { message = JSON.parse(event.data); } catch (_) { return; }
+      if (message.type === "authCharacters") finish(true, message.message || "Character deleted. The slot is now available.");
+      else if (message.type === "authError") finish(false, message.message || message.code || "Could not delete this character.");
+    }
+    socket.addEventListener("message", onMessage);
+    timeout = setTimeout(() => finish(false, "The server did not confirm deletion. Refresh the character list before trying again."), 15000);
+    if (!send({ type: "deleteCharacter", token: session.token, characterId: String(characterId || "") })) {
+      finish(false, "Could not send the delete request because the game connection closed.");
+    }
+  }
+
   function createCharacter(usernameOverride, appearance) {
     if (creatingCharacter) return;
     const input=layer.querySelector("#nrsFreshName");
@@ -225,7 +269,7 @@
         '<div class="nrsFreshAvatar">' + avatarForCharacter(character) + '</div>' +
         '<div class="nrsFreshInfo"><div class="nrsFreshName">' + name + '</div><div class="nrsFreshMeta">CITIZEN · ' + city + '</div>' +
         '<div class="nrsFreshMoney"><span class="nrsFreshChip">Cash <b>₦' + money(character.cash) + '</b></span><span class="nrsFreshChip">Bank <b>₦' + money(character.bank) + '</b></span></div></div>' +
-        '<button class="nrsFreshEnter" type="button">ENTER CITY</button></article>';
+        '<div class="nrsFreshCardActions"><button class="nrsFreshEnter" type="button">ENTER CITY</button><button class="nrsFreshDelete" type="button" data-delete-id="' + id + '" data-delete-name="' + name + '">DELETE</button></div></article>';
     }).join("");
 
     const empty = (characters || []).length < 3
@@ -248,6 +292,12 @@
         selectCharacter(card.dataset.id);
       }
       button.addEventListener("click", enter);
+      const deleteButton = card.querySelector(".nrsFreshDelete");
+      deleteButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteCharacter(deleteButton.dataset.deleteId, deleteButton.dataset.deleteName);
+      });
       card.addEventListener("click", enter);
       card.addEventListener("keydown", event => {
         if (event.key === "Enter" || event.key === " ") {
