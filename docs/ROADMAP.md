@@ -164,3 +164,12 @@ Implemented in the browser source:
 - [ ] Visually inspect creator and in-world character on Android/desktop, including arm/sleeve clipping and gait.
 - [ ] Verify remote-player animation replication separately; the existing remote-model clone path is not changed by this stage.
 - [ ] Await Stage 2 asset package and project-owner approval before beginning texture, eye, texture-size or hairstyle changes.
+
+### Diesel Stage 1 live-code verification — 18 October 2026
+- [x] Confirm Stage 1 arm-pose code (`ARM_DOWN`) exists in the main character source.
+- [x] Add visible `BUILD S1 · 65 BONES` marker beside `3D CHARACTER PREVIEW` in the creator.
+- [x] Bump creator script URL revision to avoid reusing the previous cached creator code.
+- [ ] Confirm Railway latest deployment is `SUCCESS` for this verification commit.
+- [ ] Open creator on phone and report whether `BUILD S1 · 65 BONES` is visible.
+- [ ] Only after marker appears, inspect arm pose, texture colours, hair and creator-to-world consistency.
+- [ ] Stage 2 remains reserved for eye mapping and baked texture colour correction.
