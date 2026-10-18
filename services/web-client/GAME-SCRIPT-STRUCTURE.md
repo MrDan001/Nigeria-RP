@@ -1,6 +1,6 @@
 # Nigeria RP source layout
 
-The browser game source is stored as eight ordered fragments in `game-source/`, each below 100 KB. The world foundation is split at a top-level character-section boundary into `01-world-foundation.js.part` and `01b-character-and-avatar.js.part`; the assembler emits both as consecutive classic scripts before the grand-building and remaining game scripts. Classic scripts share the same global lexical environment, preserving the original initialization order and declarations. Do not wrap them in modules or change their order without testing the complete game.
+The browser game source is stored as nine ordered fragments in `game-source/`, each below 100 KB. The world foundation is split at a top-level character-section boundary into `01-world-foundation.js.part` and `01b-character-and-avatar.js.part`; the assembler emits both as consecutive classic scripts before the grand-building and remaining game scripts. Classic scripts share the same global lexical environment, preserving the original initialization order and declarations. Do not wrap them in modules or change their order without testing the complete game.
 
 Browser source order (the split character file loads immediately after the world foundation and before `01a-grand-building.js.part`):
 1. `01-world-foundation.js.part`

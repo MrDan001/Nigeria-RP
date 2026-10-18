@@ -82,3 +82,11 @@ The existing fare calculation and travel-route authorization remain authoritativ
 
 ## Stages 0–13
 Their scope and recorded status are tracked in [ROADMAP.md](ROADMAP.md) and their stage status documents. Earlier foundations are not silently treated as full client/UI integration unless separately verified.
+
+
+## Build recovery — browser source size (18 October 2026)
+
+- [x] Split the oversized world foundation at the existing top-level character/avatar section boundary into two ordered classic-script assets, keeping shared global scope and execution order.
+- [x] Update the source assembler, HTML script order/cache key, source-structure guide and quick roadmap.
+- [ ] Confirm Railway builds the new commit and the production service returns healthy.
+- [ ] Manual live-game test: enter from lobby, inspect character/GLB fallback, move around, and verify key interactions on desktop/mobile. Build success alone does not count as gameplay acceptance.
