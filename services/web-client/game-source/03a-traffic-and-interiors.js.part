@@ -938,3 +938,17 @@ function jobUI(){
   '<p class="jc-footnote">The job becomes active only when the game server confirms acceptance.</p>');
  modal.classList.add('job-center-menu');
 }
+
+ // Detailed hairstyles and the appearance bridge for the local and cloned multiplayer avatar.
+ for(let i=0;i<28;i++){const a=i*Math.PI*2/28,rr=.072+(i%3)*.009,o=add(new THREE.SphereGeometry(.035,10,8),mat.hair,Math.cos(a)*rr,.865+Math.sin(a)*.035,-.025+Math.sin(a)*rr,upper);o.visible=false;hairStyleParts.afro.push(o);}
+ for(let i=0;i<12;i++){const x=(i-5.5)*.018,z=.018+(i%2)*.018,y=.62-(i%3)*.035,o=add(new THREE.CylinderGeometry(.012,.014,.39,8),mat.hair,x,y,z,upper);o.visible=false;hairStyleParts.braids.push(o);const tip=add(new THREE.SphereGeometry(.014,8,6),mat.hair,x,y-.198,z,upper);tip.visible=false;hairStyleParts.braids.push(tip);}
+ for(let i=0;i<8;i++){const side=i<4?-1:1,depth=(i%4)*.025,o=add(new THREE.CylinderGeometry(.019,.022,.4+(i%2)*.06,10),mat.hair,side*(.09+(i%3)*.012),.61-(i%2)*.035,depth,upper);o.visible=false;hairStyleParts.locs.push(o);const tip=add(new THREE.SphereGeometry(.021,10,8),mat.hair,side*(.09+(i%3)*.012),.39-(i%2)*.035,depth,upper);tip.visible=false;hairStyleParts.locs.push(tip);}
+ dress();
+ window.NRS=window.NRS||{};
+ window.NRS.applyCharacterAppearance=function(value){
+  if(!value||typeof value!=='object')return;
+  selectedAppearance={skin:String(value.skin||''),hair:String(value.hair||''),hairStyle:String(value.hairStyle||'short'),top:String(value.top||'black'),bottom:String(value.bottom||'denim'),shoes:String(value.shoes||'white'),accessory:String(value.accessory||'none'),gender:String(value.gender||'male'),expression:String(value.expression||'neutral')};
+  dress();window.dispatchEvent(new CustomEvent('nrs-character-appearance-applied',{detail:selectedAppearance}));
+ };
+ window.addEventListener('nrs-character-appearance',e=>window.NRS.applyCharacterAppearance?.(e.detail));
+ try{const savedAppearance=localStorage.getItem('nrs_rp_character_appearance_v1');if(savedAppearance)window.NRS.applyCharacterAppearance(JSON.parse(savedAppearance));}catch{}
