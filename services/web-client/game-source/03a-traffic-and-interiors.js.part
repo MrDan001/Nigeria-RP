@@ -947,8 +947,10 @@ function jobUI(){
  window.NRS=window.NRS||{};
  window.NRS.applyCharacterAppearance=function(value){
   if(!value||typeof value!=='object')return;
-  selectedAppearance={skin:String(value.skin||''),hair:String(value.hair||''),hairStyle:String(value.hairStyle||'short'),top:String(value.top||'black'),bottom:String(value.bottom||'denim'),shoes:String(value.shoes||'white'),accessory:String(value.accessory||'none'),gender:String(value.gender||'male'),expression:String(value.expression||'neutral')};
-  dress();window.dispatchEvent(new CustomEvent('nrs-character-appearance-applied',{detail:selectedAppearance}));
+  selectedAppearance={skin:String(value.skin||'#7b4528'),hair:String(value.hair||'#17120f'),hairStyle:String(value.hairStyle||'short'),top:String(value.top||'black'),bottom:String(value.bottom||'denim'),shoes:String(value.shoes||'white'),accessory:String(value.accessory||'none'),gender:String(value.gender||'male'),expression:String(value.expression||'neutral'),trait:String(value.trait||'Creative')};
+   window.NRS=window.NRS||{};window.NRS.characterAppearance=selectedAppearance;
+   dress();window.dispatchEvent(new CustomEvent('nrs-character-appearance-applied',{detail:selectedAppearance}));
+   if(typeof syncOwnPlayerTag==='function')syncOwnPlayerTag(window.NRS.playerIdentity);
  };
  window.addEventListener('nrs-character-appearance',e=>window.NRS.applyCharacterAppearance?.(e.detail));
  try{const savedAppearance=localStorage.getItem('nrs_rp_character_appearance_v1');if(savedAppearance)window.NRS.applyCharacterAppearance(JSON.parse(savedAppearance));}catch{}

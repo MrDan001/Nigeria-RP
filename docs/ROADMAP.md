@@ -108,3 +108,11 @@ Implemented in the browser source:
 ## Deployment correction — character deletion (18 October 2026)
 - [x] Fixed malformed selector quoting that caused the character-selection JavaScript syntax check to fail.
 - [ ] Verify successful Railway build and character deletion/recreation in production.
+
+
+### Character appearance / static-pose fix — 18 October 2026
+- [x] Stop replacing the animated, customizable player rig with the static Diesel GLB.
+- [x] Restore skin-tone, hairstyle, clothing and gender changes on the visible player rig.
+- [x] Add relaxed idle motion and small trait-based posture differences while retaining walk/run cycles.
+- [x] Use the same state-driven avatar builder in the creator preview and update client/PWA cache keys.
+- [ ] Confirm live visual quality and all options in the deployed game; browser gameplay verification remains outstanding.

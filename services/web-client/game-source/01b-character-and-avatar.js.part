@@ -62,7 +62,8 @@ function syncOwnPlayerTag(identity){
  const level=Math.max(1,Math.floor(Number(identity.level)||1));
  const sessionId=String(identity.sessionId||identity.displayId||'000').padStart(3,'0');
  if(!username){ownTag.visible=false;return;}
- const key=sessionId+'|'+username+'|'+level;
+ const trait=String(window.NRS?.characterAppearance?.trait||selectedAppearance?.trait||'');
+ const key=sessionId+'|'+username+'|'+level+'|'+trait;
  if(key===ownTagLast){ownTag.visible=true;return;}
  ownTagLast=key;
  ownTagCtx.clearRect(0,0,640,140);
@@ -74,8 +75,9 @@ function syncOwnPlayerTag(identity){
  let fs=34;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
  while(fs>20&&ownTagCtx.measureText(identityLine).width>590){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
  ownTagCtx.strokeText(identityLine,320,43,594);ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(identityLine,320,43,594);
- ownTagCtx.font='800 23px system-ui,sans-serif';ownTagCtx.strokeText('Level '+level,320,101,590);
- ownTagCtx.fillStyle='#a7efff';ownTagCtx.fillText('Level '+level,320,101,590);ownTagCtx.shadowBlur=0;
+ const metaLine='Level '+level+(trait?' · '+trait:'');
+ ownTagCtx.font='800 21px system-ui,sans-serif';ownTagCtx.strokeText(metaLine,320,101,590);
+ ownTagCtx.fillStyle='#a7efff';ownTagCtx.fillText(metaLine,320,101,590);ownTagCtx.shadowBlur=0;
  ownTagTexture.needsUpdate=true;ownTag.visible=true;
 }
 window.addEventListener('nrs-player-identity',event=>syncOwnPlayerTag(event.detail));
@@ -102,86 +104,12 @@ const arm=[],elbow=[],leg=[],knee=[];
  add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.42,.06,k);leg[i]=l;knee[i]=k;});
 dress();
 
-// Diesel is the only visible player model. Hide the legacy block avatar immediately,
-// not after the asynchronous GLB request finishes. Do not flash the old model on failure.
-let dieselAvatarLoaded=false;
-function loadDieselAvatar(){
- model.visible=false;
- if(!window.THREE?.GLTFLoader){
-  window.NRS=window.NRS||{};
-  window.NRS.dieselAvatar={status:'error',loaded:false,error:'THREE.GLTFLoader is not available'};
-  console.error('[Nigeria RP] Diesel GLB: GLTFLoader is unavailable.');
-  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail:window.NRS.dieselAvatar}));
-  return;
- }
- if(dieselAvatarLoaded)return;
- const loader=new THREE.GLTFLoader();
- loader.setCrossOrigin?.('anonymous');
- const url='/Diesel.glb?rev=diesel-avatar-local-20261018';
- const startedAt=performance.now();
- window.NRS=window.NRS||{};
- window.NRS.dieselAvatar={status:'loading',loaded:false,url};
- console.info('[Nigeria RP] Loading Diesel GLB:',url);
- let requestSettled=false;
- const timeout=setTimeout(()=>{
-  if(dieselAvatarLoaded||requestSettled)return;
-  const detail={status:'timeout',loaded:false,url,elapsedMs:Math.round(performance.now()-startedAt),error:'GLTFLoader did not finish loading/parsing the model within 20 seconds'};
-  window.NRS.dieselAvatar=detail;
-  console.error('[Nigeria RP] Diesel GLB loading timed out.',detail);
-  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
- },20000);
- loader.load(url,gltf=>{
-  requestSettled=true; clearTimeout(timeout);
-  try{
-   const imported=gltf.scene;
-   if(!imported)throw new Error('GLTF loaded without a default scene');
-   const bounds=new THREE.Box3().setFromObject(imported);
-   const size=bounds.getSize(new THREE.Vector3());
-   const center=bounds.getCenter(new THREE.Vector3());
-   if(!Number.isFinite(size.x+size.y+size.z)||size.x<=0||size.y<=0||size.z<=0)throw new Error('GLB has empty or invalid model bounds');
-   const meshStats={meshes:0,skinnedMeshes:0,bones:0,materials:0};
-   const materials=new Set(),bones=new Set();
-   imported.traverse(o=>{
-    if(o.isMesh){
-     meshStats.meshes++;
-     if(o.isSkinnedMesh){meshStats.skinnedMeshes++;(o.skeleton?.bones||[]).forEach(b=>bones.add(b));}
-     (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m)materials.add(m);});
-     o.castShadow=true;o.receiveShadow=true;
-     (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m?.map)m.map.encoding=THREE.sRGBEncoding;});
-    }
-   });
-   meshStats.bones=bones.size;meshStats.materials=materials.size;
-   if(!meshStats.meshes)throw new Error('GLB contains no renderable meshes');
-   imported.position.sub(center);
-   imported.scale.setScalar(1.62/size.y);
-   imported.position.y+=.80;
-   model.add(imported);
-   model.children.forEach(child=>{if(child!==imported)child.visible=false;});
-   model.visible=true;
-   dieselAvatarLoaded=true;
-   const detail={status:'loaded',loaded:true,url,elapsedMs:Math.round(performance.now()-startedAt),sourceSize:{x:size.x,y:size.y,z:size.z},...meshStats,animations:(gltf.animations||[]).map(a=>a.name),animationCount:(gltf.animations||[]).length};
-   window.NRS.dieselAvatar=detail;
-   console.info('[Nigeria RP] Diesel GLB loaded and validated.',detail);
-   if(!meshStats.skinnedMeshes)console.warn('[Nigeria RP] Diesel GLB has no skinned meshes; animated movement may require a rig.');
-   if(!detail.animationCount)console.warn('[Nigeria RP] Diesel GLB contains no animation clips; walk/run animation is not available from this asset alone.');
-   window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-loaded',{detail}));
-  }catch(error){
-   const detail={status:'error',loaded:false,url,error:String(error?.message||error)};
-   window.NRS.dieselAvatar=detail;
-   console.error('[Nigeria RP] Diesel GLB was downloaded but failed validation; legacy avatar remains hidden.',error);
-   window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
-  }
- },event=>{
-  window.NRS.dieselAvatar.progress=event?.total?Math.round(event.loaded/event.total*100):null;
- },error=>{
-  requestSettled=true; clearTimeout(timeout);
-  const detail={status:'error',loaded:false,url,elapsedMs:Math.round(performance.now()-startedAt),error:String(error?.message||error||'Unknown GLTFLoader error')};
-  window.NRS.dieselAvatar=detail;
-  console.error('[Nigeria RP] Diesel GLB request failed; legacy avatar remains hidden.',error);
-  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
- });
-}
-loadDieselAvatar();
+// Keep the customizable, jointed local-player rig visible. The Diesel GLB is currently
+// a static model without verified animation clips/material mapping; replacing this rig with it
+// made the player appear frozen and bypassed skin, hairstyle and outfit updates.
+model.visible=true;
+window.NRS=window.NRS||{};
+window.NRS.dieselAvatar={status:'deferred-static-model',loaded:false,reason:'Using animated appearance-aware rig until Diesel has a verified skeleton, animation clips and material/body-part mapping.'};
 
 const shadow=flat(.9,.9,new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3}),0,.04,0);
 

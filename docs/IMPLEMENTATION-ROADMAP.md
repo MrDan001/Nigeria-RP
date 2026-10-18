@@ -151,3 +151,13 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Inspected failed Railway build logs: the character-selection script failed the syntax checker due to an incorrectly escaped CSS selector in the new deletion handler.
 - [x] Corrected the selector quoting in the deletion handler.
 - [ ] Re-run Railway build and verify delete/recreate flow in production.
+
+
+## Character appearance and animation recovery (18 October 2026)
+
+- [x] Identified why customization did not reach the visible player: the static Diesel GLB replaced the visible rig and hid its animated body parts.
+- [x] Keep the appearance-aware joint rig visible until the Diesel model has verified skeletal animations and mapped body materials.
+- [x] Restore the customizable model to the creator preview with bounds-based full-body camera fitting and gentle idle motion.
+- [x] Preserve the selected personality trait in appearance data and use it to alter idle stance/movement cadence and the player identity line.
+- [x] Bump client asset revisions to avoid stale cached scripts.
+- [ ] Visually verify appearance, hair, outfit and movement in the live client on desktop and mobile; deployment success alone is not visual acceptance.

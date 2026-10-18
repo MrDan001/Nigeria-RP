@@ -75,11 +75,27 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  if(speed>.3){let d=Math.atan2(vel.x,vel.z)-face;d=Math.atan2(Math.sin(d),Math.cos(d));face+=d*(1-Math.exp(-dt*12));}
  if(keys.Space&&pos.y===0)jv=5.4;jv-=14*dt;pos.y+=jv*dt;if(pos.y<0){pos.y=0;jv=0;}player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);}
 function animate(dt,t){if(driving)return;
- const run=clamp((speed-2)/2.5,0,1),amp=clamp(speed/2,0,1)*(.55+.4*run);phase+=speed*dt*(4.2-1.6*run);
- const dm=(o,v)=>{o.rotation.x+=(v-o.rotation.x)*Math.min(1,dt*18);};
- [0,1].forEach(i=>{const p=phase+i*Math.PI,sw=Math.sin(p);
-  dm(leg[i],-sw*amp*.9);dm(knee[i],Math.max(0,Math.cos(p))*amp*(.9+.5*run));dm(arm[i],sw*amp*.8);dm(elbow[i],-(.2+.7*run)*amp-.05);});
- dm(upper,.04+.14*run*amp);model.position.y=.085+Math.abs(Math.sin(phase))*.025*amp;upper.scale.y=1+Math.sin(t*2)*.006;if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[pHand].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[pHand].rotation.x=-.3;}model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);}
+  const trait=selectedAppearance?.trait||'Creative';
+  const run=clamp((speed-2)/2.5,0,1),amp=clamp(speed/2,0,1)*(.55+.4*run),idle=clamp(1-speed/.55,0,1);
+  const idleRate=trait==='Fitness Lover'?2.7:trait==='Outgoing'?1.9:trait==='Bookworm'?1.15:1.55;
+  const idleOpen=trait==='Outgoing'?.13:trait==='Bookworm'?-.055:trait==='Street Smart'?-.025:trait==='Fitness Lover'?.025:.045;
+  const idleLean=trait==='Bookworm'?.065:trait==='Street Smart'?.035:trait==='Creative'?.012:0;
+  phase+=speed*dt*(4.2-1.6*run);
+  const dm=(o,v)=>{o.rotation.x+=(v-o.rotation.x)*Math.min(1,dt*18);};
+  [0,1].forEach(i=>{const p=phase+i*Math.PI,sw=Math.sin(p);
+   dm(leg[i],-sw*amp*.9);dm(knee[i],Math.max(0,Math.cos(p))*amp*(.9+.5*run));
+   dm(arm[i],sw*amp*.8+Math.sin(t*idleRate+i*Math.PI)*.018*idle);
+   dm(elbow[i],-(.2+.7*run)*amp-.05+(trait==='Bookworm'?.025:0)*idle);});
+  const settle=Math.min(1,dt*8);
+  arm[0].rotation.z+=(idleOpen*idle-arm[0].rotation.z)*settle;
+  arm[1].rotation.z+=(-idleOpen*idle-arm[1].rotation.z)*settle;
+  upper.rotation.z+=(Math.sin(t*.78)*idle*idleLean-upper.rotation.z)*settle;
+  dm(upper,.04+.14*run*amp+idleLean*idle+(trait==='Bookworm'?.035:0)*idle);
+  model.position.y=.085+Math.abs(Math.sin(phase))*.025*amp+Math.sin(t*2)*.008*idle;
+  upper.scale.y=1+Math.sin(t*2)*.006;
+  if(punchT>0){punchT-=dt;const u=1-punchT/.35;arm[pHand].rotation.x=-1.5*Math.sin(Math.PI*Math.min(u,1));elbow[pHand].rotation.x=-.3;}
+  model.scale.y+=((crouch?.86:1)-model.scale.y)*Math.min(1,dt*12);
+}
 function updateCam(dt){
  if(driving){
   const c=driving,speed=Math.abs(c.v||0),follow=1-Math.exp(-dt*(speed>1?7:11));
