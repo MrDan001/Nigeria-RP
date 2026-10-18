@@ -185,3 +185,11 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Added previous/next preview buttons and three appearance presets synchronised to the creator state.
 - [x] Improved upper-arm/clavicle bone matching and relaxed-pose rotation to reduce the T-pose.
 - [ ] Verify precise pose and all mesh/material mappings in a live browser; hairstyle/accessory variants depend on model geometry.
+
+
+## Character appearance pipeline follow-up (18 October 2026)
+- [x] Set the saved character appearance as the canonical `NRS.characterAppearance` when authenticated character data arrives.
+- [x] Dispatch the saved appearance to the active Diesel avatar so the same persisted settings are reapplied after entering the city.
+- [x] Reapply appearance updates to an already-loaded Diesel model when creator appearance events fire.
+- [x] Run animation mixer updates before the fallback relaxed-pose correction so the mixer does not overwrite the pose in the same frame.
+- [ ] Confirm on-device that the GLB exposes compatible arm bones and material names; if the asset is rigid/static, it needs a rigged replacement to get real arm motion and full customization.

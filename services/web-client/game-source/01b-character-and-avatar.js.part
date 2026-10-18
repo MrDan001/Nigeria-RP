@@ -111,6 +111,7 @@ function nrsDieselStyleTag(node) {
 }
 function applyDieselModelAppearance(root, appearance) {
  if(!root||!appearance)return {mappedParts:[],styleVariants:0};
+ window.NRS=window.NRS||{};window.NRS.characterAppearance={...appearance};
  const tops={cream:'#f1ece1',black:'#17191d',green:'#167c53',red:'#a83232',blue:'#2e66a6'};
  const bottoms={denim:'#41658b',black:'#1b1d20',khaki:'#8a7954',white:'#e8e5df'};
  const shoes={white:'#eeeeea',black:'#17191b',brown:'#654027'};
@@ -158,11 +159,12 @@ function attachDieselAnimator(root, clips) {
    p.bone.quaternion.copy(p.base).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z)));
   }
  }
- function update(dt,t,speed=0){const w=Math.max(0,Math.min(1,Math.abs(Number(speed)||0)/2.7));if(walkAction)walkAction.setEffectiveWeight(w);if(idleAction)idleAction.setEffectiveWeight(walkAction?1-w:1);pose(t,speed);mixer.update(Math.max(0,Math.min(Number(dt)||0,.05)));}
+ function update(dt,t,speed=0){const w=Math.max(0,Math.min(1,Math.abs(Number(speed)||0)/2.7));if(walkAction)walkAction.setEffectiveWeight(w);if(idleAction)idleAction.setEffectiveWeight(walkAction?1-w:1);mixer.update(Math.max(0,Math.min(Number(dt)||0,.05)));pose(t,speed);}
  function reset(){mixer.stopAllAction();for(const p of fallbackBones)p.bone.quaternion.copy(p.base);mixer.uncacheRoot(root);}
  return {update,reset,mixer,animationNames:animations.map(a=>a.name),fallbackBoneCount:fallbackBones.length};
 }
 window.NRS=window.NRS||{};window.NRS.applyDieselModelAppearance=applyDieselModelAppearance;window.NRS.attachDieselAnimator=attachDieselAnimator;
+window.addEventListener('nrs-character-appearance',event=>{const appearance=event?.detail;if(!appearance||typeof appearance!=='object')return;window.NRS.characterAppearance={...appearance};if(dieselAvatarRoot)applyDieselModelAppearance(dieselAvatarRoot,appearance);});
 
 function loadDieselAvatar(){
  model.visible=false;

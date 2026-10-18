@@ -137,3 +137,10 @@ Implemented in the browser source:
 - [x] Added previous/next preview buttons and three appearance presets.
 - [x] Improved arm bone matching and relaxed-pose rotation.
 - [ ] Live visual verification remains outstanding; hairstyle/accessory variants require model geometry.
+
+
+### Character appearance pipeline follow-up — 18 October 2026
+- [x] Synchronize the server-saved appearance into the canonical client appearance state on auth.
+- [x] Reapply the saved appearance to the in-world Diesel model and listen for creator appearance updates.
+- [x] Correct update order so the animation mixer does not immediately overwrite the fallback pose.
+- [ ] Verify actual GLB skeleton/material support on a live device; rigid assets require a rigged replacement for genuine pose and mesh variants.

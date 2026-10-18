@@ -1,4 +1,4 @@
-const CACHE_NAME = "nigeria-rp-shell-v8-appearance-nav-arms-20261018d";
+const CACHE_NAME = "nigeria-rp-shell-v9-appearance-pipeline-20261018e";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/nrs-icon.svg",
