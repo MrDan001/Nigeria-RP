@@ -150,3 +150,17 @@ Implemented in the browser source:
 - [x] Added positional fallback classification for generically named GLB meshes.
 - [x] Increased the fallback arm-lowering pose applied after animation updates.
 - [ ] Device verification remains outstanding; this cannot create hair/outfit/accessory geometry absent from Diesel.glb.
+
+
+### Diesel character — Stage 1 pose and movement animation (18 October 2026)
+- [x] Replace orientation-guessing pose logic with Mixamo-name bone mapping and model-space rotation conversion.
+- [x] Lower upper arms through the model-space base pose, without applying the same correction to both shoulder and arm bones.
+- [x] Correct backward knee bend and add foot response, opposite arm/leg swing, torso twist and run lean.
+- [x] Blend idle and locomotion from the current movement speed instead of running a fixed-time gait.
+- [x] Prefer available GLB idle/walk/run clips; use the procedural pose when the model has no clips.
+- [x] Keep one animator entry point for the creator preview and in-world Diesel model.
+- [x] Refresh the character script and PWA cache identifiers.
+- [ ] Verify build/deployment result for the merged Stage 1 change.
+- [ ] Visually inspect creator and in-world character on Android/desktop, including arm/sleeve clipping and gait.
+- [ ] Verify remote-player animation replication separately; the existing remote-model clone path is not changed by this stage.
+- [ ] Await Stage 2 asset package and project-owner approval before beginning texture, eye, texture-size or hairstyle changes.

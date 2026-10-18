@@ -2,7 +2,7 @@
 
 A browser-native, mobile-first multiplayer roleplay game set in Port Harcourt, Rivers State, Nigeria.
 
-> **Current status — 11 October 2026:** Stage 7 (Police, Army, FRSC and Fire Service) is implemented on `main`, passed its 13 Stage 7 domain tests alongside Stage 1–6 regression, typecheck and builds, and deployed to Railway successfully. Real-device and two-account gameplay checks remain a separate manual limitation. Stage 8 (Rivers News Network) is implemented on `main`; its automated verification and Railway release follow this commit.
+> **Current status — 18 October 2026:** Stage 17 — City Explorer Passport & Discovery Rewards — remains active. Stage 18 Diesel GLB work now includes a first-pass Mixamo skeletal pose animator with idle breathing and movement-synchronized walk/run motion. This change still requires release verification and a real-device visual check; successful deployment alone is not character-animation acceptance. Stage 2 asset preparation is awaiting the project owner's next package.
 
 ## Production and deployment
 
