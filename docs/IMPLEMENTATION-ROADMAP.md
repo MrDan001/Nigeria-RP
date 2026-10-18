@@ -121,3 +121,10 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Changed the in-game loader to the local `/Diesel.glb` asset and added a revision query to bypass stale model caching.
 - [x] Bumped the in-game character and character-creator script URLs and service-worker cache version so deployed clients request fresh assets.
 - [ ] Verify Railway serves `/Diesel.glb` and confirm the Diesel avatar visibly replaces the built-in character in the live game and character creator.
+
+
+### Diesel model load diagnostics — 18 October 2026
+- [x] Add progress reporting and explicit timeout/error handling to creator preview and in-world avatar loader.
+- [x] Bump script URLs to bypass browser/PWA cached script copies.
+- [ ] Capture the precise GLTFLoader parse/load error from production and fix any incompatible/corrupt model data before claiming visual success.
+- [ ] Visually verify both the creator preview and in-world player model.

@@ -170,7 +170,15 @@
       loader.setCrossOrigin?.('anonymous');
       const status=q("scError");
       if(status)status.textContent="Loading Diesel character preview…";
+      let previewSettled=false;
+      const previewTimeout=setTimeout(()=>{
+        if(previewSettled||loadToken!==previewLoadToken)return;
+        previewSettled=true;
+        if(status)status.textContent="Diesel preview timed out. Showing the fallback character; please try again after reopening the creator.";
+        console.error("[Nigeria RP] Diesel creator preview timed out.",{url:modelUrl,readyState:document.readyState,loader:typeof THREE.GLTFLoader});
+      },12000);
       loader.load(modelUrl,gltf=>{
+        if(previewSettled){return;} previewSettled=true; clearTimeout(previewTimeout);
         if(loadToken!==previewLoadToken||!scene)return;
         try{
           const imported=gltf.scene;
@@ -196,10 +204,13 @@
           if(status)status.textContent="Diesel preview could not be fitted; using the customizable preview.";
           console.warn("[Nigeria RP] Diesel creator preview validation failed; mannequin retained.",error);
         }
-      },undefined,error=>{
+      },event=>{
+        if(status&&event&&event.total>0){status.textContent="Loading Diesel preview… "+Math.round(event.loaded/event.total*100)+"%";}
+      },error=>{
         if(loadToken!==previewLoadToken)return;
-        if(status)status.textContent="Diesel preview unavailable; using the customizable preview.";
-        console.warn("[Nigeria RP] Diesel creator preview failed to load; mannequin retained.",error);
+        previewSettled=true; clearTimeout(previewTimeout);
+        if(status)status.textContent="Diesel preview failed to load. The fallback character is available; check the connection and reopen the creator.";
+        console.error("[Nigeria RP] Diesel creator preview failed to load; mannequin retained.",error);
       });
     } else {
       const status=q("scError");

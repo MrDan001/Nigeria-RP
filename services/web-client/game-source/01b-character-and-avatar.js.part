@@ -121,15 +121,16 @@ function loadDieselAvatar(){
  window.NRS=window.NRS||{};
  window.NRS.dieselAvatar={status:'loading',loaded:false,url};
  console.info('[Nigeria RP] Loading Diesel GLB:',url);
+ let requestSettled=false;
  const timeout=setTimeout(()=>{
-  if(dieselAvatarLoaded)return;
-  const detail={status:'timeout',loaded:false,url,elapsedMs:Math.round(performance.now()-startedAt),error:'Model request has not completed after 20 seconds'};
+  if(dieselAvatarLoaded||requestSettled)return;
+  const detail={status:'timeout',loaded:false,url,elapsedMs:Math.round(performance.now()-startedAt),error:'GLTFLoader did not finish loading/parsing the model within 20 seconds'};
   window.NRS.dieselAvatar=detail;
   console.error('[Nigeria RP] Diesel GLB loading timed out.',detail);
   window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
  },20000);
  loader.load(url,gltf=>{
-  clearTimeout(timeout);
+  requestSettled=true; clearTimeout(timeout);
   try{
    const imported=gltf.scene;
    if(!imported)throw new Error('GLTF loaded without a default scene');
@@ -168,8 +169,10 @@ function loadDieselAvatar(){
    console.error('[Nigeria RP] Diesel GLB was downloaded but failed validation; keeping the built-in character.',error);
    window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
   }
- },undefined,error=>{
-  clearTimeout(timeout);
+ },event=>{
+  window.NRS.dieselAvatar.progress=event?.total?Math.round(event.loaded/event.total*100):null;
+ },error=>{
+  requestSettled=true; clearTimeout(timeout);
   const detail={status:'error',loaded:false,url,elapsedMs:Math.round(performance.now()-startedAt),error:String(error?.message||error||'Unknown GLTFLoader error')};
   window.NRS.dieselAvatar=detail;
   console.error('[Nigeria RP] Diesel GLB request failed; keeping the built-in character.',error);

@@ -31,3 +31,10 @@
 - [ ] Verify production request for `/Diesel.glb` returns successfully and visually confirm Diesel in the live world and creator.
 
 The previous deployment's SUCCESS status only proved the build and server started; it did not prove that the model was loaded by the browser. Visual validation remains open.
+
+
+## Diesel loader diagnostics follow-up (18 October 2026)
+- [x] Added GLTFLoader progress and explicit timeout/error handling in creator and in-world avatar paths.
+- [x] Bumped script URLs to avoid stale service-worker/browser copies.
+- [ ] Obtain the production GLTFLoader error and fix the underlying asset/loader compatibility issue.
+- [ ] Confirm both character creator and in-world player visually render Diesel.

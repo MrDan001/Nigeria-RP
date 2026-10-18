@@ -82,3 +82,10 @@ Implemented in the browser source:
 - [x] Use the local public asset rather than the invalid placeholder GitHub URL.
 - [x] Add script/model revision identifiers to bypass stale browser caches.
 - [ ] Verify model HTTP response and visual rendering in the deployed game.
+
+
+### Diesel rendering diagnostics — 18 October 2026
+- [x] Production requests show `/Diesel.glb` returns HTTP 200; this proves delivery only, not GLB parsing/rendering.
+- [x] Added explicit load progress, timeout, and console diagnostics; bumped script revisions.
+- [ ] Inspect the new browser diagnostic and resolve the actual GLB parse/render failure.
+- [ ] Confirm Diesel visibly renders in both game world and creator.
