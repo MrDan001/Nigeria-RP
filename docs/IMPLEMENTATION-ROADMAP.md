@@ -128,3 +128,11 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Bump script URLs to bypass browser/PWA cached script copies.
 - [ ] Capture the precise GLTFLoader parse/load error from production and fix any incompatible/corrupt model data before claiming visual success.
 - [ ] Visually verify both the creator preview and in-world player model.
+
+
+### Diesel no-fallback/full-body correction — 18 October 2026
+- [x] Character creator no longer displays the old mannequin while Diesel is loading or when loading fails.
+- [x] Creator camera fits imported model bounds and recalculates framing on viewport resize.
+- [x] In-world legacy avatar is hidden at load start; it is not shown as a loading fallback.
+- [x] Bumped script URLs and service-worker cache version to force clients to request corrected scripts.
+- [ ] Verify GLTF parsing and visually confirm full-body Diesel in creator and game world on production.

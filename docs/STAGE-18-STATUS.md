@@ -38,3 +38,10 @@ The previous deployment's SUCCESS status only proved the build and server starte
 - [x] Bumped script URLs to avoid stale service-worker/browser copies.
 - [ ] Obtain the production GLTFLoader error and fix the underlying asset/loader compatibility issue.
 - [ ] Confirm both character creator and in-world player visually render Diesel.
+
+
+## Diesel no-fallback/full-body correction (18 October 2026)
+- [x] Creator preview no longer intentionally renders the old mannequin as an interim or failure fallback.
+- [x] Camera framing derives from imported model bounds and recalculates on resize.
+- [x] Legacy in-world character is hidden as Diesel loading starts.
+- [ ] Confirm the model parses and visually renders in both locations in production.

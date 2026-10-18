@@ -160,9 +160,9 @@
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0x000000,0);
     scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);camera.position.set(0,2.1,10.5);camera.lookAt(0,2.1,0);
     scene.add(new THREE.HemisphereLight(0xf8e8ff,0x25112e,2.2));const key=new THREE.DirectionalLight(0xfff2df,3);key.position.set(-4,7,7);scene.add(key);const fill=new THREE.DirectionalLight(0xb58cff,1.5);fill.position.set(5,3,2);scene.add(fill);
-    avatar=buildAvatar();if(avatar)scene.add(avatar);
-    // Load Diesel into the creator preview without sacrificing the working mannequin.
-    // If the GLB cannot load, the existing customizable mannequin remains available.
+    // Never display the old mannequin while Diesel loads or after a failure.
+    // Keep the stage empty and report any load error as text instead of showing a fallback.
+    avatar=null;
     const loadToken=++previewLoadToken;
     if(window.THREE.GLTFLoader){
       const modelUrl='/Diesel.glb?rev=diesel-avatar-local-20261018';
@@ -174,7 +174,7 @@
       const previewTimeout=setTimeout(()=>{
         if(previewSettled||loadToken!==previewLoadToken)return;
         previewSettled=true;
-        if(status)status.textContent="Diesel preview timed out. Showing the fallback character; please try again after reopening the creator.";
+        if(status)status.textContent="Diesel preview timed out. No character was displayed; close and reopen the creator to retry.";
         console.error("[Nigeria RP] Diesel creator preview timed out.",{url:modelUrl,readyState:document.readyState,loader:typeof THREE.GLTFLoader});
       },12000);
       loader.load(modelUrl,gltf=>{
@@ -186,41 +186,52 @@
           const size=bounds.getSize(new THREE.Vector3());
           const center=bounds.getCenter(new THREE.Vector3());
           if(!imported||!Number.isFinite(size.x+size.y+size.z)||size.y<=0||!size.x||!size.z)throw new Error("Invalid Diesel model bounds");
-          imported.position.sub(center);
-          imported.scale.setScalar(4.25/size.y);
-          imported.position.y+=2.12;
+          const scale=3.65/size.y;
+          imported.scale.setScalar(scale);
+          imported.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
           imported.rotation.y=rotation;
           imported.traverse(o=>{
             if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
           });
           scene.add(imported);
           dieselPreview=imported;
-          if(avatar)avatar.visible=false;
+          const fitCamera=()=>{
+            const w=Math.max(1,box.clientWidth),h=Math.max(1,box.clientHeight);
+            camera.aspect=w/h;camera.updateProjectionMatrix();
+            const fitted=new THREE.Box3().setFromObject(imported);
+            const fittedSize=fitted.getSize(new THREE.Vector3());
+            const fittedCenter=fitted.getCenter(new THREE.Vector3());
+            const verticalFov=THREE.MathUtils.degToRad(camera.fov);
+            const distance=(Math.max(fittedSize.y,fittedSize.x/Math.max(.35,camera.aspect))*.5)/Math.tan(verticalFov*.5)*1.22;
+            camera.position.set(fittedCenter.x,fittedCenter.y,fittedCenter.z+Math.max(distance,4.4));
+            camera.lookAt(fittedCenter.x,fittedCenter.y,fittedCenter.z);
+          };
+          fitCamera();renderer.__nrsFitCamera=fitCamera;
           if(status)status.textContent="";
           console.info("[Nigeria RP] Diesel character creator preview loaded.",{
             url:modelUrl,meshes:countMeshes(imported),animations:(gltf.animations||[]).map(a=>a.name)
           });
         }catch(error){
-          if(status)status.textContent="Diesel preview could not be fitted; using the customizable preview.";
-          console.warn("[Nigeria RP] Diesel creator preview validation failed; mannequin retained.",error);
+          if(status)status.textContent="Diesel preview could not be rendered. No fallback character is shown. Check the console for details.";
+          console.warn("[Nigeria RP] Diesel creator preview validation failed.",error);
         }
       },event=>{
         if(status&&event&&event.total>0){status.textContent="Loading Diesel preview… "+Math.round(event.loaded/event.total*100)+"%";}
       },error=>{
         if(loadToken!==previewLoadToken)return;
         previewSettled=true; clearTimeout(previewTimeout);
-        if(status)status.textContent="Diesel preview failed to load. The fallback character is available; check the connection and reopen the creator.";
-        console.error("[Nigeria RP] Diesel creator preview failed to load; mannequin retained.",error);
+        if(status)status.textContent="Diesel preview failed to load. No fallback character is shown; check the connection and reopen the creator.";
+        console.error("[Nigeria RP] Diesel creator preview failed to load.",error);
       });
     } else {
       const status=q("scError");
-      if(status)status.textContent="Diesel preview loader unavailable; using the customizable preview.";
+      if(status)status.textContent="Diesel preview loader unavailable. No fallback character is shown.";
     }
-    const resize=()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()};resize();window.addEventListener("resize",resize);renderer.__nrsResize=resize;
+    const resize=()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(renderer.__nrsFitCamera)renderer.__nrsFitCamera()};resize();window.addEventListener("resize",resize);renderer.__nrsResize=resize;
     canvas.onpointerdown=e=>{drag=true;lastX=e.clientX;canvas.classList.add("dragging");canvas.setPointerCapture?.(e.pointerId)};
-    canvas.onpointermove=e=>{if(!drag)return;rotation+=(e.clientX-lastX)*.012;lastX=e.clientX;if(avatar)avatar.rotation.y=rotation;if(dieselPreview)dieselPreview.rotation.y=rotation};
+    canvas.onpointermove=e=>{if(!drag)return;rotation+=(e.clientX-lastX)*.012;lastX=e.clientX;if(dieselPreview)dieselPreview.rotation.y=rotation};
     canvas.onpointerup=canvas.onpointercancel=()=>{drag=false;canvas.classList.remove("dragging")};
-    const loop=()=>{if(!renderer||!scene)return;raf=requestAnimationFrame(loop);if(!drag){const idleRotation=rotation+Math.sin(performance.now()*.00035)*.035;if(avatar)avatar.rotation.y=idleRotation;if(dieselPreview)dieselPreview.rotation.y=idleRotation}renderer.render(scene,camera)};loop();
+    const loop=()=>{if(!renderer||!scene)return;raf=requestAnimationFrame(loop);if(!drag){const idleRotation=rotation+Math.sin(performance.now()*.00035)*.035;if(dieselPreview)dieselPreview.rotation.y=idleRotation}renderer.render(scene,camera)};loop();
   }
   function countMeshes(root){let count=0;root.traverse(o=>{if(o.isMesh)count++});return count}
   function stop3D(){previewLoadToken++;if(raf)cancelAnimationFrame(raf);raf=0;if(renderer){renderer.dispose();if(renderer.__nrsResize)window.removeEventListener("resize",renderer.__nrsResize)}renderer=null;scene=null;camera=null;avatar=null;dieselPreview=null}

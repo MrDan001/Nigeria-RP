@@ -102,10 +102,11 @@ const arm=[],elbow=[],leg=[],knee=[];
  add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.42,.06,k);leg[i]=l;knee[i]=k;});
 dress();
 
-// Stage 1 Diesel GLB loader diagnostics. Keep the existing character visible until
-// the imported asset has been validated and fitted; never silently hide the fallback.
+// Diesel is the only visible player model. Hide the legacy block avatar immediately,
+// not after the asynchronous GLB request finishes. Do not flash the old model on failure.
 let dieselAvatarLoaded=false;
 function loadDieselAvatar(){
+ model.visible=false;
  if(!window.THREE?.GLTFLoader){
   window.NRS=window.NRS||{};
   window.NRS.dieselAvatar={status:'error',loaded:false,error:'THREE.GLTFLoader is not available'};
@@ -156,6 +157,7 @@ function loadDieselAvatar(){
    imported.position.y+=.80;
    model.add(imported);
    model.children.forEach(child=>{if(child!==imported)child.visible=false;});
+   model.visible=true;
    dieselAvatarLoaded=true;
    const detail={status:'loaded',loaded:true,url,elapsedMs:Math.round(performance.now()-startedAt),sourceSize:{x:size.x,y:size.y,z:size.z},...meshStats,animations:(gltf.animations||[]).map(a=>a.name),animationCount:(gltf.animations||[]).length};
    window.NRS.dieselAvatar=detail;
@@ -166,7 +168,7 @@ function loadDieselAvatar(){
   }catch(error){
    const detail={status:'error',loaded:false,url,error:String(error?.message||error)};
    window.NRS.dieselAvatar=detail;
-   console.error('[Nigeria RP] Diesel GLB was downloaded but failed validation; keeping the built-in character.',error);
+   console.error('[Nigeria RP] Diesel GLB was downloaded but failed validation; legacy avatar remains hidden.',error);
    window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
   }
  },event=>{
@@ -175,7 +177,7 @@ function loadDieselAvatar(){
   requestSettled=true; clearTimeout(timeout);
   const detail={status:'error',loaded:false,url,elapsedMs:Math.round(performance.now()-startedAt),error:String(error?.message||error||'Unknown GLTFLoader error')};
   window.NRS.dieselAvatar=detail;
-  console.error('[Nigeria RP] Diesel GLB request failed; keeping the built-in character.',error);
+  console.error('[Nigeria RP] Diesel GLB request failed; legacy avatar remains hidden.',error);
   window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail}));
  });
 }

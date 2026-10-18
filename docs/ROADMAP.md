@@ -89,3 +89,10 @@ Implemented in the browser source:
 - [x] Added explicit load progress, timeout, and console diagnostics; bumped script revisions.
 - [ ] Inspect the new browser diagnostic and resolve the actual GLB parse/render failure.
 - [ ] Confirm Diesel visibly renders in both game world and creator.
+
+
+### Diesel no-fallback/full-body correction — 18 October 2026
+- [x] Removed the visible mannequin fallback from the creator preview while Diesel loads/fails.
+- [x] Added bounds-based full-body camera fitting and resize recalculation.
+- [x] Legacy in-world avatar now hides before Diesel loading begins.
+- [ ] Production visual verification still required; successful deployment alone does not prove GLB rendering.
