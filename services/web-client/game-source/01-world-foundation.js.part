@@ -1199,5 +1199,43 @@ const arm=[],elbow=[],leg=[],knee=[];
  // Keep the shoe bottom aligned to the neutral standing ground plane.
  add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.42,.06,k);leg[i]=l;knee[i]=k;});
 dress();
+
+// Diesel GLB integration: retain the existing procedural character as a safe fallback.
+// The imported model replaces its visible meshes only after the GLB loads successfully.
+let dieselAvatarLoaded=false;
+function loadDieselAvatar(){
+ if(!window.THREE?.GLTFLoader||dieselAvatarLoaded)return;
+ const loader=new THREE.GLTFLoader();
+ const url='https://raw.githubusercontent.com/MrDan001/Test...-For-all-my-diesel.glb/main/Diesel.glb';
+ loader.load(url,gltf=>{
+  const imported=gltf.scene;
+  const bounds=new THREE.Box3().setFromObject(imported);
+  const size=bounds.getSize(new THREE.Vector3());
+  const center=bounds.getCenter(new THREE.Vector3());
+  const height=Math.max(size.y,.001);
+  imported.position.sub(center);
+  imported.scale.setScalar(1.62/height);
+  imported.position.y+=.80;
+  imported.traverse(o=>{
+   if(o.isMesh){
+    o.castShadow=true;o.receiveShadow=true;
+    if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.encoding=THREE.sRGBEncoding;});}
+   }
+  });
+  model.add(imported);
+  model.children.forEach(child=>{if(child!==imported)child.visible=false;});
+  dieselAvatarLoaded=true;
+  window.NRS=window.NRS||{};
+  window.NRS.dieselAvatar={loaded:true,animations:(gltf.animations||[]).map(a=>a.name),height:size.y};
+  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-loaded',{detail:window.NRS.dieselAvatar}));
+ },undefined,error=>{
+  console.warn('[Nigeria RP] Diesel GLB failed to load; keeping the built-in character.',error);
+  window.NRS=window.NRS||{};
+  window.NRS.dieselAvatar={loaded:false,error:String(error?.message||error)};
+  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail:window.NRS.dieselAvatar}));
+ });
+}
+loadDieselAvatar();
+
 const shadow=flat(.9,.9,new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3}),0,.04,0);
 
