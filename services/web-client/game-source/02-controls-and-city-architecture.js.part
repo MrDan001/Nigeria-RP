@@ -74,7 +74,7 @@ function update(dt){updateNearbyHouseExteriors(dt);if(driving){driveUpdate(dt);r
  speed=Math.hypot(vel.x,vel.z);
  if(speed>.3){let d=Math.atan2(vel.x,vel.z)-face;d=Math.atan2(Math.sin(d),Math.cos(d));face+=d*(1-Math.exp(-dt*12));}
  if(keys.Space&&pos.y===0)jv=5.4;jv-=14*dt;pos.y+=jv*dt;if(pos.y<0){pos.y=0;jv=0;}player.position.copy(pos);model.rotation.y=face;shadow.position.set(pos.x,.04,pos.z);}
-function animate(dt,t){if(driving)return;
+function animate(dt,t){if(dieselAnimator)dieselAnimator.update(dt,t,speed);if(driving)return;
   const trait=selectedAppearance?.trait||'Creative';
   const run=clamp((speed-2)/2.5,0,1),amp=clamp(speed/2,0,1)*(.55+.4*run),idle=clamp(1-speed/.55,0,1);
   const idleRate=trait==='Fitness Lover'?2.7:trait==='Outgoing'?1.9:trait==='Bookworm'?1.15:1.55;

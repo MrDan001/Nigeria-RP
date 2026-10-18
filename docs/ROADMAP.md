@@ -116,3 +116,11 @@ Implemented in the browser source:
 - [x] Add relaxed idle motion and small trait-based posture differences while retaining walk/run cycles.
 - [x] Use the same state-driven avatar builder in the creator preview and update client/PWA cache keys.
 - [ ] Confirm live visual quality and all options in the deployed game; browser gameplay verification remains outstanding.
+
+
+### No-block avatar correction — 18 October 2026
+- [x] Remove the homemade block/capsule avatar from the creator preview; use Diesel.glb and show a load error instead of a block fallback.
+- [x] Restore the same Diesel GLB in the live player scene, keeping the previous rig hidden.
+- [x] Route appearance colours to named imported materials and toggle hairstyle meshes only if the asset contains named variants.
+- [x] Enable available animations and a bone-pose fallback for supported rigs; refresh script/PWA cache keys.
+- [ ] Confirm visual quality on the deployed game; model capability depends on actual mesh/material names and rig contents.

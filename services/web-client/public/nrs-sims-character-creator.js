@@ -12,8 +12,9 @@
   const topColors = { cream:"#f1ece1", black:"#17191d", green:"#167c53", red:"#a83232", blue:"#2e66a6" };
   const bottomColors = { denim:"#41658b", black:"#1b1d20", khaki:"#8a7954", white:"#e8e5df" };
   const shoeColors = { white:"#eeeeea", black:"#17191b", brown:"#654027" };
-  let tab = "appearance", scene = null, renderer = null, camera = null, avatar = null, raf = 0;
+  let tab = "appearance", scene = null, renderer = null, camera = null, avatar = null, raf = 0, previewAnimator = null, previewBaseY = 0;
   let drag = false, lastX = 0, rotation = 0, onSaveHandler = null, previewLoadToken = 0;
+  let cachedDieselGLTF = null, dieselGLTFLoading = false, dieselGLTFWaiters = [];
 
   const q = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
@@ -96,97 +97,66 @@
     close();const form=q("nrsCreateCharacterForm");if(form){form.requestSubmit();return}const btn=q("nrsCreateCharacterButton");if(btn)btn.click();
   }
 
-  function material(color, rough=.55, metal=0){ return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal}); }
-  function sphere(g,m,s){const o=new THREE.Mesh(new THREE.SphereGeometry(1,40,28),m);o.scale.set(s[0],s[1],s[2]);g.add(o);return o}
-  function cyl(g,m,r,d,pos,rot=[0,0,0]){const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d,32),m);o.position.set(...pos);o.rotation.set(...rot);g.add(o);return o}
-  function capsule(g,m,r,len,pos,rot=[0,0,0]){
-    // Compatible with the Three.js r128 build used by the game client.
-    const shape=new THREE.Group();
-    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,24,1,false),m);
-    const capTop=new THREE.Mesh(new THREE.SphereGeometry(r,24,16),m);
-    const capBottom=new THREE.Mesh(new THREE.SphereGeometry(r,24,16),m);
-    capTop.position.y=len/2;
-    capBottom.position.y=-len/2;
-    shape.add(shaft,capTop,capBottom);
-    shape.position.set(...pos);
-    shape.rotation.set(...rot);
-    g.add(shape);
-    return shape;
+  function countMeshes(root){let count=0;root.traverse(o=>{if(o.isMesh)count++});return count}
+  function requestDieselGLTF(onLoad,onProgress,onError){
+    if(cachedDieselGLTF){onLoad(cachedDieselGLTF);return;}
+    dieselGLTFWaiters.push({onLoad,onProgress,onError});if(dieselGLTFLoading)return;
+    if(!window.THREE?.GLTFLoader){dieselGLTFWaiters.splice(0).forEach(w=>w.onError(new Error("GLTFLoader is not available.")));return;}
+    dieselGLTFLoading=true;const loader=new THREE.GLTFLoader();loader.setCrossOrigin?.("anonymous");
+    loader.load("/Diesel.glb?rev=diesel-no-block-animated-20261018b",gltf=>{
+      dieselGLTFLoading=false;cachedDieselGLTF=gltf;
+      if(!gltf.__nrsBaseTransform)gltf.__nrsBaseTransform={position:gltf.scene.position.clone(),quaternion:gltf.scene.quaternion.clone(),scale:gltf.scene.scale.clone()};
+      dieselGLTFWaiters.splice(0).forEach(w=>w.onLoad(gltf));
+    },event=>{dieselGLTFWaiters.forEach(w=>{try{w.onProgress(event)}catch{}});},error=>{dieselGLTFLoading=false;dieselGLTFWaiters.splice(0).forEach(w=>w.onError(error||new Error("Failed to load Diesel model.")));});
   }
-
-  function buildAvatar(){
-    if(!window.THREE)return null;
-    const g=new THREE.Group();
-    const skin=material(state.skin,.62), hair=material(state.hair,.7), top=material(topColors[state.top],.82), bottom=material(bottomColors[state.bottom],.86), shoes=material(shoeColors[state.shoes],.7);
-    const head=sphere(g,skin,[.92,1.12,.84]);head.position.y=3.48;
-    const neck=cyl(g,skin,.29,.48,[0,2.63,0]);
-    const torso=capsule(g,top,.78,1.05,[0,1.65,0]);torso.scale.z=.52;
-    const hips=capsule(g,bottom,.48,.55,[0,.72,0]);hips.scale.x=1.25;hips.scale.z=.62;
-    const armL=capsule(g,skin,.23,.95,[-.98,1.55,0],[0,0,.04]), armR=capsule(g,skin,.23,.95,[.98,1.55,0],[0,0,-.04]);
-    armL.scale.y=1.05;armR.scale.y=1.05;
-    const sleeveL=capsule(g,top,.27,.42,[-.82,1.95,0],[0,0,.04]), sleeveR=capsule(g,top,.27,.42,[.82,1.95,0],[0,0,-.04]);
-    const legL=capsule(g,bottom,.29,1.32,[-.34,-.32,0]), legR=capsule(g,bottom,.29,1.32,[.34,-.32,0]);
-    capsule(g,shoes,.31,.55,[-.34,-1.12,.12]);capsule(g,shoes,.31,.55,[.34,-1.12,.12]);
-    // Hair cap + natural front hair mass
-    sphere(g,hair,[.95,.72,.88]).position.y=4.02;
-    const fringe=capsule(g,hair,.18,.9,[0,3.93,.66],[Math.PI/2,0,0]);fringe.scale.x=1.7;fringe.scale.z=.55;
-    if(state.hairStyle==="long-braids"||state.hairStyle==="locs"){
-      const count=12;
-      for(let i=0;i<count;i++){const a=(i/(count-1)-.5)*Math.PI*1.15;const x=Math.sin(a)*.86;const z=-.15+Math.cos(a)*.42;const b=capsule(g,hair,.075,1.9,[x,3.05,z]);b.rotation.z=a*.18;b.rotation.x=.05;}
-    } else if(state.hairStyle==="afro"){
-      for(let i=0;i<28;i++){const a=Math.random()*Math.PI*2, r=.65+Math.random()*.3;const h=sphere(g,hair,[.19,.19,.19]);h.position.set(Math.cos(a)*r,4.0+Math.sin(a)*.58,Math.sin(a)*.42);}
-    }
-    // facial features, subtle and 3D
-    const eyeMat=material("#181217",.35), lipMat=material("#71333b",.5);
-    sphere(g,eyeMat,[.075,.055,.035]).position.set(-.32,3.53,.79);sphere(g,eyeMat,[.075,.055,.035]).position.set(.32,3.53,.79);
-    const nose=cyl(g,skin,.075,.28,[0,3.28,.82],[Math.PI/2,0,0]);nose.material=material(state.skin,.65);
-    if(state.expression!=="neutral"){const mouth=capsule(g,lipMat,.035,.25,[0,3.07,.81],[0,Math.PI/2,0]);mouth.scale.x=state.expression==="sad"?.75:1.2}
-    if(state.accessory==="gold"){
-      const gold=material("#e5bd54",.25,.72);const earL=sphere(g,gold,[.09,.09,.045]);earL.position.set(-.92,3.35,.03);const earR=sphere(g,gold,[.09,.09,.045]);earR.position.set(.92,3.35,.03);const chain=new THREE.Mesh(new THREE.TorusGeometry(.28,.018,10,48,Math.PI),gold);chain.position.set(0,2.78,.48);chain.rotation.x=Math.PI/2;g.add(chain);
-    }
-    g.rotation.y=rotation;
-    return g;
-  }
-
   function init3D(){
     if(!q("scCanvas"))return;
-    if(!window.THREE){
-      const error=q("scError");
-      if(error)error.textContent="The 3D engine has not loaded yet. Close this screen and reopen the character creator.";
-      return;
-    }
-    stop3D();
-    const canvas=q("scCanvas"), box=canvas.parentElement;
+    if(!window.THREE||!window.THREE.GLTFLoader){setError("The 3D character model could not start. Close and reopen the creator.");return;}
+    stop3D();const canvas=q("scCanvas"),box=canvas.parentElement;
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0x000000,0);
-    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);camera.position.set(0,2.1,10.5);camera.lookAt(0,2.1,0);
-    scene.add(new THREE.HemisphereLight(0xf8e8ff,0x25112e,2.2));const key=new THREE.DirectionalLight(0xfff2df,3);key.position.set(-4,7,7);scene.add(key);const fill=new THREE.DirectionalLight(0xb58cff,1.5);fill.position.set(5,3,2);scene.add(fill);
-    // Use the state-driven customizable avatar in the preview instead of a static GLB.
-    avatar=buildAvatar();
-    if(!avatar){setError("Could not build the character preview.");return;}
-    const originalBounds=new THREE.Box3().setFromObject(avatar);
-    avatar.position.y-=originalBounds.min.y;
-    scene.add(avatar);
+    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);
+    scene.add(new THREE.HemisphereLight(0xf8e8ff,0x25112e,2.2));
+    const key=new THREE.DirectionalLight(0xfff2df,3);key.position.set(-4,7,7);scene.add(key);
+    const fill=new THREE.DirectionalLight(0xb58cff,1.5);fill.position.set(5,3,2);scene.add(fill);
+    const token=++previewLoadToken;setError("Loading Diesel character model…");
     const fitCamera=()=>{
-      const w=Math.max(1,box.clientWidth),h=Math.max(1,box.clientHeight);
-      camera.aspect=w/h;camera.updateProjectionMatrix();
-      const fitted=new THREE.Box3().setFromObject(avatar);
-      const fittedSize=fitted.getSize(new THREE.Vector3());
-      const fittedCenter=fitted.getCenter(new THREE.Vector3());
-      const verticalFov=THREE.MathUtils.degToRad(camera.fov);
-      const distance=(Math.max(fittedSize.y,fittedSize.x/Math.max(.35,camera.aspect))*.5)/Math.tan(verticalFov*.5)*1.24;
-      camera.position.set(fittedCenter.x,fittedCenter.y,fittedCenter.z+Math.max(distance,4.5));
-      camera.lookAt(fittedCenter.x,fittedCenter.y,fittedCenter.z);
+      if(!avatar||!camera||!renderer)return;const w=Math.max(1,box.clientWidth),h=Math.max(1,box.clientHeight);
+      camera.aspect=w/h;camera.updateProjectionMatrix();const bb=new THREE.Box3().setFromObject(avatar),sz=bb.getSize(new THREE.Vector3()),c=bb.getCenter(new THREE.Vector3());
+      const fov=THREE.MathUtils.degToRad(camera.fov),distance=(Math.max(sz.y,sz.x/Math.max(.35,camera.aspect))*.5)/Math.tan(fov*.5)*1.2;
+      camera.position.set(c.x,c.y,c.z+Math.max(distance,4.4));camera.lookAt(c.x,c.y,c.z);
     };
-    fitCamera();renderer.__nrsFitCamera=fitCamera;
-    setError("");
-    const resize=()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(renderer.__nrsFitCamera)renderer.__nrsFitCamera()};resize();window.addEventListener("resize",resize);renderer.__nrsResize=resize;
+    const showModel=gltf=>{
+      if(token!==previewLoadToken||!scene)return;const imported=gltf.scene;if(imported.parent)imported.parent.remove(imported);
+      const base=gltf.__nrsBaseTransform;imported.position.copy(base.position);imported.quaternion.copy(base.quaternion);imported.scale.copy(base.scale);
+      const bounds=new THREE.Box3().setFromObject(imported),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+      if(!Number.isFinite(size.x+size.y+size.z)||size.y<=0||size.x<=0||size.z<=0){setError("Diesel model has invalid dimensions. No block fallback is shown.");return;}
+      const scale=3.65/size.y;imported.scale.multiplyScalar(scale);imported.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);imported.rotation.y=rotation;
+      imported.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+      avatar=imported;scene.add(avatar);
+      const mapped=window.NRS?.applyDieselModelAppearance?.(avatar,state);previewAnimator=window.NRS?.attachDieselAnimator?.(avatar,gltf.animations||[])||null;previewBaseY=avatar.position.y;
+      fitCamera();renderer.__nrsFitCamera=fitCamera;setError("");
+      console.info("[Nigeria RP] Creator loaded Diesel model.",{meshes:countMeshes(avatar),animations:previewAnimator?.animationNames||[],mappedParts:mapped?.mappedParts||[],styleVariants:mapped?.styleVariants||0,fallbackBones:previewAnimator?.fallbackBoneCount||0});
+    };
+    requestDieselGLTF(showModel,event=>{if(token===previewLoadToken&&event?.total)setError("Loading Diesel character model… "+Math.round(event.loaded/event.total*100)+"%");},error=>{
+      if(token!==previewLoadToken)return;setError("Diesel model could not load. No block character will be substituted. Reopen the creator to retry.");console.error("[Nigeria RP] Creator Diesel model load failed.",error);
+    });
+    const resize=()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h||!renderer||!camera)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.__nrsFitCamera?.()};
+    resize();window.addEventListener("resize",resize);
     canvas.onpointerdown=e=>{drag=true;lastX=e.clientX;canvas.classList.add("dragging");canvas.setPointerCapture?.(e.pointerId)};
     canvas.onpointermove=e=>{if(!drag)return;rotation+=(e.clientX-lastX)*.012;lastX=e.clientX;if(avatar)avatar.rotation.y=rotation};
     canvas.onpointerup=canvas.onpointercancel=()=>{drag=false;canvas.classList.remove("dragging")};
-    const restingY=avatar.position.y;
-    const loop=()=>{if(!renderer||!scene)return;raf=requestAnimationFrame(loop);const t=performance.now()*.001;if(avatar){if(!drag)avatar.rotation.y=rotation+Math.sin(t*.35)*.025;avatar.position.y=restingY+Math.sin(t*2)*.025;const lean=state.trait==='Bookworm'?.025:state.trait==='Street Smart'?.012:state.trait==='Outgoing'?-.008:0;avatar.rotation.z=lean+Math.sin(t*.8)*.004;}renderer.render(scene,camera)};loop();
+    let last=performance.now();const loop=()=>{if(!renderer||!scene)return;raf=requestAnimationFrame(loop);const now=performance.now(),dt=Math.min((now-last)/1000,.05),t=now/1000;last=now;
+      if(avatar){previewAnimator?.update(dt,t,0);if(!drag)avatar.rotation.y=rotation+Math.sin(t*.35)*.018;avatar.position.y=previewBaseY+Math.sin(t*2)*.012;}
+      renderer.render(scene,camera);
+    };loop();
   }
-  function stop3D(){previewLoadToken++;if(raf)cancelAnimationFrame(raf);raf=0;if(renderer){renderer.dispose();if(renderer.__nrsResize)window.removeEventListener("resize",renderer.__nrsResize)}renderer=null;scene=null;camera=null;avatar=null}
+  function stop3D(){
+    previewLoadToken++;if(raf)cancelAnimationFrame(raf);raf=0;
+    if(previewAnimator?.reset)previewAnimator.reset();previewAnimator=null;
+    if(avatar?.parent)avatar.parent.remove(avatar);
+    if(renderer){renderer.dispose();if(renderer.__nrsResize)window.removeEventListener("resize",renderer.__nrsResize);}
+    renderer=null;scene=null;camera=null;avatar=null;
+  }
 
   document.addEventListener("click",function(e){const t=e.target instanceof Element?e.target.closest("#nrsCreateCharacterButton"):null;if(!t)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();open()},true);
   document.addEventListener("DOMContentLoaded",()=>{if(!q("nrsSimsCreator")){const d=document.createElement("div");d.id="nrsSimsCreator";document.body.appendChild(d)}});

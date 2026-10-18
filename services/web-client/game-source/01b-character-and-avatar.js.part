@@ -104,12 +104,111 @@ const arm=[],elbow=[],leg=[],knee=[];
  add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.42,.06,k);leg[i]=l;knee[i]=k;});
 dress();
 
-// Keep the customizable, jointed local-player rig visible. The Diesel GLB is currently
-// a static model without verified animation clips/material mapping; replacing this rig with it
-// made the player appear frozen and bypassed skin, hairstyle and outfit updates.
-model.visible=true;
-window.NRS=window.NRS||{};
-window.NRS.dieselAvatar={status:'deferred-static-model',loaded:false,reason:'Using animated appearance-aware rig until Diesel has a verified skeleton, animation clips and material/body-part mapping.'};
+// Legacy primitive rig is retained only for compatibility with older animation/interaction code.
+// It remains hidden. There is no block-character fallback while Diesel.glb loads or if it fails.
+model.visible=false;
+
+let dieselAvatarRoot=null, dieselAnimator=null;
+function nrsDieselPartKind(node, material) {
+ const s=(String(node?.name||'')+' '+String(material?.name||'')).toLowerCase();
+ if(/hair|beard|moustache|mustache|eyebrow|brow/.test(s))return 'hair';
+ if(/shoe|sneaker|boot|footwear|trainer|sandal/.test(s))return 'shoes';
+ if(/trouser|pants|jeans|denim|shorts|skirt|leggings|lowerwear|bottom/.test(s))return 'bottom';
+ if(/shirt|t.?shirt|tee|hoodie|jacket|coat|sweater|upperwear|outfit|clothing|blouse|dress|torso/.test(s))return 'top';
+ if(/skin|face|head|neck|hand|arm|leg|body/.test(s))return 'skin';
+ return '';
+}
+function nrsDieselStyleTag(node) {
+ const s=(String(node?.name||'')+' '+(Array.isArray(node?.material)?node.material.map(m=>m?.name||'').join(' '):(node?.material?.name||''))).toLowerCase();
+ if(/long.?braid|braid/.test(s))return 'long-braids';
+ if(/afro|natural.?curl/.test(s))return 'afro';
+ if(/dread|locs?/.test(s))return 'locs';
+ if(/short.?hair|buzz.?cut/.test(s))return 'short';
+ return '';
+}
+function applyDieselModelAppearance(root, appearance) {
+ if(!root||!appearance)return {mappedParts:[],styleVariants:0};
+ const tops={cream:'#f1ece1',black:'#17191d',green:'#167c53',red:'#a83232',blue:'#2e66a6'};
+ const bottoms={denim:'#41658b',black:'#1b1d20',khaki:'#8a7954',white:'#e8e5df'};
+ const shoes={white:'#eeeeea',black:'#17191b',brown:'#654027'};
+ const colors={skin:/^#[0-9a-f]{6}$/i.test(String(appearance.skin||''))?appearance.skin:'#7b4528',hair:/^#[0-9a-f]{6}$/i.test(String(appearance.hair||''))?appearance.hair:'#17120f',top:tops[appearance.top]||tops.cream,bottom:bottoms[appearance.bottom]||bottoms.denim,shoes:shoes[appearance.shoes]||shoes.white};
+ const mapped=new Set(),styleMeshes=[];
+ root.traverse(node=>{
+  if(!node.isMesh)return;
+  if(!node.userData.nrsDieselMaterialsCloned){const m=node.material;node.material=Array.isArray(m)?m.map(x=>x?.clone?.()||x):(m?.clone?.()||m);node.userData.nrsDieselMaterialsCloned=true;}
+  const mats=Array.isArray(node.material)?node.material:[node.material];
+  for(const m of mats){const k=nrsDieselPartKind(node,m);if(k&&m?.color&&colors[k]){m.color.set(colors[k]);mapped.add(k);}}
+  const style=nrsDieselStyleTag(node);if(style)styleMeshes.push({node,style});
+ });
+ const styles=new Set(styleMeshes.map(x=>x.style));
+ if(styles.size>1)styleMeshes.forEach(x=>{x.node.visible=x.style===appearance.hairStyle;});
+ return {mappedParts:[...mapped],styleVariants:styles.size};
+}
+function attachDieselAnimator(root, clips) {
+ const animations=Array.isArray(clips)?clips:[],lower=s=>String(s||'').toLowerCase(),mixer=new THREE.AnimationMixer(root);
+ let idleClip=animations.find(c=>/idle|stand|rest|breath|neutral/i.test(c.name||''));
+ const walkClip=animations.find(c=>/walk|run|jog/i.test(c.name||''));
+ if(!idleClip&&!walkClip&&animations.length)idleClip=animations[0];
+ const idleAction=idleClip?mixer.clipAction(idleClip):null,walkAction=walkClip&&walkClip!==idleClip?mixer.clipAction(walkClip):null;
+ if(idleAction)idleAction.play();if(walkAction){walkAction.play();walkAction.setEffectiveWeight(0);}
+ const tracks=animations.flatMap(c=>c.tracks||[]).map(t=>lower(t.name)),bounds=new THREE.Box3().setFromObject(root),center=bounds.getCenter(new THREE.Vector3()),fallbackBones=[];
+ root.updateMatrixWorld(true);
+ root.traverse(node=>{
+  if(!node.isBone)return;
+  const n=lower(node.name).replace(/[^a-z0-9]/g,'');let kind='';
+  if(/(upperarm|leftarm|rightarm|arm[lr])/.test(n)&&!/(fore|lower|hand|shoulder|twist)/.test(n))kind='arm';
+  else if(/(forearm|lowerarm|leftforearm|rightforearm|armroll)/.test(n))kind='forearm';
+  else if(/(upperleg|upleg|thigh|leftupleg|rightupleg|leg[lr])/.test(n)&&!/(lower|calf|shin|foot)/.test(n))kind='thigh';
+  else if(/(lowerleg|leftleg|rightleg|calf|shin|knee)/.test(n)&&!/(upper|thigh|upleg)/.test(n))kind='shin';
+  if(!kind||tracks.some(t=>t.includes(lower(node.name))))return;
+  const wp=new THREE.Vector3();node.getWorldPosition(wp);
+  const sign=kind==='arm'||kind==='forearm'?(wp.x>=center.x?-1:1):(wp.x>=center.x?1:-1);
+  fallbackBones.push({bone:node,base:node.quaternion.clone(),kind,sign,phase:wp.x>=center.x?0:Math.PI});
+ });
+ function pose(t,speed) {
+  const walk=Math.max(0,Math.min(1,Math.abs(Number(speed)||0)/2.5));
+  for(const p of fallbackBones){let x=0,y=0,z=0;
+   if(p.kind==='arm')z=p.sign*(.72+Math.sin(t*1.65+p.phase)*.025+Math.sin(t*6+p.phase)*walk*.24);
+   else if(p.kind==='forearm')z=p.sign*(.12+Math.max(0,Math.sin(t*6+p.phase))*walk*.34);
+   else if(p.kind==='thigh')x=Math.sin(t*6+p.phase)*walk*.38;
+   else if(p.kind==='shin')x=Math.max(0,Math.sin(t*6+p.phase))*walk*.42;
+   p.bone.quaternion.copy(p.base).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z)));
+  }
+ }
+ function update(dt,t,speed=0){const w=Math.max(0,Math.min(1,Math.abs(Number(speed)||0)/2.7));if(walkAction)walkAction.setEffectiveWeight(w);if(idleAction)idleAction.setEffectiveWeight(walkAction?1-w:1);pose(t,speed);mixer.update(Math.max(0,Math.min(Number(dt)||0,.05)));}
+ function reset(){mixer.stopAllAction();for(const p of fallbackBones)p.bone.quaternion.copy(p.base);mixer.uncacheRoot(root);}
+ return {update,reset,mixer,animationNames:animations.map(a=>a.name),fallbackBoneCount:fallbackBones.length};
+}
+window.NRS=window.NRS||{};window.NRS.applyDieselModelAppearance=applyDieselModelAppearance;window.NRS.attachDieselAnimator=attachDieselAnimator;
+
+function loadDieselAvatar(){
+ model.visible=false;
+ if(!window.THREE?.GLTFLoader){window.NRS.dieselAvatar={status:'error',loaded:false,error:'GLTFLoader unavailable'};return;}
+ const loader=new THREE.GLTFLoader();loader.setCrossOrigin?.('anonymous');const url='/Diesel.glb?rev=diesel-no-block-animated-20261018b';
+ const started=performance.now();let settled=false;window.NRS.dieselAvatar={status:'loading',loaded:false,url};
+ const timeout=setTimeout(()=>{if(settled)return;settled=true;window.NRS.dieselAvatar={status:'timeout',loaded:false,url};console.error('[Nigeria RP] Diesel model timed out; block fallback stays hidden.');},20000);
+ loader.load(url,gltf=>{
+  if(settled)return;settled=true;clearTimeout(timeout);
+  try{
+   const imported=gltf.scene;if(!imported)throw new Error('GLB contains no scene');
+   const bounds=new THREE.Box3().setFromObject(imported),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+   if(!Number.isFinite(size.x+size.y+size.z)||size.x<=0||size.y<=0||size.z<=0)throw new Error('Invalid model bounds');
+   let meshes=0,skinned=0,bones=0;imported.traverse(o=>{if(o.isMesh){meshes++;if(o.isSkinnedMesh){skinned++;bones+=o.skeleton?.bones?.length||0;o.castShadow=true;o.receiveShadow=true;}}});
+   if(!meshes)throw new Error('GLB has no visible meshes');
+   const scale=1.62/size.y;imported.scale.multiplyScalar(scale);imported.position.set(-center.x*scale,-bounds.min.y*scale+.80,-center.z*scale);
+   model.add(imported);model.children.forEach(child=>{if(child!==imported)child.visible=false;});
+   dieselAvatarRoot=imported;window.NRS.dieselAvatarRoot=imported;
+   const appearance=window.NRS.characterAppearance||selectedAppearance||{skin:'#7b4528',hair:'#17120f',hairStyle:'long-braids',top:'black',bottom:'denim',shoes:'white',accessory:'gold',gender:'male',trait:'Creative',expression:'neutral'};
+   const mapped=applyDieselModelAppearance(imported,appearance);dieselAnimator=attachDieselAnimator(imported,gltf.animations||[]);model.visible=true;
+   const detail={status:'loaded',loaded:true,url,elapsedMs:Math.round(performance.now()-started),meshes,skinnedMeshes:skinned,bones,animations:dieselAnimator.animationNames,mappedParts:mapped.mappedParts,styleVariants:mapped.styleVariants,fallbackBones:dieselAnimator.fallbackBoneCount};
+   window.NRS.dieselAvatar=detail;console.info('[Nigeria RP] Diesel model loaded.',detail);window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-loaded',{detail}));
+   if(!skinned&&!gltf.animations?.length)console.warn('[Nigeria RP] Diesel asset has no skeletal rig or animation clips; limb posing is limited by the asset.');
+  }catch(error){window.NRS.dieselAvatar={status:'error',loaded:false,url,error:String(error?.message||error)};console.error('[Nigeria RP] Diesel model validation failed; block fallback remains hidden.',error);}
+ },event=>{if(event?.total)window.NRS.dieselAvatar.progress=Math.round(event.loaded/event.total*100);},error=>{
+  if(settled)return;settled=true;clearTimeout(timeout);window.NRS.dieselAvatar={status:'error',loaded:false,url,error:String(error?.message||error)};console.error('[Nigeria RP] Diesel model failed to load; block fallback remains hidden.',error);
+ });
+}
+loadDieselAvatar();
 
 const shadow=flat(.9,.9,new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3}),0,.04,0);
 

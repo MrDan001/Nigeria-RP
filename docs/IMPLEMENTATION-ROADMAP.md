@@ -161,3 +161,13 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Preserve the selected personality trait in appearance data and use it to alter idle stance/movement cadence and the player identity line.
 - [x] Bump client asset revisions to avoid stale cached scripts.
 - [ ] Visually verify appearance, hair, outfit and movement in the live client on desktop and mobile; deployment success alone is not visual acceptance.
+
+
+## No-block character model recovery (18 October 2026)
+
+- [x] Removed the procedural sphere/capsule character builder from the character creator; the preview loads the repository's Diesel GLB and never substitutes the block model on failure.
+- [x] Restored the Diesel model in-world and keep the legacy rig hidden from the first frame through load failure.
+- [x] Route saved skin, hair colour and outfit choices to named GLB mesh/material parts where the asset exposes them; hairstyle switching is enabled only if the GLB has multiple named variants.
+- [x] Play available idle/walk clips and add a rig-bone relaxed-pose fallback for unanimated skeletal parts.
+- [x] Bump client and PWA cache revisions.
+- [ ] Visually verify model appearance and movement in the live game. Unmapped choices remain dependent on the asset's actual mesh/material names and skeleton.
