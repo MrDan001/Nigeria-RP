@@ -2,7 +2,7 @@
 
 A browser-native, mobile-first multiplayer roleplay game set in Port Harcourt, Rivers State, Nigeria.
 
-> **Current status — 18 October 2026:** Stage 17 — City Explorer Passport & Discovery Rewards — remains active. Stage 18 Diesel GLB work now includes a first-pass Mixamo skeletal pose animator with idle breathing and movement-synchronized walk/run motion. This change still requires release verification and a real-device visual check; successful deployment alone is not character-animation acceptance. Stage 2 asset preparation is awaiting the project owner's next package.
+> **Current status — 18 October 2026:** Diesel Stage 1 skeletal posing is present in the web-client source and has been deployed to Railway. The creator preview now includes a visible `BUILD S1 · 65 BONES` marker and a new script cache key so the owner can confirm which client code is running. Stage 1 visual acceptance still requires the owner to check the marker and inspect the real avatar on-device. Stage 2 asset work remains pending.
 
 ## Production and deployment
 
