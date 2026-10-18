@@ -58,3 +58,12 @@ Implemented in the browser source:
 - [x] Update the source-structure documentation to reflect the split.
 - [ ] Confirm the Railway build passes and the new production deployment is healthy.
 - [ ] Open the live game and manually verify the lobby-to-game transition, character rendering (including Diesel GLB fallback), movement, and core interactions on desktop/mobile.
+
+
+## Stage 18 — Diesel GLB character integration (18 October 2026)
+
+- [x] Confirmed the public model repository contains `Diesel.glb` (10,515,216 bytes) and checked the game’s configured asset URL against that repository path.
+- [x] Committed explicit loader diagnostics and fallback-safe validation in the in-game character source.
+- [ ] Verify browser loading/CORS and inspect the reported mesh, skeleton and animation metadata.
+- [ ] After in-game verification, replace the character creator mannequin with the validated model.
+- [ ] Verify movement, appearance options, mobile performance and Railway deployment health.

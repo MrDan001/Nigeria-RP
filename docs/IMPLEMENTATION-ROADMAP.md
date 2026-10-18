@@ -90,3 +90,17 @@ Their scope and recorded status are tracked in [ROADMAP.md](ROADMAP.md) and thei
 - [x] Update the source assembler, HTML script order/cache key, source-structure guide and quick roadmap.
 - [ ] Confirm Railway builds the new commit and the production service returns healthy.
 - [ ] Manual live-game test: enter from lobby, inspect character/GLB fallback, move around, and verify key interactions on desktop/mobile. Build success alone does not count as gameplay acceptance.
+
+
+## Stage 18 — Diesel GLB character integration (18 October 2026)
+**Status: Stage 1 diagnostics committed; model and live rendering verification pending**
+
+- [x] Confirm the public test repository contains `Diesel.glb` at its root (10,515,216 bytes) and the game references the matching raw GitHub URL.
+- [x] Add explicit loader states, a 20-second timeout, model-bounds/mesh validation, and console diagnostics for load, validation, timeout and request failures.
+- [x] Log mesh/material/skinned-mesh/bone/animation metadata when the browser successfully loads the GLB; keep the procedural model visible on failure.
+- [ ] Capture actual browser diagnostics from the deployed game and verify the GLB loads over HTTPS/CORS.
+- [ ] Confirm Diesel mesh dimensions, rig and animation availability in a running browser; no skeleton/animation compatibility is claimed yet.
+- [ ] Integrate Diesel into the character creator preview after the live-game model is verified.
+- [ ] Test movement, appearance choices, workplace uniforms, camera framing and mobile performance; then confirm Railway deployment health.
+
+Stage approach: do not replace the character creator mannequin until the in-game model has passed the first visual/load check. A successful source build alone is not gameplay acceptance.
