@@ -99,7 +99,20 @@
   function material(color, rough=.55, metal=0){ return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal}); }
   function sphere(g,m,s){const o=new THREE.Mesh(new THREE.SphereGeometry(1,40,28),m);o.scale.set(s[0],s[1],s[2]);g.add(o);return o}
   function cyl(g,m,r,d,pos,rot=[0,0,0]){const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d,32),m);o.position.set(...pos);o.rotation.set(...rot);g.add(o);return o}
-  function capsule(g,m,r,len,pos,rot=[0,0,0]){const o=new THREE.Mesh(new THREE.CapsuleGeometry(r,len,10,24),m);o.position.set(...pos);o.rotation.set(...rot);g.add(o);return o}
+  function capsule(g,m,r,len,pos,rot=[0,0,0]){
+    // Compatible with the Three.js r128 build used by the game client.
+    const shape=new THREE.Group();
+    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,24,1,false),m);
+    const capTop=new THREE.Mesh(new THREE.SphereGeometry(r,24,16),m);
+    const capBottom=new THREE.Mesh(new THREE.SphereGeometry(r,24,16),m);
+    capTop.position.y=len/2;
+    capBottom.position.y=-len/2;
+    shape.add(shaft,capTop,capBottom);
+    shape.position.set(...pos);
+    shape.rotation.set(...rot);
+    g.add(shape);
+    return shape;
+  }
 
   function buildAvatar(){
     if(!window.THREE)return null;
@@ -136,12 +149,16 @@
   }
 
   function init3D(){
-    if(!q("scCanvas")||!window.THREE)return;
-    stop3D();
+    if(!q("scCanvas"))return;
+    if(!window.THREE){
+      const error=q("scError");
+      if(error)error.textContent="The 3D engine has not loaded yet. Close this screen and reopen the character creator.";
+      return;
+    }
     stop3D();
     const canvas=q("scCanvas"), box=canvas.parentElement;
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0x000000,0);
-    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);camera.position.set(0,1.55,10.8);camera.lookAt(0,1.3,0);
+    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);camera.position.set(0,1.7,14.5);camera.lookAt(0,1.65,0);
     scene.add(new THREE.HemisphereLight(0xf8e8ff,0x25112e,2.2));const key=new THREE.DirectionalLight(0xfff2df,3);key.position.set(-4,7,7);scene.add(key);const fill=new THREE.DirectionalLight(0xb58cff,1.5);fill.position.set(5,3,2);scene.add(fill);
     avatar=buildAvatar();if(avatar)scene.add(avatar);
     const resize=()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()};resize();window.addEventListener("resize",resize);renderer.__nrsResize=resize;
