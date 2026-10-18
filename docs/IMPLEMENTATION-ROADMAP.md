@@ -200,3 +200,20 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Strengthened the fallback upper-arm pose correction and kept it after the animation mixer update.
 - [ ] Verify the Diesel asset's actual skeleton and meshes in-browser; positional classification is a fallback, not a substitute for semantic mesh/material names or real hairstyle/outfit geometry.
 - [ ] Verify character selection portrait and in-world model against the saved appearance on-device.
+
+
+## Stage 18 follow-up — Diesel character Stage 1: pose and movement animation (18 October 2026)
+**Status: source and cache changes prepared; release and visual acceptance remain separate gates**
+
+Implemented:
+- [x] Replace heuristic rotations on guessed arm/leg bones with Mixamo-name matching and a model-space quaternion pose solver.
+- [x] Apply an arm-down base pose to the upper-arm bones; avoid the previous double rotation of shoulder and arm joints.
+- [x] Correct knee direction, add foot response, and coordinate opposing arms and legs.
+- [x] Blend idle posture/breathing into speed-driven walk/run motion, with torso/hip movement and run lean.
+- [x] Prefer available model animation clips; use procedural posing only when no GLB clips exist.
+- [x] Keep the same exported animator available to both creator preview and local in-world Diesel model.
+- [x] Bump the character script URL and service-worker cache name to prevent stale client assets.
+- [ ] Confirm Railway builds the merged commit and the live service reaches a terminal successful state.
+- [ ] On a physical Android device, compare the creator preview with the in-world avatar and verify arm pose, knees, walk/run transitions, mesh clipping and performance.
+- [ ] Test remote players independently; their cloning/animation behavior is outside this Stage 1 change.
+- [ ] Do not begin Stage 2 asset preparation until the owner provides Stage 2 and Stage 1 visual checks are reviewed.
