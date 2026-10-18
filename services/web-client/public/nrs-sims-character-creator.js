@@ -13,7 +13,7 @@
   const bottomColors = { denim:"#41658b", black:"#1b1d20", khaki:"#8a7954", white:"#e8e5df" };
   const shoeColors = { white:"#eeeeea", black:"#17191b", brown:"#654027" };
   let tab = "appearance", scene = null, renderer = null, camera = null, avatar = null, raf = 0;
-  let drag = false, lastX = 0, rotation = 0;
+  let drag = false, lastX = 0, rotation = 0, onSaveHandler = null;
 
   const q = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
@@ -21,7 +21,7 @@
   const css = document.createElement("style");
   css.id = "nrsSimsCreatorStyles";
   css.textContent = `
-  #nrsSimsCreator{position:fixed;inset:0;z-index:100005;display:none;flex-direction:column;overflow:hidden;background:#160720;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none}
+  #nrsSimsCreator{position:fixed;inset:0;z-index:2147483002;display:none;flex-direction:column;overflow:hidden;background:#160720;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none}
   #nrsSimsCreator.open{display:flex}
   #nrsSimsCreator *{box-sizing:border-box}
   .sc-head{height:82px;min-height:82px;display:flex;align-items:center;gap:14px;padding:12px 28px;border-bottom:1px solid rgba(255,255,255,.11);background:#160720;position:relative;z-index:4}
@@ -50,14 +50,17 @@
   `;
   document.head.appendChild(css);
 
-  function open() {
+  function open(options = {}) {
+    onSaveHandler = typeof options.onSave === "function" ? options.onSave : null;
     let root = q("nrsSimsCreator");
     if (!root) { root = document.createElement("div"); root.id = "nrsSimsCreator"; document.body.appendChild(root); }
     root.classList.add("open");
     render();
     setTimeout(init3D, 0);
   }
-  function close(){ const root=q("nrsSimsCreator"); if(root) root.classList.remove("open"); stop3D(); }
+  function close(){ const root=q("nrsSimsCreator"); if(root) root.classList.remove("open"); stop3D(); onSaveHandler=null; }
+  function setError(message){ const e=q("scError"); if(e)e.textContent=String(message||""); }
+  function setSaving(saving){ const root=q("nrsSimsCreator"); if(!root)return; ["scTopSave","scCreate"].forEach(id=>{const b=q(id);if(b){b.disabled=!!saving;b.textContent=saving?"CREATING...":"CREATE CHARACTER";}}); }
 
   function render(){
     const root=q("nrsSimsCreator"); if(!root) return;
@@ -81,6 +84,11 @@
     const input=q("scNameInput"), name=(input?.value||q("nrsCharacterName")?.value||"").trim();
     if(!/^[A-Za-z]+_[A-Za-z]+$/.test(name)){const e=q("scError");if(e)e.textContent="Use a unique Firstname_lastname (letters only).";return}
     const chosen={...state};
+    if(typeof onSaveHandler==="function"){
+      setError("");
+      try{onSaveHandler(name,chosen);}catch(error){setError(error?.message||"Could not save this character. Please try again.");}
+      return;
+    }
     try{localStorage.setItem("nrs_rp_character_appearance_v1",JSON.stringify(chosen));}catch{}
     if(window.NRS?.applyCharacterAppearance)window.NRS.applyCharacterAppearance(chosen);
     else window.dispatchEvent(new CustomEvent("nrs-character-appearance",{detail:chosen}));
@@ -146,5 +154,5 @@
 
   document.addEventListener("click",function(e){const t=e.target instanceof Element?e.target.closest("#nrsCreateCharacterButton"):null;if(!t)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();open()},true);
   document.addEventListener("DOMContentLoaded",()=>{if(!q("nrsSimsCreator")){const d=document.createElement("div");d.id="nrsSimsCreator";document.body.appendChild(d)}});
-  N.simsCharacterCreator={open,close,state};
+  N.simsCharacterCreator={open,close,state,setError,setSaving};
 })();

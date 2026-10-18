@@ -444,6 +444,7 @@ async function initStore() {
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS life JSONB NOT NULL DEFAULT '{}'::jsonb");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'port-harcourt'");
     await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS owner_id TEXT");
+    await pool.query("ALTER TABLE nrs_accounts ADD COLUMN IF NOT EXISTS appearance JSONB");
     await pool.query(
       "CREATE TABLE IF NOT EXISTS nrs_world (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at BIGINT NOT NULL)",
     );
@@ -588,6 +589,7 @@ function accountFromRow(row: any): Account {
     fuel: row.fuel ?? {},
     life: row.life ?? {},
     cityId: String(row.city_id ?? "port-harcourt"),
+    appearance: row.appearance ?? null,
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   });
@@ -624,8 +626,8 @@ async function insertAccount(account: Account) {
   if (pool) {
     await pool.query(
       "INSERT INTO nrs_accounts (" +
-      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,city_id,owner_id" +
-      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22)",
+      "id,username,username_lower,email,email_lower,password_salt,password_hash,cash,bank,x,z,yaw,hp,hunger,level,xp,job,inventory,created_at,updated_at,city_id,owner_id,appearance" +
+      ") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21,$22,$23::jsonb)",
       [
         account.id,
         account.username,
@@ -649,6 +651,7 @@ async function insertAccount(account: Account) {
         account.updatedAt,
         account.cityId,
         account.ownerId || account.id,
+        JSON.stringify(normalizeCharacterAppearance(account.appearance)),
       ],
     );
     return;
@@ -666,7 +669,7 @@ async function saveAccount(account: Account, executor?: any) {
     await db.query(
       "UPDATE nrs_accounts SET " +
       "username=$2,cash=$3,bank=$4,x=$5,z=$6,yaw=$7,hp=$8,hunger=$9,level=$10,xp=$11," +
-      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb,city_id=$17 WHERE id=$1",
+      "job=$12::jsonb,inventory=$13::jsonb,updated_at=$14,fuel=$15::jsonb,life=$16::jsonb,city_id=$17,appearance=$18::jsonb WHERE id=$1",
       [
         account.id,
         account.username,
@@ -685,6 +688,7 @@ async function saveAccount(account: Account, executor?: any) {
         JSON.stringify(account.fuel),
         JSON.stringify(account.life),
         account.cityId,
+        JSON.stringify(normalizeCharacterAppearance(account.appearance)),
       ],
     );
     return;
@@ -709,7 +713,7 @@ async function listCharacters(ownerId: string): Promise<Account[]> {
     .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 }
 
-async function createCharacter(owner: Account, rawUsername: string): Promise<Account> {
+async function createCharacter(owner: Account, rawUsername: string, rawAppearance?: unknown): Promise<Account> {
   const username = sanitizeUsername(rawUsername);
   const ownerId = String(owner.ownerId || owner.id);
   if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) throw new Error("USERNAME_INVALID");
@@ -746,6 +750,7 @@ async function createCharacter(owner: Account, rawUsername: string): Promise<Acc
     fuel: {},
     life: newLife(clock.dayKey()),
     cityId: "port-harcourt",
+    appearance: normalizeCharacterAppearance(rawAppearance),
     createdAt: now,
     updatedAt: now,
   };
@@ -822,6 +827,7 @@ function makePlayer(account: Account): PlayerState {
     fuel: normalizeFuel(account.fuel),
     life: account.life,
     cityId: findStage15City(String(account.cityId ?? ""))?.id ?? "port-harcourt",
+    appearance: normalizeCharacterAppearance(account.appearance),
     lastSequence: -1,
   };
 }
@@ -831,6 +837,7 @@ async function persistSession(session: Session) {
   account.username = session.player.name;
   account.usernameLower = account.username.toLowerCase();
   account.cityId = findStage15City(String(session.player.cityId ?? ""))?.id ?? "port-harcourt";
+  account.appearance = normalizeCharacterAppearance(session.player.appearance ?? account.appearance);
   // If a player disconnects or the server restarts indoors, resume outside the room.
   account.x = session.inHome && session.homeReturn
     ? session.homeReturn.x
@@ -1054,6 +1061,7 @@ wss.on("connection", (socket) => {
         cash: character.cash,
         bank: character.bank,
         cityId: character.cityId,
+        appearance: normalizeCharacterAppearance(character.appearance),
         createdAt: character.createdAt,
         updatedAt: character.updatedAt,
       })),
@@ -1188,7 +1196,7 @@ wss.on("connection", (socket) => {
 
           if (message.type === "createCharacter") {
             const owner = await getReadyOwner();
-            await createCharacter(owner, String(message.username ?? ""));
+            await createCharacter(owner, String(message.username ?? ""), message.appearance);
             await sendCharacterSelection(owner, accountToken!, "Character created. Select Continue to enter the game.");
             return;
           }

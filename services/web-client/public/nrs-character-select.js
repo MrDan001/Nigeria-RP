@@ -6,6 +6,7 @@
   const VIEW_ID = "nrsCharacterView";
   const LAYER_ID = "nrsFreshLobby";
   let busy = false;
+  let creatingCharacter = false;
   let lastSignature = "";
 
   const style = document.createElement("style");
@@ -44,6 +45,26 @@
   }[ch]));
   const money = value => Number(value || 0).toLocaleString("en-NG");
   const fallbackAvatar = '<svg viewBox="0 0 240 300" aria-hidden="true"><ellipse cx="120" cy="286" rx="78" ry="12" fill="#12091d" opacity=".35"/><path d="M43 300c5-77 38-113 77-113s72 36 77 113" fill="#33214d"/><path d="M87 155h66v50c-14 20-52 20-66 0z" fill="#8f6348"/><ellipse cx="120" cy="92" rx="48" ry="61" fill="#a97855"/><path d="M72 91c-4-42 14-69 47-73 37-4 61 21 53 77l-12-27c-25 4-50-9-67-22-1 20-8 34-21 45z" fill="#17131a"/><path d="M84 105q12 9 23 0m26 0q12 9 23 0" fill="none" stroke="#35201b" stroke-width="4" stroke-linecap="round"/><path d="M103 133q17 12 34 0" fill="none" stroke="#5e3328" stroke-width="4" stroke-linecap="round"/></svg>';
+
+  function avatarForCharacter(character) {
+    const a = character && character.appearance && typeof character.appearance === "object" ? character.appearance : {};
+    const skins={"#4b291b":"#4b291b","#63351f":"#63351f","#7b4528":"#7b4528","#955c39":"#955c39","#b97952":"#b97952","#d69a73":"#d69a73"};
+    const hairs={"#17120f":"#17120f","#2d1a12":"#2d1a12","#4b2b1b":"#4b2b1b","#6d4127":"#6d4127","#a96b3c":"#a96b3c","#6b1821":"#6b1821"};
+    const tops={cream:"#f1ece1",black:"#17191d",green:"#167c53",red:"#a83232",blue:"#2e66a6"};
+    const bottoms={denim:"#41658b",black:"#1b1d20",khaki:"#8a7954",white:"#e8e5df"};
+    const shoes={white:"#eeeeea",black:"#17191b",brown:"#654027"};
+    const skin=skins[String(a.skin||"").toLowerCase()]||"#7b4528";
+    const hair=hairs[String(a.hair||"").toLowerCase()]||"#17120f";
+    const top=tops[a.top]||tops.cream, bottom=bottoms[a.bottom]||bottoms.denim, shoe=shoes[a.shoes]||shoes.white;
+    let hairstyle='<path d="M77 101C66 55 92 30 121 31c36 0 55 27 43 70l-13-25c-25 5-45-5-61-20-1 18-5 31-13 45z" fill="'+hair+'"/>';
+    if(a.hairStyle==="afro") hairstyle='<path d="M69 98C60 58 75 24 100 30c7-18 34-22 43-5 22-1 39 24 29 51l-5 29-16-18c-25 4-47-5-63-20z" fill="'+hair+'"/>';
+    else if(a.hairStyle==="long-braids") hairstyle='<path d="M76 94C67 55 91 30 121 31c36 0 55 27 43 70l-13-25c-25 5-45-5-61-20-1 18-5 31-13 45z" fill="'+hair+'"/><path d="M79 82q-9 42 0 91m17-112q-3 57 5 107m57-93q12 39 1 96m-18-111q8 54 6 105" fill="none" stroke="'+hair+'" stroke-width="8" stroke-linecap="round"/>';
+    else if(a.hairStyle==="locs") hairstyle='<path d="M76 94C67 55 91 30 121 31c36 0 55 27 43 70l-13-25c-25 5-45-5-61-20-1 18-5 31-13 45z" fill="'+hair+'"/><path d="M78 85l-2 63m18-89 5 96m56-75 4 70m-19-89 1 91" fill="none" stroke="'+hair+'" stroke-width="7" stroke-linecap="round"/>';
+    const necklace=a.accessory==="gold" ? '<path d="M100 170q20 20 40 0" fill="none" stroke="#e5bd54" stroke-width="3"/><circle cx="120" cy="183" r="3" fill="#e5bd54"/>' : "";
+    const mouth=a.expression==="sad" ? '<path d="M106 133q14-9 28 0" fill="none" stroke="#5e3328" stroke-width="3" stroke-linecap="round"/>' : a.expression==="neutral" ? '<path d="M108 133h24" fill="none" stroke="#5e3328" stroke-width="3" stroke-linecap="round"/>' : '<path d="M106 130q14 12 28 0" fill="none" stroke="#5e3328" stroke-width="3" stroke-linecap="round"/>';
+    return '<svg viewBox="0 0 240 300" aria-hidden="true"><ellipse cx="120" cy="287" rx="76" ry="10" fill="#12091d" opacity=".35"/><path d="M86 217l-3 65h28l9-61m7 0 9 61h28l-3-65" fill="'+bottom+'"/><path d="M76 279h37v13H72zm51 0h37l7 13h-43z" fill="'+shoe+'"/><path d="M43 300c5-75 37-112 77-112s72 37 77 112" fill="'+top+'"/><path d="M94 150h52v40c-12 17-40 17-52 0z" fill="'+skin+'"/><ellipse cx="120" cy="94" rx="45" ry="59" fill="'+skin+'"/>'+hairstyle+'<path d="M84 105q12 8 23 0m26 0q12 8 23 0" fill="none" stroke="#35201b" stroke-width="4" stroke-linecap="round"/>'+mouth+necklace+'</svg>';
+  }
+
 
   let layer = document.getElementById(LAYER_ID);
   if (!layer) {
@@ -128,56 +149,67 @@
     }
   }
 
-  function createCharacter() {
-    const session = SESSION();
-    const input = layer.querySelector("#nrsFreshName");
-    const username = String(input ? input.value : "").trim();
+  function createCharacter(usernameOverride, appearance) {
+    if (creatingCharacter) return;
+    const input=layer.querySelector("#nrsFreshName");
+    const username=String(usernameOverride != null ? usernameOverride : (input ? input.value : "")).trim();
     if (!/^[A-Za-z]+_[A-Za-z]+$/.test(username)) {
-      status("Use the format Firstname_lastname, with letters only.");
-      if (input) input.focus();
-      return;
+      const message="Use the format Firstname_lastname, with letters only.";
+      status(message); window.NRS?.simsCharacterCreator?.setError?.(message); return;
     }
-    if (!session || !session.token || !session.ws || session.ws.readyState !== WebSocket.OPEN) {
-      status("Your game connection is reconnecting. Please try again in a moment.");
-      return;
+    const session=SESSION();
+    if (!session || !session.token || !session.ws || session.ws.readyState!==WebSocket.OPEN || !session.accountReady) {
+      const message="Your game connection is reconnecting. Please try again in a moment.";
+      status(message); window.NRS?.simsCharacterCreator?.setError?.(message); return;
     }
-
-    status("Creating your character…");
-    const socket = session.ws;
-    let settled = false;
-    let timeout = null;
-
-    function finish(message) {
-      if (settled) return;
-      settled = true;
-      if (timeout) clearTimeout(timeout);
-      socket.removeEventListener("message", onMessage);
-      status(message || "Character request completed.");
-    }
-
-    function onMessage(event) {
-      let message;
-      try { message = JSON.parse(event.data); } catch (_) { return; }
-      if (message.type === "authCharacters") {
-        lastSignature = "";
-        finish(message.message || "Character created. Select ENTER CITY to continue.");
+    creatingCharacter=true;
+    const creator=window.NRS?.simsCharacterCreator;
+    creator?.setSaving?.(true);
+    status("Creating your character and saving its appearance…");
+    const socket=session.ws;
+    let settled=false, timeout=null;
+    function finish(message,success) {
+      if(settled)return;
+      settled=true;
+      if(timeout)clearTimeout(timeout);
+      socket.removeEventListener("message",onMessage);
+      creatingCharacter=false;
+      creator?.setSaving?.(false);
+      if(success) {
+        creator?.close?.();
+        lastSignature="";
         refresh();
-      } else if (message.type === "authError") {
-        finish(message.message || message.code || "Could not create that character.");
+        status(message||"Character created. Your customized citizen is ready.");
+      } else {
+        const failure=message||"Could not create that character. Please try again.";
+        status(failure); creator?.setError?.(failure);
       }
     }
-
-    socket.addEventListener("message", onMessage);
-    timeout = setTimeout(() => finish("The server did not confirm character creation. Please try again."), 15000);
-    if (!send({ type: "createCharacter", token: session.token, username: username })) {
-      finish("Could not send the request because the game connection closed. Please try again.");
+    function onMessage(event) {
+      let message; try { message=JSON.parse(event.data); } catch (_) { return; }
+      if(message.type==="authCharacters") finish(message.message||"Character created. Your customized citizen is ready.",true);
+      else if(message.type==="authError") finish(message.message||message.code||"Could not create that character.",false);
+    }
+    socket.addEventListener("message",onMessage);
+    timeout=setTimeout(()=>finish("The server did not confirm character creation. Please try again.",false),15000);
+    if(!send({type:"createCharacter",token:session.token,username:username,appearance:appearance||{}})) {
+      finish("Could not send the request because the game connection closed. Please try again.",false);
     }
   }
 
   function signature(characters) {
     return (characters || []).map(character =>
-      [character.id, character.name, character.level, character.cash, character.bank, character.cityId].join(":")
+      [character.id, character.name, character.level, character.cash, character.bank, character.cityId, JSON.stringify(character.appearance || null)].join(":")
     ).join("|");
+  }
+
+  function openCharacterCreator() {
+    const session=SESSION();
+    if(!session||!session.accountReady||!session.token){status("Please sign in before creating a character.");return;}
+    if(Array.isArray(session.characters)&&session.characters.length>=3){status("One account can have a maximum of three characters.");return;}
+    const creator=window.NRS?.simsCharacterCreator;
+    if(!creator||typeof creator.open!=="function"){status("The character creator has not loaded. Refresh the game and try again.");return;}
+    creator.open({onSave:(username,appearance)=>createCharacter(username,appearance)});
   }
 
   function build(characters) {
@@ -190,7 +222,7 @@
       const city = esc(character.city || character.cityId || "Port Harcourt").replace(/-/g, " ");
       return '<article class="nrsFreshCard" data-id="' + id + '" tabindex="0" aria-label="Play as ' + name + '">' +
         '<div class="nrsFreshHead"><span>CITIZEN ' + (index + 1) + '</span><span class="nrsFreshLevel">LEVEL ' + level + '</span></div>' +
-        '<div class="nrsFreshAvatar">' + fallbackAvatar + '</div>' +
+        '<div class="nrsFreshAvatar">' + avatarForCharacter(character) + '</div>' +
         '<div class="nrsFreshInfo"><div class="nrsFreshName">' + name + '</div><div class="nrsFreshMeta">CITIZEN · ' + city + '</div>' +
         '<div class="nrsFreshMoney"><span class="nrsFreshChip">Cash <b>₦' + money(character.cash) + '</b></span><span class="nrsFreshChip">Bank <b>₦' + money(character.bank) + '</b></span></div></div>' +
         '<button class="nrsFreshEnter" type="button">ENTER CITY</button></article>';
@@ -207,9 +239,7 @@
       '<p class="nrsFreshCopy">Choose the citizen you want to bring into the shared Nigeria RP world. Every character keeps their own money, job, home and progress.</p>' +
       '<div class="nrsFreshSummary"><span>Signed in as ' + esc(email) + '</span><b>' + (characters || []).length + ' / 3 CHARACTERS</b></div>' +
       '<section class="nrsFreshGrid">' + list + empty + '</section>' +
-      '<div class="nrsFreshBottom"><button class="nrsFreshButton" data-act="create">＋ CREATE NEW CHARACTER</button><span class="nrsFreshStatus" role="status" aria-live="polite"></span></div>' +
-      '<div class="nrsFreshPanel" id="nrsFreshPanel" hidden><label>New character name<input id="nrsFreshName" maxlength="31" placeholder="Firstname_lastname" autocomplete="off"></label>' +
-      '<div class="nrsFreshActions"><button class="nrsFreshSubmit" data-act="create-submit">CREATE CHARACTER</button><button class="nrsFreshCancel" data-act="cancel">CANCEL</button></div></div></main></div>';
+      '<div class="nrsFreshBottom"><button class="nrsFreshButton" data-act="create">＋ CREATE NEW CHARACTER</button><span class="nrsFreshStatus" role="status" aria-live="polite"></span></div></main></div>';
 
     layer.querySelectorAll(".nrsFreshCard").forEach(card => {
       const button = card.querySelector(".nrsFreshEnter");
@@ -228,20 +258,7 @@
     });
 
     layer.querySelectorAll('[data-act="create"]').forEach(button => {
-      button.addEventListener("click", () => {
-        const panel = layer.querySelector("#nrsFreshPanel");
-        if (panel) panel.hidden = false;
-        const input = layer.querySelector("#nrsFreshName");
-        if (input) input.focus();
-      });
-    });
-    const submit = layer.querySelector('[data-act="create-submit"]');
-    if (submit) submit.addEventListener("click", createCharacter);
-    const cancel = layer.querySelector('[data-act="cancel"]');
-    if (cancel) cancel.addEventListener("click", () => {
-      const panel = layer.querySelector("#nrsFreshPanel");
-      if (panel) panel.hidden = true;
-      status("Choose an existing character or create another one.");
+      button.addEventListener("click", openCharacterCreator);
     });
   }
 

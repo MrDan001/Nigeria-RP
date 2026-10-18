@@ -111,6 +111,10 @@ type CourierPointMeta = { generatedApartment: true; centerX: number; centerZ: nu
 type JobState = { n: string; x: number; z: number; pay: number; courier?: true; pickupX?: number; pickupZ?: number; pickupName?: string; destinationName?: string; pickupMeta?: CourierPointMeta; destinationMeta?: CourierPointMeta; pickedUp?: boolean } | null;
 type Inventory = Record<string, number>;
 type FuelMap = Record<string, number>;
+type CharacterAppearance = {
+  skin: string; hair: string; hairStyle: string; top: string; bottom: string;
+  shoes: string; accessory: string; gender: string; trait: string; expression: string;
+};
 
 type Account = {
   id: string;
@@ -138,6 +142,7 @@ type Account = {
   createdAt: number;
   updatedAt: number;
   cityId: string;
+  appearance?: CharacterAppearance | null;
 };
 
 type PlayerState = {
@@ -158,6 +163,7 @@ type PlayerState = {
   life: Life;
   cityId: string;
   lastSequence: number;
+  appearance?: CharacterAppearance | null;
 };
 
 type Session = {
@@ -362,6 +368,31 @@ function sanitizeUsername(value: unknown) {
   return String(value ?? "").trim().slice(0, 31);
 }
 
+
+const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
+  skin: "#7b4528", hair: "#17120f", hairStyle: "long-braids", top: "cream",
+  bottom: "denim", shoes: "white", accessory: "gold", gender: "female",
+  trait: "Creative", expression: "happy",
+};
+function normalizeCharacterAppearance(value: unknown): CharacterAppearance {
+  const input=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
+  const choose=(key:string,allowed:readonly string[],fallback:string)=>{
+    const item=String(input[key]??"");return allowed.includes(item)?item:fallback;
+  };
+  return {
+    skin:choose("skin",["#4b291b","#63351f","#7b4528","#955c39","#b97952","#d69a73"],DEFAULT_CHARACTER_APPEARANCE.skin),
+    hair:choose("hair",["#17120f","#2d1a12","#4b2b1b","#6d4127","#a96b3c","#6b1821"],DEFAULT_CHARACTER_APPEARANCE.hair),
+    hairStyle:choose("hairStyle",["long-braids","short","afro","locs"],DEFAULT_CHARACTER_APPEARANCE.hairStyle),
+    top:choose("top",["cream","black","green","red","blue"],DEFAULT_CHARACTER_APPEARANCE.top),
+    bottom:choose("bottom",["denim","black","khaki","white"],DEFAULT_CHARACTER_APPEARANCE.bottom),
+    shoes:choose("shoes",["white","black","brown"],DEFAULT_CHARACTER_APPEARANCE.shoes),
+    accessory:choose("accessory",["gold","none"],DEFAULT_CHARACTER_APPEARANCE.accessory),
+    gender:choose("gender",["female","male"],DEFAULT_CHARACTER_APPEARANCE.gender),
+    trait:choose("trait",["Creative","Outgoing","Fitness Lover","Bookworm","Entrepreneur","Street Smart"],DEFAULT_CHARACTER_APPEARANCE.trait),
+    expression:choose("expression",["happy","sad","neutral","confident"],DEFAULT_CHARACTER_APPEARANCE.expression),
+  };
+}
+
 function normalizeInventory(value: unknown): Inventory {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const out: Inventory = {};
@@ -422,6 +453,7 @@ function normalizeAccount(account: Account): Account {
     fuel: normalizeFuel(account.fuel),
     life: normalizeLife(account.life, clock.dayKey()),
     cityId: findStage15City(String(account.cityId ?? ""))?.id ?? "port-harcourt",
+    appearance: normalizeCharacterAppearance(account.appearance),
   };
 }
 
@@ -438,6 +470,7 @@ function publicPlayer(player: PlayerState) {
     onDuty: player.life.employment?.onDuty === true,
     uniformWorkplaceId: player.life.employment?.uniformWorkplaceId ?? null,
     cityId: findStage15City(String(player.cityId ?? ""))?.id ?? "port-harcourt",
+    appearance: normalizeCharacterAppearance(player.appearance),
   };
 }
 
@@ -460,6 +493,7 @@ function accountPayload(player: PlayerState) {
     inventory: player.inventory,
     fuel: player.fuel,
     life: player.life,
+    appearance: normalizeCharacterAppearance(player.appearance),
     today: clock.dayKey(),
   };
 }

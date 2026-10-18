@@ -694,6 +694,7 @@
       if (message.type === "authOk") {
         writeToken(message.token);
         syncAccount(message.player);
+        N.applyCharacterAppearance?.(message.player?.appearance || { skin:"#7b4528", hair:"#17120f", hairStyle:"long-braids", top:"cream", bottom:"denim", shoes:"white", accessory:"gold", gender:"female", trait:"Creative", expression:"happy" });
         // Character selection is finished. Keep accountReady reserved for the lobby only;
         // otherwise the lobby observer can reopen the overlay after successful entry.
         S.accountReady = false;
