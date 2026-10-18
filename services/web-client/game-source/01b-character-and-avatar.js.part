@@ -1,0 +1,143 @@
+/* ---------- Character: black NIGERIA RP tee, cap, baggy jeans, sneakers ---------- */
+const SKIN=[0x8d5524,0x6b3e1f,0x4a2a14,0xa8703c],HAIR=[0x111111,0x1a1a1a,0x2b1b12,0x111111];
+const OUTFITS=[
+ {top:0x151515,bottom:0x1c2330,shoe:0xf2f2f2,short:false,long:false,cap:true,print:true},
+ {top:0x2f6f4f,bottom:0xa39373,shoe:0x3a2a20,short:false,long:false,cap:false},
+ {top:0xc94a3a,bottom:0x2b2b2b,shoe:0x222222,short:true,long:false,cap:false},
+ {top:0x3a5fa0,bottom:0x1d2a44,shoe:0xcccccc,short:false,long:true,cap:false}];
+const look={o:0,s:0},mat={skin:M(0),top:M(0),bottom:M(0),shoe:M(0),hair:M(0),fore:M(0),shin:M(0),eye:M(0x111111),cap:M(0x101010)};
+let capParts=[],printMesh,activeUniformWorkplaceId=null,selectedAppearance=null,avatarShoulders=null,avatarHips=null;
+const hairStyleParts={afro:[],braids:[],locs:[]};
+const UNIFORM_LOOKS={
+ 'market-mile1':{top:0x7b2929,bottom:0x282b30,shoe:0x1c1c1c,long:true,cap:false,print:false},
+ 'bank-main':{top:0x172b49,bottom:0x182031,shoe:0x202020,long:true,cap:false,print:false},
+ 'hospital-main':{top:0xf1f2ec,bottom:0x2d5369,shoe:0xe5e9ed,long:true,cap:false,print:false},
+ 'hospital-princess':{top:0xe9f6f6,bottom:0x167f8b,shoe:0xe5e9ed,long:true,cap:false,print:false},
+ 'park-main':{top:0x2e7945,bottom:0x29362b,shoe:0x282828,long:true,cap:true,print:false},
+ 'news-main':{top:0x34354d,bottom:0x202232,shoe:0x242424,long:true,cap:false,print:false},
+ 'gov-rivers':{top:0x8a8f98,bottom:0x29303a,shoe:0x1c1c1c,long:true,cap:false,print:false},
+ 'police-rivers':{top:0x1b345f,bottom:0x14213a,shoe:0x111827,long:true,cap:true,print:false},
+ 'frsc-rivers':{top:0x17744b,bottom:0x243c30,shoe:0x1b231c,long:true,cap:true,print:false},
+ 'fire-rivers':{top:0xc94a21,bottom:0x292c32,shoe:0x202020,long:true,cap:true,print:false},
+ 'army-rivers':{top:0x4e5b2e,bottom:0x3d4827,shoe:0x292719,long:true,cap:true,print:false},
+ 'transport-union':{top:0x286ab1,bottom:0x24272b,shoe:0x252525,long:true,cap:false,print:false},
+ 'school-primary':{top:0x27794d,bottom:0x263c31,shoe:0x202020,long:true,cap:false,print:false},
+ 'school-secondary':{top:0x2c5489,bottom:0x27364c,shoe:0x202020,long:true,cap:false,print:false}
+};
+function dress(){
+ const uniform=UNIFORM_LOOKS[activeUniformWorkplaceId],o=uniform?{...OUTFITS[look.o],...uniform}:OUTFITS[look.o],sk=SKIN[look.s];
+ mat.skin.color.setHex(sk);mat.hair.color.setHex(HAIR[look.s]);mat.top.color.setHex(o.top);mat.bottom.color.setHex(o.bottom);mat.shoe.color.setHex(o.shoe);
+ mat.fore.color.setHex(o.long?o.top:sk);mat.shin.color.setHex(o.short?sk:o.bottom);
+ if(selectedAppearance&&!uniform){
+  const hex=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?parseInt(v.slice(1),16):null;
+  const tops={cream:0xf1ece1,black:0x17191d,green:0x167c53,red:0xa83232,blue:0x2e66a6},bottoms={denim:0x41658b,black:0x1b1d20,khaki:0x8a7954,white:0xe8e5df},shoes={white:0xeeeeea,black:0x17191b,brown:0x654027};
+  const sh=hex(selectedAppearance.skin),hh=hex(selectedAppearance.hair);
+  if(sh!==null)mat.skin.color.setHex(sh);if(hh!==null)mat.hair.color.setHex(hh);
+  if(tops[selectedAppearance.top]!=null)mat.top.color.setHex(tops[selectedAppearance.top]);
+  if(bottoms[selectedAppearance.bottom]!=null)mat.bottom.color.setHex(bottoms[selectedAppearance.bottom]);
+  if(shoes[selectedAppearance.shoes]!=null)mat.shoe.color.setHex(shoes[selectedAppearance.shoes]);
+  mat.fore.color.copy(mat.skin.color);mat.shin.color.copy(mat.bottom.color);
+ }
+ capParts.forEach(c=>c.visible=!!o.cap&&(!selectedAppearance||!!uniform));
+ if(printMesh)printMesh.visible=!!o.print;
+ hairStyleParts.afro.forEach(o=>o.visible=selectedAppearance?.hairStyle==='afro');
+ hairStyleParts.braids.forEach(o=>o.visible=selectedAppearance?.hairStyle==='long-braids');
+ hairStyleParts.locs.forEach(o=>o.visible=selectedAppearance?.hairStyle==='locs');
+ if(avatarShoulders)avatarShoulders.scale.set(selectedAppearance?.gender==='female' ? .235 : .255,.145,.18);
+ if(avatarHips)avatarHips.scale.set(selectedAppearance?.gender==='female' ? 1.13 : 1,1,1);
+}
+const player=new THREE.Group();scene.add(player);
+const model=new THREE.Group();model.position.y=.085;player.add(model);
+
+// Canonical local-player nameplate: identity is supplied by the authenticated online session event.
+const ownTagCanvas=document.createElement('canvas');ownTagCanvas.width=640;ownTagCanvas.height=140;
+const ownTagCtx=ownTagCanvas.getContext('2d');
+const ownTagTexture=new THREE.CanvasTexture(ownTagCanvas);ownTagTexture.colorSpace=THREE.SRGBColorSpace;
+const ownTagMaterial=new THREE.SpriteMaterial({map:ownTagTexture,transparent:true,depthTest:false,depthWrite:false});
+const ownTag=new THREE.Sprite(ownTagMaterial);ownTag.scale.set(3.65,.8,1);ownTag.position.set(0,2.3,0);ownTag.renderOrder=51;ownTag.visible=false;player.add(ownTag);
+let ownTagLast='';
+function syncOwnPlayerTag(identity){
+ if(!identity||!identity.name){ownTag.visible=false;return;}
+ const username=String(identity.name).trim();
+ const level=Math.max(1,Math.floor(Number(identity.level)||1));
+ const sessionId=String(identity.sessionId||identity.displayId||'000').padStart(3,'0');
+ if(!username){ownTag.visible=false;return;}
+ const key=sessionId+'|'+username+'|'+level;
+ if(key===ownTagLast){ownTag.visible=true;return;}
+ ownTagLast=key;
+ ownTagCtx.clearRect(0,0,640,140);
+ // Transparent text-only nameplate: session ID, username, then player level.
+ ownTagCtx.textAlign='center';ownTagCtx.textBaseline='middle';ownTagCtx.lineJoin='round';
+ ownTagCtx.lineWidth=4;ownTagCtx.strokeStyle='rgba(0,0,0,.96)';
+ ownTagCtx.shadowColor='rgba(0,0,0,.9)';ownTagCtx.shadowBlur=7;
+ const identityLine=sessionId+' | '+username;
+ let fs=34;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';
+ while(fs>20&&ownTagCtx.measureText(identityLine).width>590){fs-=2;ownTagCtx.font='700 '+fs+'px system-ui,sans-serif';}
+ ownTagCtx.strokeText(identityLine,320,43,594);ownTagCtx.fillStyle='#ffffff';ownTagCtx.fillText(identityLine,320,43,594);
+ ownTagCtx.font='800 23px system-ui,sans-serif';ownTagCtx.strokeText('Level '+level,320,101,590);
+ ownTagCtx.fillStyle='#a7efff';ownTagCtx.fillText('Level '+level,320,101,590);ownTagCtx.shadowBlur=0;
+ ownTagTexture.needsUpdate=true;ownTag.visible=true;
+}
+window.addEventListener('nrs-player-identity',event=>syncOwnPlayerTag(event.detail));
+syncOwnPlayerTag(window.NRS?.playerIdentity);
+const upper=new THREE.Group();upper.position.y=.92;model.add(upper);
+const limb=(len,r,m)=>{const g=new THREE.Group(),o=new THREE.Mesh(new THREE.CylinderGeometry(r*.84,r,len,14),m);o.position.y=-len/2;g.add(o);const a=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),m);a.position.y=-.015;g.add(a);const b=a.clone();b.position.y=-len+.015;g.add(b);return g;};
+avatarHips=add(new THREE.CylinderGeometry(.17,.19,.18,16),mat.bottom,0,.92,0,model);
+add(new THREE.CylinderGeometry(.17,.14,.56,18,1),mat.top,0,.29,0,upper);
+avatarShoulders=add(new THREE.SphereGeometry(1,20,14),mat.top,0,.49,0,upper);avatarShoulders.scale.set(.255,.145,.18);
+add(new THREE.CylinderGeometry(.045,.05,.12,12),mat.skin,0,.62,0,upper);
+const head=add(new THREE.SphereGeometry(.115,28,22),mat.skin,0,.75,0,upper);head.scale.set(.92,1.1,.94);
+const hair=add(new THREE.SphereGeometry(.125,24,18),mat.hair,0,.805,-.03,upper);hair.scale.set(1,.8,1);
+{const f=mkFace(mat.skin,mat.hair,.115);f.position.set(0,.75,0);upper.add(f);}
+capParts=[add(new THREE.SphereGeometry(.127,16,12,0,Math.PI*2,0,Math.PI/2),mat.cap,0,.78,-.005,upper),add(new THREE.BoxGeometry(.17,.014,.11),mat.cap,0,.8,.13,upper)];
+printMesh=add(new THREE.PlaneGeometry(.34,.34),new THREE.MeshBasicMaterial({transparent:true,map:tex(256,256,(g,w,h)=>{g.textAlign='center';g.fillStyle='#fff';g.font='bold 72px system-ui';g.fillText('NIGERIA',w/2,100);g.fillStyle='#19c37d';g.font='bold 120px system-ui';g.fillText('RP',w/2,215);})}),0,.3,-.118,upper);printMesh.rotation.y=Math.PI;
+const arm=[],elbow=[],leg=[],knee=[];
+[-1,1].forEach((s,i)=>{
+ const a=new THREE.Group();a.position.set(s*.27,.55,0);upper.add(a);
+ add(new THREE.SphereGeometry(.065,8,6),mat.top,0,0,0,a);a.add(limb(.3,.062,mat.top));
+ const e=new THREE.Group();e.position.y=-.3;a.add(e);e.add(limb(.28,.046,mat.fore));add(new THREE.SphereGeometry(.05,8,6),mat.skin,0,-.3,0,e);arm[i]=a;elbow[i]=e;
+ const l=new THREE.Group();l.position.set(s*.11,.92,0);model.add(l);l.add(limb(.45,.115,mat.bottom));
+ const k=new THREE.Group();k.position.y=-.45;l.add(k);k.add(limb(.45,.1,mat.shin));
+ // Keep the shoe bottom aligned to the neutral standing ground plane.
+ add(new THREE.BoxGeometry(.13,.08,.28),mat.shoe,0,-.42,.06,k);leg[i]=l;knee[i]=k;});
+dress();
+
+// Diesel GLB integration: retain the existing procedural character as a safe fallback.
+// The imported model replaces its visible meshes only after the GLB loads successfully.
+let dieselAvatarLoaded=false;
+function loadDieselAvatar(){
+ if(!window.THREE?.GLTFLoader||dieselAvatarLoaded)return;
+ const loader=new THREE.GLTFLoader();
+ const url='https://raw.githubusercontent.com/MrDan001/Test...-For-all-my-diesel.glb/main/Diesel.glb';
+ loader.load(url,gltf=>{
+  const imported=gltf.scene;
+  const bounds=new THREE.Box3().setFromObject(imported);
+  const size=bounds.getSize(new THREE.Vector3());
+  const center=bounds.getCenter(new THREE.Vector3());
+  const height=Math.max(size.y,.001);
+  imported.position.sub(center);
+  imported.scale.setScalar(1.62/height);
+  imported.position.y+=.80;
+  imported.traverse(o=>{
+   if(o.isMesh){
+    o.castShadow=true;o.receiveShadow=true;
+    if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.encoding=THREE.sRGBEncoding;});}
+   }
+  });
+  model.add(imported);
+  model.children.forEach(child=>{if(child!==imported)child.visible=false;});
+  dieselAvatarLoaded=true;
+  window.NRS=window.NRS||{};
+  window.NRS.dieselAvatar={loaded:true,animations:(gltf.animations||[]).map(a=>a.name),height:size.y};
+  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-loaded',{detail:window.NRS.dieselAvatar}));
+ },undefined,error=>{
+  console.warn('[Nigeria RP] Diesel GLB failed to load; keeping the built-in character.',error);
+  window.NRS=window.NRS||{};
+  window.NRS.dieselAvatar={loaded:false,error:String(error?.message||error)};
+  window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-error',{detail:window.NRS.dieselAvatar}));
+ });
+}
+loadDieselAvatar();
+
+const shadow=flat(.9,.9,new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.3}),0,.04,0);
+

@@ -49,3 +49,12 @@ Implemented in the browser source:
 - [x] Validate static and procedurally generated apartment entrance metadata, pickup completion and payout on the game server; calculate rewards server-side.
 - [x] Browser-client production build passed in GitHub Actions.
 - [ ] Manually verify pickup, drop-off, reachability and touch controls on desktop/mobile.
+
+
+## Browser build recovery — source fragment size (18 October 2026)
+
+- [x] Split the oversized world/character source at the existing top-level character-section boundary into two ordered classic-script fragments; no game logic was intentionally changed.
+- [x] Update the source assembler, browser script loading order, and script cache key for the new character asset.
+- [x] Update the source-structure documentation to reflect the split.
+- [ ] Confirm the Railway build passes and the new production deployment is healthy.
+- [ ] Open the live game and manually verify the lobby-to-game transition, character rendering (including Diesel GLB fallback), movement, and core interactions on desktop/mobile.
