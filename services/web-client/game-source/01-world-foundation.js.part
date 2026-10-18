@@ -13,8 +13,10 @@ function mkFace(sk,hm,r){const g=new THREE.Group();g.scale.setScalar(r/.115);
   P(FG.s,FM.w,s*.0385,.0165,.1135,.0032,.0032,.0018);
   P(FG.x,hm,s*.043,.046,.1,.044,.007,.008).rotation.z=-s*.1;
   P(FG.s,sk,s*.106,.002,-.004,.012,.024,.018);});
- P(FG.s,sk,0,-.012,.111,.014,.017,.013);
- const m=P(FG.t,FM.l,0,-.036,.105,.022,.013,.022);m.rotation.z=Math.PI;
+ P(FG.s,sk,0,-.012,.116,.012,.019,.018);
+ [-1,1].forEach(s=>{P(FG.s,sk,s*.105,.001,-.004,.012,.021,.018);P(FG.x,hm,s*.041,.031,.101,.031,.005,.009).rotation.z=-s*.08;});
+ const m=P(FG.t,FM.l,0,-.036,.113,.022,.013,.022);m.rotation.z=Math.PI;
+ P(FG.s,FM.l,0,-.039,.126,.014,.005,.004);
  return g;}
 const renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:false,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -1102,7 +1104,8 @@ const OUTFITS=[
  {top:0xc94a3a,bottom:0x2b2b2b,shoe:0x222222,short:true,long:false,cap:false},
  {top:0x3a5fa0,bottom:0x1d2a44,shoe:0xcccccc,short:false,long:true,cap:false}];
 const look={o:0,s:0},mat={skin:M(0),top:M(0),bottom:M(0),shoe:M(0),hair:M(0),fore:M(0),shin:M(0),eye:M(0x111111),cap:M(0x101010)};
-let capParts=[],printMesh,activeUniformWorkplaceId=null;
+let capParts=[],printMesh,activeUniformWorkplaceId=null,selectedAppearance=null,avatarShoulders=null,avatarHips=null;
+const hairStyleParts={afro:[],braids:[],locs:[]};
 const UNIFORM_LOOKS={
  'market-mile1':{top:0x7b2929,bottom:0x282b30,shoe:0x1c1c1c,long:true,cap:false,print:false},
  'bank-main':{top:0x172b49,bottom:0x182031,shoe:0x202020,long:true,cap:false,print:false},
@@ -1119,10 +1122,28 @@ const UNIFORM_LOOKS={
  'school-primary':{top:0x27794d,bottom:0x263c31,shoe:0x202020,long:true,cap:false,print:false},
  'school-secondary':{top:0x2c5489,bottom:0x27364c,shoe:0x202020,long:true,cap:false,print:false}
 };
-function dress(){const uniform=UNIFORM_LOOKS[activeUniformWorkplaceId],o=uniform?{...OUTFITS[look.o],...uniform}:OUTFITS[look.o],sk=SKIN[look.s];
+function dress(){
+ const uniform=UNIFORM_LOOKS[activeUniformWorkplaceId],o=uniform?{...OUTFITS[look.o],...uniform}:OUTFITS[look.o],sk=SKIN[look.s];
  mat.skin.color.setHex(sk);mat.hair.color.setHex(HAIR[look.s]);mat.top.color.setHex(o.top);mat.bottom.color.setHex(o.bottom);mat.shoe.color.setHex(o.shoe);
  mat.fore.color.setHex(o.long?o.top:sk);mat.shin.color.setHex(o.short?sk:o.bottom);
- capParts.forEach(c=>c.visible=!!o.cap);if(printMesh)printMesh.visible=!!o.print;}
+ if(selectedAppearance&&!uniform){
+  const hex=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?parseInt(v.slice(1),16):null;
+  const tops={cream:0xf1ece1,black:0x17191d,green:0x167c53,red:0xa83232,blue:0x2e66a6},bottoms={denim:0x41658b,black:0x1b1d20,khaki:0x8a7954,white:0xe8e5df},shoes={white:0xeeeeea,black:0x17191b,brown:0x654027};
+  const sh=hex(selectedAppearance.skin),hh=hex(selectedAppearance.hair);
+  if(sh!==null)mat.skin.color.setHex(sh);if(hh!==null)mat.hair.color.setHex(hh);
+  if(tops[selectedAppearance.top]!=null)mat.top.color.setHex(tops[selectedAppearance.top]);
+  if(bottoms[selectedAppearance.bottom]!=null)mat.bottom.color.setHex(bottoms[selectedAppearance.bottom]);
+  if(shoes[selectedAppearance.shoes]!=null)mat.shoe.color.setHex(shoes[selectedAppearance.shoes]);
+  mat.fore.color.copy(mat.skin.color);mat.shin.color.copy(mat.bottom.color);
+ }
+ capParts.forEach(c=>c.visible=!!o.cap&&(!selectedAppearance||!!uniform));
+ if(printMesh)printMesh.visible=!!o.print;
+ hairStyleParts.afro.forEach(o=>o.visible=selectedAppearance?.hairStyle==='afro');
+ hairStyleParts.braids.forEach(o=>o.visible=selectedAppearance?.hairStyle==='long-braids');
+ hairStyleParts.locs.forEach(o=>o.visible=selectedAppearance?.hairStyle==='locs');
+ if(avatarShoulders)avatarShoulders.scale.set(selectedAppearance?.gender==='female' ? .235 : .255,.145,.18);
+ if(avatarHips)avatarHips.scale.set(selectedAppearance?.gender==='female' ? 1.13 : 1,1,1);
+}
 const player=new THREE.Group();scene.add(player);
 const model=new THREE.Group();model.position.y=.085;player.add(model);
 
@@ -1158,14 +1179,15 @@ function syncOwnPlayerTag(identity){
 window.addEventListener('nrs-player-identity',event=>syncOwnPlayerTag(event.detail));
 syncOwnPlayerTag(window.NRS?.playerIdentity);
 const upper=new THREE.Group();upper.position.y=.92;model.add(upper);
-const limb=(len,r,m)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.88,len,8),m);o.position.y=-len/2;return o;};
-add(new THREE.BoxGeometry(.4,.18,.23),mat.bottom,0,.92,0,model);
-add(new THREE.BoxGeometry(.42,.58,.23),mat.top,0,.29,0,upper);
-add(new THREE.CylinderGeometry(.045,.05,.1,8),mat.skin,0,.62,0,upper);
-const head=add(new THREE.SphereGeometry(.115,16,12),mat.skin,0,.75,0,upper);head.scale.set(.95,1.1,1);
-const hair=add(new THREE.SphereGeometry(.125,14,10),mat.hair,0,.805,-.03,upper);hair.scale.set(1,.8,1);
+const limb=(len,r,m)=>{const g=new THREE.Group(),o=new THREE.Mesh(new THREE.CylinderGeometry(r*.84,r,len,14),m);o.position.y=-len/2;g.add(o);const a=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),m);a.position.y=-.015;g.add(a);const b=a.clone();b.position.y=-len+.015;g.add(b);return g;};
+avatarHips=add(new THREE.CylinderGeometry(.17,.19,.18,16),mat.bottom,0,.92,0,model);
+add(new THREE.CylinderGeometry(.17,.14,.56,18,1),mat.top,0,.29,0,upper);
+avatarShoulders=add(new THREE.SphereGeometry(1,20,14),mat.top,0,.49,0,upper);avatarShoulders.scale.set(.255,.145,.18);
+add(new THREE.CylinderGeometry(.045,.05,.12,12),mat.skin,0,.62,0,upper);
+const head=add(new THREE.SphereGeometry(.115,28,22),mat.skin,0,.75,0,upper);head.scale.set(.92,1.1,.94);
+const hair=add(new THREE.SphereGeometry(.125,24,18),mat.hair,0,.805,-.03,upper);hair.scale.set(1,.8,1);
 {const f=mkFace(mat.skin,mat.hair,.115);f.position.set(0,.75,0);upper.add(f);}
-capParts=[add(new THREE.SphereGeometry(.127,12,8,0,Math.PI*2,0,Math.PI/2),mat.cap,0,.78,-.005,upper),add(new THREE.BoxGeometry(.17,.014,.11),mat.cap,0,.8,.13,upper)];
+capParts=[add(new THREE.SphereGeometry(.127,16,12,0,Math.PI*2,0,Math.PI/2),mat.cap,0,.78,-.005,upper),add(new THREE.BoxGeometry(.17,.014,.11),mat.cap,0,.8,.13,upper)];
 printMesh=add(new THREE.PlaneGeometry(.34,.34),new THREE.MeshBasicMaterial({transparent:true,map:tex(256,256,(g,w,h)=>{g.textAlign='center';g.fillStyle='#fff';g.font='bold 72px system-ui';g.fillText('NIGERIA',w/2,100);g.fillStyle='#19c37d';g.font='bold 120px system-ui';g.fillText('RP',w/2,215);})}),0,.3,-.118,upper);printMesh.rotation.y=Math.PI;
 const arm=[],elbow=[],leg=[],knee=[];
 [-1,1].forEach((s,i)=>{
