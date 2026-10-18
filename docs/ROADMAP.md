@@ -103,3 +103,8 @@ Implemented in the browser source:
 - [x] Server validates ownership and refuses deletion of an online character; deleting a secondary character frees one of the account's three slots.
 - [x] Account-root character is protected to preserve the account's login/ownership anchor.
 - [ ] Verify deletion, slot count refresh and replacement-character creation in production.
+
+
+## Deployment correction — character deletion (18 October 2026)
+- [x] Fixed malformed selector quoting that caused the character-selection JavaScript syntax check to fail.
+- [ ] Verify successful Railway build and character deletion/recreation in production.

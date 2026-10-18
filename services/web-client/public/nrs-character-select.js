@@ -161,7 +161,7 @@
     const label = String(characterName || "this character");
     if (!window.confirm('Delete "' + label + '" permanently? This removes the character and their saved progress. This cannot be undone.')) return;
     busy = true;
-    layer.querySelectorAll(".nrsFreshEnter,.nrsFreshDelete,[data-act=\\"create\\"]").forEach(el => { el.disabled = true; });
+    layer.querySelectorAll('.nrsFreshEnter,.nrsFreshDelete,[data-act="create"]').forEach(el => { el.disabled = true; });
     status("Deleting " + label + "…");
     const socket = session.ws;
     let settled = false, timeout = null;
@@ -176,7 +176,7 @@
         status(message || "Character deleted. The slot is now available.");
         refresh();
       } else {
-        layer.querySelectorAll(".nrsFreshEnter,.nrsFreshDelete,[data-act=\\"create\\"]").forEach(el => { el.disabled = false; });
+        layer.querySelectorAll('.nrsFreshEnter,.nrsFreshDelete,[data-act="create"]').forEach(el => { el.disabled = false; });
         status(message || "Could not delete this character. Please try again.");
       }
     }

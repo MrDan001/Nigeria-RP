@@ -145,3 +145,9 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Reject deletion of a character currently online.
 - [x] Protect the account's original/root character because it anchors account credentials and ownership; a different character must be deleted to free a slot.
 - [ ] Run the server build/tests and verify deletion plus recreation on Railway. Do not treat a source commit or deployment success as proof of the live flow.
+
+
+## Deployment correction — character deletion (18 October 2026)
+- [x] Inspected failed Railway build logs: the character-selection script failed the syntax checker due to an incorrectly escaped CSS selector in the new deletion handler.
+- [x] Corrected the selector quoting in the deletion handler.
+- [ ] Re-run Railway build and verify delete/recreate flow in production.
