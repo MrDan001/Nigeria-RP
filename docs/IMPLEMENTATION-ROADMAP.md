@@ -114,3 +114,10 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Add clear loading/fallback diagnostics in the creator UI and browser console.
 - [ ] Verify the asset path is served by Railway and visually confirm the Diesel preview on desktop and mobile.
 - [ ] Verify skin/hair/outfit controls against the Diesel model. The controls remain available, but imported GLB material/body-part mapping is not assumed until inspected.
+
+
+### Live-game Diesel loading correction (18 October 2026)
+- [x] Found the blocker: the in-game avatar loader used a placeholder GitHub URL containing a literal `...`, so the Diesel model request could never reach the intended file.
+- [x] Changed the in-game loader to the local `/Diesel.glb` asset and added a revision query to bypass stale model caching.
+- [x] Bumped the in-game character and character-creator script URLs and service-worker cache version so deployed clients request fresh assets.
+- [ ] Verify Railway serves `/Diesel.glb` and confirm the Diesel avatar visibly replaces the built-in character in the live game and character creator.

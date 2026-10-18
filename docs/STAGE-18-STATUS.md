@@ -23,3 +23,11 @@
 - [ ] Confirm whether the Diesel model exposes suitable materials/body parts for skin, hair, outfit and gender customization before claiming those controls alter the imported model.
 
 **Important:** the deployed Stage 1 loader diagnostics previously passed Railway deployment, but actual in-browser GLB rendering has not been visually verified. This integration deliberately preserves the mannequin as a safe fallback.
+
+
+## Live avatar URL and cache correction (18 October 2026)
+- [x] Corrected live-game loader URL from an invalid placeholder GitHub URL containing `...` to `/Diesel.glb`.
+- [x] Added revision strings to model and script URLs and advanced the service-worker cache name.
+- [ ] Verify production request for `/Diesel.glb` returns successfully and visually confirm Diesel in the live world and creator.
+
+The previous deployment's SUCCESS status only proved the build and server started; it did not prove that the model was loaded by the browser. Visual validation remains open.

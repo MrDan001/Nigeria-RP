@@ -116,7 +116,7 @@ function loadDieselAvatar(){
  if(dieselAvatarLoaded)return;
  const loader=new THREE.GLTFLoader();
  loader.setCrossOrigin?.('anonymous');
- const url='https://raw.githubusercontent.com/MrDan001/Test...-For-all-my-diesel.glb/main/Diesel.glb';
+ const url='/Diesel.glb?rev=diesel-avatar-local-20261018';
  const startedAt=performance.now();
  window.NRS=window.NRS||{};
  window.NRS.dieselAvatar={status:'loading',loaded:false,url};

@@ -62,7 +62,8 @@ Implemented in the browser source:
 
 ## Stage 18 — Diesel GLB character integration (18 October 2026)
 
-- [x] Confirmed the public model repository contains `Diesel.glb` (10,515,216 bytes) and checked the game’s configured asset URL against that repository path.
+- [x] Confirmed `Diesel.glb` is committed in the repository and available in the web-client public assets.
+- [x] Found and corrected the live-game loader's invalid placeholder URL (it contained a literal `...`) to use the app-hosted `/Diesel.glb` asset.
 - [x] Committed explicit loader diagnostics and fallback-safe validation in the in-game character source.
 - [ ] Verify browser loading/CORS and inspect the reported mesh, skeleton and animation metadata.
 - [ ] After in-game verification, replace the character creator mannequin with the validated model.
@@ -75,3 +76,9 @@ Implemented in the browser source:
 - [x] Preserve pointer rotation and fit the model to the creator camera.
 - [ ] Verify Railway serves `/Diesel.glb` and inspect the live creator visually.
 - [ ] Map customization controls to Diesel model materials/rig after inspecting its mesh and material names.
+
+
+### Diesel live-avatar correction — 18 October 2026
+- [x] Use the local public asset rather than the invalid placeholder GitHub URL.
+- [x] Add script/model revision identifiers to bypass stale browser caches.
+- [ ] Verify model HTTP response and visual rendering in the deployed game.

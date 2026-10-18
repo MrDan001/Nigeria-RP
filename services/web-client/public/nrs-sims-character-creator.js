@@ -165,7 +165,7 @@
     // If the GLB cannot load, the existing customizable mannequin remains available.
     const loadToken=++previewLoadToken;
     if(window.THREE.GLTFLoader){
-      const modelUrl='/Diesel.glb';
+      const modelUrl='/Diesel.glb?rev=diesel-avatar-local-20261018';
       const loader=new THREE.GLTFLoader();
       loader.setCrossOrigin?.('anonymous');
       const status=q("scError");
