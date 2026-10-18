@@ -13,7 +13,7 @@
   const bottomColors = { denim:"#41658b", black:"#1b1d20", khaki:"#8a7954", white:"#e8e5df" };
   const shoeColors = { white:"#eeeeea", black:"#17191b", brown:"#654027" };
   let tab = "appearance", scene = null, renderer = null, camera = null, avatar = null, raf = 0;
-  let drag = false, lastX = 0, rotation = 0, onSaveHandler = null;
+  let drag = false, lastX = 0, rotation = 0, onSaveHandler = null, dieselPreview = null, previewLoadToken = 0;
 
   const q = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
@@ -158,16 +158,61 @@
     stop3D();
     const canvas=q("scCanvas"), box=canvas.parentElement;
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0x000000,0);
-    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);camera.position.set(0,1.7,14.5);camera.lookAt(0,1.65,0);
+    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(25,1,.1,100);camera.position.set(0,2.1,10.5);camera.lookAt(0,2.1,0);
     scene.add(new THREE.HemisphereLight(0xf8e8ff,0x25112e,2.2));const key=new THREE.DirectionalLight(0xfff2df,3);key.position.set(-4,7,7);scene.add(key);const fill=new THREE.DirectionalLight(0xb58cff,1.5);fill.position.set(5,3,2);scene.add(fill);
     avatar=buildAvatar();if(avatar)scene.add(avatar);
+    // Load Diesel into the creator preview without sacrificing the working mannequin.
+    // If the GLB cannot load, the existing customizable mannequin remains available.
+    const loadToken=++previewLoadToken;
+    if(window.THREE.GLTFLoader){
+      const modelUrl='/Diesel.glb';
+      const loader=new THREE.GLTFLoader();
+      loader.setCrossOrigin?.('anonymous');
+      const status=q("scError");
+      if(status)status.textContent="Loading Diesel character preview…";
+      loader.load(modelUrl,gltf=>{
+        if(loadToken!==previewLoadToken||!scene)return;
+        try{
+          const imported=gltf.scene;
+          const bounds=new THREE.Box3().setFromObject(imported);
+          const size=bounds.getSize(new THREE.Vector3());
+          const center=bounds.getCenter(new THREE.Vector3());
+          if(!imported||!Number.isFinite(size.x+size.y+size.z)||size.y<=0||!size.x||!size.z)throw new Error("Invalid Diesel model bounds");
+          imported.position.sub(center);
+          imported.scale.setScalar(4.25/size.y);
+          imported.position.y+=2.12;
+          imported.rotation.y=rotation;
+          imported.traverse(o=>{
+            if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
+          });
+          scene.add(imported);
+          dieselPreview=imported;
+          if(avatar)avatar.visible=false;
+          if(status)status.textContent="";
+          console.info("[Nigeria RP] Diesel character creator preview loaded.",{
+            url:modelUrl,meshes:countMeshes(imported),animations:(gltf.animations||[]).map(a=>a.name)
+          });
+        }catch(error){
+          if(status)status.textContent="Diesel preview could not be fitted; using the customizable preview.";
+          console.warn("[Nigeria RP] Diesel creator preview validation failed; mannequin retained.",error);
+        }
+      },undefined,error=>{
+        if(loadToken!==previewLoadToken)return;
+        if(status)status.textContent="Diesel preview unavailable; using the customizable preview.";
+        console.warn("[Nigeria RP] Diesel creator preview failed to load; mannequin retained.",error);
+      });
+    } else {
+      const status=q("scError");
+      if(status)status.textContent="Diesel preview loader unavailable; using the customizable preview.";
+    }
     const resize=()=>{const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()};resize();window.addEventListener("resize",resize);renderer.__nrsResize=resize;
     canvas.onpointerdown=e=>{drag=true;lastX=e.clientX;canvas.classList.add("dragging");canvas.setPointerCapture?.(e.pointerId)};
-    canvas.onpointermove=e=>{if(!drag||!avatar)return;rotation+=(e.clientX-lastX)*.012;lastX=e.clientX;avatar.rotation.y=rotation};
+    canvas.onpointermove=e=>{if(!drag)return;rotation+=(e.clientX-lastX)*.012;lastX=e.clientX;if(avatar)avatar.rotation.y=rotation;if(dieselPreview)dieselPreview.rotation.y=rotation};
     canvas.onpointerup=canvas.onpointercancel=()=>{drag=false;canvas.classList.remove("dragging")};
-    const loop=()=>{if(!renderer||!scene)return;raf=requestAnimationFrame(loop);if(avatar&&!drag)avatar.rotation.y=rotation+Math.sin(performance.now()*.00035)*.035;renderer.render(scene,camera)};loop();
+    const loop=()=>{if(!renderer||!scene)return;raf=requestAnimationFrame(loop);if(!drag){const idleRotation=rotation+Math.sin(performance.now()*.00035)*.035;if(avatar)avatar.rotation.y=idleRotation;if(dieselPreview)dieselPreview.rotation.y=idleRotation}renderer.render(scene,camera)};loop();
   }
-  function stop3D(){if(raf)cancelAnimationFrame(raf);raf=0;if(renderer){renderer.dispose();if(renderer.__nrsResize)window.removeEventListener("resize",renderer.__nrsResize)}renderer=null;scene=null;camera=null;avatar=null}
+  function countMeshes(root){let count=0;root.traverse(o=>{if(o.isMesh)count++});return count}
+  function stop3D(){previewLoadToken++;if(raf)cancelAnimationFrame(raf);raf=0;if(renderer){renderer.dispose();if(renderer.__nrsResize)window.removeEventListener("resize",renderer.__nrsResize)}renderer=null;scene=null;camera=null;avatar=null;dieselPreview=null}
 
   document.addEventListener("click",function(e){const t=e.target instanceof Element?e.target.closest("#nrsCreateCharacterButton"):null;if(!t)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();open()},true);
   document.addEventListener("DOMContentLoaded",()=>{if(!q("nrsSimsCreator")){const d=document.createElement("div");d.id="nrsSimsCreator";document.body.appendChild(d)}});

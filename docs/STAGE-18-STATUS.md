@@ -12,3 +12,14 @@
 - Mode pricing is validated on the game server. The legacy travel protocol defaults to day bus.
 - Stage 15 tests now cover mode pricing, invalid modes, duration estimates and legacy ledger normalization.
 - Visual device testing should still be performed in a browser after Railway finishes deploying this commit.
+
+
+## Stage 2 — Character creator Diesel preview integration (18 October 2026)
+
+- [x] Character creator now attempts to load `/Diesel.glb` asynchronously and validates model bounds before showing it.
+- [x] The existing mannequin stays visible until Diesel loads successfully and remains as a fallback on error.
+- [x] Preview includes camera framing, pointer rotation, idle rotation, and stale-request cancellation when the preview is recreated.
+- [ ] Verify the model asset is served by Railway and inspect the deployed creator on desktop/mobile.
+- [ ] Confirm whether the Diesel model exposes suitable materials/body parts for skin, hair, outfit and gender customization before claiming those controls alter the imported model.
+
+**Important:** the deployed Stage 1 loader diagnostics previously passed Railway deployment, but actual in-browser GLB rendering has not been visually verified. This integration deliberately preserves the mannequin as a safe fallback.

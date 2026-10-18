@@ -67,3 +67,11 @@ Implemented in the browser source:
 - [ ] Verify browser loading/CORS and inspect the reported mesh, skeleton and animation metadata.
 - [ ] After in-game verification, replace the character creator mannequin with the validated model.
 - [ ] Verify movement, appearance options, mobile performance and Railway deployment health.
+
+
+### Stage 18 follow-up — character creator preview
+
+- [x] Add Diesel GLB loading to the character creator preview with a fallback mannequin and visible load failure status.
+- [x] Preserve pointer rotation and fit the model to the creator camera.
+- [ ] Verify Railway serves `/Diesel.glb` and inspect the live creator visually.
+- [ ] Map customization controls to Diesel model materials/rig after inspecting its mesh and material names.

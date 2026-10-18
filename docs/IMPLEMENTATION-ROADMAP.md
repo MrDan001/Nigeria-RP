@@ -104,3 +104,13 @@ Their scope and recorded status are tracked in [ROADMAP.md](ROADMAP.md) and thei
 - [ ] Test movement, appearance choices, workplace uniforms, camera framing and mobile performance; then confirm Railway deployment health.
 
 Stage approach: do not replace the character creator mannequin until the in-game model has passed the first visual/load check. A successful source build alone is not gameplay acceptance.
+
+
+## Stage 18 — Diesel character creator preview (18 October 2026)
+
+- [x] Add asynchronous Diesel GLB loading to the character creator's 3D preview using the repository-served `/Diesel.glb` asset.
+- [x] Keep the existing customizable mannequin visible until the GLB loads and passes bounds validation; retain it if loading fails.
+- [x] Fit the imported model to the preview camera, support drag rotation and idle rotation, and invalidate stale loads when the creator is closed or rerendered.
+- [x] Add clear loading/fallback diagnostics in the creator UI and browser console.
+- [ ] Verify the asset path is served by Railway and visually confirm the Diesel preview on desktop and mobile.
+- [ ] Verify skin/hair/outfit controls against the Diesel model. The controls remain available, but imported GLB material/body-part mapping is not assumed until inspected.
