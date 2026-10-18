@@ -257,7 +257,7 @@ function loadDieselAvatar(){
    model.add(imported);model.children.forEach(child=>{if(child!==imported)child.visible=false;});
    dieselAvatarRoot=imported;window.NRS.dieselAvatarRoot=imported;
    const appearance=window.NRS.characterAppearance||selectedAppearance||{skin:'#7b4528',hair:'#17120f',hairStyle:'long-braids',top:'black',bottom:'denim',shoes:'white',accessory:'gold',gender:'male',trait:'Creative',expression:'neutral'};
-   const mapped=applyDieselModelAppearance(imported,appearance);dieselAnimator=attachDieselAnimator(imported,gltf.animations||[]);model.visible=true;
+   const mapped=applyDieselModelAppearance(imported,appearance);dieselAnimator=attachDieselAnimator(imported,gltf.animations||[]);window.NRS.dieselAnimator=dieselAnimator;model.visible=true;
    const detail={status:'loaded',loaded:true,url,elapsedMs:Math.round(performance.now()-started),meshes,skinnedMeshes:skinned,bones,animations:dieselAnimator.animationNames,mappedParts:mapped.mappedParts,styleVariants:mapped.styleVariants,fallbackBones:dieselAnimator.fallbackBoneCount};
    window.NRS.dieselAvatar=detail;console.info('[Nigeria RP] Diesel model loaded.',detail);window.dispatchEvent(new CustomEvent('nrs-diesel-avatar-loaded',{detail}));
    if(!skinned&&!gltf.animations?.length)console.warn('[Nigeria RP] Diesel asset has no skeletal rig or animation clips; limb posing is limited by the asset.');
