@@ -144,3 +144,9 @@ Implemented in the browser source:
 - [x] Reapply the saved appearance to the in-world Diesel model and listen for creator appearance updates.
 - [x] Correct update order so the animation mixer does not immediately overwrite the fallback pose.
 - [ ] Verify actual GLB skeleton/material support on a live device; rigid assets require a rigged replacement for genuine pose and mesh variants.
+
+
+### Character GLB mapping follow-up — 18 October 2026
+- [x] Added positional fallback classification for generically named GLB meshes.
+- [x] Increased the fallback arm-lowering pose applied after animation updates.
+- [ ] Device verification remains outstanding; this cannot create hair/outfit/accessory geometry absent from Diesel.glb.

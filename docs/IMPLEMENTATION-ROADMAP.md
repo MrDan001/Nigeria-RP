@@ -193,3 +193,10 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Reapply appearance updates to an already-loaded Diesel model when creator appearance events fire.
 - [x] Run animation mixer updates before the fallback relaxed-pose correction so the mixer does not overwrite the pose in the same frame.
 - [ ] Confirm on-device that the GLB exposes compatible arm bones and material names; if the asset is rigid/static, it needs a rigged replacement to get real arm motion and full customization.
+
+
+## Character GLB mapping follow-up (18 October 2026)
+- [x] Added vertical-position fallback classification for GLB meshes whose names/materials are generic, so skin/top/bottom/shoe/hair colors can still map to likely model regions.
+- [x] Strengthened the fallback upper-arm pose correction and kept it after the animation mixer update.
+- [ ] Verify the Diesel asset's actual skeleton and meshes in-browser; positional classification is a fallback, not a substitute for semantic mesh/material names or real hairstyle/outfit geometry.
+- [ ] Verify character selection portrait and in-world model against the saved appearance on-device.
