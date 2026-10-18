@@ -80,6 +80,10 @@
   function create(){
     const input=q("scNameInput"), name=(input?.value||q("nrsCharacterName")?.value||"").trim();
     if(!/^[A-Za-z]+_[A-Za-z]+$/.test(name)){const e=q("scError");if(e)e.textContent="Use a unique Firstname_lastname (letters only).";return}
+    const chosen={...state};
+    try{localStorage.setItem("nrs_rp_character_appearance_v1",JSON.stringify(chosen));}catch{}
+    if(window.NRS?.applyCharacterAppearance)window.NRS.applyCharacterAppearance(chosen);
+    else window.dispatchEvent(new CustomEvent("nrs-character-appearance",{detail:chosen}));
     const hidden=q("nrsCharacterName");if(hidden){hidden.value=name;hidden.dispatchEvent(new Event("input",{bubbles:true}))}
     close();const form=q("nrsCreateCharacterForm");if(form){form.requestSubmit();return}const btn=q("nrsCreateCharacterButton");if(btn)btn.click();
   }
@@ -125,6 +129,7 @@
 
   function init3D(){
     if(!q("scCanvas")||!window.THREE)return;
+    stop3D();
     stop3D();
     const canvas=q("scCanvas"), box=canvas.parentElement;
     renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0x000000,0);
