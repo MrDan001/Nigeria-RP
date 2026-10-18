@@ -171,3 +171,11 @@ Stage approach: do not replace the character creator mannequin until the in-game
 - [x] Play available idle/walk clips and add a rig-bone relaxed-pose fallback for unanimated skeletal parts.
 - [x] Bump client and PWA cache revisions.
 - [ ] Visually verify model appearance and movement in the live game. Unmapped choices remain dependent on the asset's actual mesh/material names and skeleton.
+
+
+## Remove obsolete procedural character geometry (18 October 2026)
+
+- [x] Deleted the capsule/sphere body, head, limbs and clothing meshes from the assembled player source; the remaining compatibility node is empty.
+- [x] Simplified the animation loop so it updates the imported Diesel model and no longer manipulates the removed body joints.
+- [x] Kept Diesel.glb as the sole visible avatar asset, with no block fallback, and changed cache revisions again.
+- [ ] Confirm the Diesel mesh pose, animation and mapped custom appearance choices on a live client.

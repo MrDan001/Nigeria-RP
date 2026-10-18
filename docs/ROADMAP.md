@@ -124,3 +124,10 @@ Implemented in the browser source:
 - [x] Route appearance colours to named imported materials and toggle hairstyle meshes only if the asset contains named variants.
 - [x] Enable available animations and a bone-pose fallback for supported rigs; refresh script/PWA cache keys.
 - [ ] Confirm visual quality on the deployed game; model capability depends on actual mesh/material names and rig contents.
+
+
+### Procedural body removal — 18 October 2026
+- [x] Removed primitive block/capsule body geometry from the game source (not merely hidden it).
+- [x] The visible player now depends on Diesel.glb; model load failures do not swap in the old block avatar.
+- [x] Refreshed character and animation script cache keys.
+- [ ] Visual production verification of the imported model and its rig remains outstanding.
