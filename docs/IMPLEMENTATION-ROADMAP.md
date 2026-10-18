@@ -217,3 +217,13 @@ Implemented:
 - [ ] On a physical Android device, compare the creator preview with the in-world avatar and verify arm pose, knees, walk/run transitions, mesh clipping and performance.
 - [ ] Test remote players independently; their cloning/animation behavior is outside this Stage 1 change.
 - [ ] Do not begin Stage 2 asset preparation until the owner provides Stage 2 and Stage 1 visual checks are reviewed.
+
+## Stage 1 live-code verification — 18 October 2026
+**Status:** creator marker and cache revision updated; production confirmation pending.
+
+- [x] Verify `ARM_DOWN` exists in the main Diesel character source.
+- [x] Add `BUILD S1 · 65 BONES` marker next to the creator's `3D CHARACTER PREVIEW` heading.
+- [x] Change the creator script query revision so a browser requests the new file.
+- [ ] Verify the latest Railway deployment for this commit reaches `SUCCESS`.
+- [ ] Verify marker visibility on the user's phone before evaluating visual appearance.
+- [ ] Keep Stage 2 eye/texture work separate from this delivery.
